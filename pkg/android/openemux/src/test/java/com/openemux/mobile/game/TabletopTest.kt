@@ -1,5 +1,6 @@
 package com.openemux.mobile.game
 
+import com.openemux.mobile.launch.OverlayName
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.launch.TabletopBand
 import com.openemux.mobile.ui.Fold
@@ -93,5 +94,41 @@ class TabletopTest {
         assertFalse(skinMissesFold(TabletopBand(890f, 910f), 2f, skin))
         assertTrue(skinMissesFold(TabletopBand(840f, 924f), 2f, skin))
         assertTrue(skinMissesFold(TabletopBand(876f, 960f), 2f, skin))
+    }
+
+    /** A drawn skin's pages in every mode (SkinRenderer): each touch page and its min-, pad- and min-pad- twins. */
+    private fun modes(touch: List<String>) = touch.flatMap { listOf(it, "min-$it", "pad-$it", "min-pad-$it") }
+
+    @Test fun thePostureKeepsTheGamepadLayoutAndTheCollapsedControls() {
+        val all = modes(skin.overlays)
+        assertEquals("pad-$TABLETOP", tabletopTarget("pad-portrait", true, all, null, null))
+        assertEquals("min-pad-keypad-$TABLETOP", tabletopTarget("min-pad-keypad-portrait", true, all, null, null))
+        assertEquals("min-portrait", tabletopTarget("min-$TABLETOP", false, all, null, null))
+        // The flat page left before, in the mode shown now.
+        assertEquals("min-pad-keypad-portrait", tabletopTarget("min-pad-$TABLETOP", false, all, "keypad-portrait", null))
+        assertEquals("pad-$TABLETOP@halves", tabletopTarget("pad-portrait@stacked", true, modes(nds), null, "halves"))
+        assertNull(tabletopTarget("pad-landscape", true, all, null, null))
+        assertNull(tabletopTarget("something", true, all, null, null))
+    }
+
+    @Test fun aPackageSkinHasNoCollapsedTouchPageSoTheExpandedOneShows() {
+        val packaged = listOf("portrait", "landscape", TABLETOP, "pad-portrait", "pad-landscape", "pad-$TABLETOP", "min-pad-portrait", "min-pad-landscape", "min-pad-$TABLETOP")
+        assertEquals("min-pad-$TABLETOP", tabletopTarget("min-pad-portrait", true, packaged, null, null))
+        assertEquals("portrait", gamepadTarget("min-pad-portrait", false, packaged))
+        assertEquals("portrait", available(OverlayName(portrait = true, collapsed = true), packaged))
+        assertNull(available(OverlayName(portrait = true, keypad = true), packaged))
+    }
+
+    @Test fun theGamepadSwitchesTheLayoutAndKeepsEverythingElse() {
+        val all = modes(skin.overlays) + modes(nds)
+        assertEquals("pad-portrait", gamepadTarget("portrait", true, all))
+        assertEquals("landscape", gamepadTarget("pad-landscape", false, all))
+        assertEquals("min-pad-keypad-$TABLETOP", gamepadTarget("min-keypad-$TABLETOP", true, all))
+        assertEquals("min-landscape@side", gamepadTarget("min-pad-landscape@side", false, all))
+        // Nothing to change, or nothing to change to.
+        assertNull(gamepadTarget("pad-portrait", true, all))
+        assertNull(gamepadTarget("landscape", false, all))
+        assertNull(gamepadTarget("portrait", true, listOf("portrait", "landscape")))
+        assertNull(gamepadTarget("something", true, all))
     }
 }
