@@ -420,9 +420,11 @@ bool android_app_external_menu_input(int type, int keycode, int action,
  * match the core to it (the NDS screen layout of each overlay). */
 void android_app_overlay_changed(const char *name);
 
-/* OpenEmux: tells the activity whether fast forward and turbo are on,
- * when either changes, so its pause sheet shows the engine's state. */
-void android_app_toggle_states(bool fast_forward, bool turbo);
+/* OpenEmux: tells the activity whether fast forward, turbo and slow
+ * motion are on, when any changes, so its pause sheet shows the
+ * engine's state. */
+void android_app_toggle_states(bool fast_forward, bool turbo,
+      bool slow_motion);
 
 /* OpenEmux: back after a pause that saved the auto state. Pauses the
  * content and tells the activity, which shows its own menu. */

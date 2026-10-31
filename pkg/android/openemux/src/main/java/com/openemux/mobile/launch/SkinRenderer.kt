@@ -79,8 +79,8 @@ class SkinRenderer(private val context: Context) {
     /**
      * [cutout] is the camera cutout's depth along the long edge: the engine's
      * window, and so the overlay, only covers the screen past it.
-     * [hardcore] greys out the strip's fast forward and takes its touch area away:
-     * the engine still fast-forwards in RetroAchievements hardcore, the app does not offer it.
+     * [hardcore] greys out the strip's fast forward and slow motion and takes their touch areas away:
+     * the engine still fast-forwards in RetroAchievements hardcore, the app does not offer either speed.
      * [density] picks the shape: a window 600dp or more across its short side draws the tablet skin (SkinGeometry).
      * [first] is the overlay RetroArch opens on, when the skin has one of that name:
      * a skin redrawn in game keeps the one that was shown.
@@ -180,7 +180,7 @@ class SkinRenderer(private val context: Context) {
         private val keypadOpen: Boolean, private val toggle: String,
         /** The overlay of the next NDS screen layout, for the strip's layout key. */
         private val layoutNext: String?,
-        /** RetroAchievements hardcore: the strip's fast forward is drawn off and does nothing. */
+        /** RetroAchievements hardcore: the strip's fast forward and slow motion are drawn off and do nothing. */
         private val hardcore: Boolean,
         /** The NDS layout this overlay shows, named on the tablet's layout key. */
         private val screenLayout: ScreenLayout?,
@@ -265,7 +265,7 @@ class SkinRenderer(private val context: Context) {
         fun landscape(width: Int): List<OverlayDesc> {
             val wd = width / unit
             // The picture centred between the control sides, with the strip under it.
-            val gameW = minOf(wd - 2f * 170f, 354f * aspect)
+            val gameW = phoneLandscapeGameW(wd, aspect)
             val gameH = gameW / aspect
             val left = (wd - gameW) / 2f
             val top = (390f - gameH - 36f) / 2f
@@ -594,17 +594,19 @@ class SkinRenderer(private val context: Context) {
             }
         }
 
-        /** The quick actions: save, load, turbo, fast forward, in that order, then the NDS screen layout unless [screens] is off. */
+        /**
+         * The quick actions: save, load, turbo, slow motion, fast forward, in that order, then the NDS screen layout
+         * unless [screens] is off.
+         */
         private fun strip(box: RectF, icon: Float, opaque: Boolean, screens: Boolean = true) {
             fill(box, if (opaque) colors.strip else (colors.strip and 0x00FFFFFF) or (0xCC shl 24))
-            val actions = listOf("save_state", "load_state", "turbo_fire_toggle", "toggle_fast_forward") +
-                listOfNotNull(layoutNext?.takeIf { screens }?.let { "screens" })
+            val actions = stripActions(layoutKey = layoutNext != null && screens)
             val slot = box.width() / actions.size
             val size = s(icon)
             actions.forEachIndexed { i, action ->
                 val cx = box.left + slot * (i + 0.5f)
                 val cy = box.centerY()
-                val off = hardcore && action == "toggle_fast_forward"
+                val off = stripActionOff(action, hardcore)
                 // At 0.45, like the pause sheet's disabled tiles.
                 val color = if (off) (colors.icon and 0x00FFFFFF) or (0x73 shl 24) else colors.icon
                 c.drawPath(stripIcon(action, cx, cy, size), stripPaint(action, size, color))
@@ -621,6 +623,7 @@ class SkinRenderer(private val context: Context) {
                     "save_state" -> Icons.SaveState
                     "load_state" -> Icons.LoadState
                     "turbo_fire_toggle" -> "M13 2L4 14h7l-1 8 9-12h-7z"
+                    "toggle_slowmotion" -> Icons.SlowMotion
                     // Two screens, one over the other.
                     "screens" -> "M6 3h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM6 13h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z"
                     else -> "M3 6v12l9-6zM12 6v12l9-6z"
@@ -632,8 +635,10 @@ class SkinRenderer(private val context: Context) {
 
         private fun stripPaint(action: String, size: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
-            if (action == "turbo_fire_toggle" || action == "screens") {
+            if (stripActionStroked(action)) {
                 style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND
+                // The slow-motion ring is dashes: round caps, as the design draws them.
+                if (action == "toggle_slowmotion") strokeCap = Paint.Cap.ROUND
             }
         }
 

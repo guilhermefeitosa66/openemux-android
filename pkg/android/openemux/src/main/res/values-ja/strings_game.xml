@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">このセッションのみ</string>
     <string name="game_toast_saved_slot">スロット %1$d にステートを保存しました</string>
     <string name="game_toast_fast_forward_on">再開時に早送り</string>
+    <string name="game_toast_slow_motion_on">再開時にスローモーション</string>
     <string name="game_toast_fast_forward_off">通常速度</string>
     <string name="game_toast_screenshot">スクリーンショットを保存しました</string>
     <string name="game_toast_sound_off">サウンドオフ</string>
@@ -23,6 +24,7 @@
     <string name="game_save_state">ステートセーブ</string>
     <string name="game_load">ロード</string>
     <string name="game_fast_forward">早送り</string>
+    <string name="game_slow_motion">スローモーション</string>
     <string name="game_screenshot">スクリーンショット</string>
     <string name="game_audio">サウンド</string>
     <string name="game_muted">ミュート</string>
