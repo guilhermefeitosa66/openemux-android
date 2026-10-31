@@ -1,6 +1,9 @@
 package com.openemux.mobile.game
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -15,16 +18,19 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentDialog
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.content.ContextCompat
 import com.openemux.mobile.AppLocale
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NDS_LAYOUTS
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.launch.GameSkin
+import com.openemux.mobile.launch.OverlayName
 import com.openemux.mobile.launch.SkinGeometry
 import com.openemux.mobile.launch.SkinRenderer
 import com.openemux.mobile.launch.SkinSize
 import com.openemux.mobile.launch.TABLETOP
+import com.openemux.mobile.launch.overlayNames
 import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
@@ -102,6 +108,14 @@ class GameActivity : RetroActivityFuture() {
     private var wantTabletop = false
     private var postureSeq = 0
 
+    /** The skin's overlays, in skin.cfg's order: the launcher's, then each redrawn skin's. */
+    @Volatile private var skinOverlays: List<String> = emptyList()
+    /** Whether a gamepad is connected, which picks the skin's gamepad layout (under ndsLayouts' lock). */
+    private var wantGamepad = false
+    /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
+    private var gamepadOverride: Boolean? = null
+    private var debugReceiver: BroadcastReceiver? = null
+
     // NativeActivity is no LifecycleOwner: the posture is followed from start to stop.
     private val scope = MainScope()
     private var postureJob: Job? = null
@@ -112,8 +126,12 @@ class GameActivity : RetroActivityFuture() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Before the engine starts: it reports the overlays from its own thread.
-        tabletopSkin = intent.getStringExtra("CONFIGFILE")?.let { readTabletopSkin(File(File(it).parentFile, "skin")) }
+        val skinDir = intent.getStringExtra("CONFIGFILE")?.let { File(File(it).parentFile, "skin") }
+        tabletopSkin = skinDir?.let(::readTabletopSkin)
+        skinOverlays = skinDir?.let(::readOverlays).orEmpty()
+        wantGamepad = Gamepads.connected()
         super.onCreate(savedInstanceState)
+        registerDebugGamepad()
         sessionStart = System.currentTimeMillis()
         if (intent.hasExtra(GameExtras.LOAD_SLOT)) loadSlotWhenRunning(intent.getIntExtra(GameExtras.LOAD_SLOT, 0))
         skinSize = SkinSize.parse(intent.getStringExtra(GameExtras.SKIN_SIZE))
@@ -133,6 +151,8 @@ class GameActivity : RetroActivityFuture() {
     }
 
     override fun onDestroy() {
+        debugReceiver?.let(::unregisterReceiver)
+        debugReceiver = null
         handler.removeCallbacks(skinCheck)
         skinThread.shutdownNow()
         scope.cancel()
@@ -203,7 +223,7 @@ class GameActivity : RetroActivityFuture() {
         if (ok) {
             Log.i(SKIN_TAG, "OVERLAY_LOAD skin for $size: ${dir.name}")
             skinSize = size
-            followRedrawnSkin(readTabletopSkin(dir))
+            followRedrawnSkin(readTabletopSkin(dir), readOverlays(dir))
             launchDir.listFiles { f -> f.isDirectory && f.name.startsWith("skin") && f != dir }?.forEach { it.deleteRecursively() }
         } else {
             Log.w(SKIN_TAG, "Skin for $size not loaded, keeping the one shown")
@@ -219,35 +239,48 @@ class GameActivity : RetroActivityFuture() {
     private fun readTabletopSkin(dir: File): TabletopSkin? =
         runCatching { TabletopSkin.parse(File(dir, SkinRenderer.TABLETOP_FILE).readText()) }.getOrNull()
 
+    private fun readOverlays(dir: File): List<String> =
+        runCatching { overlayNames(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyList())
+
     /**
      * The engine opens a redrawn skin on its first overlay and says nothing: the drawn skin puts the one shown first
      * when it still has it, a package skin only its own flat ones. A tabletop overlay is selected again by name (a
      * no-op when it is the one shown); one the new window has none of is left for the flat one, which is selected too,
-     * and the core goes back with it. Then the posture is looked at again, against the new skin's band.
+     * and the core goes back with it. A package skin opens on its own page: a gamepad page shown is selected again
+     * too. Then the posture and the gamepad are looked at again, against the new skin.
      */
-    private fun followRedrawnSkin(tabletop: TabletopSkin?) {
+    private fun followRedrawnSkin(tabletop: TabletopSkin?, overlays: List<String>) {
         val target = synchronized(ndsLayouts) {
             val shown = overlay?.takeIf { TABLETOP in it }
             val target = when {
-                shown == null -> null
+                shown == null -> overlay?.takeIf { it != overlays.firstOrNull() && it in overlays }
                 tabletop?.overlays?.contains(shown) == true -> {
                     // The same tabletop layout around a fold the new window puts elsewhere.
                     if (ndsScreens) tabletop?.gaps?.get(shown)?.let { gap -> Thread { RaCommand.send("SET_CORE_OPTION desmume_screens_gap $gap") }.start() }
                     shown
                 }
                 else -> {
-                    // The old skin's band and package layout still apply to leaving it.
+                    // The old skin's band and package layout still apply to leaving it, in the mode shown.
                     wantTabletop = false
-                    (flatTarget() ?: "portrait").also(::onOverlayChanged)
+                    val mode = OverlayName.parse(shown)
+                    val flat = OverlayName.parse(flatTarget() ?: "portrait")
+                    val back = if (mode != null && flat != null) available(flat.withModeOf(mode), overlays) else null
+                    (back ?: "portrait").also(::onOverlayChanged)
                 }
             }
             tabletopSkin = tabletop
+            skinOverlays = overlays
             target
         }
         // Outside the lock, which the engine thread takes to report the switch; before the posture is looked at
         // again, so a switch that sends comes after this one.
         if (target != null) RaCommand.ask("OVERLAY_SELECT $target", 300)
-        runOnUiThread { if (!isDestroyed) onFold(lastFold) }
+        runOnUiThread {
+            if (!isDestroyed) {
+                onFold(lastFold)
+                followGamepad()
+            }
+        }
     }
 
     /**
@@ -256,9 +289,9 @@ class GameActivity : RetroActivityFuture() {
      */
     private fun overlayToReopen(): String? = synchronized(ndsLayouts) {
         val shown = overlay ?: return null
-        if (!ndsScreens || '@' !in shown) return shown
-        val orientation = shown.substringBefore('@')
-        ndsLayouts[orientation]?.let { "$orientation@$it" } ?: shown
+        val name = OverlayName.parse(shown)
+        if (!ndsScreens || name?.layout == null) return shown
+        ndsLayouts[name.orientation]?.let { name.copy(layout = it).toString() } ?: shown
     }
 
     /** The engine answers commands once the content is up; a game opened in split screen gets here early. */
@@ -295,6 +328,64 @@ class GameActivity : RetroActivityFuture() {
         postureJob?.cancel()
         // Postures flicker while the device is being folded: act once it settles.
         postureJob = scope.launch { folds().distinctUntilChanged().debounce(250).collect(::onFold) }
+        followGamepad()
+    }
+
+    override fun onInputDeviceAdded(deviceId: Int) {
+        super.onInputDeviceAdded(deviceId)
+        followGamepad()
+    }
+
+    override fun onInputDeviceChanged(deviceId: Int) {
+        super.onInputDeviceChanged(deviceId)
+        followGamepad()
+    }
+
+    override fun onInputDeviceRemoved(deviceId: Int) {
+        super.onInputDeviceRemoved(deviceId)
+        followGamepad()
+    }
+
+    /** A gamepad connected or gone (main thread): the skin switches to its gamepad layout or back; the core keeps running. */
+    private fun followGamepad() {
+        val pad = gamepadOverride ?: Gamepads.connected()
+        synchronized(ndsLayouts) {
+            wantGamepad = pad
+            switchGamepad()
+        }
+    }
+
+    /**
+     * Under ndsLayouts' lock: sends the overlay the gamepad asks for, if it is not the one shown. True when it sent
+     * one: the overlay shown is about to change.
+     */
+    private fun switchGamepad(): Boolean {
+        val current = overlay ?: skinOverlays.firstOrNull() ?: return false
+        val target = gamepadTarget(current, wantGamepad, skinOverlays) ?: return false
+        if (BuildConfig.DEBUG) Log.d(TAG, "gamepad $wantGamepad: $current -> $target")
+        val seq = ++postureSeq
+        Thread { selectOverlay(target, seq) }.start()
+        return true
+    }
+
+    /**
+     * Debug builds only: QA has no gamepad on the emulator, so one is said to be connected or not with
+     * `adb shell am broadcast -a com.openemux.mobile.DEBUG_GAMEPAD --ez connected true|false` (`--ez clear true` goes
+     * back to the devices). Only the shell (it holds DUMP) can send it.
+     */
+    private fun registerDebugGamepad() {
+        if (!BuildConfig.DEBUG) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
+                Log.i(TAG, "debug gamepad: $gamepadOverride")
+                followGamepad()
+            }
+        }
+        ContextCompat.registerReceiver(
+            this, receiver, IntentFilter(DEBUG_GAMEPAD), android.Manifest.permission.DUMP, null, ContextCompat.RECEIVER_EXPORTED,
+        )
+        debugReceiver = receiver
     }
 
     override fun onStop() {
@@ -339,7 +430,9 @@ class GameActivity : RetroActivityFuture() {
         if (ndsScreens) loadNdsLayouts()
         // A newer switch supersedes one still waiting for the engine.
         val seq = ++postureSeq
-        val target = tabletopTarget(current, wantTabletop, skin.overlays, flatTarget(), ndsLayouts[TABLETOP]) ?: return false
+        val posture = tabletopTarget(current, wantTabletop, skin.overlays, flatTarget(), ndsLayouts[TABLETOP]) ?: return false
+        // In the layout the gamepad asks for, which may have changed while the posture did.
+        val target = gamepadTarget(posture, wantGamepad, skinOverlays) ?: posture
         Thread { selectOverlay(target, seq) }.start()
         return true
     }
@@ -351,7 +444,10 @@ class GameActivity : RetroActivityFuture() {
      */
     private fun flatTarget(): String? {
         if (ndsScreens) loadNdsLayouts()
-        return flatOverlay?.let { f -> if (ndsScreens && f.startsWith("portrait@")) "portrait@${ndsLayouts["portrait"]}" else f }
+        return flatOverlay?.let { f ->
+            val name = OverlayName.parse(f)
+            if (ndsScreens && name != null && name.orientation == "portrait" && name.layout != null) name.copy(layout = ndsLayouts["portrait"]).toString() else f
+        }
     }
 
     /**
@@ -400,6 +496,9 @@ class GameActivity : RetroActivityFuture() {
         // picked the flat overlay), or a switch that reached the engine after the posture changed again. The overlay
         // switched to sets the core; stepping this one to its saved layout would race the switch.
         if ((TABLETOP in name) != wantTabletop && switchPosture()) return
+        // The same for the gamepad: connected or gone while the overlay was switching.
+        val page = OverlayName.parse(name)
+        if (page != null && page.gamepad != wantGamepad && switchGamepad()) return
         if (!ndsScreens) return
         // Back from tabletop to a package skin, whose overlays name no layout: the screens one over the other, no gap.
         val flatLayout = tabletopSkin?.flatLayout
@@ -410,8 +509,8 @@ class GameActivity : RetroActivityFuture() {
             }.start()
             return
         }
-        val orientation = name.substringBefore('@')
-        val layout = NDS_LAYOUTS[orientation]?.firstOrNull { it.id == name.substringAfter('@', "") } ?: return
+        val orientation = page?.orientation ?: return
+        val layout = NDS_LAYOUTS[orientation]?.firstOrNull { it.id == page.layout } ?: return
         loadNdsLayouts()
         if (orientation != ndsOrientation) ndsRestoring = ndsLayouts[orientation]
         ndsOrientation = orientation
@@ -444,40 +543,31 @@ class GameActivity : RetroActivityFuture() {
     }
 
     /**
-     * From the pause sheet, for a gamepad (the skin and its layout key are
-     * hidden then): sets the core to the orientation's next layout. The
-     * hidden overlay stays as it was; turning the phone puts it back in step.
-     * In tabletop the overlay itself steps on: its screens sit around the fold.
+     * From the pause sheet: steps the orientation's screens on to the next layout. An overlay that names its layout
+     * (the drawn skin, in whichever mode it shows) steps on with them, which sets the core; one that names none (a
+     * package skin's flat pages), or no overlay answering, leaves the core to be set here.
      */
     private fun nextNdsLayout(): ScreenLayout = synchronized(ndsLayouts) {
         loadNdsLayouts()
-        val shown = overlay?.substringBefore('@')
+        val shown = overlay?.let(OverlayName::parse)
         val orientation = when {
-            shown == TABLETOP -> TABLETOP
+            shown?.tabletop == true -> TABLETOP
             resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE -> "landscape"
             else -> "portrait"
         }
         val layout = NdsLayouts.next(orientation, ndsLayouts[orientation])
         ndsLayouts[orientation] = layout.id
-        if (orientation == TABLETOP) {
-            // Supersedes a posture switch still waiting for the engine, which would land on the old layout.
-            ++postureSeq
-            val name = "$TABLETOP@${layout.id}"
-            val gap = tabletopSkin?.gaps?.get(name) ?: 0
-            Thread {
-                // Hidden for a gamepad, the overlay is unloaded and cannot step on: set the core as the overlay would.
-                val reply = RaCommand.ask("OVERLAY_SELECT $name", 300)
-                if (reply != null && "no overlay is loaded" in reply) {
-                    NdsLayouts.save(filesDir, TABLETOP, layout)
-                    RaCommand.send("SET_CORE_OPTION desmume_screens_gap $gap")
-                    RaCommand.send("SET_CORE_OPTION desmume_screens_layout ${layout.value}")
-                }
-            }.start()
-            return layout
-        }
+        // Supersedes a switch still waiting for the engine, which would land on the old layout.
+        ++postureSeq
+        val name = shown?.takeIf { it.layout != null && it.orientation == orientation }?.copy(layout = layout.id)?.toString()
+        val gap = if (orientation == TABLETOP) tabletopSkin?.gaps?.get(name ?: "$TABLETOP@${layout.id}") ?: 0 else null
         Thread {
-            NdsLayouts.save(filesDir, orientation, layout)
-            RaCommand.send("SET_CORE_OPTION desmume_screens_layout ${layout.value}")
+            val reply = name?.let { RaCommand.ask("OVERLAY_SELECT $it", 300) }
+            if (reply == null || "no overlay is loaded" in reply) {
+                NdsLayouts.save(filesDir, orientation, layout)
+                gap?.let { RaCommand.send("SET_CORE_OPTION desmume_screens_gap $it") }
+                RaCommand.send("SET_CORE_OPTION desmume_screens_layout ${layout.value}")
+            }
         }.start()
         layout
     }
@@ -655,5 +745,6 @@ class GameActivity : RetroActivityFuture() {
         const val SKIN_DEBOUNCE_MS = 300L
         const val TAG = "OpenEmuxGame"
         const val SKIN_TAG = "OpenEmuxSkin"
+        const val DEBUG_GAMEPAD = "com.openemux.mobile.DEBUG_GAMEPAD"
     }
 }

@@ -25,8 +25,8 @@ data class Box(val x: Float, val y: Float, val w: Float, val h: Float) {
 data class Rows(val upper: Float, val center: Float, val lower: Float)
 
 /**
- * A tablet orientation: the picture and the strip under it, the shoulder rows, the menu key, the console name's top
- * left corner and width, the left / right cluster centres [lx] / [rx] on [rows], the scale [k] of the clusters, the
+ * A tablet orientation: the picture and the strip under it, the shoulder rows, the menu key and the hide key beside
+ * it, the console name's top left corner and width, the left / right cluster centres [lx] / [rx] on [rows], the scale [k] of the clusters, the
  * row of pills at [pillsTop], and the NDS layout key above the picture ([layoutKey], landscape only).
  */
 data class TabletFrame(
@@ -35,6 +35,7 @@ data class TabletFrame(
     val shouldersLeft: Box,
     val shouldersRight: Box,
     val menu: Box,
+    val hide: Box,
     val name: Box,
     val lx: Float,
     val rx: Float,
@@ -43,6 +44,15 @@ data class TabletFrame(
     val pillsTop: Float,
     val layoutKey: Box?,
 )
+
+/**
+ * A gamepad page (SkinGeometry.padLandscape, padPortrait, padTabletop): the [picture], the [panels] drawn in the body
+ * colour behind the keys, the fold's band [shade] (tabletop), each key's slot by action in drawing order, and the NDS
+ * screen [gap] a tabletop layout asks of the core. The collapsed page keeps the slots: its show key goes on [menu].
+ */
+data class PadFrame(val picture: Box, val panels: List<Box>, val shade: Box?, val keys: List<Pair<String, Box>>, val gap: Int = 0) {
+    val menu: Box get() = keys.first { it.first == SkinGeometry.PAD_MENU }.second
+}
 
 /** The forbidden band around a fold across the skin's long side: a y range of its portrait frame, in pixels. */
 data class TabletopBand(val startPx: Float, val endPx: Float)
@@ -103,7 +113,8 @@ object SkinGeometry {
             strip = Box(picture.x, picture.bottom, gameW, STRIP),
             shouldersLeft = Box(12f, 16f, side - 24f, 36f),
             shouldersRight = Box(w - side + 12f, 16f, side - 24f, 36f),
-            menu = Box(side / 2f - 23f, 62f, 46f, 31f),
+            menu = Box(side / 2f - 50f, 62f, 46f, 31f),
+            hide = Box(side / 2f + 4f, 62f, 46f, 31f),
             name = Box(w - side, 70f, side, 10f),
             lx = side / 2f,
             rx = w - side / 2f,
@@ -119,7 +130,7 @@ object SkinGeometry {
         val gameH = minOf(w / aspect, h - STRIP - PANEL)
         val gameW = gameH * aspect
         val top = gameH + STRIP
-        val shoulder = minOf(171f, w / 2f - 60f)
+        val shoulder = minOf(171f, w / 2f - 87f)
         val m0 = top + 70f
         val m1 = h - 110f
         return TabletFrame(
@@ -127,7 +138,8 @@ object SkinGeometry {
             strip = Box(0f, gameH, w, STRIP),
             shouldersLeft = Box(17f, top + 16f, shoulder, 37f),
             shouldersRight = Box(w - 17f - shoulder, top + 16f, shoulder, 37f),
-            menu = Box(w / 2f - 23f, top + 19f, 46f, 31f),
+            menu = Box(w / 2f - 50f, top + 19f, 46f, 31f),
+            hide = Box(w / 2f + 4f, top + 19f, 46f, 31f),
             name = Box(0f, h - 38f, w, 11f),
             lx = 110f,
             rx = w - 110f,
@@ -196,16 +208,19 @@ object SkinGeometry {
         val shoulder: Float
         val strip: Box
         val menu: Box
+        val hide: Box
         val rowsTop: Float
         if (wide) {
             shoulder = 66f
             strip = Box(29f + shoulder, top, w - 2f * (29f + shoulder), 37f)
-            menu = Box(w / 2f - 23f, strip.bottom + 8f, 46f, 31f)
+            menu = Box(w / 2f - 50f, strip.bottom + 8f, 46f, 31f)
+            hide = Box(w / 2f + 4f, strip.bottom + 8f, 46f, 31f)
             rowsTop = strip.bottom + 8f
         } else {
-            shoulder = minOf(102f, w / 2f - 50f)
+            shoulder = minOf(102f, w / 2f - 85f)
             strip = Box(11f, top, w - 22f, 45f)
-            menu = Box(w / 2f - 27f, strip.bottom + 10f, 54f, 40f)
+            menu = Box(w / 2f - 58f, strip.bottom + 10f, 54f, 40f)
+            hide = Box(w / 2f + 4f, strip.bottom + 10f, 54f, 40f)
             rowsTop = menu.bottom + 8f
         }
         val shoulderY = if (wide) top else menu.y
@@ -222,6 +237,7 @@ object SkinGeometry {
             shouldersLeft = Box(17f, shoulderY, shoulder, shoulderH),
             shouldersRight = Box(w - 17f - shoulder, shoulderY, shoulder, shoulderH),
             menu = menu,
+            hide = hide,
             name = if (wide) Box(0f, h - 22f, w, 11f) else Box(0f, picture.bottom + 8f, w, 11f),
             lx = 110f,
             rx = w - 110f,
@@ -242,8 +258,8 @@ object SkinGeometry {
         val side = minOf(maxOf(150f, footprint + 24f), w * 0.3f)
         val k = minOf(1f, (side - 24f) / footprint, (h - end - 150f) / TABLETOP_CONTROLS)
         val column = Box(side, end + 8f, w - 2f * side, h - end - STRIP - 24f)
-        // L and the menu key share the left column's top row.
-        val left = side - 24f - 54f
+        // L, the menu key and the hide key share the left column's top row.
+        val left = side - 24f - 108f
         val center = (end + 60f + h - 44f) / 2f
         // R grows towards the column when touched: far enough from it that its touch area stops short of the bottom screen.
         val rGap = maxOf(12f, (side - 12f) * (TOUCH_GROW - 1f) / 2f / (1f + (TOUCH_GROW - 1f) / 2f))
@@ -253,6 +269,7 @@ object SkinGeometry {
             shouldersLeft = Box(12f, end + 12f, left, 34f),
             shouldersRight = Box(w - side + rGap, end + 12f, side - 12f - rGap, 34f),
             menu = Box(20f + left, end + 13.5f, 46f, 31f),
+            hide = Box(74f + left, end + 13.5f, 46f, 31f),
             name = Box(w - side, end + 52f, side, 10f),
             lx = side / 2f,
             rx = w - side / 2f,
@@ -261,6 +278,105 @@ object SkinGeometry {
             pillsTop = h - 44f,
             layoutKey = null,
         )
+    }
+
+    /** Gamepad layout: a side rail's width, landscape. */
+    const val PAD_RAIL = 88f
+
+    /** Gamepad layout: the bottom strip's height, portrait, and the key row's in tabletop. */
+    const val PAD_STRIP = 96f
+
+    /** Gamepad layout: a key's slot, square; never under the 48 units a thumb needs. */
+    const val PAD_KEY = 56f
+
+    /** Gamepad layout: a tabletop row's key slot, the portrait strip's a little larger. */
+    const val PAD_ROW_KEY = 64f
+
+    /**
+     * The gamepad layout's keys, in the order a strip or a row shows them: menu, save, load, turbo, fast forward, the
+     * NDS screens key ([screens]) and the keypad key ([keypad]) when there are, hide last.
+     */
+    fun padKeys(screens: Boolean, keypad: Boolean): List<String> =
+        listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_FF) + listOfNotNull(PAD_SCREENS.takeIf { screens }, PAD_KEYPAD.takeIf { keypad }) + PAD_HIDE
+
+    const val PAD_MENU = "menu_toggle"
+    const val PAD_SAVE = "save_state"
+    const val PAD_LOAD = "load_state"
+    const val PAD_TURBO = "turbo_fire_toggle"
+    const val PAD_FF = "toggle_fast_forward"
+    const val PAD_SCREENS = "screens"
+    const val PAD_KEYPAD = "keypad"
+    const val PAD_HIDE = "hide"
+
+    private fun slot(cx: Float, cy: Float, side: Float) = Box(cx - side / 2f, cy - side / 2f, side, side)
+
+    /**
+     * Gamepad layout, landscape [w] x [h]: two rails, menu at the top of the left one with save and load near its foot,
+     * turbo and fast forward at the top of the right one (the screens and keypad keys under them) and hide at its foot;
+     * the picture fit between the rails. [collapsed]: no rails, the picture fit to the whole screen.
+     */
+    fun padLandscape(w: Float, h: Float, aspect: Float, keys: List<String>, collapsed: Boolean): PadFrame {
+        val lx = PAD_RAIL / 2f
+        val rx = w - PAD_RAIL / 2f
+        val top = 18f + PAD_KEY / 2f
+        val step = 68f
+        val foot = h - 17f - PAD_KEY / 2f
+        val right = keys.filter { it != PAD_MENU && it != PAD_SAVE && it != PAD_LOAD && it != PAD_HIDE }
+        val slots = keys.map { key ->
+            key to when (key) {
+                PAD_MENU -> slot(lx, top, PAD_KEY)
+                PAD_SAVE -> slot(lx, foot - step, PAD_KEY)
+                PAD_LOAD -> slot(lx, foot, PAD_KEY)
+                PAD_HIDE -> slot(rx, foot, PAD_KEY)
+                else -> slot(rx, top + right.indexOf(key) * step, PAD_KEY)
+            }
+        }
+        if (collapsed) return PadFrame(fitIn(Box(0f, 0f, w, h), aspect), emptyList(), null, slots)
+        val rails = listOf(Box(0f, 0f, PAD_RAIL, h), Box(w - PAD_RAIL, 0f, PAD_RAIL, h))
+        return PadFrame(fitIn(Box(PAD_RAIL, 0f, w - 2f * PAD_RAIL, h), aspect), rails, null, slots)
+    }
+
+    /**
+     * Gamepad layout, portrait [w] x [h]: one strip along the foot, the keys in even cells; the picture across the
+     * width, centred in the room above it. [collapsed]: no strip, the picture fit to the whole screen.
+     */
+    fun padPortrait(w: Float, h: Float, aspect: Float, keys: List<String>, collapsed: Boolean): PadFrame {
+        val strip = Box(0f, h - PAD_STRIP, w, PAD_STRIP)
+        val cell = w / keys.size
+        val side = minOf(PAD_KEY, cell)
+        val slots = keys.mapIndexed { i, key -> key to slot(cell * (i + 0.5f), strip.y + PAD_STRIP / 2f, side) }
+        if (collapsed) return PadFrame(fitIn(Box(0f, 0f, w, h), aspect), emptyList(), null, slots)
+        return PadFrame(fitIn(Box(0f, 0f, w, strip.y), aspect), listOf(strip), null, slots)
+    }
+
+    /**
+     * Gamepad layout, tabletop [w] x [h] with the band from [start] to [end]: the picture in the top half, the keys in
+     * one centred row in the bottom one. On NDS ([ndsLayout], its id) the row sits at the foot, under the bottom screen
+     * a layout puts there ("bottom", or one screen per half around the band with a gap from [gaps]). [collapsed]: no
+     * row, and a screen in the bottom half takes all of it.
+     */
+    fun padTabletop(
+        w: Float, h: Float, start: Float, end: Float, aspect: Float, keys: List<String>, collapsed: Boolean,
+        ndsLayout: String? = null, gaps: List<Int> = emptyList(),
+    ): PadFrame {
+        val cell = minOf(w / keys.size, 88f)
+        val side = minOf(PAD_ROW_KEY, cell)
+        val rowTop = if (ndsLayout != null) h - PAD_STRIP else (end + h) / 2f - PAD_STRIP / 2f
+        val x0 = (w - cell * keys.size) / 2f
+        val slots = keys.mapIndexed { i, key -> key to slot(x0 + cell * (i + 0.5f), rowTop + PAD_STRIP / 2f, side) }
+        val top = Box(0f, 0f, w, start)
+        val below = Box(0f, end, w, (if (collapsed) h else rowTop) - end)
+        var gap = 0
+        val picture = when (ndsLayout) {
+            null, "top" -> fitIn(top, aspect, 14f)
+            "bottom" -> fitIn(below, aspect, 8f)
+            else -> ndsHalvesFit(start, end, below, gaps)?.also { gap = it.gap }?.viewport
+                // No gap covers the band: both screens in the top half rather than one on the fold.
+                ?: fitIn(top, 256f / 384f, 14f)
+        }
+        if (collapsed) return PadFrame(picture, emptyList(), null, slots, gap)
+        val panel = if (ndsLayout != null) Box(0f, rowTop, w, h - rowTop) else Box(0f, end, w, h - end)
+        return PadFrame(picture, listOf(panel), Box(0f, start, w, end - start), slots, gap)
     }
 
     /** The biggest box of [aspect] inside [room] less [margin] each side, centred in it. */
