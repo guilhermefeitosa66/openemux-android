@@ -27,6 +27,8 @@
     <string name="game_audio">Áudio</string>
     <string name="game_muted">Sem som</string>
     <string name="game_restart">Reiniciar jogo</string>
+    <string name="game_retroarch_menu">Menu do RetroArch</string>
+    <string name="game_retroarch_menu_note">Ajustes avançados, só nesta sessão</string>
     <string name="game_quit">Sair do jogo</string>
     <string name="game_no_states">Nenhum estado salvo ainda.</string>
     <string name="game_state_auto">AUTO</string>

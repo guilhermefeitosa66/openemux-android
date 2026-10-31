@@ -70,6 +70,8 @@ class GameActivity : RetroActivityFuture() {
     @Volatile private var fastForwardWanted: Boolean? = null
     /** Bumped each time the pause sheet opens, so a deferred fast-forward toggle knows a newer sheet took over. */
     @Volatile private var sheetCount = 0
+    /** Armed by the sheet's "RetroArch menu" row: the next menu request opens RetroArch's own menu. */
+    private val retroArchMenu = RetroArchMenuGate()
     private var stickKey = 0
 
     // The NDS overlay last shown: its orientation, and the layout each orientation was left on (engine thread only).
@@ -373,6 +375,8 @@ class GameActivity : RetroActivityFuture() {
     }
 
     override fun onPause() {
+        // A request armed just before leaving must not reach a later sheet request.
+        retroArchMenu.disarm()
         flushPlaytime()
         super.onPause()
     }
@@ -482,8 +486,12 @@ class GameActivity : RetroActivityFuture() {
         layout
     }
 
-    /** Called on the engine thread when RetroArch would open its menu. */
+    /**
+     * Called on the engine thread when RetroArch would open its menu. False lets it open its own: once, after the
+     * sheet's "RetroArch menu" row.
+     */
     override fun onExternalMenuRequested(): Boolean {
+        if (retroArchMenu.consume()) return false
         runOnUiThread {
             // Unfocusable, the sheet never sees BACK: the engine does, and asks again.
             if (dialog?.isShowing == true) dialog?.dismiss() else showPauseSheet()
@@ -584,6 +592,26 @@ class GameActivity : RetroActivityFuture() {
         if (sheetCount == sheet) fastForwardWanted = null
     }
 
+    /**
+     * After the sheet's "RetroArch menu" row: once the sheet's resume has taken, let the next menu request through
+     * and ask for one. Armed only while the game plays: the engine unpauses after RetroArch's menu closes only when
+     * the content was not paused before the request. Blocks: call from a background thread.
+     */
+    private fun openRetroArchMenu() {
+        repeat(40) {
+            if (RaCommand.isPlaying()) {
+                retroArchMenu.arm()
+                RaCommand.send("MENU_TOGGLE")
+                // The engine answers within a frame; a request it never got must not open RetroArch's menu later.
+                Thread.sleep(1000)
+                retroArchMenu.disarm()
+                return
+            }
+            Thread.sleep(50)
+        }
+        // Never seen running: the game simply resumed.
+    }
+
     private fun showPauseSheet() {
         if (dialog?.isShowing == true || isFinishing) return
         val sheet = ++sheetCount
@@ -613,6 +641,11 @@ class GameActivity : RetroActivityFuture() {
                         },
                         onScreens = if (ndsScreens) ({ getString(nextNdsLayout().label) }) else null,
                         onFastForward = { fastForwardWanted = it },
+                        onRetroArchMenu = {
+                            // The dismissal resumes the game as Back to game does; the menu is asked for after.
+                            d.dismiss()
+                            Thread { openRetroArchMenu() }.start()
+                        },
                     )
                 }
             }

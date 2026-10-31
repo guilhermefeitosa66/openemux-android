@@ -27,6 +27,8 @@
     <string name="game_audio">Audio</string>
     <string name="game_muted">Stumm</string>
     <string name="game_restart">Spiel neu starten</string>
+    <string name="game_retroarch_menu">RetroArch-Menü</string>
+    <string name="game_retroarch_menu_note">Erweiterte Einstellungen, nur für diese Sitzung</string>
     <string name="game_quit">Spiel beenden</string>
     <string name="game_no_states">Noch keine Savestates.</string>
     <string name="game_state_auto">AUTO</string>

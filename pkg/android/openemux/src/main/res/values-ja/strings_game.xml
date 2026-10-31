@@ -27,6 +27,8 @@
     <string name="game_audio">サウンド</string>
     <string name="game_muted">ミュート</string>
     <string name="game_restart">ゲームをリセット</string>
+    <string name="game_retroarch_menu">RetroArch メニュー</string>
+    <string name="game_retroarch_menu_note">詳細設定（このセッションのみ）</string>
     <string name="game_quit">ゲームを終了</string>
     <string name="game_no_states">ステートセーブはまだありません。</string>
     <string name="game_state_auto">オート</string>
