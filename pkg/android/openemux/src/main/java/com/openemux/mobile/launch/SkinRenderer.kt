@@ -685,8 +685,9 @@ class SkinRenderer(private val context: Context) {
                 showKey(px(g.menu))
                 return descs
             }
-            g.panels.forEach { panel(px(it), colors.body) }
-            g.shade?.let { panel(px(it), shade(colors.body)) }
+            // The strip's colour, which its icons are drawn for on every skin, light ones too.
+            g.panels.forEach { panel(px(it), colors.strip) }
+            g.shade?.let { panel(px(it), shade(colors.strip)) }
             val icon = s(22f)
             for ((key, slot) in g.keys) {
                 val box = px(slot)
