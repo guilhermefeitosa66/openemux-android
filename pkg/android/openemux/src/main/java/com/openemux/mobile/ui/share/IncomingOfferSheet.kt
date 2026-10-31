@@ -101,7 +101,7 @@ fun IncomingOfferSheet() {
     var confirmCancel by rememberSaveable { mutableStateOf(false) }
     OeSheet(
         {}, sheetState = state,
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false), scroll = false,
     ) {
         SheetBarIcons()
         BackHandler {

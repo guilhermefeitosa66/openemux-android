@@ -1,6 +1,9 @@
 package com.openemux.mobile.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,15 +24,18 @@ import androidx.compose.ui.unit.sp
 /**
  * The app's bottom sheet: a [ModalBottomSheet] whose window answers the pad
  * like the screens do (A, B, the screen buttons, the stick, focus in on
- * open and back to the opener on close).
+ * open and back to the opener on close), its content scrolling when it is
+ * taller than the window. It opens fully expanded: a half-open sheet hides
+ * rows the pad can move to, and they would never scroll into view.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OeSheet(
     onDismissRequest: () -> Unit,
-    sheetState: SheetState = rememberModalBottomSheetState(),
+    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
+    scroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val opener = LocalPadScope.current
@@ -40,7 +46,9 @@ fun OeSheet(
             scrimColor = scrimColor, properties = properties,
         ) {
             PadDialogWindow(scope, opener)
-            content()
+            // Landscape leaves a sheet little height: its rows scroll, so the pad (and the finger) reach them all.
+            // A sheet with a scrolling body of its own says [scroll] false.
+            if (scroll) MarginFocusScroll { Column(Modifier.verticalScroll(rememberScrollState())) { content() } } else content()
         }
     }
 }

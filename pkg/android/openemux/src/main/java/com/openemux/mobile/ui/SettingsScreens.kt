@@ -155,7 +155,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
         }
     }
     if (languageSheet) {
-        OeSheet({ languageSheet = false }) {
+        OeSheet({ languageSheet = false }, scroll = false) {
             SheetBarIcons()
             MarginFocusScroll { Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),

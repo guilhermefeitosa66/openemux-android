@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.view.Window
 import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -239,11 +240,15 @@ class PadScope {
         }
         val i = pickLanding(spots, anchor)
         if (i < 0) return false
-        // In touch mode the items are not focusable: only a D-pad key leaves it by itself. Leaving it here
-        // is not a press to wait for (touchExit), or the root would turn this very request down.
+        return focus(list[i])
+    }
+
+    /** Puts focus on [target], out of touch mode first: there the items are not focusable, and only a D-pad key leaves it. */
+    fun focus(target: PadTarget): Boolean {
         view?.let { v -> if (v.isInTouchMode) runCatching { v.requestFocusFromTouch() } }
+        // Leaving touch mode here is not a press to wait for (touchExit), or the root would turn this request down.
         touchExit = false
-        return runCatching { list[i].requester.requestFocus() }.isSuccess
+        return runCatching { target.requester.requestFocus() }.isSuccess
     }
 }
 
@@ -367,7 +372,7 @@ fun Modifier.padRoot(scope: PadScope): Modifier = composed {
 fun PadDialogWindow(scope: PadScope, opener: PadScope) {
     val view = LocalView.current
     DisposableEffect(view) {
-        val window = (view.parent as? DialogWindowProvider)?.window
+        val window = dialogWindow(view)
         val original = window?.callback
         val back = (original as? OnBackPressedDispatcherOwner)?.onBackPressedDispatcher
         val wrapped = if (window != null && original != null && original !is PadCallback) {
@@ -376,10 +381,23 @@ fun PadDialogWindow(scope: PadScope, opener: PadScope) {
         val from = opener.current()
         onDispose {
             if (wrapped != null && window?.callback === wrapped) window.callback = original
-            giveFocusBack(from)
+            giveFocusBack(opener, from)
         }
     }
     PadFocusIn(scope)
+}
+
+/**
+ * The dialog window [view] is in: an alert dialog's layout says it, a bottom
+ * sheet's does not, but its dialog owns the view tree's back dispatcher.
+ */
+private fun dialogWindow(view: View): Window? {
+    var v: Any? = view.parent
+    while (v is View) {
+        if (v is DialogWindowProvider) return v.window
+        v = v.parent
+    }
+    return (view.findViewTreeOnBackPressedDispatcherOwner() as? android.app.Dialog)?.window
 }
 
 /** Opened from the pad, a window puts focus on its first item once it is laid out. */
@@ -393,10 +411,10 @@ private fun PadFocusIn(scope: PadScope) {
     }
 }
 
-/** In gamepad mode, focus goes back to [target] once the window over it is gone. */
-private fun giveFocusBack(target: PadTarget?) {
+/** In gamepad mode, focus goes back to [target], in [scope]'s window, once the window over it is gone. */
+private fun giveFocusBack(scope: PadScope, target: PadTarget?) {
     if (target == null || !InputMode.gamepad) return
-    Handler(Looper.getMainLooper()).post { if (InputMode.gamepad) runCatching { target.requester.requestFocus() } }
+    Handler(Looper.getMainLooper()).post { if (InputMode.gamepad) scope.focus(target) }
 }
 
 /**
@@ -413,7 +431,7 @@ fun Modifier.padPopup(scope: PadScope, opener: PadScope, onBack: () -> Unit): Mo
     val router = remember(scope) { PadRouter({ scope }) { back.value() } }
     DisposableEffect(scope) {
         val from = opener.current()
-        onDispose { giveFocusBack(from) }
+        onDispose { giveFocusBack(opener, from) }
     }
     LaunchedEffect(scope) {
         withFrameNanos { }
