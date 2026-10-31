@@ -214,6 +214,7 @@ class GameActivity : RetroActivityFuture() {
                 hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
                 coreId = intent.getStringExtra(GameExtras.CORE_ID),
                 first = first,
+                gamepad = synchronized(ndsLayouts) { wantGamepad },
                 // Drawn upright, as the launcher does: the fold goes with it.
                 fold = SkinGeometry.portraitFold(lastFold, bounds.width(), bounds.height()),
             ).file
@@ -239,6 +240,15 @@ class GameActivity : RetroActivityFuture() {
     private fun readTabletopSkin(dir: File): TabletopSkin? =
         runCatching { TabletopSkin.parse(File(dir, SkinRenderer.TABLETOP_FILE).readText()) }.getOrNull()
 
+    /** Whether [a] and [b] are the same page, whatever NDS layout each names. */
+    private fun samePage(a: String, b: String?): Boolean {
+        if (b == null) return false
+        if (a == b) return true
+        val pa = OverlayName.parse(a) ?: return false
+        val pb = OverlayName.parse(b) ?: return false
+        return pa.copy(layout = null) == pb.copy(layout = null)
+    }
+
     private fun readOverlays(dir: File): List<String> =
         runCatching { overlayNames(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyList())
 
@@ -253,7 +263,9 @@ class GameActivity : RetroActivityFuture() {
         val target = synchronized(ndsLayouts) {
             val shown = overlay?.takeIf { TABLETOP in it }
             val target = when {
-                shown == null -> overlay?.takeIf { it != overlays.firstOrNull() && it in overlays }
+                // A package skin opens on its own page: one shown in another mode is selected again. The drawn
+                // skin opened on overlayToReopen(), which may name another NDS layout of the same page: kept.
+                shown == null -> overlay?.takeIf { it in overlays && !samePage(it, overlays.firstOrNull()) }
                 tabletop?.overlays?.contains(shown) == true -> {
                     // The same tabletop layout around a fold the new window puts elsewhere.
                     if (ndsScreens) tabletop?.gaps?.get(shown)?.let { gap -> Thread { RaCommand.send("SET_CORE_OPTION desmume_screens_gap $gap") }.start() }
@@ -514,9 +526,12 @@ class GameActivity : RetroActivityFuture() {
         loadNdsLayouts()
         if (orientation != ndsOrientation) ndsRestoring = ndsLayouts[orientation]
         ndsOrientation = orientation
-        // Turning lands on the layout saved at launch: step on, one overlay at a time, to the one used last here.
-        if (ndsRestoring != null && ndsRestoring != layout.id) {
-            Thread { RaCommand.send("OVERLAY_NEXT") }.start()
+        // Turning lands on the layout saved at launch: on to the one used last here, in the mode shown (stepping to
+        // the next overlay would leave the mode when the skin opened on a page pulled ahead of its own).
+        val restoring = ndsRestoring
+        if (restoring != null && restoring != layout.id) {
+            val target = page.copy(layout = restoring).toString()
+            Thread { RaCommand.ask("OVERLAY_SELECT $target", 300) }.start()
             return
         }
         ndsRestoring = null

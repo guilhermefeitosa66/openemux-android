@@ -125,7 +125,8 @@ internal object OverlayWriter {
                 )
             )
             when {
-                d.well != null -> stick(cfg, p, i, d, prefix, taken.filterIndexed { j, _ -> j != i }, gap)
+                // A "nul" desc is an image (an app control's, a panel), no control: the stick's zone may reach over it.
+                d.well != null -> stick(cfg, p, i, d, prefix, taken.filterIndexed { j, _ -> j != i && descs.getOrNull(j)?.name != "nul" }, gap)
                 // A stick with no knob image (a package that has none), over its whole frame.
                 d.radial -> cfg.append("${p}_desc${i}_saturate_pct = 0.65\n")
                 d.dpad != null -> {
