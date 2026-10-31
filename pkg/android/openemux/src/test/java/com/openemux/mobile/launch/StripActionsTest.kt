@@ -12,7 +12,6 @@ class StripActionsTest {
             listOf("save_state", "load_state", "turbo_fire_toggle", "toggle_slowmotion", "toggle_fast_forward"),
             stripActions(layoutKey = false),
         )
-        assertEquals("toggle_slowmotion", stripActions(layoutKey = false)[3])
     }
 
     @Test fun theNdsLayoutKeyStaysLast() {

@@ -5603,6 +5603,12 @@ static void runloop_apply_fastmotion(bool enabled)
  * fastmotion override is left alone. */
 static void runloop_slowmotion_went_on(runloop_state_t *runloop_st)
 {
+#ifdef HAVE_NETWORKING
+   /* Netplay refusing time skips refuses slow motion too: keep fast
+    * forward as it is. */
+   if (!netplay_driver_ctl(RARCH_NETPLAY_CTL_ALLOW_TIMESKIP, NULL))
+      return;
+#endif
    if (   (runloop_st->flags & RUNLOOP_FLAG_FASTMOTION)
        && !runloop_st->fastmotion_override.current.fastforward)
       runloop_apply_fastmotion(false);
@@ -9212,7 +9218,8 @@ static enum runloop_state_enum runloop_check_state(
             current_bits, RARCH_FAST_FORWARD_KEY);
       bool new_hold_button_state              = BIT256_GET(
             current_bits, RARCH_FAST_FORWARD_HOLD_KEY);
-      bool check2                             = new_button_state && !old_button_state;
+      bool toggled                            = new_button_state && !old_button_state;
+      bool check2                             = toggled;
 
       if (!check2)
          check2 = old_hold_button_state != new_hold_button_state;
@@ -9230,11 +9237,13 @@ static enum runloop_state_enum runloop_check_state(
          check2 = false;
 #endif
 
+      /* OpenEmux: the hold key follows the button rather than toggling,
+       * so slow motion turning fast forward off while it is held does
+       * not invert it (its release would turn fast forward on). */
       if (check2)
-      {
-         runloop_apply_fastmotion(
-               !(input_st->flags & INP_FLAG_NONBLOCKING));
-      }
+         runloop_apply_fastmotion(toggled
+               ? !(input_st->flags & INP_FLAG_NONBLOCKING)
+               : new_hold_button_state);
 
       old_button_state                  = new_button_state;
       old_hold_button_state             = new_hold_button_state;
