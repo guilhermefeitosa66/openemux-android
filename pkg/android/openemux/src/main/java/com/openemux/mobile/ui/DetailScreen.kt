@@ -31,14 +31,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -166,10 +164,16 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val menuButton: @Composable () -> Unit = {
         Box {
             RoundIconButton(Icons.Dots, stringResource(R.string.detail_more_options), { menu = true }, background = Oe.Control.copy(alpha = 0.8f), filled = true)
-            androidx.compose.material3.DropdownMenu(menu, { menu = false }, containerColor = Oe.Surface2) {
+            // A popup is a window of its own: it takes the pad's keys itself (padPopup), with its own items.
+            val opener = LocalPadScope.current
+            val menuScope = remember(menu) { PadScope() }
+            CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
+                menu, { menu = false }, Modifier.padPopup(menuScope, opener) { menu = false }, containerColor = Oe.Surface2,
+            ) {
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(stringResource(R.string.detail_share), style = Type.Body) },
                     leadingIcon = { Icon(Icons.Share, Oe.Text, 20.dp) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
                     onClick = {
                         menu = false
                         a.app.shareCoordinator.startSend(listOf(rom))
@@ -178,9 +182,10 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 )
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(stringResource(R.string.detail_remove_from_library), style = Type.Body.copy(color = Oe.Danger)) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
                     onClick = { menu = false; confirmDelete = true },
                 )
-            }
+            } }
         }
     }
     val header: @Composable () -> Unit = {
@@ -418,15 +423,11 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     }
 
     if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            containerColor = Oe.Sheet,
-            title = { Text(stringResource(R.string.detail_remove_title, rom.title), style = Type.Title.copy(fontSize = 20.sp)) },
-            text = { Text(stringResource(R.string.detail_remove_message), style = Type.Small) },
-            confirmButton = {
-                TextButton({ confirmDelete = false; lib.delete(rom); close() }) { Text(stringResource(R.string.detail_remove), style = Type.Section.copy(color = Oe.Danger)) }
-            },
-            dismissButton = { TextButton({ confirmDelete = false }) { Text(stringResource(R.string.detail_cancel), style = Type.Section) } },
+        OeConfirmDialog(
+            { confirmDelete = false },
+            stringResource(R.string.detail_remove_title, rom.title), stringResource(R.string.detail_remove_message),
+            stringResource(R.string.detail_remove), { confirmDelete = false; lib.delete(rom); close() },
+            stringResource(R.string.detail_cancel),
         )
     }
 }
@@ -509,7 +510,7 @@ private fun CoreSheet(rom: Rom, onClose: () -> Unit) {
     val choice = meta.roms[rom.key]?.core
     val defaultCore = rom.console.core(lib.consoleSettings(rom.console).core)
     val states = remember(rom) { lib.states(rom) }
-    ModalBottomSheet(onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = Oe.Sheet) {
+    OeSheet(onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
             Text(stringResource(R.string.detail_core_sheet_title), style = Type.Title.copy(fontSize = 22.sp))
@@ -560,7 +561,7 @@ private fun ShaderSheet(rom: Rom, onClose: () -> Unit) {
     val meta by lib.meta.collectAsState()
     val choice = meta.roms[rom.key]?.shader
     val default = shaderById(lib.consoleSettings(rom.console).shader)
-    ModalBottomSheet(onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = Oe.Sheet) {
+    OeSheet(onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
             Text(stringResource(R.string.detail_shader_sheet_title), style = Type.Title.copy(fontSize = 22.sp))
@@ -587,7 +588,7 @@ private fun ShaderSheet(rom: Rom, onClose: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, onClose: () -> Unit) {
-    ModalBottomSheet(onClose, containerColor = Oe.Sheet) {
+    OeSheet(onClose) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
             Text(stringResource(R.string.detail_save_states), style = Type.Title.copy(fontSize = 22.sp))

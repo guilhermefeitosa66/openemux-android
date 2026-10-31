@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +40,7 @@ import com.openemux.mobile.share.ShareFormat
 import com.openemux.mobile.share.ShareMessage
 import com.openemux.mobile.share.ShareResult
 import com.openemux.mobile.share.TransferState
+import com.openemux.mobile.ui.OeConfirmDialog
 import com.openemux.mobile.ui.GamepadButtons
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
@@ -133,15 +132,9 @@ fun CancelTransferDialog(onKeep: () -> Unit, onCancel: () -> Unit) {
         hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.share_cancel_confirm_keep)),
         l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
     )
-    AlertDialog(
-        onDismissRequest = onKeep,
-        containerColor = Oe.Sheet,
-        title = { Text(stringResource(R.string.share_cancel_confirm_title), style = Type.Title.copy(fontSize = 20.sp)) },
-        text = { Text(stringResource(R.string.share_cancel_confirm_body), style = Type.Small) },
-        confirmButton = {
-            TextButton(onCancel) { Text(stringResource(R.string.share_progress_cancel), style = Type.Section.copy(color = Oe.Danger)) }
-        },
-        dismissButton = { TextButton(onKeep) { Text(stringResource(R.string.share_cancel_confirm_keep), style = Type.Section) } },
+    OeConfirmDialog(
+        onKeep, stringResource(R.string.share_cancel_confirm_title), stringResource(R.string.share_cancel_confirm_body),
+        stringResource(R.string.share_progress_cancel), onCancel, stringResource(R.string.share_cancel_confirm_keep),
     )
 }
 

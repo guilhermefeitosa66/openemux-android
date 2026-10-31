@@ -51,11 +51,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -352,7 +349,7 @@ fun ShelfScreen() {
 
     menuFor?.let { console ->
         val i = present.indexOf(console)
-        ModalBottomSheet({ menuFor = null }, containerColor = Oe.Sheet) {
+        OeSheet({ menuFor = null }) {
             SheetBarIcons()
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
                 Text(console.displayName, style = Type.Title.copy(fontSize = 22.sp))
@@ -727,19 +724,16 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         )
         val doomed = list.filter { it.key in selection }
         val n = doomed.size
-        AlertDialog(
-            onDismissRequest = { confirmRemove = false },
-            containerColor = Oe.Sheet,
-            title = { Text(countString(R.plurals.library_remove_many_title, n, n), style = Type.Title.copy(fontSize = 20.sp)) },
-            text = { Text(countString(R.plurals.library_remove_many_message, n), style = Type.Small) },
-            confirmButton = {
-                TextButton({
-                    confirmRemove = false
-                    selection = selection.clear()
-                    scope.launch(Dispatchers.IO) { lib.deleteAll(doomed) }
-                }) { Text(stringResource(R.string.detail_remove), style = Type.Section.copy(color = Oe.Danger)) }
+        OeConfirmDialog(
+            { confirmRemove = false },
+            countString(R.plurals.library_remove_many_title, n, n), countString(R.plurals.library_remove_many_message, n),
+            stringResource(R.string.detail_remove),
+            {
+                confirmRemove = false
+                selection = selection.clear()
+                scope.launch(Dispatchers.IO) { lib.deleteAll(doomed) }
             },
-            dismissButton = { TextButton({ confirmRemove = false }) { Text(stringResource(R.string.detail_cancel), style = Type.Section) } },
+            stringResource(R.string.detail_cancel),
         )
     }
     val bar: @Composable BoxScope.() -> Unit = {

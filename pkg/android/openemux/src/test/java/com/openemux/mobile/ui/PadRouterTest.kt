@@ -1,0 +1,198 @@
+package com.openemux.mobile.ui
+
+import android.view.KeyEvent
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class PadRouterTest {
+    private val down = KeyEvent.ACTION_DOWN
+    private val up = KeyEvent.ACTION_UP
+
+    private fun decide(code: Int, action: Int = down, fromPad: Boolean = true, shown: Boolean = true, landed: Int = 0) =
+        decidePadKey(code, action, fromPad, shown, landed)
+
+    @Test
+    fun aKeyboardKeyIsNotThePads() {
+        assertEquals(PadDecision.NotPad, decide(KeyEvent.KEYCODE_A, fromPad = false))
+        assertEquals(PadDecision.NotPad, decide(KeyEvent.KEYCODE_BACK, fromPad = false, shown = false))
+    }
+
+    @Test
+    fun theDpadAndTheButtonsArePadKeysFromAnyDevice() {
+        // adb's injected D-pad comes from the keyboard source: still the pad's.
+        assertEquals(PadDecision.Pass, decide(KeyEvent.KEYCODE_DPAD_RIGHT, fromPad = false))
+        assertEquals(PadDecision.AsCenter, decide(KeyEvent.KEYCODE_BUTTON_A, fromPad = false))
+        assertEquals(PadDecision.Pass, decide(KeyEvent.KEYCODE_BUTTON_3, fromPad = false))
+    }
+
+    @Test
+    fun theFirstPressAfterATouchMovesFromTheFocusedItem() {
+        // It used to only bring the highlight back, and look dead.
+        for (code in listOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER)) {
+            assertEquals(PadDecision.Pass, decide(code))
+            assertEquals(PadDecision.Pass, decide(code, up))
+        }
+    }
+
+    @Test
+    fun aClicksTheFocusedItem() {
+        assertEquals(PadDecision.AsCenter, decide(KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(PadDecision.AsCenter, decide(KeyEvent.KEYCODE_BUTTON_A, up))
+    }
+
+    @Test
+    fun aPressWithNothingShownFocusedLandsFocus() {
+        assertEquals(PadDecision.Land, decide(KeyEvent.KEYCODE_DPAD_DOWN, shown = false))
+        assertEquals(PadDecision.Land, decide(KeyEvent.KEYCODE_BUTTON_A, shown = false))
+        assertEquals(PadDecision.Land, decide(KeyEvent.KEYCODE_DPAD_CENTER, shown = false))
+    }
+
+    @Test
+    fun theReleaseOfTheLandingPressIsTaken() {
+        assertEquals(PadDecision.Swallow, decide(KeyEvent.KEYCODE_BUTTON_A, up, landed = KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(PadDecision.Swallow, decide(KeyEvent.KEYCODE_DPAD_DOWN, up, landed = KeyEvent.KEYCODE_DPAD_DOWN))
+        // Another key's release is not.
+        assertEquals(PadDecision.AsCenter, decide(KeyEvent.KEYCODE_BUTTON_A, up, landed = KeyEvent.KEYCODE_DPAD_DOWN))
+    }
+
+    @Test
+    fun aReleaseWithNothingFocusedDoesNotLand() {
+        // Its press happened elsewhere (the window under a dialog that just closed).
+        assertEquals(PadDecision.Pass, decide(KeyEvent.KEYCODE_DPAD_DOWN, up, shown = false))
+        assertEquals(PadDecision.AsCenter, decide(KeyEvent.KEYCODE_BUTTON_A, up, shown = false))
+    }
+
+    @Test
+    fun bGoesBackOnItsReleaseEvenWithNothingFocused() {
+        assertEquals(PadDecision.Back(false), decide(KeyEvent.KEYCODE_BUTTON_B))
+        assertEquals(PadDecision.Back(true), decide(KeyEvent.KEYCODE_BUTTON_B, up))
+        assertEquals(PadDecision.Back(true), decide(KeyEvent.KEYCODE_BUTTON_B, up, shown = false))
+    }
+
+    @Test
+    fun theScreenButtonsRunOnTheirRelease() {
+        val buttons = mapOf(
+            KeyEvent.KEYCODE_BUTTON_L1 to PadButton.L1, KeyEvent.KEYCODE_BUTTON_R1 to PadButton.R1,
+            KeyEvent.KEYCODE_BUTTON_X to PadButton.X, KeyEvent.KEYCODE_BUTTON_Y to PadButton.Y,
+            KeyEvent.KEYCODE_BUTTON_SELECT to PadButton.SELECT, KeyEvent.KEYCODE_BUTTON_START to PadButton.START,
+        )
+        for ((code, button) in buttons) {
+            assertEquals(PadDecision.Bus(button, false), decide(code))
+            assertEquals(PadDecision.Bus(button, true), decide(code, up, shown = false))
+        }
+    }
+
+    @Test
+    fun padButtonsCoverTheNamedAndTheGenericOnes() {
+        assertTrue(isPadButton(KeyEvent.KEYCODE_BUTTON_A))
+        assertTrue(isPadButton(KeyEvent.KEYCODE_BUTTON_MODE))
+        assertTrue(isPadButton(KeyEvent.KEYCODE_BUTTON_1))
+        assertTrue(isPadButton(KeyEvent.KEYCODE_BUTTON_16))
+        assertFalse(isPadButton(KeyEvent.KEYCODE_DPAD_UP))
+        assertFalse(isPadButton(KeyEvent.KEYCODE_ENTER))
+    }
+
+    @Test
+    fun eachButtonPicksItsHandler() {
+        var ran = ""
+        val actions = GamepadActions(
+            l1 = { ran += "l1" }, r1 = { ran += "r1" }, x = { ran += "x" }, y = { ran += "y" },
+            select = { ran += "select" }, start = { ran += "start" },
+        )
+        PadButton.entries.forEach { actions.handler(it)!!.invoke() }
+        assertEquals("l1r1xyselectstart", ran)
+        assertNull(GamepadActions().handler(PadButton.X))
+    }
+
+    @Test
+    fun theStickPointsPastItsDeadZone() {
+        assertEquals(KeyEvent.KEYCODE_DPAD_LEFT, stickKey(-0.9f, 0f, 0f, 0f))
+        assertEquals(KeyEvent.KEYCODE_DPAD_RIGHT, stickKey(0.9f, 0.9f, 0f, 0f))
+        assertEquals(KeyEvent.KEYCODE_DPAD_UP, stickKey(0.2f, -0.8f, 0f, 0f))
+        assertEquals(KeyEvent.KEYCODE_DPAD_DOWN, stickKey(0f, 0.8f, 0f, 0f))
+        assertEquals(0, stickKey(0.4f, -0.4f, 0f, 0f))
+    }
+
+    @Test
+    fun theHatAnswersWhileTheStickRests() {
+        assertEquals(KeyEvent.KEYCODE_DPAD_RIGHT, stickKey(0.1f, 0f, 1f, 0f))
+        assertEquals(KeyEvent.KEYCODE_DPAD_UP, stickKey(0f, 0f, 0f, -1f))
+        assertEquals(0, stickKey(0f, 0f, 0f, 0f))
+    }
+
+    @Test
+    fun aHeldStickPausesThenRepeats() {
+        assertEquals(380L, stickDelay(false))
+        assertEquals(90L, stickDelay(true))
+    }
+
+    private fun spot(shown: Boolean, initial: Boolean = false, last: Long = 0, top: Float = 0f, left: Float = 0f) =
+        LandingSpot(shown, initial, last, top, left)
+
+    @Test
+    fun landingPrefersTheLastFocusedItemThatShows() {
+        val spots = listOf(spot(true, initial = true), spot(true, last = 2), spot(true, last = 5), spot(false, last = 9))
+        assertEquals(2, pickLanding(spots))
+    }
+
+    @Test
+    fun landingFallsBackToTheInitialItemThatShows() {
+        // The last focused one scrolled away.
+        val spots = listOf(spot(true, top = 0f), spot(false, last = 4), spot(true, initial = true, top = 50f))
+        assertEquals(2, pickLanding(spots))
+    }
+
+    @Test
+    fun landingTakesTheFirstShownInReadingOrder() {
+        val spots = listOf(spot(true, top = 40f, left = 0f), spot(true, top = 10f, left = 30f), spot(true, top = 10f, left = 5f), spot(false, initial = false))
+        assertEquals(2, pickLanding(spots))
+    }
+
+    @Test
+    fun withNothingShownLandingTakesTheInitialThenTheLast() {
+        assertEquals(1, pickLanding(listOf(spot(false, last = 3), spot(false, initial = true))))
+        assertEquals(1, pickLanding(listOf(spot(false, last = 3), spot(false, last = 7))))
+        assertEquals(-1, pickLanding(listOf(spot(false))))
+        assertEquals(-1, pickLanding(emptyList()))
+    }
+
+    @Test
+    fun aScopeWithNoKnownFocusTrustsItsRoot() {
+        val scope = PadScope()
+        assertFalse(scope.focusShown())
+        scope.rootHasFocus = true
+        assertTrue(scope.focusShown())
+        assertNull(scope.current())
+    }
+
+    @Test
+    fun aFocusedItemThatIsNotLaidOutDoesNotShow() {
+        val scope = PadScope()
+        val a = PadTarget()
+        val b = PadTarget(initial = true)
+        scope.add(a)
+        scope.add(b)
+        scope.rootHasFocus = true
+        scope.focusChanged(a, true)
+        // Disposed or scrolled out: the press lands instead.
+        assertFalse(scope.focusShown())
+        assertSame(a, scope.current())
+        scope.focusChanged(a, false)
+        scope.focusChanged(b, true)
+        scope.focusChanged(b, false)
+        // Neither holds it now: the one that held it last.
+        assertSame(b, scope.current())
+        assertTrue(a.lastFocus in 1 until b.lastFocus)
+        scope.remove(b)
+        assertSame(a, scope.current())
+    }
+
+    @Test
+    fun landingInAnEmptyScopeFindsNothing() {
+        assertFalse(PadScope().land())
+    }
+}

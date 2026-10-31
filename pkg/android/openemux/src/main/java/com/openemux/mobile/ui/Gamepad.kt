@@ -186,7 +186,10 @@ fun Modifier.gamepadFocus(
     }
     // An item that leaves while focused takes its count with it.
     DisposableEffect(Unit) { onDispose { if (focused) InputMode.focused -= 1 } }
+    // Known to its window, so a press that finds nothing focused can land here.
+    val target = remember { PadTarget() }
     this
+        .padTarget(target)
         .zIndex(if (shown) 1f else 0f)
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
@@ -384,7 +387,10 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
-    this.focusRequester(requester).onFocusChanged {
+    // The screen's initial item is where a press lands when nothing on screen holds focus.
+    val target = remember(requester) { PadTarget(initial, requester) }
+    target.initial = initial
+    this.focusRequester(requester).padTarget(target, attach = false).onFocusChanged {
         if (it.isFocused || it.hasFocus) {
             saved.value = key
             InputMode.last = requester
