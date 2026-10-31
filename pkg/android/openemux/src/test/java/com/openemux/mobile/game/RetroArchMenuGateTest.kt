@@ -14,7 +14,7 @@ class RetroArchMenuGateTest {
     @Test
     fun anArmedGateLetsExactlyOneRequestThrough() {
         val gate = RetroArchMenuGate()
-        gate.arm()
+        assertTrue(gate.arm(gate.request()))
         assertTrue(gate.consume())
         assertFalse(gate.consume())
     }
@@ -22,17 +22,46 @@ class RetroArchMenuGateTest {
     @Test
     fun aDisarmedGateLetsNothingThrough() {
         val gate = RetroArchMenuGate()
-        gate.arm()
-        gate.disarm()
+        val request = gate.request()
+        gate.arm(request)
+        gate.disarm(request)
         assertFalse(gate.consume())
     }
 
     @Test
     fun theGateCanBeArmedAgainAfterUse() {
         val gate = RetroArchMenuGate()
-        gate.arm()
+        gate.arm(gate.request())
         gate.consume()
-        gate.arm()
+        gate.arm(gate.request())
+        assertTrue(gate.consume())
+    }
+
+    @Test
+    fun aCancelledRequestCannotArm() {
+        val gate = RetroArchMenuGate()
+        val request = gate.request()
+        gate.cancel()
+        assertFalse(gate.arm(request))
+        assertFalse(gate.consume())
+    }
+
+    @Test
+    fun cancelDisarms() {
+        val gate = RetroArchMenuGate()
+        gate.arm(gate.request())
+        gate.cancel()
+        assertFalse(gate.consume())
+    }
+
+    @Test
+    fun anOlderRequestNeitherArmsNorDisarmsANewerOne() {
+        val gate = RetroArchMenuGate()
+        val older = gate.request()
+        val newer = gate.request()
+        assertFalse(gate.arm(older))
+        assertTrue(gate.arm(newer))
+        gate.disarm(older)
         assertTrue(gate.consume())
     }
 }

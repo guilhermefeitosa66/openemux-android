@@ -375,8 +375,8 @@ class GameActivity : RetroActivityFuture() {
     }
 
     override fun onPause() {
-        // A request armed just before leaving must not reach a later sheet request.
-        retroArchMenu.disarm()
+        // A request armed, or still waiting to arm, when leaving must not reach a later sheet request.
+        retroArchMenu.cancel()
         flushPlaytime()
         super.onPause()
     }
@@ -577,19 +577,32 @@ class GameActivity : RetroActivityFuture() {
      * leaves the choice to the next sheet, when that sheet opens first.
      */
     private fun applyFastForward(sheet: Int) {
-        repeat(20) {
-            if (sheetCount != sheet) return
-            if (RaCommand.isPlaying()) {
-                val wanted = fastForwardWanted ?: return
-                if (sheetCount != sheet) return
-                if (fastForwardOn != wanted) RaCommand.send("FAST_FORWARD")
-                fastForwardWanted = null
-                return
-            }
+        if (!awaitPlaying(attempts = 20) { sheetCount != sheet }) {
+            // Never seen running: drop the choice, so the next sheet shows the engine's own state.
+            if (sheetCount == sheet) fastForwardWanted = null
+            return
+        }
+        val wanted = fastForwardWanted ?: return
+        if (sheetCount != sheet) return
+        if (fastForwardOn != wanted) RaCommand.send("FAST_FORWARD")
+        fastForwardWanted = null
+    }
+
+    /**
+     * Polls until the engine reports it is playing: true once it does, false when [attempts] run out, [deadlineMs]
+     * (if given) passes, or [cancelled] says the wait no longer matters. A status request with no reply takes its
+     * own timeout on top of the 50 ms between attempts, so only the deadline bounds the wait in time.
+     * Blocks: call from a background thread.
+     */
+    private fun awaitPlaying(attempts: Int, deadlineMs: Long? = null, cancelled: () -> Boolean): Boolean {
+        val deadline = deadlineMs?.let { System.currentTimeMillis() + it }
+        repeat(attempts) {
+            if (cancelled()) return false
+            if (RaCommand.isPlaying()) return true
+            if (deadline != null && System.currentTimeMillis() >= deadline) return false
             Thread.sleep(50)
         }
-        // Never seen running: drop the choice, so the next sheet shows the engine's own state.
-        if (sheetCount == sheet) fastForwardWanted = null
+        return false
     }
 
     /**
@@ -597,23 +610,20 @@ class GameActivity : RetroActivityFuture() {
      * and ask for one. Armed only while the game plays: the engine unpauses after RetroArch's menu closes only when
      * the content was not paused before the request. Blocks: call from a background thread.
      */
-    private fun openRetroArchMenu() {
-        repeat(40) {
-            if (RaCommand.isPlaying()) {
-                retroArchMenu.arm()
-                RaCommand.send("MENU_TOGGLE")
-                // The engine answers within a frame; a request it never got must not open RetroArch's menu later.
-                Thread.sleep(1000)
-                retroArchMenu.disarm()
-                return
-            }
-            Thread.sleep(50)
-        }
-        // Never seen running: the game simply resumed.
+    private fun openRetroArchMenu(request: Int) {
+        // Never seen running within 2 s, or a newer sheet took over: the game simply resumed.
+        if (!awaitPlaying(attempts = 40, deadlineMs = 2000L) { false }) return
+        if (!retroArchMenu.arm(request)) return
+        RaCommand.send("MENU_TOGGLE")
+        // The engine answers within a frame; a request it never got must not open RetroArch's menu later.
+        Thread.sleep(1000)
+        retroArchMenu.disarm(request)
     }
 
     private fun showPauseSheet() {
         if (dialog?.isShowing == true || isFinishing) return
+        // A "RetroArch menu" request still waiting for the game to play is overtaken by this sheet.
+        retroArchMenu.cancel()
         val sheet = ++sheetCount
         // A choice from the previous sheet not sent yet is what the tile shows, and this sheet's dismissal sends it.
         val session = PauseSession.fromIntent(intent, sessionStart, fastForwardWanted ?: fastForwardOn)
@@ -644,7 +654,8 @@ class GameActivity : RetroActivityFuture() {
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.
                             d.dismiss()
-                            Thread { openRetroArchMenu() }.start()
+                            val request = retroArchMenu.request()
+                            Thread { openRetroArchMenu(request) }.start()
                         },
                     )
                 }
