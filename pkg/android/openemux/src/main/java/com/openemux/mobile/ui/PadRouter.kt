@@ -6,8 +6,11 @@ import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.View
+import android.view.ViewTreeObserver
 import android.view.Window
 import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +21,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -126,22 +130,31 @@ fun stickKey(x: Float, y: Float, hatX: Float, hatY: Float): Int {
 /** When a held stick repeats its key: a pause on the first move, then a steady repeat. */
 fun stickDelay(sameKey: Boolean): Long = if (sameKey) 90L else 380L
 
-/** One candidate for where a landing press puts focus. */
-data class LandingSpot(val shown: Boolean, val initial: Boolean, val lastFocus: Long, val top: Float, val left: Float)
+/** One candidate for where a landing press puts focus: its centre in the window when it shows. */
+data class LandingSpot(val shown: Boolean, val initial: Boolean, val lastFocus: Long, val x: Float = 0f, val y: Float = 0f)
 
 /**
  * Where a press that finds nothing focused lands, as an index into [spots]
- * (-1 for none): the item that held focus last, if it still shows; else the
- * screen's initial item, if it shows; else the first one showing, in reading
- * order; else the initial item or the last focused, wherever they are.
+ * (-1 for none). The item that held focus last, if it still shows; else,
+ * when [anchor] says where that item was on screen, the showing item
+ * nearest that place (the user scrolled it away: focus stays where the eye
+ * was); else the screen's initial item, if it shows; else the first one
+ * showing, in reading order; else the initial item or the last focused,
+ * wherever they are.
  */
-fun pickLanding(spots: List<LandingSpot>): Int {
-    val shown = spots.withIndex().filter { it.value.shown }
-    shown.filter { it.value.lastFocus > 0 }.maxByOrNull { it.value.lastFocus }?.let { return it.index }
+fun pickLanding(spots: List<LandingSpot>, anchor: Pair<Float, Float>? = null): Int {
+    val indexed = spots.withIndex()
+    val latest = indexed.filter { it.value.lastFocus > 0 }.maxByOrNull { it.value.lastFocus }
+    if (latest != null && latest.value.shown) return latest.index
+    val shown = indexed.filter { it.value.shown }
+    if (anchor != null) {
+        val (ax, ay) = anchor
+        shown.minByOrNull { (it.value.x - ax).let { d -> d * d } + (it.value.y - ay).let { d -> d * d } }?.let { return it.index }
+    }
     shown.firstOrNull { it.value.initial }?.let { return it.index }
-    shown.minWithOrNull(compareBy({ it.value.top }, { it.value.left }))?.let { return it.index }
-    spots.withIndex().firstOrNull { it.value.initial }?.let { return it.index }
-    return spots.withIndex().filter { it.value.lastFocus > 0 }.maxByOrNull { it.value.lastFocus }?.index ?: -1
+    shown.minWithOrNull(compareBy({ it.value.y }, { it.value.x }))?.let { return it.index }
+    indexed.firstOrNull { it.value.initial }?.let { return it.index }
+    return latest?.index ?: -1
 }
 
 /** An item that can take the gamepad's focus, in one window. */
@@ -151,6 +164,13 @@ class PadTarget(var initial: Boolean = false, val requester: FocusRequester = Fo
 
     /** When it last took focus (a tick of its scope), 0 if never. */
     var lastFocus = 0L
+
+    /** Its centre in the window, or null when it is not laid out. */
+    fun center(): Pair<Float, Float>? {
+        val c = coords?.takeIf { it.isAttached } ?: return null
+        val b = runCatching { c.boundsInWindow() }.getOrNull() ?: return null
+        return b.center.x to b.center.y
+    }
 
     /** Whether any of it shows in its window: an item scrolled out of its list does not. */
     fun shown(): Boolean {
@@ -172,13 +192,34 @@ class PadScope {
     /** Whether anything in the window holds focus, a control the scope does not know included. */
     var rootHasFocus = false
 
+    /**
+     * The window left touch mode with nothing focused, on a pad press: the router lands focus with that press
+     * (its press, or only its release when the platform spent the press), and nothing else may take it first.
+     */
+    var touchExit = false
+
+    /** The window's Compose view, taken out of touch mode before focus lands (A does not leave it on its own). */
+    var view: View? = null
+
     fun add(target: PadTarget) { targets += target }
     fun remove(target: PadTarget) { targets -= target }
+
+    /** Where the item that held focus last was in the window, while it held it. */
+    var anchor: Pair<Float, Float>? = null
+        private set
 
     fun focusChanged(target: PadTarget, now: Boolean) {
         target.focused = now
         if (now) target.lastFocus = ++tick
+        if (now) target.center()?.let { anchor = it }
     }
+
+    /** The focused item moved (its list scrolled to it): the anchor follows it while it shows. */
+    fun placed(target: PadTarget) {
+        if (target.focused && target.shown()) target.center()?.let { anchor = it }
+    }
+
+    fun debug(): String = targets.filter { it.focused }.joinToString { t -> "f(att=${t.coords?.isAttached} b=${runCatching { t.coords?.boundsInWindow() }.getOrNull()})" } + " n=${targets.size}"
 
     /** Whether an item that shows holds focus; one the scope does not know counts as showing. */
     fun focusShown(): Boolean {
@@ -193,12 +234,15 @@ class PadScope {
     fun land(): Boolean {
         val list = targets.toList()
         val spots = list.map { t ->
-            val shown = t.shown()
-            val pos = if (shown) t.coords?.let { c -> runCatching { c.boundsInWindow() }.getOrNull() } else null
-            LandingSpot(shown, t.initial, t.lastFocus, pos?.top ?: 0f, pos?.left ?: 0f)
+            val c = if (t.shown()) t.center() else null
+            LandingSpot(c != null, t.initial, t.lastFocus, c?.first ?: 0f, c?.second ?: 0f)
         }
-        val i = pickLanding(spots)
+        val i = pickLanding(spots, anchor)
         if (i < 0) return false
+        // In touch mode the items are not focusable: only a D-pad key leaves it by itself. Leaving it here
+        // is not a press to wait for (touchExit), or the root would turn this very request down.
+        view?.let { v -> if (v.isInTouchMode) runCatching { v.requestFocusFromTouch() } }
+        touchExit = false
         return runCatching { list[i].requester.requestFocus() }.isSuccess
     }
 }
@@ -224,8 +268,17 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
         val code = event.keyCode
         val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
         val decision = decidePadKey(code, event.action, fromPad, scope().focusShown(), landed)
-        if (decision == PadDecision.NotPad) return dispatch(event)
+        android.util.Log.d("PADDBG", "code=$code act=${event.action} shown=${scope().focusShown()} root=${scope().rootHasFocus} d=$decision ${scope().debug()}")
+        val s = scope()
+        if (decision == PadDecision.NotPad) { s.touchExit = false; return dispatch(event) }
         InputMode.gamepad = true
+        if (s.touchExit) {
+            // The press that took the window out of touch mode only lands focus.
+            s.touchExit = false
+            if (event.action == KeyEvent.ACTION_DOWN) landed = code
+            s.land()
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && code != landed) landed = 0
         return when (decision) {
             PadDecision.AsCenter -> dispatch(
@@ -236,7 +289,7 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
             )
             is PadDecision.Back -> { if (decision.act) back(); true }
             is PadDecision.Bus -> { if (decision.act) GamepadBus.dispatch { it.handler(decision.button) }; true }
-            PadDecision.Land -> { landed = code; scope().land(); true }
+            PadDecision.Land -> { landed = code; s.land(); s.touchExit = false; true }
             PadDecision.Swallow -> { landed = 0; true }
             else -> dispatch(event)
         }
@@ -278,12 +331,29 @@ internal fun Modifier.padTarget(target: PadTarget, attach: Boolean = true): Modi
         onDispose { scope.remove(target); target.coords = null }
     }
     (if (attach) focusRequester(target.requester) else this)
-        .onPlaced { target.coords = it }
+        .onPlaced { target.coords = it; scope.placed(target) }
         .onFocusChanged { scope.focusChanged(target, it.isFocused || it.hasFocus) }
 }
 
 /** Tells [scope] whether anything under this root holds focus. */
-fun Modifier.padRoot(scope: PadScope): Modifier = onFocusChanged { scope.rootHasFocus = it.hasFocus }
+fun Modifier.padRoot(scope: PadScope): Modifier = composed {
+    val view = LocalView.current
+    scope.view = view
+    // A touch puts the window in touch mode, where Compose's clickables cannot hold focus: it is dropped. The
+    // next D-pad press was then spent by the platform on leaving touch mode, and Compose put focus on the
+    // window's first item, wherever that was. Leaving touch mode is noted here, before that happens; the
+    // root turns down Compose's entry below, so the press reaches the router, which lands focus itself.
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnTouchModeChangeListener { inTouch ->
+            scope.touchExit = !inTouch && !scope.focusShown()
+        }
+        view.viewTreeObserver.addOnTouchModeChangeListener(listener)
+        onDispose { view.viewTreeObserver.removeOnTouchModeChangeListener(listener) }
+    }
+    focusProperties { onEnter = { if (scope.touchExit) cancelFocusChange() } }
+        .focusGroup()
+        .onFocusChanged { scope.rootHasFocus = it.hasFocus }
+}
 
 /**
  * Puts the pad's handling on the dialog window this is composed in (a
