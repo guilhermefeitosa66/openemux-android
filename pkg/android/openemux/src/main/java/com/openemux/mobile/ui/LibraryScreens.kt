@@ -1171,9 +1171,14 @@ private fun GroupLabelLine(console: Console, count: Int, modifier: Modifier) {
  * the console's first game, stuck at the row's start ([edge]) once that game
  * scrolls past, pushed out by the next console's label. Positions are read at
  * layout time, so scrolling only moves them.
+ *
+ * Accessibility drops a node that a later sibling covers, and the row covers
+ * the labels drawn under it. So the labels come twice: [semanticsOnly] false
+ * draws them under the row with no semantics, true lays them out over the row
+ * drawing nothing, for TalkBack to read.
  */
 @Composable
-private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyListState, edge: Dp, modifier: Modifier) {
+private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyListState, edge: Dp, semanticsOnly: Boolean, modifier: Modifier) {
     val starts = remember(groups) { GroupLabel.starts(groups.map { it.second.size }) }
     // The groups with a game in view; changes only when a group enters or leaves.
     val inView by remember(groups, starts) {
@@ -1201,7 +1206,8 @@ private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyList
             key(console.id) {
                 GroupLabelLine(
                     console, groups[g].second.size,
-                    Modifier.widthIn(max = maxWidth - edge * 2)
+                    (if (semanticsOnly) Modifier.drawWithContent {} else Modifier.clearAndSetSemantics {})
+                        .widthIn(max = maxWidth - edge * 2)
                         .onSizeChanged { widths[console.id] = it.width }
                         .offset { IntOffset(labelX(g), 0) },
                 )
@@ -1271,7 +1277,8 @@ private fun LandscapeLibrary(
             val rowEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) FocusDirection.Left else FocusDirection.Right
             // A mixed page names each console over its games, under the row so a focus ring is never covered.
             val rowState = rememberLazyListState()
-            if (groups.any { it.first != null }) GroupLabels(groups, rowState, margin, Modifier.padding(top = 8.dp))
+            val mixed = groups.any { it.first != null }
+            if (mixed) GroupLabels(groups, rowState, margin, semanticsOnly = false, Modifier.padding(top = 8.dp))
             CenteredFocusScroll { LazyRow(
                 // While selecting, the D-pad stays on the games, as in the portrait grid.
                 Modifier.fillMaxSize().holdFocusAtEnd(rowEnd).holdGamepadFocus(pick.selection.active),
@@ -1320,6 +1327,8 @@ private fun LandscapeLibrary(
                     }
                 }
             } }
+            // The same labels over the row, invisible, so the row does not hide them from TalkBack.
+            if (mixed) GroupLabels(groups, rowState, margin, semanticsOnly = true, Modifier.padding(top = 8.dp))
         }
     }
 }
