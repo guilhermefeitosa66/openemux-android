@@ -77,6 +77,9 @@ import com.retroarch.R
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
+import com.openemux.mobile.ui.PillHeight
+import com.openemux.mobile.ui.PillHeightPad
+import com.openemux.mobile.ui.padSize
 
 /**
  * The incoming offer over any screen of the main activity (spec 05/06), then
@@ -313,7 +316,7 @@ private fun DateLine(label: Int, date: String, newer: Boolean) {
 private fun PolicyChip(conflict: Conflict, policy: com.openemux.mobile.share.Policy, modifier: Modifier, onClick: () -> Unit) {
     val selected = conflict.policy == policy
     Box(
-        modifier.height(36.dp).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
+        modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
             .background(if (selected) Oe.AccentSoft else Oe.Surface2)
             .let { if (selected) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
             .selectable(selected, role = Role.RadioButton, onClick = onClick)

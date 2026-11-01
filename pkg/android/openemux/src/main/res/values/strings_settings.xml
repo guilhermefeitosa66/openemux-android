@@ -206,4 +206,12 @@
     <string name="settings_language_lead">Applies to the app\'s texts. Game names follow the file.</string>
     <string name="settings_about_licenses">About and licenses</string>
     <string name="settings_licenses_hint">Tap to read the full text</string>
+    <string name="settings_controller_layout">Controller layout</string>
+    <string name="settings_controller_layout_lead">When the app shows the focus and the button hints for a controller.</string>
+    <string name="settings_controller_layout_auto">Automatic</string>
+    <string name="settings_controller_layout_auto_desc">The controller layout while a controller is connected.</string>
+    <string name="settings_controller_layout_always">Always</string>
+    <string name="settings_controller_layout_always_desc">For handhelds with built-in controls.</string>
+    <string name="settings_controller_layout_never">Never</string>
+    <string name="settings_controller_layout_never_desc">The touch layout, even with a controller connected.</string>
 </resources>

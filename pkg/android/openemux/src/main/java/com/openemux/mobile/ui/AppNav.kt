@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
@@ -131,6 +132,13 @@ fun OpenEmuxRoot() {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     var launching by remember { mutableStateOf<Rom?>(null) }
+
+    // The gamepad layout turning on (a controller connected, no press yet) leaves touch mode, where nothing takes
+    // focus, so the screen's item gets the ring at once.
+    val inputModes = LocalInputModeManager.current
+    LaunchedEffect(InputMode.padLayout) {
+        if (InputMode.padLayout) inputModes.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
+    }
 
     LifecycleResumeEffect(Unit) {
         scope.launch { app.library.scan() }

@@ -96,12 +96,19 @@ private val THEMES = listOf(
     Triple(ThemePref.DARK, R.string.settings_theme_dark, R.string.settings_theme_dark_desc),
 )
 
+private val CONTROLLER_LAYOUTS = listOf(
+    Triple(ControllerLayoutPref.AUTO, R.string.settings_controller_layout_auto, R.string.settings_controller_layout_auto_desc),
+    Triple(ControllerLayoutPref.ALWAYS, R.string.settings_controller_layout_always, R.string.settings_controller_layout_always_desc),
+    Triple(ControllerLayoutPref.NEVER, R.string.settings_controller_layout_never, R.string.settings_controller_layout_never_desc),
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(entry: NavBackStackEntry? = null) {
     // Saveable: a density change recreates the activity, and an open sheet must still be there.
     var themeSheet by rememberSaveable { mutableStateOf(false) }
     var languageSheet by rememberSaveable { mutableStateOf(false) }
+    var controllerSheet by rememberSaveable { mutableStateOf(false) }
     var nameSheet by rememberSaveable { mutableStateOf(false) }
     GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_open), "B" to stringResource(R.string.settings_hint_back), "L1 R1" to stringResource(R.string.settings_hint_tabs)))
     val a = LocalActions.current
@@ -114,6 +121,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
         when (item) {
             SettingsItem.Theme -> themeSheet = true
             SettingsItem.Language -> languageSheet = true
+            SettingsItem.ControllerLayout -> controllerSheet = true
             else -> item.route?.let { a.nav.navigate(it) }
         }
     }
@@ -125,10 +133,11 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             // A license text sits on About on a phone too, so Back steps there first as it does in the pane.
             if (it is SettingsItem.License) openAlone(SettingsItem.About)
             openAlone(it)
-        } else sheetToPane(themeSheet, languageSheet)?.let {
+        } else sheetToPane(themeSheet, languageSheet, controllerSheet)?.let {
             // The phone's sheet becomes the pane's item; the screens of their own hand theirs back by themselves.
             themeSheet = false
             languageSheet = false
+            controllerSheet = false
             pickedKey = it.key
         }
     }
@@ -152,6 +161,15 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.settings_theme), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
                 ThemeOptions()
+            }
+        }
+    }
+    if (controllerSheet) {
+        ModalBottomSheet({ controllerSheet = false }, containerColor = Oe.Sheet) {
+            SheetBarIcons()
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.settings_controller_layout), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
+                ControllerLayoutOptions()
             }
         }
     }
@@ -277,6 +295,11 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
             ListRow(stringResource(R.string.settings_rom_folder), subtitle = "Android/data/${context.packageName}/files/roms", value = "${roms.size}")
             ListRow(stringResource(R.string.settings_controls), value = stringResource(R.string.settings_controls_value), divider = true)
             ListRow(
+                stringResource(R.string.settings_controller_layout), divider = true,
+                value = stringResource(CONTROLLER_LAYOUTS.first { it.first == ControllerLayoutPref.value }.second),
+                selected = picked == SettingsItem.ControllerLayout, onClick = { onPick(SettingsItem.ControllerLayout) },
+            )
+            ListRow(
                 stringResource(R.string.settings_backup), subtitle = stringResource(R.string.settings_backup_desc), divider = true, minHeight = 60.dp,
                 selected = picked == SettingsItem.Backup, onClick = { onPick(SettingsItem.Backup) },
             )
@@ -309,6 +332,7 @@ private fun SettingsPane(picked: SettingsItem?, onPick: (SettingsItem) -> Unit) 
                     SettingsItem.Bios -> BiosScreen(embedded = true)
                     SettingsItem.Theme -> ThemePane()
                     SettingsItem.Language -> LanguagePane()
+                    SettingsItem.ControllerLayout -> ControllerLayoutPane()
                     SettingsItem.Achievements -> AchievementsScreen(embedded = true)
                     SettingsItem.Backup -> BackupScreen(embedded = true)
                     SettingsItem.About -> AboutScreen(embedded = true, onOpenLicense = { onPick(SettingsItem.License(it)) })
@@ -335,6 +359,27 @@ private fun ThemeOptions() {
     THEMES.forEach { (id, name, blurb) ->
         RadioCard(ThemePref.value == id, stringResource(name), stringResource(blurb), onClick = { ThemePref.set(context, id) }, background = Oe.Raised)
     }
+}
+
+/** When the gamepad layout shows, as the sheet and the pane list it. */
+@Composable
+private fun ControllerLayoutOptions(background: androidx.compose.ui.graphics.Color = Oe.Raised) {
+    val context = LocalContext.current
+    CONTROLLER_LAYOUTS.forEach { (id, name, blurb) ->
+        RadioCard(ControllerLayoutPref.value == id, stringResource(name), stringResource(blurb), onClick = { ControllerLayoutPref.set(context, id) }, background = background)
+    }
+}
+
+/** Controller layout in the settings pane: the same three choices, applied at once. */
+@Composable
+private fun ControllerLayoutPane() {
+    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        PaneTitle(stringResource(R.string.settings_controller_layout), stringResource(R.string.settings_controller_layout_lead))
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ControllerLayoutOptions(background = Oe.Surface)
+        }
+        Spacer(Modifier.height(hintBarInset))
+    } }
 }
 
 /** The language choices as the sheet lists them; [onPicked] runs before a new language restarts the screen. */
@@ -510,7 +555,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                 if (own.isNotEmpty()) {
                     Text(
                         stringResource(R.string.settings_see_which), style = Type.Small.copy(color = Oe.AccentText),
-                        modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button) { ownSheet = true },
+                        modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button) { ownSheet = true }.linkTarget(),
                     )
                 }
             }
@@ -742,7 +787,7 @@ private fun AchievementsSignIn(lastUsername: String) {
         Text(
             stringResource(R.string.ra_create_account), style = Type.Small.copy(color = Oe.AccentText),
             modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp))
-                .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/createaccount.php") },
+                .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/createaccount.php") }.linkTarget(),
         )
     }
 }
@@ -764,7 +809,7 @@ private fun AchievementsAccount(state: AchievementsState) {
                 Text(state.username, style = Type.Section.copy(fontSize = 16.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(
-                Modifier.height(36.dp).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).background(Oe.Raised)
+                Modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).background(Oe.Raised)
                     .clickable(role = Role.Button) { store.signOut() }.padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(stringResource(R.string.ra_sign_out), style = Type.Button.copy(color = Oe.Text, fontSize = 14.sp)) }
@@ -787,7 +832,7 @@ private fun AchievementsAccount(state: AchievementsState) {
             Text(
                 stringResource(R.string.ra_see_progress), style = Type.Small.copy(color = Oe.AccentText),
                 modifier = Modifier.padding(top = 6.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp))
-                    .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/user/" + Uri.encode(state.username)) },
+                    .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/user/" + Uri.encode(state.username)) }.linkTarget(),
             )
         }
     }
@@ -890,7 +935,7 @@ fun ImportScreen() {
                 )
                 if (ok) Text(
                     stringResource(R.string.settings_import_view), style = Type.Section.copy(color = Oe.OkText),
-                    modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable { a.nav.navigate(Routes.SHELF) { popUpTo(Routes.SHELF) { inclusive = true } } }.padding(6.dp),
+                    modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable { a.nav.navigate(Routes.SHELF) { popUpTo(Routes.SHELF) { inclusive = true } } }.linkTarget().padding(6.dp),
                 )
             }
         }

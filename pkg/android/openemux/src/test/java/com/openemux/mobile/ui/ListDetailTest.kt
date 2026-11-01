@@ -10,7 +10,7 @@ import org.junit.Test
 class ListDetailTest {
 
     private val items = listOf(
-        SettingsItem.Console("GBA"), SettingsItem.Bios, SettingsItem.Theme, SettingsItem.Language,
+        SettingsItem.Console("GBA"), SettingsItem.Bios, SettingsItem.Theme, SettingsItem.Language, SettingsItem.ControllerLayout,
         SettingsItem.Achievements, SettingsItem.Backup, SettingsItem.About, SettingsItem.License("gpl"),
     )
 
@@ -121,6 +121,7 @@ class ListDetailTest {
         assertEquals("about/license/gpl", SettingsItem.License("gpl").route)
         assertNull(SettingsItem.Theme.route)
         assertNull(SettingsItem.Language.route)
+        assertNull(SettingsItem.ControllerLayout.route)
     }
 
     @Test
@@ -165,6 +166,7 @@ class ListDetailTest {
     fun anOpenSheetBecomesThePanesItem() {
         assertEquals(SettingsItem.Theme, sheetToPane(themeSheet = true, languageSheet = false))
         assertEquals(SettingsItem.Language, sheetToPane(themeSheet = false, languageSheet = true))
+        assertEquals(SettingsItem.ControllerLayout, sheetToPane(themeSheet = false, languageSheet = false, controllerSheet = true))
         assertNull(sheetToPane(themeSheet = false, languageSheet = false))
     }
 }

@@ -35,6 +35,7 @@ import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
+import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.WindowLayout
 import com.openemux.mobile.ui.folds
@@ -734,6 +735,7 @@ class GameActivity : RetroActivityFuture() {
         val session = PauseSession.fromIntent(intent, sessionStart, fastForwardWanted ?: fastForwardOn)
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
+        ControllerLayoutPref.load(this)
         Oe.syncSystem(this)
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

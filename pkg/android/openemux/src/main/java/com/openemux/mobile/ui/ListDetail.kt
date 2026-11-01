@@ -12,6 +12,7 @@ sealed interface SettingsItem {
     data object Bios : SettingsItem
     data object Theme : SettingsItem
     data object Language : SettingsItem
+    data object ControllerLayout : SettingsItem
     data object Achievements : SettingsItem
     data object Backup : SettingsItem
     data object About : SettingsItem
@@ -24,6 +25,7 @@ sealed interface SettingsItem {
             Bios -> "bios"
             Theme -> "theme"
             Language -> "language"
+            ControllerLayout -> "controller_layout"
             Achievements -> "achievements"
             Backup -> "backup"
             About -> "about"
@@ -39,7 +41,7 @@ sealed interface SettingsItem {
             Backup -> Routes.BACKUP
             About -> Routes.ABOUT
             is License -> Routes.license(id)
-            Theme, Language -> null
+            Theme, Language, ControllerLayout -> null
         }
 
     companion object {
@@ -52,6 +54,7 @@ sealed interface SettingsItem {
                 "bios" -> Bios
                 "theme" -> Theme
                 "language" -> Language
+                "controller_layout" -> ControllerLayout
                 "achievements" -> Achievements
                 "backup" -> Backup
                 "about" -> About
@@ -62,9 +65,10 @@ sealed interface SettingsItem {
 }
 
 /** The item a phone's open sheet becomes in the pane when a resize brings the split back; null with none open. */
-fun sheetToPane(themeSheet: Boolean, languageSheet: Boolean): SettingsItem? = when {
+fun sheetToPane(themeSheet: Boolean, languageSheet: Boolean, controllerSheet: Boolean = false): SettingsItem? = when {
     themeSheet -> SettingsItem.Theme
     languageSheet -> SettingsItem.Language
+    controllerSheet -> SettingsItem.ControllerLayout
     else -> null
 }
 

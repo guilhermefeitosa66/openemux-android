@@ -215,7 +215,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 if (states.isNotEmpty()) {
                     Text(
                         stringResource(R.string.detail_see_all, states.size), style = Type.Small.copy(color = Oe.AccentText),
-                        modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { sheet = Sheet.States }.padding(4.dp),
+                        modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { sheet = Sheet.States }.linkTarget().padding(4.dp),
                     )
                 }
             }
@@ -489,7 +489,7 @@ fun ColorSwatches(selected: String, modifier: Modifier = Modifier, onPick: (Stri
     FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         CART_COLORS.forEach { c ->
             Box(
-                Modifier.size(38.dp).gamepadFocus(corner = 19.dp).clip(CircleShape)
+                Modifier.size(padSize(SwatchSize, SwatchSizePad)).gamepadFocus(corner = padSize(19.dp, 22.dp)).clip(CircleShape)
                     .border(2.dp, if (c.id == selected) Oe.AccentText else Color.Transparent, CircleShape)
                     .clickable(onClickLabel = stringResource(c.label), role = Role.RadioButton) { onPick(c.id) },
                 contentAlignment = Alignment.Center,
