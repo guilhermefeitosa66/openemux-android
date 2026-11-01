@@ -185,8 +185,10 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
     if (buttonLabelsSheet) {
         OeSheet({ buttonLabelsSheet = false }, scroll = false) {
             SheetBarIcons()
+            // The cards take only the height left over by the hint bar below: in landscape they scroll
+            // and the bar stays at the bottom of the sheet, instead of being pushed out of the window.
             MarginFocusScroll { Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(stringResource(R.string.settings_button_labels), style = Type.Title.copy(fontSize = 22.sp))
