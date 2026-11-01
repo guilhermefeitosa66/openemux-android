@@ -1578,7 +1578,7 @@ private fun FilterName(name: String, short: String, forceShort: Boolean, style: 
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(modifier) {
         val smallest = style.copy(fontSize = style.fontSize * FIT_TEXT_MIN_SCALE)
-        val fullWidth = remember(name, smallest) { measurer.measure(name, smallest, maxLines = 1, softWrap = false).size.width }
+        val fullWidth = remember(measurer, name, smallest) { measurer.measure(name, smallest, maxLines = 1, softWrap = false).size.width }
         val text = nameThatFits(name, short, forceShort, fullWidth, constraints.maxWidth)
         FitText(text, style)
     }
