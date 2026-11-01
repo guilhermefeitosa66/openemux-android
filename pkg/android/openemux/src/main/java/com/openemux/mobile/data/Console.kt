@@ -125,7 +125,7 @@ enum class Console(
         "geom", 2, 106,
     ),
     FC(
-        "FC", "Nintendo (NES) / Famicom", "NES", setOf("nes"), "Nintendo_-_Nintendo_Entertainment_System",
+        "FC", "Nintendo (NES)", "NES", setOf("nes"), "Nintendo_-_Nintendo_Entertainment_System",
         frame("cart_fc", 400f, 449f, 161.68942f, 0f, 186.61885f, 306.46255f),
         Color(0xFF7A2E2E), 4f / 3f,
         listOf(
@@ -210,7 +210,7 @@ enum class Console(
         Color(0xFF4A3A7A), 4f / 3f, listOf(core("dolphin", "Dolphin", R.string.data_core_dolphin)), "geom", 4, 13,
     ),
     O2(
-        "O2", "Odyssey2 / Videopac+", "O2", setOf("bin", "rom"), "Magnavox_-_Odyssey2",
+        "O2", "Odyssey²", "O2", setOf("bin", "rom"), "Magnavox_-_Odyssey2",
         frame("cart_o2", 400f, 603f, 34.483f, 168.103f, 327.586f, 331.897f),
         Color(0xFF3A3A3A), 4f / 3f, listOf(core("o2em", "O2EM", R.string.data_core_o2em)), "geom", 2, 104,
     ),
@@ -225,7 +225,7 @@ enum class Console(
         Color(0xFF5A2E3A), 4f / 3f, listOf(core("picodrive", "PicoDrive", R.string.data_core_picodrive)), "geom", 4, 19,
     ),
     MCD(
-        "MCD", "Sega CD / Mega CD", "SEGA CD", setOf("cue", "chd", "iso"), "Sega_-_Mega-CD_-_Sega_CD", null,
+        "MCD", "Mega CD", "SEGA CD", setOf("cue", "chd", "iso"), "Sega_-_Mega-CD_-_Sega_CD", null,
         Color(0xFF2E3A5A), 4f / 3f,
         listOf(
             core("genesis_plus_gx", "Genesis Plus GX", R.string.data_core_genesis_plus_gx),
@@ -234,7 +234,7 @@ enum class Console(
         "geom", 4, 20,
     ),
     MD(
-        "MD", "Sega Genesis / Mega Drive", "MD", setOf("md", "gen", "bin", "smd"), "Sega_-_Mega_Drive_-_Genesis",
+        "MD", "Mega Drive", "MD", setOf("md", "gen", "bin", "smd"), "Sega_-_Mega_Drive_-_Genesis",
         frame("cart_md", 295f, 200f, 46.116512f, 4.5005116f, 202.53333f, 166.38126f),
         Color(0xFF26262E), 4f / 3f,
         listOf(
@@ -281,12 +281,12 @@ enum class Console(
         "geom", 4, 4,
     ),
     PCE(
-        "PCE", "TurboGrafx-16 / PC Engine / SuperGrafx", "PCE", setOf("pce", "sgx", "bin"), "NEC_-_PC_Engine_-_TurboGrafx_16",
+        "PCE", "PC Engine", "PCE", setOf("pce", "sgx", "bin"), "NEC_-_PC_Engine_-_TurboGrafx_16",
         frame("cart_pce", 400f, 506f, 52.321f, 175.527f, 295.359f, 286.920f),
         Color(0xFF5A5A62), 4f / 3f, listOf(core("mednafen_pce_fast", "Beetle PCE Fast", R.string.data_core_beetle_pce_fast)), "geom", 2, 31,
     ),
     PCECD(
-        "PCECD", "TurboGrafx-CD / PC Engine CD", "PCE CD", setOf("cue", "chd", "iso"), "NEC_-_PC_Engine_CD_-_TurboGrafx-CD", null,
+        "PCECD", "PC Engine CD", "PCE CD", setOf("cue", "chd", "iso"), "NEC_-_PC_Engine_CD_-_TurboGrafx-CD", null,
         Color(0xFF4A4A6B), 4f / 3f,
         listOf(
             core("mednafen_supergrafx", "Beetle SuperGrafx", R.string.data_core_beetle_supergrafx),
