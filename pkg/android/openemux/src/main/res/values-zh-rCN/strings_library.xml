@@ -24,6 +24,7 @@
     <string name="library_favorites">收藏</string>
     <string name="library_favorites_eyebrow">收藏</string>
     <string name="library_all_games">全部游戏</string>
+    <string name="library_all_eyebrow">游戏库</string>
     <string name="library_all_consoles_eyebrow">全部主机</string>
     <string name="library_chip_all">全部</string>
     <string name="library_search">搜索</string>

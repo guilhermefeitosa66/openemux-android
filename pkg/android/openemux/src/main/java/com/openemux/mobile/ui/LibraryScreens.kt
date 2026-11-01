@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
@@ -155,6 +157,9 @@ fun ShelfScreen() {
 
     val favoritesShort = stringResource(R.string.library_favorites_eyebrow)
     val favoritesName = stringResource(R.string.library_favorites)
+    val allShort = stringResource(R.string.library_all_eyebrow)
+    val allName = stringResource(R.string.library_all_games)
+    val allCompactName = stringResource(R.string.library_chip_all)
 
     // A tablet's shelf: a header row, the games to continue, more columns of taller cards and an import card.
     val spec = shelfSpecOf(LocalWindowLayout.current)
@@ -243,29 +248,44 @@ fun ShelfScreen() {
                 }
                 val favorites = roms.filter { meta.roms[it.key]?.favorite == true }
                 val shown = live ?: present
+                // All and Favorites come first; they are no consoles, so they never move nor take a dragged card.
+                val pinned = pinnedShelves(roms.size, favorites.size)
+                val pair = pinnedAsPair(columns, pinned)
+                val first = pinned.firstOrNull() ?: shown.firstOrNull()?.id
+                if (pair) item(key = "pinned", span = { GridItemSpan(maxLineSpan) }) {
+                    // One column: the two share the row, so the pair is no taller than one card.
+                    Row(Modifier.padding(vertical = (spec.gap / 2).dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(spec.gap.dp)) {
+                        listOf(Triple(allShort, allCompactName, roms) to "ALL", Triple(favoritesShort, favoritesName, favorites) to "FAV").forEach { (shelf, filter) ->
+                            val (short, name, list) = shelf
+                            val (background, ink) = pinnedLook(filter, Oe.dark)
+                            CompactShelfCard(
+                                if (filter == "ALL") Icons.Grid else Icons.Star, if (filter == "ALL") ink else Oe.Star,
+                                short, name, countString(R.plurals.library_games_count, list.size, list.size), background, ink,
+                                spec.cardHeight.dp, Modifier.weight(1f).fillMaxHeight(), Modifier.restorableFocus(filter, focusedShelf, initial = first == filter),
+                            ) { a.nav.navigate(Routes.library(filter)) }
+                        }
+                    }
+                }
                 val shelves = buildList {
-                    if (favorites.isNotEmpty()) add(Triple(favoritesShort, favoritesName, favorites) to "FAV")
+                    if (!pair) pinned.forEach { f ->
+                        add((if (f == "ALL") Triple(allShort, allName, roms) else Triple(favoritesShort, favoritesName, favorites)) to f)
+                    }
                     shown.forEach { c -> add(Triple(c.short, c.displayName, roms.filter { it.console == c }) to c.id) }
                 }
                 gridItems(shelves, key = { it.second }) { (shelf, filter) ->
                     val (short, name, list) = shelf
                     val console = Console.byId(filter)
-                    val (background, ink) = when (filter) {
-                        "FAV" ->
-                            if (Oe.dark) Brush.linearGradient(listOf(Color(0xFF5B3FA8), Color(0xFF3A2A6E))) to Color.White
-                            else Brush.linearGradient(listOf(Color(0xFFDDD3F8), Color(0xFFC6B8F0))) to Color(0xFF2E1F66)
-                        else -> console!!.shelf(Oe.dark).let { (back, text) -> SolidColor(back) to text }
-                    }
+                    val (background, ink) = if (console == null) pinnedLook(filter, Oe.dark) else console.shelf(Oe.dark).let { (back, text) -> SolidColor(back) to text }
                     val isDragged = console != null && console == dragged
                     val moveUp = stringResource(R.string.library_shelf_move_up)
                     val moveDown = stringResource(R.string.library_shelf_move_down)
                     // No fade-in: a card that arrives (the library restored, a scan, an import) is drawn at once; reordering still slides.
                     ShelfCard(
-                        console, short, name, countString(R.plurals.library_games_count, list.size, list.size), background, ink,
+                        console, filter == "ALL", short, name, countString(R.plurals.library_games_count, list.size, list.size), background, ink,
                         cardSpec, spec.cardHeight.dp, (spec.gap / 2).dp, if (spec.tablet) 24.dp else 22.dp,
                         Modifier
                             .then(if (isDragged) Modifier.zIndex(2f).graphicsLayer { translationX = dragOffset.x; translationY = dragOffset.y; scaleX = 1.03f; scaleY = 1.03f } else Modifier.animateItem(fadeInSpec = null))
-                            .restorableFocus(filter, focusedShelf, initial = shelves.first().second == filter)
+                            .restorableFocus(filter, focusedShelf, initial = first == filter)
                             .then(
                                 if (console == null) Modifier else Modifier
                                     .semantics {
@@ -425,10 +445,10 @@ private fun Modifier.reorderGestures(onStart: () -> Unit, onDrag: (Offset) -> Un
     }
 }
 
-/** A console's shelf ([console] null: Favorites): its icon, large and straight on the card's colour, then tag, name and count. */
+/** A console's shelf ([console] null: All when [all], else Favorites): its icon, large and straight on the card's colour, then tag, name and count. */
 @Composable
 private fun ShelfCard(
-    console: Console?, short: String, name: String, count: String, background: Brush, ink: Color, card: ShelfCardSpec,
+    console: Console?, all: Boolean, short: String, name: String, count: String, background: Brush, ink: Color, card: ShelfCardSpec,
     height: Dp, spacing: Dp, corner: Dp, focus: Modifier, onClick: () -> Unit,
 ) {
     Box(
@@ -445,7 +465,7 @@ private fun ShelfCard(
     ) {
         val tag = Type.Tag.copy(color = ink.copy(alpha = 0.72f), fontSize = 12.sp, letterSpacing = 1.sp)
         Row(Modifier.align(Alignment.CenterStart).fillMaxWidth().padding(horizontal = card.startPadding.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            ShelfIconTile(console, card.box.dp, card.icon.dp, card.star.dp)
+            ShelfIconTile(console, all, ink, card.box.dp, card.icon.dp, card.star.dp)
             Column(Modifier.padding(start = 16.dp)) {
                 Text(short, style = tag, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(name, style = Type.Title.copy(fontSize = card.nameSp.sp, lineHeight = (card.nameSp + 3).sp, color = ink), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -591,11 +611,59 @@ private fun AddedCartridge(rom: Rom, modifier: Modifier, focus: Modifier) {
     }
 }
 
-/** The console's pixel icon (the star for Favorites) in a [box] of room: no fill, the card's colour shows behind it. */
+/** The console's pixel icon (the grid in [ink] for All, the star for Favorites) in a [box] of room: no fill, the card's colour shows behind it. */
 @Composable
-private fun ShelfIconTile(console: Console?, box: Dp, icon: Dp, star: Dp) {
+private fun ShelfIconTile(console: Console?, all: Boolean, ink: Color, box: Dp, icon: Dp, star: Dp) {
     Box(Modifier.size(box), contentAlignment = Alignment.Center) {
-        if (console == null) Icon(Icons.Star, Oe.Star, star, filled = true) else ConsoleIcon(console, icon)
+        when {
+            console != null -> ConsoleIcon(console, icon)
+            all -> Icon(Icons.Grid, ink, star, filled = true)
+            else -> Icon(Icons.Star, Oe.Star, star, filled = true)
+        }
+    }
+}
+
+/** A pinned shelf's colours, background and ink: blue for "ALL", purple for "FAV" (issue 655). */
+private fun pinnedLook(filter: String, dark: Boolean): Pair<Brush, Color> =
+    if (filter == "ALL") {
+        if (dark) Brush.linearGradient(listOf(Color(0xFF2F5D8A), Color(0xFF1E3A5A))) to Color.White
+        else Brush.linearGradient(listOf(Color(0xFFD3E3F5), Color(0xFFBCD3EE))) to Color(0xFF12304F)
+    } else {
+        if (dark) Brush.linearGradient(listOf(Color(0xFF5B3FA8), Color(0xFF3A2A6E))) to Color.White
+        else Brush.linearGradient(listOf(Color(0xFFDDD3F8), Color(0xFFC6B8F0))) to Color(0xFF2E1F66)
+    }
+
+/**
+ * Half of the one-column shelf's first row (All or Favorites): tag and icon on top, name and count
+ * at the bottom. At least [height] tall; a large font scale grows it instead of clipping.
+ */
+@Composable
+private fun CompactShelfCard(
+    icon: String, iconColor: Color, short: String, name: String, count: String, background: Brush, ink: Color,
+    height: Dp, modifier: Modifier, focus: Modifier, onClick: () -> Unit,
+) {
+    Column(
+        modifier
+            .heightIn(min = height)
+            .gamepadFocus(corner = 22.dp, scale = 1.02f)
+            .then(focus)
+            .clip(RoundedCornerShape(22.dp))
+            .background(background)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                short, style = Type.Tag.copy(color = ink.copy(alpha = 0.72f), fontSize = 11.sp, letterSpacing = 1.sp),
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            Icon(icon, iconColor, 30.dp, filled = true, modifier = Modifier.padding(start = 8.dp))
+        }
+        Column(Modifier.padding(top = 8.dp)) {
+            Text(name, style = Type.Title.copy(fontSize = 18.sp, color = ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(count, style = Type.Small.copy(color = ink.copy(alpha = 0.78f)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+        }
     }
 }
 
