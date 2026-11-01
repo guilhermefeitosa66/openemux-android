@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -166,7 +165,7 @@ fun BackupScreen(embedded: Boolean = false) {
 
     (state as? BackupState.Confirm)?.let { confirm ->
         val m = confirm.manifest
-        ModalBottomSheet({ backup.dismiss() }, containerColor = Oe.Sheet) {
+        OeSheet({ backup.dismiss() }, scroll = false) {
             SheetBarIcons()
             MarginFocusScroll { Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
                 Text(stringResource(R.string.backup_confirm_title), style = Type.Title.copy(fontSize = 22.sp))

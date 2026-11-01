@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -169,7 +168,7 @@ private fun ArtworkSheet(onClose: () -> Unit) {
     val app = LocalActions.current.app
     val covers by app.covers.progress.collectAsState()
     val labels by app.labels.progress.collectAsState()
-    ModalBottomSheet(onClose, containerColor = Oe.Sheet, scrimColor = Color.Black.copy(alpha = 0.55f)) {
+    OeSheet(onClose, scrimColor = Color.Black.copy(alpha = 0.55f)) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 34.dp)) {
             Text(stringResource(R.string.library_sync_sheet_title), style = Type.Title.copy(fontSize = 22.sp))

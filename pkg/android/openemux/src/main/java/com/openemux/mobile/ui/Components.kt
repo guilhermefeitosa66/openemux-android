@@ -344,7 +344,7 @@ fun SettingTile(label: String, value: String, onClick: (() -> Unit)?, modifier: 
     Column(
         modifier
             .heightIn(min = 58.dp)
-            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp) else it }
+            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp).rowFocus(label) else it }
             .clip(RoundedCornerShape(14.dp))
             .background(Oe.Surface)
             .let { if (onClick != null) it.clickable(role = Role.Button, onClick = onClick) else it }
@@ -381,7 +381,7 @@ fun ListRow(
             .fillMaxWidth()
             .heightIn(min = minHeight)
             .let { if (selected) it.background(Oe.AccentTint).semantics { this.selected = true } else it }
-            .let { if (onClick != null && enabled) it.paneOpener(selected).gamepadFocus(corner = 0.dp, inset = true).clickable(role = Role.Button, onClick = onClick) else it }
+            .let { if (onClick != null && enabled) it.paneOpener(selected).gamepadFocus(corner = 0.dp, inset = true).rowFocus(label).clickable(role = Role.Button, onClick = onClick) else it }
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -416,7 +416,7 @@ fun SwitchRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .let { if (enabled) it.gamepadFocus(corner = 0.dp, inset = true) else it }
+            .let { if (enabled) it.gamepadFocus(corner = 0.dp, inset = true).rowFocus(label) else it }
             .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -473,7 +473,7 @@ fun OeTextField(
         ) {
             BasicTextField(
                 value, onChange,
-                Modifier.weight(1f).padding(vertical = 14.dp).let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
+                Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically().let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
                 readOnly = readOnly,
                 singleLine = true,
                 textStyle = Type.Body,

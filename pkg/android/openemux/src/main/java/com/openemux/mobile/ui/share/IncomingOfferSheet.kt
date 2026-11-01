@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -55,6 +54,7 @@ import com.openemux.mobile.share.OfferGame
 import com.openemux.mobile.share.OfferModel
 import com.openemux.mobile.share.ShareCoordinator
 import com.openemux.mobile.share.TransferState
+import com.openemux.mobile.ui.OeSheet
 import com.openemux.mobile.ui.BackLink
 import com.openemux.mobile.ui.Card
 import com.openemux.mobile.ui.ConsoleChip
@@ -102,9 +102,9 @@ fun IncomingOfferSheet() {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden })
     var page by rememberSaveable { mutableStateOf(Page.OFFER) }
     var confirmCancel by rememberSaveable { mutableStateOf(false) }
-    ModalBottomSheet(
-        {}, sheetState = state, containerColor = Oe.Sheet,
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
+    OeSheet(
+        {}, sheetState = state,
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false), scroll = false,
     ) {
         SheetBarIcons()
         BackHandler {

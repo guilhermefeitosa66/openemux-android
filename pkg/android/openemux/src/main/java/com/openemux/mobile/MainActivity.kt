@@ -8,7 +8,6 @@ import android.hardware.input.InputManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -17,19 +16,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.ui.ControllerLayoutPref
-import com.openemux.mobile.ui.GamepadActions
-import com.openemux.mobile.ui.GamepadBus
 import com.openemux.mobile.ui.InputMode
+import com.openemux.mobile.ui.LocalPadScope
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.OpenEmuxRoot
 import com.openemux.mobile.ui.PadPresence
+import com.openemux.mobile.ui.PadRouter
+import com.openemux.mobile.ui.PadScope
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.padConnected
+import com.openemux.mobile.ui.padRoot
 import com.retroarch.BuildConfig
 
 class MainActivity : ComponentActivity() {
@@ -49,7 +53,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val dark = Oe.dark
             LaunchedEffect(dark) { systemBars(dark) }
-            ProvideWindowLayout { OpenEmuxRoot() }
+            CompositionLocalProvider(LocalPadScope provides padScope) {
+                Box(Modifier.padRoot(padScope)) { ProvideWindowLayout { OpenEmuxRoot() } }
+            }
         }
         // A recreated activity, or one relaunched from Recents, carries the link it was opened with: it was handled then.
         if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) handleShareLink(intent)
@@ -152,102 +158,37 @@ class MainActivity : ComponentActivity() {
         debugReceiver = receiver
     }
 
+    /** The library's own window; sheets and dialogs get one each (PadDialogWindow). */
+    private val padScope = PadScope()
+    private val pad = PadRouter({ padScope }) { onBackPressedDispatcher.onBackPressed() }
+
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) InputMode.gamepad = false
+        pad.touch(ev)
         return super.dispatchTouchEvent(ev)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val code = event.keyCode
-        val pad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD) ||
-            KeyEvent.isGamepadButton(code) || code in DPAD
-        if (!pad) return super.dispatchKeyEvent(event)
         // A pad that reports late counts as connected from its first press.
-        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
-            event.device?.let { device ->
-                val was = pads.connected
-                pads.padPress(event.deviceId, padInfo(device))
-                if (pads.connected != was) followPads()
-            }
-        }
-        // Every press records the pad as the last input, the gamepad layout's too: turning the layout off then
-        // keeps the look a pad press gives until the next touch.
-        val woke = !InputMode.gamepad
-        InputMode.gamepad = true
-        if (woke) {
-            // The first press only wakes the highlight on the item that already has focus;
-            // with none, it goes through and focus lands on the screen's first item.
-            if (code in DPAD && InputMode.focused > 0) return true
-        }
-        when (code) {
-            // A confirms like the D-pad center does.
-            KeyEvent.KEYCODE_BUTTON_A -> return super.dispatchKeyEvent(KeyEvent(event).let {
-                KeyEvent(it.downTime, it.eventTime, it.action, KeyEvent.KEYCODE_DPAD_CENTER, it.repeatCount, it.metaState,
-                    it.deviceId, it.scanCode, it.flags, InputDevice.SOURCE_DPAD)
-            })
-            KeyEvent.KEYCODE_BUTTON_B -> {
-                if (event.action == KeyEvent.ACTION_UP) onBackPressedDispatcher.onBackPressed()
-                return true
-            }
-        }
-        val pick: ((GamepadActions) -> (() -> Unit)?)? = when (code) {
-            KeyEvent.KEYCODE_BUTTON_L1 -> { a -> a.l1 }
-            KeyEvent.KEYCODE_BUTTON_R1 -> { a -> a.r1 }
-            KeyEvent.KEYCODE_BUTTON_X -> { a -> a.x }
-            KeyEvent.KEYCODE_BUTTON_Y -> { a -> a.y }
-            KeyEvent.KEYCODE_BUTTON_SELECT -> { a -> a.select }
-            KeyEvent.KEYCODE_BUTTON_START -> { a -> a.start }
-            else -> null
-        }
-        if (pick != null) {
-            if (event.action == KeyEvent.ACTION_UP) GamepadBus.dispatch(pick)
-            return true
-        }
-        return super.dispatchKeyEvent(event)
+        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_JOYSTICK)) notePad(event.device, event.deviceId)
+        return pad.key(event) { super.dispatchKeyEvent(it) }
     }
 
-    private var stickKey = 0
-    private var stickNext = 0L
-
-    /** The left stick and the hat move focus like the D-pad, with a key-repeat feel. */
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
-        if (!ev.isFromSource(InputDevice.SOURCE_JOYSTICK) || ev.actionMasked != MotionEvent.ACTION_MOVE) {
-            return super.dispatchGenericMotionEvent(ev)
-        }
-        // A pad whose first input is its stick counts as connected too: the D-pad keys made from it below do not
-        // carry the joystick source.
-        ev.device?.let { device ->
-            val was = pads.connected
-            pads.padPress(ev.deviceId, padInfo(device))
-            if (pads.connected != was) followPads()
-        }
-        val x = ev.getAxisValue(MotionEvent.AXIS_X).takeIf { kotlin.math.abs(it) > 0.5f } ?: ev.getAxisValue(MotionEvent.AXIS_HAT_X)
-        val y = ev.getAxisValue(MotionEvent.AXIS_Y).takeIf { kotlin.math.abs(it) > 0.5f } ?: ev.getAxisValue(MotionEvent.AXIS_HAT_Y)
-        val key = when {
-            x < -0.5f -> KeyEvent.KEYCODE_DPAD_LEFT
-            x > 0.5f -> KeyEvent.KEYCODE_DPAD_RIGHT
-            y < -0.5f -> KeyEvent.KEYCODE_DPAD_UP
-            y > 0.5f -> KeyEvent.KEYCODE_DPAD_DOWN
-            else -> 0
-        }
-        val now = SystemClock.uptimeMillis()
-        if (key == 0) { stickKey = 0; return true }
-        if (key != stickKey || now >= stickNext) {
-            stickNext = now + if (key != stickKey) 380 else 90
-            stickKey = key
-            val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, key, 0, 0, ev.deviceId, 0, 0, InputDevice.SOURCE_DPAD)
-            dispatchKeyEvent(down)
-            dispatchKeyEvent(KeyEvent.changeAction(down, KeyEvent.ACTION_UP))
-        }
-        return true
+        // A pad whose first input is its stick counts as connected too: the D-pad keys the router makes from it
+        // do not carry the joystick source.
+        if (ev.isFromSource(InputDevice.SOURCE_JOYSTICK) && ev.actionMasked == MotionEvent.ACTION_MOVE) notePad(ev.device, ev.deviceId)
+        return pad.motion(ev, { super.dispatchGenericMotionEvent(it) }, ::dispatchKeyEvent)
+    }
+
+    private fun notePad(device: InputDevice?, deviceId: Int) {
+        if (device == null) return
+        val was = pads.connected
+        pads.padPress(deviceId, padInfo(device))
+        if (pads.connected != was) followPads()
     }
 
     private companion object {
         const val TAG = "OpenEmux"
         const val DEBUG_GAMEPAD = "com.openemux.mobile.DEBUG_GAMEPAD"
-        val DPAD = setOf(
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER,
-        )
     }
 }

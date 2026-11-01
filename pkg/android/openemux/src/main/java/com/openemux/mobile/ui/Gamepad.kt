@@ -31,6 +31,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +59,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -233,12 +234,13 @@ fun Modifier.gamepadFocus(
     }
     // An item that leaves while focused takes its count with it.
     DisposableEffect(Unit) { onDispose { if (focused) InputMode.focused -= 1 } }
-    // In the gamepad layout a tap moves the focus to the item tapped, so the next press starts there; the
-    // touch itself goes on to the item untouched. A drag (a scroll, a fling) leaves the focus where it was.
-    // The touch put Compose in touch mode, where a clickable takes no focus: the layout asks for keyboard mode back.
-    val tapFocus = remember { FocusRequester() }
-    val inputModes = LocalInputModeManager.current
+    // Known to its window, so a press that finds nothing focused can land here.
+    val target = remember { PadFocusTarget() }
+    val scope = LocalPadScope.current
     this
+        // In the gamepad layout a tap moves the focus to the item tapped, so the next press starts there; the
+        // touch itself goes on to the item untouched. A drag (a scroll, a fling) leaves the focus where it was.
+        // The touch put the window in touch mode, where a clickable takes no focus: the scope takes it out first.
         .then(if (InputMode.padLayout) Modifier.pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -247,13 +249,10 @@ fun Modifier.gamepadFocus(
                     val event = awaitPointerEvent(PointerEventPass.Initial)
                     if (event.changes.any { (it.position - down.position).getDistance() > viewConfiguration.touchSlop }) dragged = true
                 } while (event.changes.any { it.pressed })
-                if (!dragged) {
-                    inputModes.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
-                    runCatching { tapFocus.requestFocus() }
-                }
+                if (!dragged) scope.focus(target)
             }
         } else Modifier)
-        .focusRequester(tapFocus)
+        .padTarget(target)
         .zIndex(if (shown) 1f else 0f)
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
@@ -451,12 +450,34 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
-    this.focusRequester(requester).onFocusChanged {
+    // The screen's initial item is where a press lands when nothing on screen holds focus.
+    val target = remember(requester) { PadFocusTarget(initial, requester) }
+    target.initial = initial
+    this.focusRequester(requester).padTarget(target, attach = false).onFocusChanged {
         if (it.isFocused || it.hasFocus) {
             saved.value = key
             InputMode.last = requester
         }
     }
+}
+
+/** Where the rows of a screen remember the one that held focus; null outside such a screen. */
+val LocalRowFocus = compositionLocalOf<MutableState<String?>?> { null }
+
+/**
+ * The rows in [content] (ListRow, SwitchRow, SettingTile) remember which one
+ * held focus, and focus it again when the screen comes back in gamepad mode.
+ */
+@Composable
+fun RememberRowFocus(content: @Composable () -> Unit) {
+    val saved = rememberSaveable { mutableStateOf<String?>(null) }
+    CompositionLocalProvider(LocalRowFocus provides saved, content = content)
+}
+
+/** A row restorable under its screen's [RememberRowFocus], by [key]. */
+fun Modifier.rowFocus(key: String): Modifier = composed {
+    val saved = LocalRowFocus.current
+    if (saved == null) this else restorableFocus(key, saved)
 }
 
 /** The gamepad hint bar: badge + label pairs, only in gamepad mode. */
