@@ -32,6 +32,11 @@
     <string name="library_search">搜索</string>
     <string name="library_close_search">关闭搜索</string>
     <string name="library_search_hint">搜索游戏</string>
+    <string name="library_previous_filter">上一个筛选：%1$s</string>
+    <string name="library_next_filter">下一个筛选：%1$s</string>
+    <string name="library_filter_label">筛选：%1$s，%2$s。更改筛选</string>
+    <string name="library_search_in">在%1$s中搜索</string>
+    <string name="library_search_all">搜索全部游戏</string>
     <string name="library_sort_by">排序：%1$s</string>
     <string name="library_sort_az">A–Z</string>
     <string name="library_sort_recent">最近</string>

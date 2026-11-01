@@ -103,6 +103,8 @@ import java.io.File
 object Icons {
     const val Back = "M15 18l-6-6 6-6"
     const val Chevron = "M9 6l6 6-6 6"
+    const val ChevronDown = "M6 9l6 6 6-6"
+    const val ChevronUp = "M6 15l6-6 6 6"
     const val Search = "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M20 20l-3.5-3.5"
     const val Sort = "M4 7h16M7 12h10M10 17h4"
     const val Cart = "M4 5h16v11l-2 3H6l-2-3zM8 8h8v5H8z"
@@ -583,12 +585,15 @@ fun ConsoleChip(console: Console, size: Dp = 40.dp) {
     }
 }
 
+/** How far [FitText] shrinks a long text: down to this share of its style's size. */
+const val FIT_TEXT_MIN_SCALE = 0.6f
+
 /** One line, never cut: [style]'s size when it fits, shrinking down to 60% of it for a long text. */
 @Composable
 fun FitText(text: String, style: TextStyle, modifier: Modifier = Modifier) {
     BasicText(
         text, modifier, style, maxLines = 1, softWrap = false,
-        autoSize = TextAutoSize.StepBased(minFontSize = style.fontSize * 0.6f, maxFontSize = style.fontSize, stepSize = 1.sp),
+        autoSize = TextAutoSize.StepBased(minFontSize = style.fontSize * FIT_TEXT_MIN_SCALE, maxFontSize = style.fontSize, stepSize = 1.sp),
     )
 }
 

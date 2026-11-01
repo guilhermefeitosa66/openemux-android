@@ -36,6 +36,11 @@
     <string name="library_search">Rechercher</string>
     <string name="library_close_search">Fermer la recherche</string>
     <string name="library_search_hint">Rechercher des jeux</string>
+    <string name="library_previous_filter">Filtre précédent : %1$s</string>
+    <string name="library_next_filter">Filtre suivant : %1$s</string>
+    <string name="library_filter_label">Filtre : %1$s, %2$s. Changer de filtre</string>
+    <string name="library_search_in">Rechercher dans %1$s</string>
+    <string name="library_search_all">Rechercher dans tous les jeux</string>
     <string name="library_sort_by">Tri : %1$s</string>
     <string name="library_sort_az">A–Z</string>
     <string name="library_sort_recent">Récents</string>
