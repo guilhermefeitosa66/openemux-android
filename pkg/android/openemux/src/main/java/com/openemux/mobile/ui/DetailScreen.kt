@@ -166,7 +166,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             RoundIconButton(Icons.Dots, stringResource(R.string.detail_more_options), { menu = true }, background = Oe.Control.copy(alpha = 0.8f), filled = true)
             // A popup is a window of its own: it takes the pad's keys itself (padPopup), with its own items.
             val opener = LocalPadScope.current
-            val menuScope = remember(menu) { PadScope() }
+            // Not keyed on [menu]: a new scope while the menu animates out would land focus in the closing popup.
+            val menuScope = remember { PadScope() }
             CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
                 menu, { menu = false }, Modifier.padPopup(menuScope, opener) { menu = false }, containerColor = Oe.Surface2,
             ) {

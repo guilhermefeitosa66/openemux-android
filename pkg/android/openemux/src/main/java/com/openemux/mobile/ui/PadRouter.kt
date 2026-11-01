@@ -186,19 +186,15 @@ class PadTarget(var initial: Boolean = false, val requester: FocusRequester = Fo
     /** When it last took focus (a tick of its scope), 0 if never. */
     var lastFocus = 0L
 
-    /** Its centre in the window, or null when it is not laid out. */
-    fun center(): Pair<Float, Float>? {
+    /** Its centre in the window while any of it shows there, else null: an item scrolled out of its list does not. */
+    fun shownCenter(): Pair<Float, Float>? {
         val c = coords?.takeIf { it.isAttached } ?: return null
         val b = runCatching { c.boundsInWindow() }.getOrNull() ?: return null
-        return b.center.x to b.center.y
+        return if (b.width >= 1f && b.height >= 1f) b.center.x to b.center.y else null
     }
 
-    /** Whether any of it shows in its window: an item scrolled out of its list does not. */
-    fun shown(): Boolean {
-        val c = coords?.takeIf { it.isAttached } ?: return false
-        val b = runCatching { c.boundsInWindow() }.getOrNull() ?: return false
-        return b.width >= 1f && b.height >= 1f
-    }
+    /** Whether any of it shows in its window. */
+    fun shown(): Boolean = shownCenter() != null
 }
 
 /**
@@ -232,12 +228,12 @@ class PadScope {
     fun focusChanged(target: PadTarget, now: Boolean) {
         target.focused = now
         if (now) target.lastFocus = ++tick
-        if (now && target.shown()) target.center()?.let { anchor = it }
+        if (now) target.shownCenter()?.let { anchor = it }
     }
 
     /** The focused item moved (its list scrolled to it): the anchor follows it while it shows. */
     fun placed(target: PadTarget) {
-        if (target.focused && target.shown()) target.center()?.let { anchor = it }
+        if (target.focused) target.shownCenter()?.let { anchor = it }
     }
 
     /** Whether an item that shows holds focus; one the scope does not know counts as showing. */
@@ -253,7 +249,7 @@ class PadScope {
     fun land(): Boolean {
         val list = targets.toList()
         val spots = list.map { t ->
-            val c = if (t.shown()) t.center() else null
+            val c = t.shownCenter()
             LandingSpot(c != null, t.initial, t.lastFocus, c?.first ?: 0f, c?.second ?: 0f)
         }
         return rankLanding(spots, anchor).any { focus(list[it]) }
@@ -273,9 +269,14 @@ val LocalPadScope = compositionLocalOf { PadScope() }
 
 /**
  * Applies [decidePadKey] in one window: the activity, or a sheet's or
- * dialog's. [back] is that window's back (B), [scope] its focusable items.
+ * dialog's. [back] is that window's back (B), [scope] its focusable items,
+ * [bus] what a screen button does there (the screen on top's action).
  */
-class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit) {
+class PadRouter(
+    private val scope: () -> PadScope,
+    private val bus: (PadButton) -> Unit = { b -> GamepadBus.dispatch { it.handler(b) } },
+    private val back: () -> Unit,
+) {
     private var landed = 0
     private var stickKey = 0
     private var stickNext = 0L
@@ -288,8 +289,8 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
     fun key(event: KeyEvent, dispatch: (KeyEvent) -> Boolean): Boolean {
         val code = event.keyCode
         val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
-        val decision = decidePadKey(code, event.action, fromPad, scope().focusShown(), landed)
         val s = scope()
+        val decision = decidePadKey(code, event.action, fromPad, s.focusShown(), landed)
         if (decision == PadDecision.NotPad) { s.touchExit = false; return dispatch(event) }
         InputMode.gamepad = true
         if (s.touchExit) {
@@ -308,8 +309,9 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
                 ),
             )
             is PadDecision.Back -> { if (decision.act && !hideKeyboard(s.view)) back(); true }
-            is PadDecision.Bus -> { if (decision.act) GamepadBus.dispatch { it.handler(decision.button) }; true }
-            PadDecision.Land -> { landed = code; s.land(); s.touchExit = false; true }
+            is PadDecision.Bus -> { if (decision.act) bus(decision.button); true }
+            // Nothing the scope knows takes focus: the press goes on, so the focus system lands it itself.
+            PadDecision.Land -> { s.touchExit = false; if (s.land()) { landed = code; true } else dispatch(event) }
             PadDecision.Swallow -> { landed = 0; true }
             else -> dispatch(event)
         }
@@ -505,7 +507,8 @@ private fun giveFocusBack(scope: PadScope, target: PadTarget?) {
 fun Modifier.padPopup(scope: PadScope, opener: PadScope, onBack: () -> Unit): Modifier = composed {
     val view = LocalView.current
     val back = rememberUpdatedState(onBack)
-    val router = remember(scope) { PadRouter({ scope }) { back.value() } }
+    // A screen button closes the popup too: the screen's own actions (L1/R1, X, Y) must not run under it.
+    val router = remember(scope) { PadRouter({ scope }, { back.value() }) { back.value() } }
     DisposableEffect(scope) {
         val from = opener.current()
         onDispose { giveFocusBack(opener, from) }

@@ -70,6 +70,8 @@ fun OeConfirmDialog(
 ) {
     val opener = LocalPadScope.current
     val scope = remember { PadScope() }
+    // [dismiss] is the window's initial item, so landing does not depend on how the buttons are laid out.
+    val safe = remember { PadTarget(initial = true) }
     CompositionLocalProvider(LocalPadScope provides scope) {
         AlertDialog(
             onDismissRequest = onDismissRequest,
@@ -84,7 +86,7 @@ fun OeConfirmDialog(
                 TextButton(onConfirm, Modifier.gamepadFocus(corner = 20.dp)) { Text(confirm, style = Type.Section.copy(color = Oe.Danger)) }
             },
             dismissButton = {
-                TextButton(onDismissRequest, Modifier.gamepadFocus(corner = 20.dp)) { Text(dismiss, style = Type.Section) }
+                TextButton(onDismissRequest, Modifier.padTarget(safe).gamepadFocus(corner = 20.dp)) { Text(dismiss, style = Type.Section) }
             },
         )
     }
