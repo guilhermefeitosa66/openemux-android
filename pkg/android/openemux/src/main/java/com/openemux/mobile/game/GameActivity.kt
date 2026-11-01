@@ -35,6 +35,7 @@ import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
+import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.WindowLayout
 import com.openemux.mobile.ui.folds
@@ -365,6 +366,8 @@ class GameActivity : RetroActivityFuture() {
     /** A gamepad connected or gone (main thread): the skin switches to its gamepad layout or back; the core keeps running. */
     private fun followGamepad() {
         val pad = gamepadOverride ?: Gamepads.connected()
+        // This process has no MainActivity to follow the pads for the pause sheet's gamepad layout.
+        InputMode.padConnected = pad
         synchronized(ndsLayouts) {
             wantGamepad = pad
             switchGamepad()
@@ -738,6 +741,8 @@ class GameActivity : RetroActivityFuture() {
         val session = PauseSession.fromIntent(intent, sessionStart, speedWanted ?: Speed.of(fastForwardOn, slowMotionOn))
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
+        ControllerLayoutPref.load(this)
+        InputMode.padConnected = gamepadOverride ?: Gamepads.connected()
         Oe.syncSystem(this)
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

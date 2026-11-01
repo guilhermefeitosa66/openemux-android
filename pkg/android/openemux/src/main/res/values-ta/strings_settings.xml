@@ -205,4 +205,12 @@
     <string name="settings_language_lead">செயலியின் உரைகளுக்குப் பொருந்தும். விளையாட்டுப் பெயர்கள் கோப்பைப் பின்பற்றும்.</string>
     <string name="settings_about_licenses">பற்றி மற்றும் உரிமங்கள்</string>
     <string name="settings_licenses_hint">முழு உரையைப் படிக்கத் தட்டவும்</string>
+    <string name="settings_controller_layout">கன்ட்ரோலர் தளவமைப்பு</string>
+    <string name="settings_controller_layout_lead">கன்ட்ரோலருக்கான ஃபோகஸையும் பொத்தான் குறிப்புகளையும் ஆப் எப்போது காட்டும்.</string>
+    <string name="settings_controller_layout_auto">தானியங்கி</string>
+    <string name="settings_controller_layout_auto_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருக்கும்போது கன்ட்ரோலர் தளவமைப்பு.</string>
+    <string name="settings_controller_layout_always">எப்போதும்</string>
+    <string name="settings_controller_layout_always_desc">உள்ளமைந்த கட்டுப்பாடுகள் கொண்ட கையடக்கக் கருவிகளுக்கு.</string>
+    <string name="settings_controller_layout_never">ஒருபோதும் இல்லை</string>
+    <string name="settings_controller_layout_never_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருந்தாலும் தொடுதிரை தளவமைப்பு.</string>
 </resources>

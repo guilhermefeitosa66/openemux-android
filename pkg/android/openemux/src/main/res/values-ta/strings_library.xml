@@ -121,4 +121,5 @@
     <string name="library_hint_select_all">அனைத்தும்</string>
     <string name="library_hint_remove">நீக்கு</string>
     <string name="library_hint_done">முடிந்தது</string>
+    <string name="library_hint_console">கன்சோல்</string>
 </resources>

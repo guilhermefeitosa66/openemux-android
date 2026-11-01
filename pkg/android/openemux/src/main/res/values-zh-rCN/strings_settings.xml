@@ -193,4 +193,12 @@
     <string name="settings_language_lead">适用于应用内的文字。游戏名称以文件为准。</string>
     <string name="settings_about_licenses">关于与许可</string>
     <string name="settings_licenses_hint">点按阅读全文</string>
+    <string name="settings_controller_layout">手柄布局</string>
+    <string name="settings_controller_layout_lead">应用何时显示手柄的焦点和按键提示。</string>
+    <string name="settings_controller_layout_auto">自动</string>
+    <string name="settings_controller_layout_auto_desc">连接手柄时使用手柄布局。</string>
+    <string name="settings_controller_layout_always">始终</string>
+    <string name="settings_controller_layout_always_desc">适用于内置按键的掌机。</string>
+    <string name="settings_controller_layout_never">从不</string>
+    <string name="settings_controller_layout_never_desc">即使连接了手柄也使用触屏布局。</string>
 </resources>

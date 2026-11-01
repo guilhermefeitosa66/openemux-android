@@ -193,4 +193,12 @@
     <string name="settings_language_lead">アプリの表示に適用されます。ゲーム名はファイル名のままです。</string>
     <string name="settings_about_licenses">このアプリについてとライセンス</string>
     <string name="settings_licenses_hint">タップして全文を表示</string>
+    <string name="settings_controller_layout">コントローラーレイアウト</string>
+    <string name="settings_controller_layout_lead">コントローラー用のフォーカスとボタンガイドを表示するタイミング。</string>
+    <string name="settings_controller_layout_auto">自動</string>
+    <string name="settings_controller_layout_auto_desc">コントローラーの接続中はコントローラーレイアウトにします。</string>
+    <string name="settings_controller_layout_always">常に</string>
+    <string name="settings_controller_layout_always_desc">操作ボタン内蔵の携帯機向け。</string>
+    <string name="settings_controller_layout_never">使わない</string>
+    <string name="settings_controller_layout_never_desc">コントローラーを接続していてもタッチ用レイアウトにします。</string>
 </resources>
