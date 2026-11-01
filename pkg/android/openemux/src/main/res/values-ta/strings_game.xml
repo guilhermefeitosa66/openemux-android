@@ -27,6 +27,8 @@
     <string name="game_audio">ஒலி</string>
     <string name="game_muted">ஒலியடக்கம்</string>
     <string name="game_restart">மீண்டும் தொடங்கு</string>
+    <string name="game_retroarch_menu">RetroArch மெனு</string>
+    <string name="game_retroarch_menu_note">மேம்பட்ட அமைப்புகள், இந்த அமர்வுக்கு மட்டும்</string>
     <string name="game_quit">விளையாட்டிலிருந்து வெளியேறு</string>
     <string name="game_no_states">இன்னும் சேமிப்பு நிலைகள் இல்லை.</string>
     <string name="game_state_auto">தானியங்கி</string>

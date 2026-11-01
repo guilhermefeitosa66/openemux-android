@@ -278,6 +278,23 @@ class GameLauncher(
             "auto_overrides_enable" to "false",
             "auto_remaps_enable" to "false",
             "menu_show_load_content_animation" to "false",
+            // RetroArch's own menu, opened from the pause sheet for advanced settings: Close Content quits like the
+            // sheet's Quit game (auto save, back to the library) instead of leaving an empty menu with no game.
+            "quit_on_close_content" to "1",
+            // Entries that would load other content or cores, update, restart or switch config files: a session the app
+            // does not manage. Quit RetroArch stays: it is Quit game in effect.
+            "menu_show_load_core" to "false",
+            "menu_show_load_content" to "false",
+            "menu_show_load_disc" to "false",
+            "menu_show_dump_disc" to "false",
+            "menu_show_online_updater" to "false",
+            "menu_show_core_updater" to "false",
+            "menu_show_restart_retroarch" to "false",
+            "menu_show_configurations" to "false",
+            "content_show_history" to "false",
+            "content_show_playlists" to "false",
+            "content_show_favorites" to "false",
+            "content_show_explore" to "false",
             "notification_show_autoconfig" to "false",
             "notification_show_remap_load" to "false",
             "notification_show_config_override_load" to "false",
