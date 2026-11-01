@@ -234,16 +234,23 @@ fun Modifier.gamepadFocus(
     // An item that leaves while focused takes its count with it.
     DisposableEffect(Unit) { onDispose { if (focused) InputMode.focused -= 1 } }
     // In the gamepad layout a tap moves the focus to the item tapped, so the next press starts there; the
-    // touch itself goes on to the item untouched.
+    // touch itself goes on to the item untouched. A drag (a scroll, a fling) leaves the focus where it was.
     // The touch put Compose in touch mode, where a clickable takes no focus: the layout asks for keyboard mode back.
     val tapFocus = remember { FocusRequester() }
     val inputModes = LocalInputModeManager.current
     this
         .then(if (InputMode.padLayout) Modifier.pointerInput(Unit) {
             awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                inputModes.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
-                runCatching { tapFocus.requestFocus() }
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                var dragged = false
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.any { (it.position - down.position).getDistance() > viewConfiguration.touchSlop }) dragged = true
+                } while (event.changes.any { it.pressed })
+                if (!dragged) {
+                    inputModes.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
+                    runCatching { tapFocus.requestFocus() }
+                }
             }
         } else Modifier)
         .focusRequester(tapFocus)
