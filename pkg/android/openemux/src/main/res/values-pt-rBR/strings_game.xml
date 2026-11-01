@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">Vale só para esta partida</string>
     <string name="game_toast_saved_slot">Estado salvo no slot %1$d</string>
     <string name="game_toast_fast_forward_on">Acelerado ao voltar</string>
+    <string name="game_toast_slow_motion_on">Câmera lenta ao voltar</string>
     <string name="game_toast_fast_forward_off">Velocidade normal</string>
     <string name="game_toast_screenshot">Captura salva</string>
     <string name="game_toast_sound_off">Som desligado</string>
@@ -23,10 +24,13 @@
     <string name="game_save_state">Salvar estado</string>
     <string name="game_load">Carregar</string>
     <string name="game_fast_forward">Acelerar</string>
+    <string name="game_slow_motion">Câmera lenta</string>
     <string name="game_screenshot">Captura</string>
     <string name="game_audio">Áudio</string>
     <string name="game_muted">Sem som</string>
     <string name="game_restart">Reiniciar jogo</string>
+    <string name="game_retroarch_menu">Menu do RetroArch</string>
+    <string name="game_retroarch_menu_note">Ajustes avançados, só nesta sessão</string>
     <string name="game_quit">Sair do jogo</string>
     <string name="game_no_states">Nenhum estado salvo ainda.</string>
     <string name="game_state_auto">AUTO</string>

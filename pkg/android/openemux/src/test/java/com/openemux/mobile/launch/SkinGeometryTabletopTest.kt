@@ -72,7 +72,7 @@ class SkinGeometryTabletopTest {
 
     private fun Box.inBand(start: Float, end: Float) = SkinGeometry.intersectsBand(this, start, end)
 
-    private fun boxes(g: TabletFrame) = listOf(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.name)
+    private fun boxes(g: TabletFrame) = listOf(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.hide, g.name)
 
     private fun checkHalves(g: TabletFrame, w: Float, h: Float, start: Float, end: Float, pictureOnTop: Boolean = true) {
         boxes(g).forEach { b ->
@@ -80,7 +80,11 @@ class SkinGeometryTabletopTest {
             assertTrue("$b outside", b.inside(w, h))
         }
         assertTrue(if (pictureOnTop) g.picture.bottom <= start else g.picture.y >= end)
-        listOf(g.strip, g.shouldersLeft, g.shouldersRight, g.menu).forEach { assertTrue(it.y >= end) }
+        listOf(g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.hide).forEach { assertTrue(it.y >= end) }
+        // The shoulders and the menu and hide keys keep clear of each other.
+        listOf(g.shouldersLeft, g.shouldersRight, g.menu, g.hide).let { keys ->
+            keys.forEachIndexed { i, a -> keys.drop(i + 1).forEach { b -> assertFalse("$a over $b", a.intersects(b)) } }
+        }
         // The clusters' rows sit under the band, with room for a cluster around each.
         assertTrue(g.rows.upper - 50f * g.k >= end)
         assertTrue(g.rows.lower + 40f * g.k <= g.pillsTop)

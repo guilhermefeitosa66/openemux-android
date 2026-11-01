@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">仅本次会话</string>
     <string name="game_toast_saved_slot">已保存到存档位 %1$d</string>
     <string name="game_toast_fast_forward_on">继续时快进</string>
+    <string name="game_toast_slow_motion_on">继续时慢动作</string>
     <string name="game_toast_fast_forward_off">正常速度</string>
     <string name="game_toast_screenshot">截图已保存</string>
     <string name="game_toast_sound_off">声音已关闭</string>
@@ -23,10 +24,13 @@
     <string name="game_save_state">保存存档</string>
     <string name="game_load">读取</string>
     <string name="game_fast_forward">快进</string>
+    <string name="game_slow_motion">慢动作</string>
     <string name="game_screenshot">截图</string>
     <string name="game_audio">声音</string>
     <string name="game_muted">静音</string>
     <string name="game_restart">重启游戏</string>
+    <string name="game_retroarch_menu">RetroArch 菜单</string>
+    <string name="game_retroarch_menu_note">高级设置，仅限本次会话</string>
     <string name="game_quit">退出游戏</string>
     <string name="game_no_states">还没有即时存档。</string>
     <string name="game_state_auto">自动</string>

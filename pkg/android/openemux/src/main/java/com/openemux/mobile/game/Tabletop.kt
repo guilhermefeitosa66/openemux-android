@@ -1,6 +1,6 @@
 package com.openemux.mobile.game
 
-import com.openemux.mobile.launch.TABLETOP
+import com.openemux.mobile.launch.OverlayName
 import com.openemux.mobile.launch.TabletopBand
 import com.openemux.mobile.ui.WindowLayout
 import com.openemux.mobile.ui.forbiddenBand
@@ -63,18 +63,31 @@ fun skinMissesFold(band: TabletopBand?, density: Float, skin: TabletopSkin?): Bo
  * The overlay to show when the posture asks for [tabletop] while [current] shows, among [overlays]; null when nothing
  * changes. Into tabletop from a portrait overlay: its tabletop twin (the keypad's, or on NDS the [ndsTabletop] layout's,
  * from a package skin's plain portrait overlay too).
- * Out of it: [flat], the overlay shown before, or the plain portrait one.
+ * Out of it: [flat], the overlay shown before, or the plain portrait one. Either way in the mode [current] is in
+ * (gamepad layout, app controls collapsed).
  */
 fun tabletopTarget(current: String, tabletop: Boolean, overlays: Collection<String>, flat: String?, ndsTabletop: String?): String? {
-    val inTabletop = TABLETOP in current
-    if (tabletop == inTabletop) return null
-    val keypad = current.startsWith("keypad-")
+    val shown = OverlayName.parse(current) ?: return null
+    if (tabletop == shown.tabletop) return null
     val target = when {
-        !tabletop -> flat ?: if (keypad) "keypad-portrait" else "portrait"
-        "portrait" !in current -> return null
-        keypad -> "keypad-$TABLETOP"
-        ndsTabletop != null -> "$TABLETOP@$ndsTabletop"
-        else -> TABLETOP
+        !tabletop -> flat?.let(OverlayName::parse) ?: OverlayName(portrait = true, keypad = shown.keypad)
+        !shown.portrait -> return null
+        shown.keypad -> OverlayName(portrait = true, tabletop = true, keypad = true)
+        else -> OverlayName(portrait = true, tabletop = true, layout = ndsTabletop)
     }
-    return target.takeIf { it in overlays }
+    return available(target.withModeOf(shown), overlays)
 }
+
+/**
+ * The overlay to show for a [gamepad] connected or not while [current] shows, among [overlays]: the same layout,
+ * posture and collapsed state in the gamepad layout or the touch one; null when nothing changes or the skin has none.
+ */
+fun gamepadTarget(current: String, gamepad: Boolean, overlays: Collection<String>): String? {
+    val shown = OverlayName.parse(current) ?: return null
+    if (shown.gamepad == gamepad) return null
+    return available(shown.withGamepad(gamepad), overlays)
+}
+
+/** [name] if the skin has it, else its expanded twin (a package skin's own pages have no collapsed one); null for neither. */
+fun available(name: OverlayName, overlays: Collection<String>): String? =
+    listOf(name, name.withCollapsed(false)).map { it.toString() }.firstOrNull { it in overlays }

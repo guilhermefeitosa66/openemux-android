@@ -116,4 +116,5 @@
     <string name="library_hint_select_all">全选</string>
     <string name="library_hint_remove">移除</string>
     <string name="library_hint_done">完成</string>
+    <string name="library_hint_console">主机</string>
 </resources>

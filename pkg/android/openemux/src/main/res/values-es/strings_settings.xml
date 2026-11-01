@@ -217,4 +217,12 @@
     <string name="settings_language_lead">Se aplica a los textos de la app. Los nombres de los juegos siguen el archivo.</string>
     <string name="settings_about_licenses">Acerca de y licencias</string>
     <string name="settings_licenses_hint">Toca para leer el texto completo</string>
+    <string name="settings_controller_layout">Diseño para mando</string>
+    <string name="settings_controller_layout_lead">Cuándo la app muestra el foco y las ayudas de botones para un mando.</string>
+    <string name="settings_controller_layout_auto">Automático</string>
+    <string name="settings_controller_layout_auto_desc">El diseño para mando mientras haya un mando conectado.</string>
+    <string name="settings_controller_layout_always">Siempre</string>
+    <string name="settings_controller_layout_always_desc">Para portátiles con controles integrados.</string>
+    <string name="settings_controller_layout_never">Nunca</string>
+    <string name="settings_controller_layout_never_desc">El diseño táctil, incluso con un mando conectado.</string>
 </resources>

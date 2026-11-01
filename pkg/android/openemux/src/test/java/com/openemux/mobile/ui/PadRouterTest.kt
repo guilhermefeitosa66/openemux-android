@@ -178,8 +178,8 @@ class PadRouterTest {
     @Test
     fun aFocusedItemThatIsNotLaidOutDoesNotShow() {
         val scope = PadScope()
-        val a = PadTarget()
-        val b = PadTarget(initial = true)
+        val a = PadFocusTarget()
+        val b = PadFocusTarget(initial = true)
         scope.add(a)
         scope.add(b)
         scope.rootHasFocus = true
@@ -200,9 +200,9 @@ class PadRouterTest {
     @Test
     fun anItemsTwoTargetsShareTheirFocusTick() {
         val scope = PadScope()
-        val a = PadTarget()
-        val b1 = PadTarget()
-        val b2 = PadTarget()
+        val a = PadFocusTarget()
+        val b1 = PadFocusTarget()
+        val b2 = PadFocusTarget()
         listOf(a, b1, b2).forEach(scope::add)
         scope.focusChanged(a, true)
         scope.focusChanged(a, false)
@@ -217,8 +217,8 @@ class PadRouterTest {
     fun anOlderFocusDoesNotStandInForOneThatIsGone() {
         // The focused game scrolled out of its row and was disposed: the chip focused before it is not "the last".
         val scope = PadScope()
-        val chip = PadTarget()
-        val game = PadTarget()
+        val chip = PadFocusTarget()
+        val game = PadFocusTarget()
         scope.add(chip)
         scope.add(game)
         scope.focusChanged(chip, true)

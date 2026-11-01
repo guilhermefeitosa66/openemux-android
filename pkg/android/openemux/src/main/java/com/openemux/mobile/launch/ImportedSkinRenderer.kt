@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
@@ -13,7 +14,9 @@ import android.graphics.RectF
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -44,10 +47,24 @@ class ImportedSkinRenderer {
     private class Placement(val s: Float, val ox: Float, val oy: Float) {
         fun rect(x: Double, y: Double, w: Double, h: Double) =
             RectF(ox + x.toFloat() * s, oy + y.toFloat() * s, ox + (x + w).toFloat() * s, oy + (y + h).toFloat() * s)
+
+        fun rect(b: SkinBox) = rect(b.x.toDouble(), b.y.toDouble(), b.w.toDouble(), b.h.toDouble())
     }
 
     /**
-     * [tablet] picks the skin's iPad art over its iPhone art; [hardcore] leaves fast forward out.
+     * A glyph lifted off the art: the [w] x [h] box at ([left], [top]), its pixels [px] as read, how much of each is
+     * glyph for the lit pill ([alpha], 0 to 1, the faint shading left out), how much of each the glyph covers ([cover],
+     * its difference from the colour around it over the glyph's full one, anti-aliased edges included), the colour
+     * around it ([bg]), the glyph's own colour ([ink]) and its height in pixels ([height]).
+     */
+    private class Lifted(
+        val left: Int, val top: Int, val w: Int, val h: Int, val px: IntArray, val alpha: FloatArray, val cover: FloatArray,
+        val bg: Int, val ink: Int, val height: Int,
+    )
+
+    /**
+     * [tablet] picks the skin's iPad art over its iPhone art; [hardcore] leaves fast forward and slow motion out
+     * (drawn dimmed, with no touch area).
      * [first] ("portrait" or "landscape") is the overlay RetroArch opens on: a skin redrawn in game keeps the one shown.
      */
     fun render(
@@ -145,16 +162,32 @@ class ImportedSkinRenderer {
         val defaultEdges = rep.optJSONObject("extendedEdges")
         val descs = mutableListOf<OverlayDesc>()
         val items = rep.optJSONArray("items") ?: JSONArray()
+        val boxes = (0 until items.length()).map { i ->
+            val item = items.getJSONObject(i)
+            item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let { box(it) }
+        }
+        // Slow motion goes right before fast forward, in a slot made among the keys beside it.
+        // The toggle wins over the hold key when a skin has both, whatever their order in the items.
+        val ff = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
+            (0 until items.length()).firstOrNull { i ->
+                (items.getJSONObject(i).get("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true
+            }
+        }
+        val slow = ff?.let { slowMotionLayout(boxes, it) }
+        if (ff != null && slow != null) respace(bitmap, slow, boxes, ff, place)
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
-            val f = item.getJSONObject("frame")
+            val f = slow?.moved?.get(i) ?: box(item.getJSONObject("frame"))
             val e = item.optJSONObject("extendedEdges") ?: defaultEdges
-            fun edge(k: String) = e?.optDouble(k, 0.0) ?: 0.0
-            val frame = place.rect(f.getDouble("x"), f.getDouble("y"), f.getDouble("width"), f.getDouble("height"))
-            val touch = place.rect(
-                f.getDouble("x") - edge("left"), f.getDouble("y") - edge("top"),
-                f.getDouble("width") + edge("left") + edge("right"), f.getDouble("height") + edge("top") + edge("bottom"),
-            )
+            fun edge(k: String) = e?.optDouble(k, 0.0)?.toFloat() ?: 0f
+            val frame = place.rect(f)
+            // Fast forward's and slow motion's touch areas stop at the side they share, so one press never hits both.
+            val speed = slow?.takeIf { i == ff }?.let { speedTouches(it.slowMotion, f, extended(it.slowMotion, ::edge), extended(f, ::edge)) }
+            val touch = place.rect(speed?.second ?: extended(f, ::edge))
+            if (speed != null && slow != null && !hardcore) {
+                descs += OverlayDesc(SLOW_MOTION, place.rect(speed.first))
+                OverlayWriter.LIT_BY[SLOW_MOTION]?.let { descs += litPill(bitmap, it, place.rect(slow.slowMotion), place.s) }
+            }
             when (val inputs = item.get("inputs")) {
                 is JSONObject -> {
                     val stick = item.optJSONObject("thumbstick")?.let { knob(zip, it, frame, place, paint) }
@@ -224,19 +257,82 @@ class ImportedSkinRenderer {
      */
     private fun litPill(art: Bitmap, state: String, frame: RectF, s: Float): OverlayDesc {
         val h = frame.height() * 0.8f
-        val bitmap = OverlayWriter.pill(minOf(h * 46f / 30f, frame.width() - 8f * s).toInt(), h.toInt(), h / 3f, h / 20f)
-        val left = (frame.centerX() - bitmap.width / 2f).roundToInt()
-        val top = (frame.centerY() - bitmap.height / 2f).roundToInt()
-        glyph(art, left, top, bitmap.width, bitmap.height)?.let { Canvas(bitmap).drawBitmap(it, 0f, 0f, null) }
-        val rect = RectF(left.toFloat(), top.toFloat(), (left + bitmap.width).toFloat(), (top + bitmap.height).toFloat())
-        return OverlayDesc("nul", rect, lit = OverlayLit(state, bitmap))
+        val box = pillBox(frame, s)
+        val bitmap = OverlayWriter.pill(box.width(), box.height(), h / 3f, h / 20f)
+        glyph(art, box.left, box.top, box.width(), box.height())?.let { Canvas(bitmap).drawBitmap(it, 0f, 0f, null) }
+        return OverlayDesc("nul", RectF(box), lit = OverlayLit(state, bitmap))
+    }
+
+    /**
+     * Makes room for slow motion on the [art]: the glyphs of the keys [layout] moves are lifted off and drawn again at
+     * their new places, in the skin's own colour, and slow motion's ring is drawn in its slot in fast forward's colour.
+     * In hardcore both speed keys are drawn at 0.45, like the drawn skins' strip.
+     */
+    private fun respace(art: Bitmap, layout: SlowMotionLayout, boxes: List<SkinBox?>, ff: Int, place: Placement) {
+        // Every glyph comes off before any goes back, so none is drawn over one still to be lifted.
+        val lifted = layout.moved.keys.associateWith { i -> pillBox(place.rect(boxes[i]!!), place.s).let { lift(art, it.left, it.top, it.width(), it.height()) } }
+        lifted.values.forEach { it?.let { l -> erase(art, l) } }
+        val canvas = Canvas(art)
+        val dim = if (hardcore) DISABLED_ALPHA else 1f
+        lifted.forEach { (i, l) ->
+            l ?: return@forEach
+            val to = place.rect(layout.moved.getValue(i))
+            val image = Bitmap.createBitmap(IntArray(l.px.size) { p -> color(l.ink, l.cover[p] * if (i == ff) dim else 1f) }, l.w, l.h, Bitmap.Config.ARGB_8888)
+            canvas.drawBitmap(image, (to.centerX() - l.w / 2f).roundToInt().toFloat(), (to.centerY() - l.h / 2f).roundToInt().toFloat(), null)
+            image.recycle()
+        }
+        val slot = place.rect(layout.slowMotion)
+        val model = lifted[ff]
+        // Fast forward's two triangles fill half the 24-unit icon's height; the ring is drawn at that icon's size.
+        val size = minOf((model?.height?.times(2f)) ?: (slot.height() * 0.6f), slot.width() * 0.9f, slot.height() * 0.9f)
+        val ink = model?.ink ?: 0xFFFFFFFF.toInt()
+        canvas.drawPath(slowMotionPath(slot.centerX(), slot.centerY(), size), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = color(ink, dim)
+            style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+        })
+    }
+
+    private fun slowMotionPath(cx: Float, cy: Float, size: Float): Path = PathParser.createPathFromPathData(Icons.SlowMotion).apply {
+        transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(cx - size / 2f, cy - size / 2f) })
+    }
+
+    /** [ink] with its alpha times [share]. */
+    private fun color(ink: Int, share: Float) = (((ink ushr 24) * share).roundToInt() shl 24) or (ink and 0xFFFFFF)
+
+    /**
+     * The glyph of [l] taken off [art]: every pixel of its box that differs from the colour around it gets that colour,
+     * so not even the anti-aliased edges are left behind.
+     */
+    private fun erase(art: Bitmap, l: Lifted) {
+        val x0 = maxOf(0, l.left)
+        val y0 = maxOf(0, l.top)
+        val x1 = minOf(art.width, l.left + l.w)
+        val y1 = minOf(art.height, l.top + l.h)
+        if (x1 <= x0 || y1 <= y0) return
+        val out = IntArray(l.px.size) { i -> if (l.cover[i] > ERASE_MIN_COVER) l.bg else l.px[i] }
+        art.setPixels(out, (y0 - l.top) * l.w + (x0 - l.left), l.w, x0, y0, x1 - x0, y1 - y0)
+    }
+
+    /** The box a toggle's pill takes over its item's [frame] (see [litPill]), whole pixels. */
+    private fun pillBox(frame: RectF, s: Float): Rect {
+        val h = frame.height() * 0.8f
+        val w = minOf(h * 46f / 30f, frame.width() - 8f * s).toInt().coerceAtLeast(1)
+        val ph = h.toInt().coerceAtLeast(1)
+        val left = (frame.centerX() - w / 2f).roundToInt()
+        val top = (frame.centerY() - ph / 2f).roundToInt()
+        return Rect(left, top, left + w, top + ph)
     }
 
     /**
      * The glyph in the [w] x [h] box of [art] at ([left], [top]): whatever differs from the color around it (the median
      * of the box's edge), as white with that difference for alpha; null when nothing stands out.
      */
-    private fun glyph(art: Bitmap, left: Int, top: Int, w: Int, h: Int): Bitmap? {
+    private fun glyph(art: Bitmap, left: Int, top: Int, w: Int, h: Int): Bitmap? = lift(art, left, top, w, h)?.let { l ->
+        Bitmap.createBitmap(IntArray(l.px.size) { i -> (l.alpha[i] * 0xFF).toInt() shl 24 or 0xFFFFFF }, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /** What [glyph] reads: the glyph in the box with what it takes to erase it and draw it again; null when nothing stands out. */
+    private fun lift(art: Bitmap, left: Int, top: Int, w: Int, h: Int): Lifted? {
         val px = IntArray(w * h)
         // Only the part of the box inside the art is read; the rest stays transparent.
         val x0 = maxOf(0, left)
@@ -245,7 +341,7 @@ class ImportedSkinRenderer {
         val y1 = minOf(art.height, top + h)
         if (x1 > x0 && y1 > y0) art.getPixels(px, (y0 - top) * w + (x0 - left), w, x0, y0, x1 - x0, y1 - y0)
         val edge = (0 until w).flatMap { listOf(px[it], px[(h - 1) * w + it]) } + (0 until h).flatMap { listOf(px[it * w], px[it * w + w - 1]) }
-        fun median(shift: Int) = edge.map { (it shr shift) and 0xFF }.sorted()[edge.size / 2]
+        fun median(shift: Int) = edge.map { (it ushr shift) and 0xFF }.sorted()[edge.size / 2]
         val bg = intArrayOf(median(16), median(8), median(0))
         val diff = IntArray(px.size) { i ->
             val c = px[i]
@@ -255,8 +351,11 @@ class ImportedSkinRenderer {
         val most = diff.maxOrNull() ?: 0
         if (most < GLYPH_MIN_DIFF) return null
         // The faintest fifth is the art's own shading; the glyph's anti-aliased edge ramps up to its full colour.
-        val alphas = IntArray(px.size) { i -> (((diff[i] - most * 0.2f) / (most * 0.5f)).coerceIn(0f, 1f) * 0xFF).toInt() shl 24 or 0xFFFFFF }
-        return Bitmap.createBitmap(alphas, w, h, Bitmap.Config.ARGB_8888)
+        val alpha = FloatArray(px.size) { i -> ((diff[i] - most * 0.2f) / (most * 0.5f)).coerceIn(0f, 1f) }
+        val cover = FloatArray(px.size) { i -> diff[i].toFloat() / most }
+        val rows = (0 until h).filter { y -> (0 until w).any { x -> cover[y * w + x] >= 0.5f } }
+        val bgColor = (median(24) shl 24) or (bg[0] shl 16) or (bg[1] shl 8) or bg[2]
+        return Lifted(left, top, w, h, px, alpha, cover, bgColor, px[diff.indexOf(most)], rows.last() - rows.first() + 1)
     }
 
     /**
@@ -329,6 +428,13 @@ class ImportedSkinRenderer {
         }
     }
 
+    /** [b] grown by the item's extended edges ([edge] of "left", "top", "right", "bottom"), in mapping units. */
+    private fun extended(b: SkinBox, edge: (String) -> Float) =
+        SkinBox(b.x - edge("left"), b.y - edge("top"), b.w + edge("left") + edge("right"), b.h + edge("top") + edge("bottom"))
+
+    private fun box(f: JSONObject) =
+        SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
+
     /** resizable (a PDF) when there is one, the largest PNG otherwise; the keys' case varies between skins. */
     private fun assetName(assets: JSONObject): String {
         val byKey = assets.keys().asSequence().associateBy({ it.lowercase(Locale.US) }, { assets.getString(it) })
@@ -370,9 +476,16 @@ class ImportedSkinRenderer {
         private const val TAG = "ImportedSkin"
         private const val RADIAL = "analog_left"
         private const val RADIAL_RIGHT = "analog_right"
+        private const val SLOW_MOTION = "toggle_slowmotion"
+
+        /** A speed key's share of opacity in hardcore: 0.45, like the drawn skins' strip and the pause sheet's disabled tiles. */
+        private const val DISABLED_ALPHA = SPEED_OFF_ALPHA / 255f
 
         /** The least difference from its surroundings a toggle's glyph has, out of 255 per channel. */
         private const val GLYPH_MIN_DIFF = 48
+
+        /** How much of a pixel a lifted glyph covers before erasing it paints the colour around it there: noise stays. */
+        private const val ERASE_MIN_COVER = 0.06f
 
         /** Where the skins' buttons sit on the RetroPad, for the consoles whose names differ (as in data/Skin.kt). */
         private val CONSOLE_BINDS = mapOf(

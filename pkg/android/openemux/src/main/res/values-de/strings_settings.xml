@@ -205,4 +205,12 @@
     <string name="settings_language_lead">Gilt für die Texte der App. Spielnamen folgen der Datei.</string>
     <string name="settings_about_licenses">Über und Lizenzen</string>
     <string name="settings_licenses_hint">Tippen für den vollen Text</string>
+    <string name="settings_controller_layout">Controller-Layout</string>
+    <string name="settings_controller_layout_lead">Wann die App den Fokus und die Tastenhinweise für einen Controller zeigt.</string>
+    <string name="settings_controller_layout_auto">Automatisch</string>
+    <string name="settings_controller_layout_auto_desc">Das Controller-Layout, solange ein Controller verbunden ist.</string>
+    <string name="settings_controller_layout_always">Immer</string>
+    <string name="settings_controller_layout_always_desc">Für Handhelds mit eingebauter Steuerung.</string>
+    <string name="settings_controller_layout_never">Nie</string>
+    <string name="settings_controller_layout_never_desc">Das Touch-Layout, auch wenn ein Controller verbunden ist.</string>
 </resources>

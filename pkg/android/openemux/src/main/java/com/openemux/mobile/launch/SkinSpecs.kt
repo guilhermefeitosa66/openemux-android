@@ -9,13 +9,44 @@ const val TABLETOP = "portrait-tabletop"
 
 /**
  * One overlay of the skin: [rotate] is the one turning the screen switches to, [layoutNext] the NDS layout key's
- * target, [tabletop] the half-open shape only the activity switches to.
+ * target, [tabletop] the half-open shape only the activity switches to. [gamepad] is the layout for a connected
+ * gamepad (the app controls only), [collapsed] the page with the app controls hidden but for the key that shows them.
  */
 class OverlaySpec(
     val name: String, val portrait: Boolean, val aspect: Float, val rotate: String,
     val keypadOpen: Boolean = false, val layoutNext: String? = null, val layout: ScreenLayout? = null,
-    val tabletop: Boolean = false,
-)
+    val tabletop: Boolean = false, val gamepad: Boolean = false, val collapsed: Boolean = false,
+) {
+    /** The same page in another mode: its name, its rotation and its NDS layout key all stay in that mode. */
+    fun twin(gamepad: Boolean, collapsed: Boolean): OverlaySpec {
+        fun mode(n: String) = OverlayName.map(n) { it.copy(gamepad = gamepad, collapsed = collapsed) }
+        return OverlaySpec(mode(name), portrait, aspect, mode(rotate), keypadOpen, layoutNext?.let(::mode), layout, tabletop, gamepad, collapsed)
+    }
+}
+
+/**
+ * Every page of a drawn skin: its [touch] pages, then their collapsed, gamepad and collapsed gamepad twins, each mode
+ * in the touch pages' order. Without [collapsible] (the tabletop pages drawn under a package skin, whose own pages
+ * have no hide key) there is no collapsed touch twin.
+ */
+fun withAppModes(touch: List<OverlaySpec>, collapsible: Boolean = true): List<OverlaySpec> {
+    val modes = listOfNotNull(if (collapsible) false to true else null, true to false, true to true)
+    return touch + modes.flatMap { (gamepad, collapsed) -> touch.map { it.twin(gamepad, collapsed) } }
+}
+
+/**
+ * The pages drawn under a package skin (ImportedSkinRenderer): its [tabletop] ones (packageTabletopSpecs, empty
+ * without a fold), then the gamepad layout and its collapsed twin for its own "portrait" and "landscape" pages and for
+ * each tabletop one. On NDS its art shows the two screens one over the other, [PACKAGE_NDS_LAYOUT].
+ */
+fun packageSpecs(gameAspect: Float, nds: Boolean, tabletop: List<OverlaySpec>): List<OverlaySpec> {
+    val aspect = if (nds) PACKAGE_NDS_ASPECT else gameAspect
+    val flat = listOf(OverlaySpec("portrait", true, aspect, "landscape"), OverlaySpec("landscape", false, aspect, "portrait"))
+    return tabletop + listOf(false, true).flatMap { collapsed -> (flat + tabletop).map { it.twin(true, collapsed) } }
+}
+
+/** The NDS screens one over the other, as a package skin shows them. */
+const val PACKAGE_NDS_ASPECT = 256f / 384f
 
 /**
  * The skin's overlays, in the order skin.cfg lists them (RetroArch opens the first). [nds] is the saved portrait and

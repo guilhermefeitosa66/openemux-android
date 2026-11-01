@@ -30,6 +30,10 @@
  *      once, from the runloop. A pause after a resume writes it again.
  *   7. A pause in the startup pump, before content is loaded, writes no
  *      state and leaves nothing for the return.
+ *   8. OpenEmux: with RetroArch's own menu up (opened from the pause
+ *      sheet) when the device closes, the state is still written, but
+ *      the return neither sets the content's pause (closing the menu
+ *      must resume the game) nor tells the activity (no sheet on top).
  *
  * Three sabotage modes reproduce the bugs the lanes exist for and are
  * asserted to be caught: acknowledging before the save (the previous
@@ -93,6 +97,7 @@ static int  state_disk_gen; /* what the last auto save state wrote */
 static int  state_saves;
 static int  paused;         /* RUNLOOP_FLAG_PAUSED */
 static int  sheet_calls;    /* onResumedIntoPause() */
+static int  menu_alive;     /* MENU_ST_FLAG_ALIVE */
 
 /* App-thread-only state: android_input.c's statics. */
 static bool state_flushed;
@@ -263,8 +268,11 @@ static void poll_main_cmd(int cmd)
          if (resume_into_menu)
          {
             resume_into_menu         = false;
-            resume_into_menu_pending = true;
-            paused                   = 1;
+            if (!menu_alive)
+            {
+               resume_into_menu_pending = true;
+               paused                   = 1;
+            }
          }
          pthread_mutex_unlock(&mtx);
          break;
@@ -387,6 +395,7 @@ static int start_app(pthread_t *t, int pump)
    state_saves         = 0;
    paused              = 0;
    sheet_calls         = 0;
+   menu_alive          = 0;
    autosave_pending    = false;
    resume_into_menu    = false;
    resume_into_menu_pending = false;
@@ -579,6 +588,33 @@ static int lane_autosave_pump(void)
    return failures - before;
 }
 
+/* 8: the device closed while RetroArch's own menu was up. */
+static int lane_autosave_menu(void)
+{
+   pthread_t t;
+   int before = failures;
+
+   if (!start_app(&t, 0))
+      return ++failures - before;
+   write_locked(&auto_on_pause, 1);
+   write_locked(&content_loaded, 1);
+   write_locked(&menu_alive, 1);
+
+   expect("menu: resume acked", set_activity_state(CMD_RESUME, ACK_TIMEOUT_MS), 1);
+   write_locked(&game_gen, 3);
+   expect("menu: pause acked",  set_activity_state(CMD_PAUSE,  ACK_TIMEOUT_MS), 1);
+   expect("menu: state on disk", read_locked(&state_disk_gen), 3);
+   expect("menu: start acked",  set_activity_state(CMD_START,  ACK_TIMEOUT_MS), 1);
+   expect("menu: resume acked", set_activity_state(CMD_RESUME, ACK_TIMEOUT_MS), 1);
+   post_focus();
+   sleep_ms(FLUSH_MS * 4);
+   expect("menu: no pause left behind", read_locked(&paused), 0);
+   expect("menu: no sheet on top", read_locked(&sheet_calls), 0);
+
+   stop_app(t);
+   return failures - before;
+}
+
 int main(void)
 {
    int shipping;
@@ -589,6 +625,7 @@ int main(void)
    shipping += lane_supersede();
    shipping += lane_autosave();
    shipping += lane_autosave_pump();
+   shipping += lane_autosave_menu();
    if (!shipping)
       printf("[pass] shipping handshake\n");
 

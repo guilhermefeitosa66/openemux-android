@@ -217,4 +217,12 @@
     <string name="settings_language_lead">S’applique aux textes de l’app. Les noms des jeux suivent le fichier.</string>
     <string name="settings_about_licenses">À propos et licences</string>
     <string name="settings_licenses_hint">Touchez pour lire le texte complet</string>
+    <string name="settings_controller_layout">Disposition manette</string>
+    <string name="settings_controller_layout_lead">Quand l’app affiche le focus et les aides des boutons pour une manette.</string>
+    <string name="settings_controller_layout_auto">Automatique</string>
+    <string name="settings_controller_layout_auto_desc">La disposition manette tant qu’une manette est connectée.</string>
+    <string name="settings_controller_layout_always">Toujours</string>
+    <string name="settings_controller_layout_always_desc">Pour les consoles portables avec commandes intégrées.</string>
+    <string name="settings_controller_layout_never">Jamais</string>
+    <string name="settings_controller_layout_never_desc">La disposition tactile, même avec une manette connectée.</string>
 </resources>

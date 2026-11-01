@@ -779,6 +779,13 @@ static void android_input_take_resume_into_menu(void)
    if (!android_resume_into_menu)
       return;
    android_resume_into_menu         = false;
+#ifdef HAVE_MENU
+   /* OpenEmux: RetroArch's own menu is up (opened from the pause sheet).
+    * It keeps the content paused itself, and closing it must resume the
+    * game: no pause flag it would leave behind, and no sheet on top. */
+   if (menu_state_get_ptr()->flags & MENU_ST_FLAG_ALIVE)
+      return;
+#endif
    android_resume_into_menu_pending = true;
    runloop_state_get_ptr()->flags  |= RUNLOOP_FLAG_PAUSED;
 }

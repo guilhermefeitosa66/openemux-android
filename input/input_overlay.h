@@ -142,7 +142,9 @@ enum overlay_lit_by
 {
    OVERLAY_LIT_BY_NONE         = 0,
    OVERLAY_LIT_BY_FAST_FORWARD = 1,
-   OVERLAY_LIT_BY_TURBO        = 2
+   OVERLAY_LIT_BY_TURBO        = 2,
+   /* OpenEmux: the slow-motion toggle */
+   OVERLAY_LIT_BY_SLOW_MOTION  = 3
 };
 
 enum OVERLAY_FLAGS

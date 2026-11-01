@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">Only for this session</string>
     <string name="game_toast_saved_slot">State saved to slot %1$d</string>
     <string name="game_toast_fast_forward_on">Fast forward on resume</string>
+    <string name="game_toast_slow_motion_on">Slow motion on resume</string>
     <string name="game_toast_fast_forward_off">Normal speed</string>
     <string name="game_toast_screenshot">Screenshot saved</string>
     <string name="game_toast_sound_off">Sound off</string>
@@ -23,10 +24,13 @@
     <string name="game_save_state">Save state</string>
     <string name="game_load">Load</string>
     <string name="game_fast_forward">Fast forward</string>
+    <string name="game_slow_motion">Slow motion</string>
     <string name="game_screenshot">Screenshot</string>
     <string name="game_audio">Audio</string>
     <string name="game_muted">Muted</string>
     <string name="game_restart">Restart game</string>
+    <string name="game_retroarch_menu">RetroArch menu</string>
+    <string name="game_retroarch_menu_note">Advanced settings, for this session only</string>
     <string name="game_quit">Quit game</string>
     <string name="game_no_states">No save states yet.</string>
     <string name="game_state_auto">AUTO</string>

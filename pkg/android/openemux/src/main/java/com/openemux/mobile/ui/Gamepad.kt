@@ -47,6 +47,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -62,10 +66,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 
 /** Whether the app is being driven by a gamepad: the focus highlight shows only then. */
 object InputMode {
-    var gamepad by mutableStateOf(false)
+    /** Whether the last input was a pad press rather than a touch. */
+    var lastInputPad by mutableStateOf(false)
+
+    /** Whether a controller is connected (or a debug build says one is). */
+    var padConnected by mutableStateOf(false)
+
+    /**
+     * Whether the gamepad look shows (the focus ring, the hint bar): always in the gamepad layout, otherwise
+     * after a pad press until the next touch. Writing it records the last input: a press sets it, a touch clears it.
+     */
+    var gamepad: Boolean
+        get() = gamepadLook(ControllerLayoutPref.value, padConnected, lastInputPad)
+        set(value) { lastInputPad = value }
+
+    /** The gamepad layout: a controller connected, or the setting says always. Larger targets and the L1/R1 pills follow it. */
+    val padLayout: Boolean get() = padLayoutOn(ControllerLayoutPref.value, padConnected)
 
     /** How many highlighted items hold focus now (0 or 1 in practice). */
     var focused = 0
@@ -152,6 +174,30 @@ private val FocusHalo = 6.dp
  */
 val FocusOutset = 12.dp
 
+/**
+ * Focus target sizes, the touch one and the larger one for the gamepad layout, where anything focusable is at
+ * least [PadTarget] tall so the ring has a real target. The touch layout keeps its sizes.
+ */
+val PadTarget = 44.dp
+val ChipHeight = 36.dp
+val ChipHeightPad = 40.dp
+val ToggleSize = DpSize(40.dp, 32.dp)
+val ToggleSizePad = DpSize(44.dp, 40.dp)
+val SwatchSize = 38.dp
+val SwatchSizePad = PadTarget
+val PillHeight = 36.dp
+val PillHeightPad = 40.dp
+
+/** [touch] in the touch layout, [pad] in the gamepad layout. */
+fun <T> padSize(touch: T, pad: T): T = if (InputMode.padLayout) pad else touch
+
+/**
+ * A text link in the gamepad layout: at least [PadTarget] tall, its text centred in it, with room on the sides.
+ * Goes before the link's own padding, after its click.
+ */
+fun Modifier.linkTarget(): Modifier =
+    if (InputMode.padLayout) heightIn(min = PadTarget).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 6.dp) else this
+
 /** The room a focused item keeps from the edges of a vertical list. */
 val FocusMargin = 24.dp
 
@@ -189,8 +235,23 @@ fun Modifier.gamepadFocus(
     // An item that leaves while focused takes its count with it.
     DisposableEffect(Unit) { onDispose { if (focused) InputMode.focused -= 1 } }
     // Known to its window, so a press that finds nothing focused can land here.
-    val target = remember { PadTarget() }
+    val target = remember { PadFocusTarget() }
+    val scope = LocalPadScope.current
     this
+        // In the gamepad layout a tap moves the focus to the item tapped, so the next press starts there; the
+        // touch itself goes on to the item untouched. A drag (a scroll, a fling) leaves the focus where it was.
+        // The touch put the window in touch mode, where a clickable takes no focus: the scope takes it out first.
+        .then(if (InputMode.padLayout) Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                var dragged = false
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.any { (it.position - down.position).getDistance() > viewConfiguration.touchSlop }) dragged = true
+                } while (event.changes.any { it.pressed })
+                if (!dragged) scope.focus(target)
+            }
+        } else Modifier)
         .padTarget(target)
         .zIndex(if (shown) 1f else 0f)
         .onFocusChanged {
@@ -390,7 +451,7 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
     // The screen's initial item is where a press lands when nothing on screen holds focus.
-    val target = remember(requester) { PadTarget(initial, requester) }
+    val target = remember(requester) { PadFocusTarget(initial, requester) }
     target.initial = initial
     this.focusRequester(requester).padTarget(target, attach = false).onFocusChanged {
         if (it.isFocused || it.hasFocus) {

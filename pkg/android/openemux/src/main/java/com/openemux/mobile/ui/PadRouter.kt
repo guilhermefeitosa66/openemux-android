@@ -179,7 +179,7 @@ fun rankLanding(spots: List<LandingSpot>, anchor: Pair<Float, Float>? = null): L
 }
 
 /** An item that can take the gamepad's focus, in one window. */
-class PadTarget(var initial: Boolean = false, val requester: FocusRequester = FocusRequester()) {
+class PadFocusTarget(var initial: Boolean = false, val requester: FocusRequester = FocusRequester()) {
     var coords: LayoutCoordinates? = null
     var focused = false
 
@@ -203,7 +203,7 @@ class PadTarget(var initial: Boolean = false, val requester: FocusRequester = Fo
  * land, and a window that closes knows where to give focus back.
  */
 class PadScope {
-    private val targets = mutableListOf<PadTarget>()
+    private val targets = mutableListOf<PadFocusTarget>()
     private var tick = 0L
 
     /** Whether anything in the window holds focus, a control the scope does not know included. */
@@ -218,8 +218,8 @@ class PadScope {
     /** The window's Compose view, taken out of touch mode before focus lands (A does not leave it on its own). */
     var view: View? = null
 
-    fun add(target: PadTarget) { targets += target }
-    fun remove(target: PadTarget) { targets -= target }
+    fun add(target: PadFocusTarget) { targets += target }
+    fun remove(target: PadFocusTarget) { targets -= target }
 
     /** Where the item that held focus last was in the window, while it held it. */
     var anchor: Pair<Float, Float>? = null
@@ -228,7 +228,7 @@ class PadScope {
     /** Whether focus left since the last gain: the targets that gain it together (an item's own two) share a tick. */
     private var moved = true
 
-    fun focusChanged(target: PadTarget, now: Boolean) {
+    fun focusChanged(target: PadFocusTarget, now: Boolean) {
         target.focused = now
         if (!now) { moved = true; return }
         if (moved) { tick++; moved = false }
@@ -237,7 +237,7 @@ class PadScope {
     }
 
     /** The focused item moved (its list scrolled to it): the anchor follows it while it shows. */
-    fun placed(target: PadTarget) {
+    fun placed(target: PadFocusTarget) {
         if (target.focused) target.shownCenter()?.let { anchor = it }
     }
 
@@ -248,14 +248,14 @@ class PadScope {
     }
 
     /** The item that holds focus, else the last one that did. */
-    fun current(): PadTarget? = targets.firstOrNull { it.focused } ?: targets.filter { it.lastFocus > 0 }.maxByOrNull { it.lastFocus }
+    fun current(): PadFocusTarget? = targets.firstOrNull { it.focused } ?: targets.filter { it.lastFocus > 0 }.maxByOrNull { it.lastFocus }
 
     /**
      * [list] as landing candidates. Only the item that held focus last counts as such: when it is gone
      * (scrolled out of its list and disposed), an older one that still shows must not take its place ahead
      * of the anchor, or a press after a finger scroll lands on the header the user left long ago.
      */
-    internal fun spots(list: List<PadTarget>): List<LandingSpot> = list.map { t ->
+    internal fun spots(list: List<PadFocusTarget>): List<LandingSpot> = list.map { t ->
         val c = t.shownCenter()
         LandingSpot(c != null, t.initial, if (t.lastFocus == tick) t.lastFocus else 0L, c?.first ?: 0f, c?.second ?: 0f)
     }
@@ -267,7 +267,7 @@ class PadScope {
     }
 
     /** Puts focus on [target], out of touch mode first: there the items are not focusable, and only a D-pad key leaves it. */
-    fun focus(target: PadTarget): Boolean {
+    fun focus(target: PadFocusTarget): Boolean {
         view?.let { v -> if (v.isInTouchMode) runCatching { v.requestFocusFromTouch() } }
         // Leaving touch mode here is not a press to wait for (touchExit), or the root would turn this request down.
         touchExit = false
@@ -367,7 +367,7 @@ private class PadCallback(private val original: Window.Callback, private val rou
 }
 
 /** Registers this item with its window's [PadScope], as one a landing press can put focus on. */
-internal fun Modifier.padTarget(target: PadTarget, attach: Boolean = true): Modifier = composed {
+internal fun Modifier.padTarget(target: PadFocusTarget, attach: Boolean = true): Modifier = composed {
     val scope = LocalPadScope.current
     DisposableEffect(scope, target) {
         scope.add(target)
@@ -405,7 +405,7 @@ fun Modifier.padScrollsText(scroll: ScrollState): Modifier = composed {
     val scope = rememberCoroutineScope()
     var height by remember { mutableIntStateOf(0) }
     // The text itself holds focus, so it always shows while it scrolls (a link above it would scroll away).
-    val target = remember { PadTarget(initial = true) }
+    val target = remember { PadFocusTarget(initial = true) }
     LaunchedEffect(InputMode.gamepad) {
         if (!InputMode.gamepad) return@LaunchedEffect
         withFrameNanos { }
@@ -502,7 +502,7 @@ private fun PadFocusIn(scope: PadScope) {
 }
 
 /** In gamepad mode, focus goes back to [target], in [scope]'s window, once the window over it is gone. */
-private fun giveFocusBack(scope: PadScope, target: PadTarget?) {
+private fun giveFocusBack(scope: PadScope, target: PadFocusTarget?) {
     if (target == null || !InputMode.gamepad) return
     Handler(Looper.getMainLooper()).post { if (InputMode.gamepad) scope.focus(target) }
 }

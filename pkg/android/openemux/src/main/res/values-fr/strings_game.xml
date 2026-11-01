@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">Seulement pour cette session</string>
     <string name="game_toast_saved_slot">État sauvegardé dans l’emplacement %1$d</string>
     <string name="game_toast_fast_forward_on">Avance rapide à la reprise</string>
+    <string name="game_toast_slow_motion_on">Ralenti à la reprise</string>
     <string name="game_toast_fast_forward_off">Vitesse normale</string>
     <string name="game_toast_screenshot">Capture d’écran enregistrée</string>
     <string name="game_toast_sound_off">Son coupé</string>
@@ -23,10 +24,13 @@
     <string name="game_save_state">Sauvegarder l’état</string>
     <string name="game_load">Charger</string>
     <string name="game_fast_forward">Avance rapide</string>
+    <string name="game_slow_motion">Ralenti</string>
     <string name="game_screenshot">Capture d’écran</string>
     <string name="game_audio">Audio</string>
     <string name="game_muted">Muet</string>
     <string name="game_restart">Redémarrer le jeu</string>
+    <string name="game_retroarch_menu">Menu RetroArch</string>
+    <string name="game_retroarch_menu_note">Réglages avancés, pour cette session uniquement</string>
     <string name="game_quit">Quitter le jeu</string>
     <string name="game_no_states">Aucun état sauvegardé pour l’instant.</string>
     <string name="game_state_auto">AUTO</string>

@@ -205,4 +205,12 @@
     <string name="settings_language_lead">Vale para os textos do app. Os nomes dos jogos seguem o arquivo.</string>
     <string name="settings_about_licenses">Sobre e licenças</string>
     <string name="settings_licenses_hint">Toque para ler o texto completo</string>
+    <string name="settings_controller_layout">Layout para controle</string>
+    <string name="settings_controller_layout_lead">Quando o app mostra o foco e as dicas de botões para um controle.</string>
+    <string name="settings_controller_layout_auto">Automático</string>
+    <string name="settings_controller_layout_auto_desc">O layout para controle enquanto houver um controle conectado.</string>
+    <string name="settings_controller_layout_always">Sempre</string>
+    <string name="settings_controller_layout_always_desc">Para portáteis com controles embutidos.</string>
+    <string name="settings_controller_layout_never">Nunca</string>
+    <string name="settings_controller_layout_never_desc">O layout de toque, mesmo com um controle conectado.</string>
 </resources>

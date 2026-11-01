@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">Nur für diese Sitzung</string>
     <string name="game_toast_saved_slot">Spielstand auf Platz %1$d gespeichert</string>
     <string name="game_toast_fast_forward_on">Vorspulen beim Fortsetzen</string>
+    <string name="game_toast_slow_motion_on">Zeitlupe beim Fortsetzen</string>
     <string name="game_toast_fast_forward_off">Normale Geschwindigkeit</string>
     <string name="game_toast_screenshot">Bildschirmfoto gespeichert</string>
     <string name="game_toast_sound_off">Ton aus</string>
@@ -23,10 +24,13 @@
     <string name="game_save_state">Spielstand speichern</string>
     <string name="game_load">Laden</string>
     <string name="game_fast_forward">Vorspulen</string>
+    <string name="game_slow_motion">Zeitlupe</string>
     <string name="game_screenshot">Bildschirmfoto</string>
     <string name="game_audio">Audio</string>
     <string name="game_muted">Stumm</string>
     <string name="game_restart">Spiel neu starten</string>
+    <string name="game_retroarch_menu">RetroArch-Menü</string>
+    <string name="game_retroarch_menu_note">Erweiterte Einstellungen, nur für diese Sitzung</string>
     <string name="game_quit">Spiel beenden</string>
     <string name="game_no_states">Noch keine Savestates.</string>
     <string name="game_state_auto">AUTO</string>

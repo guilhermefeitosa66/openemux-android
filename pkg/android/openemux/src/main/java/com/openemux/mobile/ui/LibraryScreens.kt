@@ -518,7 +518,7 @@ private fun SectionHeading(title: String, link: String, onLink: () -> Unit) {
         Text(title, style = Type.Section.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
         Text(
             link, style = Type.BodyMedium.copy(color = Oe.AccentText, fontSize = 14.sp),
-            modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onLink).padding(horizontal = 4.dp, vertical = 4.dp),
+            modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onLink).linkTarget().padding(horizontal = 4.dp, vertical = 4.dp),
         )
     }
 }
@@ -682,8 +682,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     GamepadButtons(
         hints = listOf(
             "A" to stringResource(R.string.library_hint_detail), "X" to stringResource(R.string.library_hint_favorite),
-            "Y" to stringResource(R.string.library_hint_options), "B" to stringResource(R.string.library_shelf_title),
-            "START" to stringResource(R.string.library_hint_select),
+            "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
+            "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
         ),
         l1 = { chip(-1) },
         r1 = { chip(1) },
@@ -1261,13 +1261,16 @@ private fun LandscapeGroupHeader(console: Console, count: Int) {
 private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = Modifier, onPick: (String) -> Unit) {
     val library = LocalActions.current.app.library
     val meta by library.meta.collectAsState()
-    FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         val chips = listOf("ALL" to stringResource(R.string.library_chip_all), "FAV" to stringResource(R.string.library_favorites)) +
             library.orderedConsoles(meta.consoleOrder).filter { c -> roms.any { it.console == c } }.map { it.id to it.short }
+        // In the gamepad layout the shoulders that switch the chip sit at the row's ends.
+        val shoulders = InputMode.padLayout && chips.size > 1
+        if (shoulders) ShoulderPill("L1")
         chips.forEach { (id, label) ->
             val active = id == current
             Box(
-                Modifier.height(36.dp).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
+                Modifier.height(padSize(ChipHeight, ChipHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
                     .background(if (active) Oe.Text else Oe.Surface)
                     .let { if (active) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
                     .clickable(role = Role.Tab) { onPick(id) }
@@ -1277,6 +1280,15 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
                 Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
             }
         }
+        if (shoulders) ShoulderPill("R1")
+    }
+}
+
+/** A shoulder button's name beside the chips it switches, as the hint bar draws its badges; not focusable. */
+@Composable
+private fun ShoulderPill(button: String) {
+    Box(Modifier.background(Oe.Raised, RoundedCornerShape(11.dp)).padding(horizontal = 8.dp, vertical = 3.dp), contentAlignment = Alignment.Center) {
+        Text(button, style = Type.Tag.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Oe.Text))
     }
 }
 
@@ -1315,7 +1327,7 @@ private fun ViewToggle(mode: ViewMode, onChange: (ViewMode) -> Unit) {
         listOf(ViewMode.Carts to Icons.Cart, ViewMode.Covers to Icons.Grid, ViewMode.List to Icons.List).forEach { (m, icon) ->
             val on = m == mode
             Box(
-                Modifier.size(40.dp, 32.dp).gamepadFocus(corner = 9.dp).clip(RoundedCornerShape(9.dp)).background(if (on) Oe.Raised else Color.Transparent)
+                Modifier.size(padSize(ToggleSize, ToggleSizePad)).gamepadFocus(corner = 9.dp).clip(RoundedCornerShape(9.dp)).background(if (on) Oe.Raised else Color.Transparent)
                     .clickable(role = Role.Tab) { onChange(m) },
                 contentAlignment = Alignment.Center,
             ) { Icon(icon, if (on) Oe.Text else Oe.Muted, 18.dp) }
