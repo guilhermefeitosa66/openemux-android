@@ -74,24 +74,30 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">Certaines consoles ne démarrent qu’avec le fichier système d’origine. Utilisez ceux extraits de votre propre appareil.</string>
-    <string name="settings_bios_checking">Vérification des fichiers...</string>
-    <string name="settings_bios_import_from_device">Importer depuis l’appareil</string>
-    <string name="settings_bios_pick_help">Choisissez le dossier qui contient les fichiers (Téléchargements, carte SD...). OpenEmux reconnaît chacun par son nom, ou par son empreinte quand il la connaît, et l’installe dans le dossier système.</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="one">%d fichier reconnu et installé.</item>
-        <item quantity="many">%d de fichiers reconnus et installés.</item>
-        <item quantity="other">%d fichiers reconnus et installés.</item>
+    <string name="settings_bios_import_help">Touchez Importer sur une console et choisissez ses fichiers. Chaque fichier doit porter le nom que cette console attend.</string>
+    <string name="settings_bios_import">Importer</string>
+    <string name="settings_bios_import_a11y">Importer le BIOS pour %s</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="one">%d fichier importé</item>
+        <item quantity="other">%d fichiers importés</item>
+        <item quantity="many">%d fichiers importés</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="one">%d ignoré.</item>
-        <item quantity="many">%d ignorés.</item>
-        <item quantity="other">%d ignorés.</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="one">%1$d fichier sur %2$d importé</item>
+        <item quantity="other">%1$d fichiers sur %2$d importés</item>
+        <item quantity="many">%1$d fichiers sur %2$d importés</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="one">Aucun BIOS connu dans ce dossier. %d fichier vérifié.</item>
-        <item quantity="many">Aucun BIOS connu dans ce dossier. %d de fichiers vérifiés.</item>
-        <item quantity="other">Aucun BIOS connu dans ce dossier. %d fichiers vérifiés.</item>
-    </plurals>
+    <string name="settings_bios_result_none">Aucun fichier importé</string>
+    <string name="settings_bios_section_imported">Importés</string>
+    <string name="settings_bios_section_rejected">Non importés</string>
+    <string name="settings_bios_saved_as">Enregistré sous %s</string>
+    <string name="settings_bios_by_content">Reconnu par son contenu</string>
+    <string name="settings_bios_replaced">A remplacé le fichier existant</string>
+    <string name="settings_bios_reason_name">Ce n\'est pas un nom attendu par cette console</string>
+    <string name="settings_bios_reason_io">Impossible de lire ou d\'enregistrer</string>
+    <string name="settings_bios_reason_size">Trop volumineux pour un BIOS</string>
+    <string name="settings_bios_expects">%s attend</string>
+    <string name="settings_bios_done">Terminé</string>
     <string name="settings_bios_consoles">Consoles avec BIOS</string>
     <string name="settings_bios_ready_count">%1$d sur %2$d prêts</string>
     <string name="settings_count_of">%1$d sur %2$d</string>

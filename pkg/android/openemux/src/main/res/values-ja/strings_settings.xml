@@ -66,18 +66,26 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">一部のコンソールは、オリジナルのシステムファイルがないと起動しません。自分の本体から吸い出したものを使ってください。</string>
-    <string name="settings_bios_checking">ファイルを確認しています...</string>
-    <string name="settings_bios_import_from_device">デバイスから取り込む</string>
-    <string name="settings_bios_pick_help">ファイルが入っているフォルダー（ダウンロード、SD カードなど）を選んでください。OpenEmux は名前で、わかる場合はハッシュでも各ファイルを認識し、システムフォルダーにインストールします。</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="other">%d 個のファイルを認識してインストールしました。</item>
+    <string name="settings_bios_import_help">コンソールの「取り込む」を押して、そのファイルを選んでください。各ファイルは、そのコンソールが求める名前である必要があります。</string>
+    <string name="settings_bios_import">取り込む</string>
+    <string name="settings_bios_import_a11y">%s の BIOS を取り込む</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="other">%d 個のファイルを取り込みました</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="other">%d 個をスキップ。</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="other">%2$d 個中 %1$d 個のファイルを取り込みました</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="other">そのフォルダーに既知の BIOS はありません。%d 個のファイルを確認しました。</item>
-    </plurals>
+    <string name="settings_bios_result_none">ファイルは取り込まれませんでした</string>
+    <string name="settings_bios_section_imported">取り込み済み</string>
+    <string name="settings_bios_section_rejected">取り込めなかったファイル</string>
+    <string name="settings_bios_saved_as">%s として保存</string>
+    <string name="settings_bios_by_content">内容で認識</string>
+    <string name="settings_bios_replaced">既存のファイルを置き換えました</string>
+    <string name="settings_bios_reason_name">このコンソールが求める名前ではありません</string>
+    <string name="settings_bios_reason_io">読み込みまたは保存ができませんでした</string>
+    <string name="settings_bios_reason_size">BIOS にしては大きすぎます</string>
+    <string name="settings_bios_expects">%s が求めるファイル</string>
+    <string name="settings_bios_done">完了</string>
     <string name="settings_bios_consoles">BIOS が必要なコンソール</string>
     <string name="settings_bios_ready_count">%2$d 件中 %1$d 件準備完了</string>
     <string name="settings_count_of">%1$d / %2$d</string>

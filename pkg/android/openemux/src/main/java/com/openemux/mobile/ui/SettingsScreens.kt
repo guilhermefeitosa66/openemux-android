@@ -33,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +57,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -70,6 +70,7 @@ import com.openemux.mobile.AppLocale
 import com.openemux.mobile.data.AchievementsState
 import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.BiosImportReport
 import com.openemux.mobile.data.ImportResult
 import com.openemux.mobile.data.KNOWN_BIOS
 import com.openemux.mobile.data.LoginResult
@@ -228,7 +229,9 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
     val context = LocalContext.current
     // Only the consoles in the library: the others do not need their BIOS yet.
     val owned = roms.map { it.console }.toSet()
-    val missing = KNOWN_BIOS.filter { it.console in owned && !a.app.importer.biosPresent(it) }
+    // A BIOS import elsewhere (the BIOS pane beside this list) reads the disk again.
+    val biosRevision by a.app.importer.biosRevision.collectAsState()
+    val missing = remember(owned, biosRevision) { KNOWN_BIOS.filter { it.console in owned && !a.app.importer.biosPresent(it) } }
     val missingOptional = missing.count { !it.required }
     val missingRequired = missing.filter { it.required }.map { it.console }.distinct().size
 
@@ -583,7 +586,8 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
         Card(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
             val bios = KNOWN_BIOS.filter { it.console == console }.sortedByDescending { it.required }.firstOrNull()
             if (bios != null) {
-                val present = a.app.importer.biosPresent(bios)
+                val biosRevision by a.app.importer.biosRevision.collectAsState()
+                val present = remember(bios, biosRevision) { a.app.importer.biosPresent(bios) }
                 ListRow(
                     "BIOS", subtitle = "${bios.fileName()} · ${stringResource(if (bios.required) R.string.settings_bios_required else R.string.settings_bios_optional)}",
                     onClick = { onOpenBios?.invoke() ?: a.nav.navigate(Routes.BIOS) },
@@ -657,17 +661,24 @@ fun BiosScreen(embedded: Boolean = false) {
         ReturnToSplit(LocalWindowLayout.current.splitSettings, Routes.SETTINGS, SettingsItem.Bios.key)
     }
     val a = LocalActions.current
+    val importer = a.app.importer
     val scope = rememberCoroutineScope()
-    var result by remember { mutableStateOf<ImportResult?>(null) }
-    var working by remember { mutableStateOf(false) }
-    var refresh by remember { mutableIntStateOf(0) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-        if (uri != null) {
-            working = true
+    var report by remember { mutableStateOf<BiosImportReport?>(null) }
+    // The console being imported: one import at a time on the screen.
+    var working by remember { mutableStateOf<Console?>(null) }
+    // The console the picker was opened for, kept across a process death while the picker is up.
+    var pending by rememberSaveable { mutableStateOf<String?>(null) }
+    val revision by importer.biosRevision.collectAsState()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        val console = pending?.let { name -> Console.entries.firstOrNull { it.name == name } }
+        pending = null
+        if (console != null && uris.isNotEmpty()) {
+            working = console
             scope.launch {
-                result = runCatching { a.app.importer.importBiosTree(uri) }.getOrDefault(ImportResult(0, 0))
-                working = false
-                refresh++
+                report = runCatching { importer.importBios(console, uris) }.getOrElse {
+                    BiosImportReport(console, emptyList(), uris.map { BiosImportReport.Rejected(it.lastPathSegment ?: "?", BiosImportReport.Reason.IO) })
+                }
+                working = null
             }
         }
     }
@@ -680,47 +691,17 @@ fun BiosScreen(embedded: Boolean = false) {
                 stringResource(R.string.settings_bios_intro),
                 style = Type.Small.copy(fontSize = 14.sp, lineHeight = 20.sp), modifier = Modifier.padding(top = 8.dp),
             )
-        }
-        Column(
-            Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Oe.Surface)
-                .border(1.dp, Oe.Border, RoundedCornerShape(20.dp)).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (working) {
-                Row(Modifier.fillMaxWidth().height(54.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(20.dp), color = Oe.AccentText, strokeWidth = 2.dp)
-                    Text("  " + stringResource(R.string.settings_bios_checking), style = Type.Body)
-                }
-            } else {
-                PrimaryButton(stringResource(R.string.settings_bios_import_from_device), { picker.launch(null) }, Modifier.fillMaxWidth(), icon = Icons.Folder, height = 54.dp)
-            }
             Text(
-                stringResource(R.string.settings_bios_pick_help),
-                style = Type.Small,
+                stringResource(R.string.settings_bios_import_help),
+                style = Type.Small.copy(fontSize = 14.sp, lineHeight = 20.sp), modifier = Modifier.padding(top = 8.dp),
             )
-        }
-        result?.let { r ->
-            val ok = r.imported > 0
-            Row(
-                Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                    .background(if (ok) Oe.OkBg else Oe.WarnBg).padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(if (ok) Icons.Check else Icons.Alert, if (ok) Oe.OkText else Oe.WarnText, 20.dp, stroke = 2.4f)
-                Text(
-                    if (ok) countString(R.plurals.settings_bios_imported, r.imported, r.imported) +
-                        if (r.skipped > 0) " " + countString(R.plurals.settings_bios_skipped, r.skipped, r.skipped) else ""
-                    else countString(R.plurals.settings_bios_none_found, r.skipped, r.skipped),
-                    style = Type.Body.copy(fontSize = 14.sp, color = if (ok) Oe.OkText else Oe.WarnText),
-                )
-            }
         }
 
         // Like the desktop's BIOS page: every console the catalog names, each file with its state.
-        val consoles = remember(refresh) {
+        val consoles = remember(revision) {
             Console.entries.mapNotNull { c ->
                 val defs = KNOWN_BIOS.filter { it.console == c }.sortedByDescending { it.required }
-                if (defs.isEmpty()) null else c to defs.map { it to a.app.importer.biosPresent(it) }
+                if (defs.isEmpty()) null else c to defs.map { it to importer.biosPresent(it) }
             }
         }
         val ready = consoles.count { (_, defs) -> defs.none { (d, present) -> d.required && !present } }
@@ -730,7 +711,21 @@ fun BiosScreen(embedded: Boolean = false) {
                 Card {
                     ListRow(
                         c.fullName, minHeight = 60.dp, leading = { ConsoleIcon(c) },
-                        value = stringResource(R.string.settings_count_of, defs.count { it.second }, defs.size),
+                        subtitle = stringResource(R.string.settings_count_of, defs.count { it.second }, defs.size),
+                        trailing = {
+                            val label = stringResource(R.string.settings_bios_import_a11y, c.fullName)
+                            SecondaryButton(
+                                stringResource(R.string.settings_bios_import),
+                                {
+                                    if (working == null) {
+                                        pending = c.name
+                                        picker.launch(arrayOf("*/*"))
+                                    }
+                                },
+                                Modifier.semantics { contentDescription = label },
+                                icon = Icons.Download, compact = true, busy = working == c,
+                            )
+                        },
                     )
                     defs.forEach { (def, present) ->
                         ListRow(
@@ -755,6 +750,7 @@ fun BiosScreen(embedded: Boolean = false) {
         )
         Spacer(Modifier.height(hintBarInset))
     } }
+    report?.let { BiosImportSheet(it) { report = null } }
 }
 
 @Composable

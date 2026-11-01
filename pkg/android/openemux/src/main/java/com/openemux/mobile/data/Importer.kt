@@ -8,10 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
-import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
 data class BiosDef(
@@ -28,8 +30,8 @@ data class BiosDef(
 private fun bios(console: Console, required: Boolean, vararg files: String) = BiosDef(console, files.toList(), required)
 
 /**
- * The desktop's bios_catalog.py. A file is recognized by its MD5 when we know it,
- * otherwise by its name, as the desktop does. kronos (Saturn) has no Android core,
+ * The desktop's bios_catalog.py. The import (BiosImport.kt) recognizes a file by
+ * its name, or by its MD5 when the entry has one. kronos (Saturn) has no Android core,
  * so its entry is left out.
  */
 val KNOWN_BIOS = listOf(
@@ -139,25 +141,25 @@ class Importer(private val context: Context, private val library: Library) {
         return tracks
     }
 
-    suspend fun importBiosTree(tree: Uri): ImportResult = withContext(Dispatchers.IO) {
-        val byHash = KNOWN_BIOS.flatMap { def -> def.md5.map { it to def.files.first() } }.toMap()
-        val byName = KNOWN_BIOS.filter { it.md5.isEmpty() }.flatMap { it.files }.associateBy { it.lowercase() }
-        var imported = 0
-        var skipped = 0
-        val names = mutableListOf<String>()
-        library.paths.system.mkdirs()
-        for (file in walkTree(tree)) {
-            // Every BIOS we know is far below this; anything larger is a game or a video.
-            if (file.size > 32L * 1024 * 1024) { skipped++; continue }
-            val named = byName[file.name.lowercase()]
-            val bytes = if (named != null || byHash.isNotEmpty()) resolver.openInputStream(file.uri)?.use { it.readBytes() } else null
-            val target = named ?: bytes?.let { byHash[md5(it)] }
-            if (target == null || bytes == null) { skipped++; continue }
-            File(library.paths.system, target).writeBytes(bytes)
-            names += target
-            imported++
+    private val _biosRevision = MutableStateFlow(0)
+
+    /** Bumped after every BIOS import: whatever shows BIOS state keys on it, so it reads the disk again. */
+    val biosRevision: StateFlow<Int> = _biosRevision.asStateFlow()
+
+    /** Imports the picked [uris] as [console]'s BIOS files; see [importBiosFiles]. */
+    suspend fun importBios(console: Console, uris: List<Uri>): BiosImportReport = withContext(Dispatchers.IO) {
+        val unreadable = mutableListOf<BiosImportReport.Rejected>()
+        val sources = uris.mapNotNull { uri ->
+            val picked = runCatching { describe(uri) }.getOrNull()
+            if (picked == null) unreadable += BiosImportReport.Rejected(uri.lastPathSegment ?: "?", BiosImportReport.Reason.IO)
+            picked?.let { BiosSource(it.name, it.size, { resolver.openInputStream(it.uri) }) }
         }
-        ImportResult(imported, skipped, names)
+        try {
+            val report = importBiosFiles(console, sources, library.paths.system)
+            report.copy(rejected = report.rejected + unreadable)
+        } finally {
+            _biosRevision.value++
+        }
     }
 
     fun biosPresent(def: BiosDef): Boolean = def.files.any { File(library.paths.system, it).exists() }
@@ -212,7 +214,7 @@ class Importer(private val context: Context, private val library: Library) {
 
     private fun describe(uri: Uri): Picked? =
         resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
-            ?.use { c -> if (c.moveToFirst()) Picked(uri, c.getString(0) ?: return null, c.getLong(1)) else null }
+            ?.use { c -> if (c.moveToFirst()) Picked(uri, c.getString(0) ?: return null, if (c.isNull(1)) -1 else c.getLong(1)) else null }
 
     private fun walkTree(tree: Uri): List<Picked> {
         val out = mutableListOf<Picked>()
@@ -240,7 +242,4 @@ class Importer(private val context: Context, private val library: Library) {
         }
         return out
     }
-
-    private fun md5(bytes: ByteArray): String =
-        MessageDigest.getInstance("MD5").digest(bytes).joinToString("") { "%02x".format(it) }
 }

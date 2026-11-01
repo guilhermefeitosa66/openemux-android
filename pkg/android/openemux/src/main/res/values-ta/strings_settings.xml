@@ -70,21 +70,28 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">சில கன்சோல்கள் அசல் சிஸ்டம் கோப்புடன் மட்டுமே தொடங்கும். உங்கள் சொந்தச் சாதனத்திலிருந்து நீங்கள் எடுத்தவற்றைப் பயன்படுத்துங்கள்.</string>
-    <string name="settings_bios_checking">கோப்புகள் சரிபார்க்கப்படுகின்றன...</string>
-    <string name="settings_bios_import_from_device">சாதனத்திலிருந்து இறக்குமதி செய்</string>
-    <string name="settings_bios_pick_help">கோப்புகள் உள்ள கோப்புறையைத் தேர்ந்தெடுங்கள் (Downloads, SD கார்டு...). OpenEmux ஒவ்வொன்றையும் பெயரால், அல்லது தெரிந்தால் ஹாஷால் அடையாளம் கண்டு, சிஸ்டம் கோப்புறையில் நிறுவும்.</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="one">%d கோப்பு அடையாளம் காணப்பட்டு நிறுவப்பட்டது.</item>
-        <item quantity="other">%d கோப்புகள் அடையாளம் காணப்பட்டு நிறுவப்பட்டன.</item>
+    <string name="settings_bios_import_help">ஒரு கன்சோலில் இறக்கு என்பதைத் தொட்டு அதன் கோப்புகளைத் தேர்ந்தெடுக்கவும். ஒவ்வொரு கோப்புக்கும் அந்தக் கன்சோல் எதிர்பார்க்கும் பெயர் இருக்க வேண்டும்.</string>
+    <string name="settings_bios_import">இறக்கு</string>
+    <string name="settings_bios_import_a11y">%s-க்கான BIOS-ஐ இறக்கு</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="one">%d கோப்பு இறக்கப்பட்டது</item>
+        <item quantity="other">%d கோப்புகள் இறக்கப்பட்டன</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="one">%d தவிர்க்கப்பட்டது.</item>
-        <item quantity="other">%d தவிர்க்கப்பட்டன.</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="one">%2$d-இல் %1$d கோப்பு இறக்கப்பட்டது</item>
+        <item quantity="other">%2$d-இல் %1$d கோப்புகள் இறக்கப்பட்டன</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="one">அந்தக் கோப்புறையில் அறியப்பட்ட BIOS இல்லை. %d கோப்பு சரிபார்க்கப்பட்டது.</item>
-        <item quantity="other">அந்தக் கோப்புறையில் அறியப்பட்ட BIOS இல்லை. %d கோப்புகள் சரிபார்க்கப்பட்டன.</item>
-    </plurals>
+    <string name="settings_bios_result_none">எந்தக் கோப்பும் இறக்கப்படவில்லை</string>
+    <string name="settings_bios_section_imported">இறக்கப்பட்டவை</string>
+    <string name="settings_bios_section_rejected">இறக்கப்படாதவை</string>
+    <string name="settings_bios_saved_as">%s என சேமிக்கப்பட்டது</string>
+    <string name="settings_bios_by_content">உள்ளடக்கத்தால் அடையாளம் காணப்பட்டது</string>
+    <string name="settings_bios_replaced">ஏற்கனவே இருந்த கோப்பை மாற்றியது</string>
+    <string name="settings_bios_reason_name">இந்தக் கன்சோல் எதிர்பார்க்கும் பெயர் அல்ல</string>
+    <string name="settings_bios_reason_io">படிக்கவோ சேமிக்கவோ முடியவில்லை</string>
+    <string name="settings_bios_reason_size">BIOS ஆக இருக்க மிகப் பெரியது</string>
+    <string name="settings_bios_expects">%s எதிர்பார்ப்பவை</string>
+    <string name="settings_bios_done">முடிந்தது</string>
     <string name="settings_bios_consoles">BIOS உள்ள கன்சோல்கள்</string>
     <string name="settings_bios_ready_count">%2$d இல் %1$d தயார்</string>
     <string name="settings_count_of">%2$d இல் %1$d</string>
