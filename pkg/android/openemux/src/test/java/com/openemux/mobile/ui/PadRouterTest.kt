@@ -198,6 +198,40 @@ class PadRouterTest {
     }
 
     @Test
+    fun anItemsTwoTargetsShareTheirFocusTick() {
+        val scope = PadScope()
+        val a = PadTarget()
+        val b1 = PadTarget()
+        val b2 = PadTarget()
+        listOf(a, b1, b2).forEach(scope::add)
+        scope.focusChanged(a, true)
+        scope.focusChanged(a, false)
+        scope.focusChanged(b1, true)
+        scope.focusChanged(b2, true)
+        assertEquals(b1.lastFocus, b2.lastFocus)
+        assertTrue(a.lastFocus < b1.lastFocus)
+        assertEquals(listOf(0L, b1.lastFocus, b1.lastFocus), scope.spots(listOf(a, b1, b2)).map { it.lastFocus })
+    }
+
+    @Test
+    fun anOlderFocusDoesNotStandInForOneThatIsGone() {
+        // The focused game scrolled out of its row and was disposed: the chip focused before it is not "the last".
+        val scope = PadScope()
+        val chip = PadTarget()
+        val game = PadTarget()
+        scope.add(chip)
+        scope.add(game)
+        scope.focusChanged(chip, true)
+        scope.focusChanged(chip, false)
+        scope.focusChanged(game, true)
+        scope.focusChanged(game, false)
+        scope.remove(game)
+        assertEquals(listOf(0L), scope.spots(listOf(chip)).map { it.lastFocus })
+        // Still the one focus goes back to when a window over it closes.
+        assertSame(chip, scope.current())
+    }
+
+    @Test
     fun landingInAnEmptyScopeFindsNothing() {
         assertFalse(PadScope().land())
     }

@@ -225,10 +225,15 @@ class PadScope {
     var anchor: Pair<Float, Float>? = null
         private set
 
+    /** Whether focus left since the last gain: the targets that gain it together (an item's own two) share a tick. */
+    private var moved = true
+
     fun focusChanged(target: PadTarget, now: Boolean) {
         target.focused = now
-        if (now) target.lastFocus = ++tick
-        if (now) target.shownCenter()?.let { anchor = it }
+        if (!now) { moved = true; return }
+        if (moved) { tick++; moved = false }
+        target.lastFocus = tick
+        target.shownCenter()?.let { anchor = it }
     }
 
     /** The focused item moved (its list scrolled to it): the anchor follows it while it shows. */
@@ -245,14 +250,20 @@ class PadScope {
     /** The item that holds focus, else the last one that did. */
     fun current(): PadTarget? = targets.firstOrNull { it.focused } ?: targets.filter { it.lastFocus > 0 }.maxByOrNull { it.lastFocus }
 
+    /**
+     * [list] as landing candidates. Only the item that held focus last counts as such: when it is gone
+     * (scrolled out of its list and disposed), an older one that still shows must not take its place ahead
+     * of the anchor, or a press after a finger scroll lands on the header the user left long ago.
+     */
+    internal fun spots(list: List<PadTarget>): List<LandingSpot> = list.map { t ->
+        val c = t.shownCenter()
+        LandingSpot(c != null, t.initial, if (t.lastFocus == tick) t.lastFocus else 0L, c?.first ?: 0f, c?.second ?: 0f)
+    }
+
     /** Puts focus on the first item of [rankLanding] that takes it; false when none does. */
     fun land(): Boolean {
         val list = targets.toList()
-        val spots = list.map { t ->
-            val c = t.shownCenter()
-            LandingSpot(c != null, t.initial, t.lastFocus, c?.first ?: 0f, c?.second ?: 0f)
-        }
-        return rankLanding(spots, anchor).any { focus(list[it]) }
+        return rankLanding(spots(list), anchor).any { focus(list[it]) }
     }
 
     /** Puts focus on [target], out of touch mode first: there the items are not focusable, and only a D-pad key leaves it. */
