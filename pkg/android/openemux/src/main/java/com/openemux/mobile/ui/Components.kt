@@ -561,12 +561,15 @@ fun ConsoleChip(console: Console, size: Dp = 40.dp) {
     }
 }
 
+/** How far [FitText] shrinks a long text: down to this share of its style's size. */
+const val FIT_TEXT_MIN_SCALE = 0.6f
+
 /** One line, never cut: [style]'s size when it fits, shrinking down to 60% of it for a long text. */
 @Composable
 fun FitText(text: String, style: TextStyle, modifier: Modifier = Modifier) {
     BasicText(
         text, modifier, style, maxLines = 1, softWrap = false,
-        autoSize = TextAutoSize.StepBased(minFontSize = style.fontSize * 0.6f, maxFontSize = style.fontSize, stepSize = 1.sp),
+        autoSize = TextAutoSize.StepBased(minFontSize = style.fontSize * FIT_TEXT_MIN_SCALE, maxFontSize = style.fontSize, stepSize = 1.sp),
     )
 }
 

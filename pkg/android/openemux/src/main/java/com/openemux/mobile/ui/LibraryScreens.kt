@@ -64,6 +64,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -1551,8 +1553,8 @@ private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (band.icon) FilterIcon(current)
-            FitText(
-                if (band.shortName) filterShortName(current) else name,
+            FilterName(
+                name, filterShortName(current), band.shortName,
                 style = Type.Title.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Oe.Text),
                 modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {},
             )
@@ -1563,6 +1565,22 @@ private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String
             if (band.caret) Icon(if (menu) Icons.ChevronUp else Icons.ChevronDown, Oe.Muted, 14.dp)
         }
         FilterMenu(menu, { menu = false }, filters, current, counts) { menu = false; onPick(it) }
+    }
+}
+
+/**
+ * The current filter's name, shrunk to fit the room it has, never cut: when the full [name] is still
+ * wider than that at the smallest size [FitText] goes to (a long console name on a 640dp phone), the
+ * [short] one, as the chip read it, takes its place. [forceShort] is the narrowest band's.
+ */
+@Composable
+private fun FilterName(name: String, short: String, forceShort: Boolean, style: TextStyle, modifier: Modifier) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val smallest = style.copy(fontSize = style.fontSize * FIT_TEXT_MIN_SCALE)
+        val fullWidth = remember(name, smallest) { measurer.measure(name, smallest, maxLines = 1, softWrap = false).size.width }
+        val text = nameThatFits(name, short, forceShort, fullWidth, constraints.maxWidth)
+        FitText(text, style)
     }
 }
 

@@ -37,3 +37,11 @@ fun stepFilter(ids: List<String>, current: String, step: Int): String =
  * unknown [current] (its console's last game just removed) always moves, as the shoulders do.
  */
 fun canStep(ids: List<String>, current: String, step: Int): Boolean = stepFilter(ids, current, step) != current
+
+/**
+ * The pager's label text: the full [name] when it is at most [maxWidthPx] wide at the smallest size
+ * the label shrinks to ([fullWidthPx]), the [short] one otherwise or when the band asks for it
+ * ([forceShort]). Shrinking alone cut a long console name on the narrowest phones (issue 669, QA).
+ */
+fun nameThatFits(name: String, short: String, forceShort: Boolean, fullWidthPx: Int, maxWidthPx: Int): String =
+    if (forceShort || fullWidthPx > maxWidthPx) short else name

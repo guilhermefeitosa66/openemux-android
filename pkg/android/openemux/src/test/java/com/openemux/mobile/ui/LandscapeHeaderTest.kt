@@ -71,4 +71,13 @@ class LandscapeHeaderTest {
         assertTrue(canStep(ids, "MD", -1))
         assertTrue(canStep(ids, "MD", 1))
     }
+
+    @Test
+    fun theFullNameGivesWayToTheShortOneOnlyWhenItCannotFit() {
+        assertEquals("Super Nintendo", nameThatFits("Super Nintendo", "SNES", false, fullWidthPx = 200, maxWidthPx = 260))
+        assertEquals("Super Nintendo", nameThatFits("Super Nintendo", "SNES", false, fullWidthPx = 260, maxWidthPx = 260))
+        assertEquals("SNES", nameThatFits("Super Nintendo", "SNES", false, fullWidthPx = 261, maxWidthPx = 260))
+        // The narrowest band always asks for the short name.
+        assertEquals("SNES", nameThatFits("Super Nintendo", "SNES", true, fullWidthPx = 10, maxWidthPx = 260))
+    }
 }
