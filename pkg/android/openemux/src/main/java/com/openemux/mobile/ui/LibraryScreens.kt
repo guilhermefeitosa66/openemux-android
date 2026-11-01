@@ -83,6 +83,9 @@ import androidx.navigation.NavBackStackEntry
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.runtime.CompositionLocalProvider
+import java.text.NumberFormat
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
@@ -737,9 +740,17 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     LaunchedEffect(roms) { if (roms.isNotEmpty()) focusedRom.value = focusAfterRemoval(focusedRom.value, roms.map { it.key }) }
     val chipIds = listOf("ALL", "FAV") + lib.orderedConsoles(meta.consoleOrder).filter { c -> roms.any { it.console == c } }.map { it.id }
     fun chip(step: Int) {
-        current = chipIds[(chipIds.indexOf(current).coerceAtLeast(0) + step).coerceIn(0, chipIds.lastIndex)]
+        current = stepFilter(chipIds, current, step)
         focusedRom.value = null
     }
+    fun pickFilter(id: String) {
+        current = id
+        focusedRom.value = null
+    }
+    val tabletop = LocalTabletop.current
+    // Tabletop decides first: the top half takes the upright layout, however short it is.
+    // On a short window the header holds the filter pager, whose steps show the shoulders themselves (issue 669).
+    val landscapeRow = layout.short && !tabletop && mode != ViewMode.List
     // Selection mode (issue #585): it only ever holds games on screen, so a hidden one is never removed.
     var selection by remember { mutableStateOf(RomSelection()) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -761,7 +772,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             "A" to stringResource(R.string.library_hint_detail), "X" to stringResource(R.string.library_hint_favorite),
             "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
             "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
-        ),
+        ).filter { !landscapeRow || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
         x = { focusedRom.value?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
@@ -828,12 +839,18 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         }
     }
 
-    val tabletop = LocalTabletop.current
-    // Tabletop decides first: the top half takes the upright layout, however short it is.
-    if (LocalWindowLayout.current.short && !tabletop && mode != ViewMode.List) Box(Modifier.fillMaxSize()) {
+    if (landscapeRow) Box(Modifier.fillMaxSize()) {
+        // Games per filter, for the pager's menu; the search does not narrow them.
+        val counts = chipIds.associateWith { id ->
+            when (id) {
+                "ALL" -> roms.size
+                "FAV" -> roms.count { meta.roms[it.key]?.favorite == true }
+                else -> roms.count { it.console.id == id }
+            }
+        }
         LandscapeLibrary(
-            title = when (current) { "FAV" -> stringResource(R.string.library_favorites); "ALL" -> stringResource(R.string.library_all_games); else -> console!!.displayName },
-            list = list, groups = groups, roms = roms, current = current, onPick = { current = it },
+            list = list, groups = groups, current = current,
+            filters = chipIds, counts = counts, onStep = ::chip, onPick = ::pickFilter,
             mode = mode, onMode = { mode = it },
             searching = searching, query = query, onQuery = { query = it },
             onSearch = { searching = !searching; if (!searching) query = "" },
@@ -1288,15 +1305,19 @@ private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyList
 private fun BoxArt(rom: Rom, modifier: Modifier, maxHeight: Dp? = null) =
     CoverArt(LocalActions.current.app.covers.urlFor(rom), rom.title, modifier, maxHeight)
 
-/** Landscape: a compact header and one row that scrolls sideways, three items at most in view. */
+/**
+ * Landscape: one header row (the filter pager in it, issue 669) and one row of games that scrolls
+ * sideways, three items at most in view.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LandscapeLibrary(
-    title: String,
     list: List<Rom>,
     groups: List<Pair<Console?, List<Rom>>>,
-    roms: List<Rom>,
     current: String,
+    filters: List<String>,
+    counts: Map<String, Int>,
+    onStep: (Int) -> Unit,
     onPick: (String) -> Unit,
     mode: ViewMode,
     onMode: (ViewMode) -> Unit,
@@ -1314,19 +1335,28 @@ private fun LandscapeLibrary(
     val lib = a.app.library
     val meta by lib.meta.collectAsState()
     Column(Modifier.fillMaxSize().statusBarsPadding().displayCutoutPadding().padding(bottom = TabBarHeight + hintBarInset)) {
-        // The header sits under the top edge: the room above it is the focus ring's.
-        Row(Modifier.padding(start = 20.dp, end = 20.dp, top = FocusOutset), verticalAlignment = Alignment.CenterVertically) {
-            BackLink(stringResource(R.string.library_shelf_title)) { a.nav.popBackStack(Routes.SHELF, false) }
-            FitText(title, style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(start = 16.dp).weight(1f))
-            Text(countString(R.plurals.library_games_count, list.size, list.size), style = Type.Small.copy(fontSize = 14.sp), modifier = Modifier.padding(horizontal = 12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), onSearch)
-                RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), onSort)
-                ViewToggle(mode, onMode)
+        // The header sits under the top edge: the room above it is the focus ring's. One row only: the
+        // search field takes the pager's place in it, and the filters are paged instead of a row of chips.
+        BoxWithConstraints(Modifier.padding(start = 20.dp, end = 20.dp, top = FocusOutset).fillMaxWidth()) {
+            val band = headerBand(maxWidth.value, InputMode.padLayout)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RoundIconButton(Icons.Back, stringResource(R.string.library_shelf_title), { a.nav.popBackStack(Routes.SHELF, false) })
+                Box(Modifier.weight(1f)) {
+                    if (searching) {
+                        val placeholder = if (current == "ALL") stringResource(R.string.library_search_all)
+                        else stringResource(R.string.library_search_in, filterName(current))
+                        SearchField(query, autoFocus = false, placeholder = placeholder, topPadding = 0.dp, onChange = onQuery)
+                    } else {
+                        FilterPager(band, filters, current, list.size, counts, onStep, onPick)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), onSearch)
+                    RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), onSort)
+                    Box(Modifier.padding(start = 4.dp)) { ViewToggle(mode, onMode) }
+                }
             }
         }
-        if (searching) Box(Modifier.padding(horizontal = 20.dp)) { SearchField(query, autoFocus = false, onChange = onQuery) }
-        ConsoleChips(roms, current, Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp), onPick)
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val margin = 32.dp
             val gap = 24.dp
@@ -1428,6 +1458,136 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
     }
 }
 
+/** A filter's full name: the console's, or the "All games" / "Favorites" page's. */
+@Composable
+private fun filterName(id: String): String = when (id) {
+    "ALL" -> stringResource(R.string.library_all_games)
+    "FAV" -> stringResource(R.string.library_favorites)
+    else -> Console.byId(id)?.displayName ?: id
+}
+
+/** A filter's short name, as its chip read it: for the narrowest header. */
+@Composable
+private fun filterShortName(id: String): String = when (id) {
+    "ALL" -> stringResource(R.string.library_chip_all)
+    "FAV" -> stringResource(R.string.library_favorites)
+    else -> Console.byId(id)?.short ?: id
+}
+
+/** A filter's icon: the console's, a star for the favorites, none for all games. */
+@Composable
+private fun FilterIcon(id: String) {
+    when (id) {
+        "ALL" -> Unit
+        "FAV" -> Icon(Icons.Star, Oe.Star, 20.dp, filled = true)
+        else -> Console.byId(id)?.let { ConsoleIcon(it, 20.dp) }
+    }
+}
+
+/**
+ * The landscape header's console filter (issue 669): previous, the current filter (which opens a menu
+ * of them all) and next, walking the same filters in the same order the chips did.
+ */
+@Composable
+private fun FilterPager(
+    band: HeaderBand,
+    filters: List<String>,
+    current: String,
+    shown: Int,
+    counts: Map<String, Int>,
+    onStep: (Int) -> Unit,
+    onPick: (String) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (band.steps) FilterStep(-1, filters, current, onStep)
+        Box(Modifier.weight(1f, fill = false)) { FilterLabel(band, filters, current, shown, counts, onPick) }
+        if (band.steps) FilterStep(1, filters, current, onStep)
+    }
+}
+
+/**
+ * One step of the pager: a chevron for touch, the shoulder that does the same in the gamepad layout.
+ * At an end it dims and does nothing, but keeps its place in the focus order, so a ring on it never
+ * vanishes when it becomes the last filter.
+ */
+@Composable
+private fun FilterStep(step: Int, filters: List<String>, current: String, onStep: (Int) -> Unit) {
+    val enabled = canStep(filters, current, step)
+    val label = stringResource(
+        if (step < 0) R.string.library_previous_filter else R.string.library_next_filter,
+        filterName(stepFilter(filters, current, step)),
+    )
+    Box(
+        Modifier.size(padSize(StepSize, StepSizePad)).gamepadFocus(corner = 22.dp).clip(CircleShape)
+            .clickable(onClickLabel = label, role = Role.Button) { if (enabled) onStep(step) }
+            .semantics { contentDescription = label; if (!enabled) disabled() }
+            .alpha(if (enabled) 1f else 0.38f),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (InputMode.padLayout) ShoulderPill(if (step < 0) "L1" else "R1")
+        else Icon(if (step < 0) Icons.Back else Icons.Chevron, Oe.Text, 20.dp)
+    }
+}
+
+/** The current filter: its icon, name and count, opening the menu of every filter. */
+@Composable
+private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String, shown: Int, counts: Map<String, Int>, onPick: (String) -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    val name = filterName(current)
+    val description = stringResource(R.string.library_filter_label, name, countString(R.plurals.library_games_count, shown, shown))
+    Box {
+        Row(
+            Modifier.height(padSize(StepSize, StepSizePad)).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button) { menu = true }
+                .semantics { contentDescription = description }
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (band.icon) FilterIcon(current)
+            FitText(
+                if (band.shortName) filterShortName(current) else name,
+                style = Type.Title.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Oe.Text),
+                modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {},
+            )
+            if (band.count) Text(
+                NumberFormat.getIntegerInstance().format(shown), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted),
+                modifier = Modifier.clearAndSetSemantics {},
+            )
+            if (band.caret) Icon(if (menu) Icons.ChevronUp else Icons.ChevronDown, Oe.Muted, 14.dp)
+        }
+        FilterMenu(menu, { menu = false }, filters, current, counts) { menu = false; onPick(it) }
+    }
+}
+
+/** Every filter, for a direct pick: a popup the pad drives on its own, as the detail screen's menu. */
+@Composable
+private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<String>, current: String, counts: Map<String, Int>, onPick: (String) -> Unit) {
+    val opener = LocalPadScope.current
+    // Not keyed on [open]: a new scope while the menu animates out would land focus in the closing popup.
+    val menuScope = remember { PadScope() }
+    CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
+        open, onDismiss, Modifier.padPopup(menuScope, opener, onDismiss), containerColor = Oe.Surface2,
+    ) {
+        filters.forEach { id ->
+            val on = id == current
+            val color = if (on) Oe.AccentOnSoft else Oe.Text
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(filterName(id), style = Type.Body.copy(color = color)) },
+                leadingIcon = if (id == "ALL") null else ({ FilterIcon(id) }),
+                trailingIcon = { Text(NumberFormat.getIntegerInstance().format(counts[id] ?: 0), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted)) },
+                modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
+                    .semantics { selected = on },
+                onClick = { onPick(id) },
+            )
+        }
+    } }
+}
+
+/** The pager's steps and label: as tall as the chips they replace, a little taller in the gamepad layout. */
+private val StepSize = 40.dp
+private val StepSizePad = 44.dp
+
 /**
  * A shoulder button's name beside the chips it switches, as the hint bar draws its badges (LB, L or L1
  * with the pad in use); not focusable.
@@ -1441,16 +1601,22 @@ private fun ShoulderPill(button: String) {
 }
 
 @Composable
-private fun SearchField(value: String, autoFocus: Boolean, onChange: (String) -> Unit) {
+private fun SearchField(
+    value: String,
+    autoFocus: Boolean,
+    placeholder: String = stringResource(R.string.library_search_hint),
+    topPadding: Dp = 10.dp,
+    onChange: (String) -> Unit,
+) {
     val focus = remember { FocusRequester() }
     Row(
-        Modifier.padding(top = 10.dp).fillMaxWidth().height(44.dp).clip(RoundedCornerShape(14.dp)).background(Oe.Surface)
+        Modifier.padding(top = topPadding).fillMaxWidth().height(44.dp).clip(RoundedCornerShape(14.dp)).background(Oe.Surface)
             .border(1.dp, Oe.Border, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Search, Oe.Muted, 18.dp)
         Box(Modifier.weight(1f).padding(start = 10.dp)) {
-            if (value.isEmpty()) Text(stringResource(R.string.library_search_hint), style = Type.Body.copy(color = Oe.Faint))
+            if (value.isEmpty()) Text(placeholder, style = Type.Body.copy(color = Oe.Faint), maxLines = 1, overflow = TextOverflow.Ellipsis)
             BasicTextField(
                 value, onChange, singleLine = true,
                 textStyle = Type.Body, cursorBrush = SolidColor(Oe.AccentText),

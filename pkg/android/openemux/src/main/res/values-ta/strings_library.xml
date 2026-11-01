@@ -34,6 +34,11 @@
     <string name="library_search">தேடு</string>
     <string name="library_close_search">தேடலை மூடு</string>
     <string name="library_search_hint">விளையாட்டுகளைத் தேடு</string>
+    <string name="library_previous_filter">முந்தைய வடிகட்டி: %1$s</string>
+    <string name="library_next_filter">அடுத்த வடிகட்டி: %1$s</string>
+    <string name="library_filter_label">வடிகட்டி: %1$s, %2$s. வடிகட்டியை மாற்று</string>
+    <string name="library_search_in">%1$s இல் தேடு</string>
+    <string name="library_search_all">எல்லா விளையாட்டுகளிலும் தேடு</string>
     <string name="library_sort_by">வரிசை: %1$s</string>
     <string name="library_sort_az">A–Z</string>
     <string name="library_sort_recent">சமீபத்தியவை</string>

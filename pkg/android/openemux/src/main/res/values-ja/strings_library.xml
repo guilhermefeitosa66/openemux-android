@@ -32,6 +32,11 @@
     <string name="library_search">検索</string>
     <string name="library_close_search">検索を閉じる</string>
     <string name="library_search_hint">ゲームを検索</string>
+    <string name="library_previous_filter">前のフィルター: %1$s</string>
+    <string name="library_next_filter">次のフィルター: %1$s</string>
+    <string name="library_filter_label">フィルター: %1$s、%2$s。フィルターを変更</string>
+    <string name="library_search_in">%1$sを検索</string>
+    <string name="library_search_all">すべてのゲームを検索</string>
     <string name="library_sort_by">並び順: %1$s</string>
     <string name="library_sort_az">A–Z</string>
     <string name="library_sort_recent">最近</string>

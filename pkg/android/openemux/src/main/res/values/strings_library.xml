@@ -34,6 +34,11 @@
     <string name="library_search">Search</string>
     <string name="library_close_search">Close search</string>
     <string name="library_search_hint">Search games</string>
+    <string name="library_previous_filter">Previous filter: %1$s</string>
+    <string name="library_next_filter">Next filter: %1$s</string>
+    <string name="library_filter_label">Filter: %1$s, %2$s. Change filter</string>
+    <string name="library_search_in">Search in %1$s</string>
+    <string name="library_search_all">Search all games</string>
     <string name="library_sort_by">Sort: %1$s</string>
     <string name="library_sort_az">A–Z</string>
     <string name="library_sort_recent">Recent</string>
