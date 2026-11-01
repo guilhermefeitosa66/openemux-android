@@ -225,4 +225,14 @@
     <string name="settings_controller_layout_always_desc">Para portátiles con controles integrados.</string>
     <string name="settings_controller_layout_never">Nunca</string>
     <string name="settings_controller_layout_never_desc">El diseño táctil, incluso con un mando conectado.</string>
+    <string name="settings_button_labels">Etiquetas de botones</string>
+    <string name="settings_button_labels_lead">Cómo nombran los botones las indicaciones del mando. El botón inferior siempre confirma y el derecho vuelve atrás.</string>
+    <string name="settings_button_labels_auto">Automático</string>
+    <string name="settings_button_labels_auto_desc">Sigue al mando en uso. Estilo Xbox cuando no se reconoce.</string>
+    <string name="settings_button_labels_xbox">Xbox</string>
+    <string name="settings_button_labels_xbox_desc">A abajo, B a la derecha.</string>
+    <string name="settings_button_labels_nintendo">Nintendo</string>
+    <string name="settings_button_labels_nintendo_desc">B abajo, A a la derecha.</string>
+    <string name="settings_button_labels_playstation">PlayStation</string>
+    <string name="settings_button_labels_playstation_desc">Equis abajo, círculo a la derecha.</string>
 </resources>

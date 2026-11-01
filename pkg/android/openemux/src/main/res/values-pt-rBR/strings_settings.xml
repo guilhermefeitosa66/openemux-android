@@ -213,4 +213,14 @@
     <string name="settings_controller_layout_always_desc">Para portáteis com controles embutidos.</string>
     <string name="settings_controller_layout_never">Nunca</string>
     <string name="settings_controller_layout_never_desc">O layout de toque, mesmo com um controle conectado.</string>
+    <string name="settings_button_labels">Nomes dos botões</string>
+    <string name="settings_button_labels_lead">Como as dicas de botão chamam cada botão. O botão de baixo sempre confirma e o da direita volta.</string>
+    <string name="settings_button_labels_auto">Automático</string>
+    <string name="settings_button_labels_auto_desc">Segue o controle em uso. Estilo Xbox quando não é reconhecido.</string>
+    <string name="settings_button_labels_xbox">Xbox</string>
+    <string name="settings_button_labels_xbox_desc">A embaixo, B à direita.</string>
+    <string name="settings_button_labels_nintendo">Nintendo</string>
+    <string name="settings_button_labels_nintendo_desc">B embaixo, A à direita.</string>
+    <string name="settings_button_labels_playstation">PlayStation</string>
+    <string name="settings_button_labels_playstation_desc">Xis embaixo, bolinha à direita.</string>
 </resources>

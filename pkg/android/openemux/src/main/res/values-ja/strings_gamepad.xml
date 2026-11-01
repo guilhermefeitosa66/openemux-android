@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Content descriptions of the drawn button faces in the gamepad hints. -->
+    <string name="pad_glyph_cross">バツ</string>
+    <string name="pad_glyph_circle">マル</string>
+    <string name="pad_glyph_square">シカク</string>
+    <string name="pad_glyph_triangle">サンカク</string>
+    <string name="pad_glyph_menu">メニュー</string>
+    <string name="pad_glyph_view">ビュー</string>
+</resources>

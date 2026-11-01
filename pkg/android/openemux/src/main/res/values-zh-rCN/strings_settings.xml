@@ -201,4 +201,14 @@
     <string name="settings_controller_layout_always_desc">适用于内置按键的掌机。</string>
     <string name="settings_controller_layout_never">从不</string>
     <string name="settings_controller_layout_never_desc">即使连接了手柄也使用触屏布局。</string>
+    <string name="settings_button_labels">按键标注</string>
+    <string name="settings_button_labels_lead">按键提示如何称呼每个按键。下方按键始终用于确认，右侧按键用于返回。</string>
+    <string name="settings_button_labels_auto">自动</string>
+    <string name="settings_button_labels_auto_desc">跟随正在使用的手柄。无法识别时使用 Xbox 样式。</string>
+    <string name="settings_button_labels_xbox">Xbox</string>
+    <string name="settings_button_labels_xbox_desc">A 在下，B 在右。</string>
+    <string name="settings_button_labels_nintendo">Nintendo</string>
+    <string name="settings_button_labels_nintendo_desc">B 在下，A 在右。</string>
+    <string name="settings_button_labels_playstation">PlayStation</string>
+    <string name="settings_button_labels_playstation_desc">叉在下，圈在右。</string>
 </resources>

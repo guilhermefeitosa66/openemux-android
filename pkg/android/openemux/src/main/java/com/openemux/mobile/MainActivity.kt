@@ -23,9 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.LocalPadScope
 import com.openemux.mobile.ui.Oe
+import com.openemux.mobile.ui.PadLabels
 import com.openemux.mobile.ui.OpenEmuxRoot
 import com.openemux.mobile.ui.PadPresence
 import com.openemux.mobile.ui.PadRouter
@@ -44,6 +46,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
+        ButtonLabelsPref.load(this)
         Oe.syncSystem(this)
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -94,10 +97,14 @@ class MainActivity : ComponentActivity() {
         input.registerInputDeviceListener(devices, Handler(Looper.getMainLooper()))
         pads.reset(InputDevice.getDeviceIds().toList().mapNotNull { id -> InputDevice.getDevice(id)?.let { id to padInfo(it) } }.toMap())
         followPads()
+        // The pad in use names the buttons in the hints; the listener keeps it current while the app is in front.
+        input.registerInputDeviceListener(PadLabels.listener, null)
+        PadLabels.scan()
     }
 
     override fun onStop() {
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(devices)
+        getSystemService(InputManager::class.java).unregisterInputDeviceListener(PadLabels.listener)
         (application as OpenEmuxApp).setForeground(false)
         super.onStop()
     }
@@ -147,6 +154,9 @@ class MainActivity : ComponentActivity() {
         if (!BuildConfig.DEBUG) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                // A vendor (`--ei vendor <id> [--ei product <id>] [--es name <text>]`) says which pad names the buttons.
+                PadLabels.debug(intent)
+                if (intent.hasExtra("vendor") && !intent.hasExtra("connected") && !intent.hasExtra("clear")) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
                 Log.i(TAG, "debug gamepad: $gamepadOverride")
                 followPads()
@@ -170,6 +180,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // A pad that reports late counts as connected from its first press.
         if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_JOYSTICK)) notePad(event.device, event.deviceId)
+        // The pad pressed last names the buttons in the hints.
+        PadLabels.pressed(event)
         return pad.key(event) { super.dispatchKeyEvent(it) }
     }
 

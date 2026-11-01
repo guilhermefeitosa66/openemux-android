@@ -1,10 +1,15 @@
 package com.openemux.mobile.ui
 
+import android.content.Intent
+import android.hardware.input.InputManager
+import android.view.InputDevice
+import android.view.KeyEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -19,8 +24,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -55,16 +63,26 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.openemux.mobile.game.Gamepads
+import com.openemux.mobile.game.PadInfo
+import com.retroarch.R
 import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.foundation.layout.heightIn
@@ -94,6 +112,76 @@ object InputMode {
 
     /** The restorable item that last held focus and is still on screen: where Right from the tab rail goes back to. */
     var last: FocusRequester? = null
+}
+
+/**
+ * The family of the pad in use, for the button faces in the hints. One per process: the game
+ * runs in a process of its own and fills its copy from the connected devices.
+ */
+object PadLabels {
+    var detected by mutableStateOf(PadFamily.XBOX)
+        private set
+    var dualSense by mutableStateOf(false)
+        private set
+
+    private val tracker = PadFamilyTracker()
+
+    private fun refresh() {
+        val (family, dual) = detection(tracker.current)
+        detected = family
+        dualSense = dual
+    }
+
+    private fun padOf(device: InputDevice) = PadId(device.vendorId, device.productId, device.name)
+
+    /** Only real gamepads name the buttons: a keyboard or `adb shell input` never does. */
+    private fun isPad(device: InputDevice) = Gamepads.anyGamepad(listOf(PadInfo(device.sources, device.isVirtual)))
+
+    /** Reads the connected pads again (on start, when the listener was not running). */
+    fun scan() {
+        tracker.reset(
+            InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }.filter(::isPad).associate { it.id to padOf(it) },
+        )
+        refresh()
+    }
+
+    /** A key from a real pad makes it the one that names the buttons. */
+    fun pressed(event: KeyEvent) {
+        val device = event.device ?: return
+        if (!isPad(device)) return
+        tracker.pressed(device.id, padOf(device))
+        if (event.action == KeyEvent.ACTION_DOWN) refresh()
+    }
+
+    val listener = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) {
+            InputDevice.getDevice(deviceId)?.takeIf(::isPad)?.let { tracker.added(deviceId, padOf(it)); refresh() }
+        }
+
+        override fun onInputDeviceChanged(deviceId: Int) {
+            val device = InputDevice.getDevice(deviceId)
+            if (device != null && isPad(device)) tracker.changed(deviceId, padOf(device)) else tracker.removed(deviceId)
+            refresh()
+        }
+
+        override fun onInputDeviceRemoved(deviceId: Int) {
+            tracker.removed(deviceId)
+            refresh()
+        }
+    }
+
+    /**
+     * Debug builds: `DEBUG_GAMEPAD` with `--ei vendor <id>` (and `--ei product`, `--es name`) says which pad is in
+     * use; `--ez clear true` goes back to the devices. The emulator has no pad of its own to read.
+     */
+    fun debug(intent: Intent) {
+        tracker.override = when {
+            intent.getBooleanExtra("clear", false) -> null
+            intent.hasExtra("vendor") -> PadId(intent.getIntExtra("vendor", 0), intent.getIntExtra("product", 0), intent.getStringExtra("name"))
+            else -> return
+        }
+        refresh()
+    }
 }
 
 /** The buttons a screen gives a meaning to, beyond moving focus, A and B. */
@@ -494,18 +582,97 @@ fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier) {
             ) {
                 hints.forEach { (badge, label) ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(
-                            Modifier.height(22.dp).widthIn(min = 22.dp).background(
-                                if (badge == "A") Oe.AccentBright else Oe.Raised, RoundedCornerShape(11.dp),
-                            ).padding(horizontal = if (badge.length > 1) 7.dp else 0.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(badge, style = Type.Tag.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (badge == "A") Color.White else Oe.Text))
-                        }
+                        PadBadge(badge)
                         Text(label, style = Type.Caption.copy(fontSize = 12.sp, color = Oe.Muted), maxLines = 1, softWrap = false)
                     }
                 }
             } }
+        }
+    }
+}
+
+/**
+ * One hint badge: the face the pad in use prints on the button at [token]'s position. The confirm
+ * position (the bottom button, token "A") keeps the accent fill whatever its face reads.
+ */
+@Composable
+fun PadBadge(token: String) {
+    val pref = ButtonLabelsPref.value
+    val shown = badgeFaces(faces(token, effectiveFamily(pref, PadLabels.detected), effectiveDualSense(pref, PadLabels.dualSense)))
+    val confirm = token == "A"
+    val color = if (confirm) Color.White else Oe.Text
+    val text = (shown.singleOrNull() as? Face.Text)?.text
+    Box(
+        Modifier.height(22.dp).widthIn(min = 22.dp).background(if (confirm) Oe.AccentBright else Oe.Raised, RoundedCornerShape(11.dp))
+            .padding(horizontal = if (shown.size > 1 || (text?.length ?: 1) > 1) 7.dp else 0.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val style = Type.Tag.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = color)
+        if (text != null) Text(text, style = style)
+        else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            shown.forEach { face ->
+                when (face) {
+                    is Face.Glyph -> PadGlyph(face.kind, color, 11.dp)
+                    is Face.Text -> Text(face.text, style = style)
+                }
+            }
+        }
+    }
+}
+
+/** A drawn button face, stroked in [color]: never a font glyph, whose coverage varies by device. */
+@Composable
+fun PadGlyph(kind: GlyphKind, color: Color, size: Dp, modifier: Modifier = Modifier) {
+    val description = stringResource(
+        when (kind) {
+            GlyphKind.CROSS -> R.string.pad_glyph_cross
+            GlyphKind.CIRCLE -> R.string.pad_glyph_circle
+            GlyphKind.SQUARE -> R.string.pad_glyph_square
+            GlyphKind.TRIANGLE -> R.string.pad_glyph_triangle
+            GlyphKind.MENU -> R.string.pad_glyph_menu
+            GlyphKind.VIEW -> R.string.pad_glyph_view
+        },
+    )
+    Canvas(modifier.size(size).semantics { contentDescription = description }) {
+        val u = this.size.width / 11f
+        val stroke = Stroke(width = (if (kind == GlyphKind.CROSS) 1.8f else 1.6f) * u, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        fun line(x1: Float, y1: Float, x2: Float, y2: Float) =
+            drawLine(color, Offset(x1 * u, y1 * u), Offset(x2 * u, y2 * u), stroke.width, StrokeCap.Round)
+        when (kind) {
+            GlyphKind.CROSS -> { line(1.5f, 1.5f, 9.5f, 9.5f); line(9.5f, 1.5f, 1.5f, 9.5f) }
+            GlyphKind.CIRCLE -> drawCircle(color, radius = 4.5f * u, center = Offset(5.5f * u, 5.5f * u), style = stroke)
+            GlyphKind.SQUARE -> drawRect(color, Offset(1.3f * u, 1.3f * u), Size(8.4f * u, 8.4f * u), style = stroke)
+            GlyphKind.TRIANGLE -> drawPath(
+                Path().apply { moveTo(5.5f * u, 1f * u); lineTo(10f * u, 9.5f * u); lineTo(1f * u, 9.5f * u); close() }, color, style = stroke,
+            )
+            GlyphKind.MENU -> { line(1.5f, 2.5f, 9.5f, 2.5f); line(1.5f, 5.5f, 9.5f, 5.5f); line(1.5f, 8.5f, 9.5f, 8.5f) }
+            GlyphKind.VIEW -> {
+                drawRect(color, Offset(4f * u, 1f * u), Size(6f * u, 6f * u), style = stroke)
+                drawRect(color, Offset(1f * u, 4f * u), Size(6f * u, 6f * u), style = stroke)
+            }
+        }
+    }
+}
+
+/**
+ * The four face buttons of a [family] as a small diamond, for the "Button labels" choices:
+ * top, left, right and bottom, the bottom one in the accent. Decorative; the card's text says it.
+ */
+@Composable
+fun FaceDiamond(family: PadFamily) {
+    Box(Modifier.size(44.dp).clearAndSetSemantics {}) {
+        listOf("Y" to Offset(14.5f, 0f), "X" to Offset(0f, 14.5f), "B" to Offset(29f, 14.5f), "A" to Offset(14.5f, 29f)).forEach { (token, at) ->
+            val confirm = token == "A"
+            val color = if (confirm) Color.White else Oe.Text
+            Box(
+                Modifier.offset(at.x.dp, at.y.dp).size(15.dp).background(if (confirm) Oe.AccentBright else Oe.Raised, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (val face = faces(token, family, false).single()) {
+                    is Face.Glyph -> PadGlyph(face.kind, color, 8.dp)
+                    is Face.Text -> Text(face.text, style = Type.Tag.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold, color = color, letterSpacing = 0.sp))
+                }
+            }
         }
     }
 }

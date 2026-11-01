@@ -213,4 +213,14 @@
     <string name="settings_controller_layout_always_desc">Für Handhelds mit eingebauter Steuerung.</string>
     <string name="settings_controller_layout_never">Nie</string>
     <string name="settings_controller_layout_never_desc">Das Touch-Layout, auch wenn ein Controller verbunden ist.</string>
+    <string name="settings_button_labels">Tastenbeschriftung</string>
+    <string name="settings_button_labels_lead">Wie die Tastenhinweise jede Taste benennen. Die untere Taste bestätigt immer, die rechte geht zurück.</string>
+    <string name="settings_button_labels_auto">Automatisch</string>
+    <string name="settings_button_labels_auto_desc">Folgt dem verwendeten Controller. Xbox-Stil, wenn er nicht erkannt wird.</string>
+    <string name="settings_button_labels_xbox">Xbox</string>
+    <string name="settings_button_labels_xbox_desc">A unten, B rechts.</string>
+    <string name="settings_button_labels_nintendo">Nintendo</string>
+    <string name="settings_button_labels_nintendo_desc">B unten, A rechts.</string>
+    <string name="settings_button_labels_playstation">PlayStation</string>
+    <string name="settings_button_labels_playstation_desc">Kreuz unten, Kreis rechts.</string>
 </resources>

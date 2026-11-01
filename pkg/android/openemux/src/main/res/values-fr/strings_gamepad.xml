@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Content descriptions of the drawn button faces in the gamepad hints. -->
+    <string name="pad_glyph_cross">Croix</string>
+    <string name="pad_glyph_circle">Rond</string>
+    <string name="pad_glyph_square">Carré</string>
+    <string name="pad_glyph_triangle">Triangle</string>
+    <string name="pad_glyph_menu">Menu</string>
+    <string name="pad_glyph_view">Affichage</string>
+</resources>

@@ -213,4 +213,14 @@
     <string name="settings_controller_layout_always_desc">உள்ளமைந்த கட்டுப்பாடுகள் கொண்ட கையடக்கக் கருவிகளுக்கு.</string>
     <string name="settings_controller_layout_never">ஒருபோதும் இல்லை</string>
     <string name="settings_controller_layout_never_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருந்தாலும் தொடுதிரை தளவமைப்பு.</string>
+    <string name="settings_button_labels">பொத்தான் பெயர்கள்</string>
+    <string name="settings_button_labels_lead">பொத்தான் குறிப்புகள் ஒவ்வொரு பொத்தானையும் எப்படிப் பெயரிடுகின்றன என்பது. கீழ்ப் பொத்தான் எப்போதும் உறுதிசெய்யும், வலது பொத்தான் பின்செல்லும்.</string>
+    <string name="settings_button_labels_auto">தானியங்கி</string>
+    <string name="settings_button_labels_auto_desc">பயன்பாட்டில் உள்ள கன்ட்ரோலரைப் பின்பற்றும். தெரியாதபோது Xbox பாணி.</string>
+    <string name="settings_button_labels_xbox">Xbox</string>
+    <string name="settings_button_labels_xbox_desc">A கீழே, B வலதுபுறம்.</string>
+    <string name="settings_button_labels_nintendo">Nintendo</string>
+    <string name="settings_button_labels_nintendo_desc">B கீழே, A வலதுபுறம்.</string>
+    <string name="settings_button_labels_playstation">PlayStation</string>
+    <string name="settings_button_labels_playstation_desc">குறுக்கு கீழே, வட்டம் வலதுபுறம்.</string>
 </resources>

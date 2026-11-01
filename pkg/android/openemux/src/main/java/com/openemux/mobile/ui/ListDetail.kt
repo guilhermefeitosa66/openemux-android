@@ -13,6 +13,7 @@ sealed interface SettingsItem {
     data object Theme : SettingsItem
     data object Language : SettingsItem
     data object ControllerLayout : SettingsItem
+    data object ButtonLabels : SettingsItem
     data object Achievements : SettingsItem
     data object Backup : SettingsItem
     data object About : SettingsItem
@@ -26,6 +27,7 @@ sealed interface SettingsItem {
             Theme -> "theme"
             Language -> "language"
             ControllerLayout -> "controller_layout"
+            ButtonLabels -> "button_labels"
             Achievements -> "achievements"
             Backup -> "backup"
             About -> "about"
@@ -41,7 +43,7 @@ sealed interface SettingsItem {
             Backup -> Routes.BACKUP
             About -> Routes.ABOUT
             is License -> Routes.license(id)
-            Theme, Language, ControllerLayout -> null
+            Theme, Language, ControllerLayout, ButtonLabels -> null
         }
 
     companion object {
@@ -55,6 +57,7 @@ sealed interface SettingsItem {
                 "theme" -> Theme
                 "language" -> Language
                 "controller_layout" -> ControllerLayout
+                "button_labels" -> ButtonLabels
                 "achievements" -> Achievements
                 "backup" -> Backup
                 "about" -> About
@@ -65,10 +68,16 @@ sealed interface SettingsItem {
 }
 
 /** The item a phone's open sheet becomes in the pane when a resize brings the split back; null with none open. */
-fun sheetToPane(themeSheet: Boolean, languageSheet: Boolean, controllerSheet: Boolean = false): SettingsItem? = when {
+fun sheetToPane(
+    themeSheet: Boolean,
+    languageSheet: Boolean,
+    controllerSheet: Boolean = false,
+    buttonLabelsSheet: Boolean = false,
+): SettingsItem? = when {
     themeSheet -> SettingsItem.Theme
     languageSheet -> SettingsItem.Language
     controllerSheet -> SettingsItem.ControllerLayout
+    buttonLabelsSheet -> SettingsItem.ButtonLabels
     else -> null
 }
 
