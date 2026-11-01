@@ -101,6 +101,17 @@ class BiosImportTest {
     }
 
     @Test
+    fun aFileRecognizedByContentIsReadOnce() {
+        // What is hashed is what is saved: no second read that could hand back other bytes.
+        val known = byteArrayOf(4, 2, 4, 2)
+        opens = 0
+        val r = importBiosFiles(Console.GBA, listOf(source("GBA BIOS.bin", known)), system, hashes = mapOf(md5(known) to "gba_bios.bin"))
+        assertTrue(r.imported.single().byContent)
+        assertEquals(1, opens)
+        assertEquals(listOf("gba_bios.bin"), onDisk())
+    }
+
+    @Test
     fun aFileTooLargeToHashIsNotHashed() {
         opens = 0
         val r = import(Console.GBA, source("big.bin", ByteArray(10)), hashCap = 4)

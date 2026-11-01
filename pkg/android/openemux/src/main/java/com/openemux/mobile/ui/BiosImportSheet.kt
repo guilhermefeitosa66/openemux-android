@@ -20,7 +20,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openemux.mobile.data.BiosImportReport
-import com.openemux.mobile.data.KNOWN_BIOS
+import com.openemux.mobile.data.biosNamesFor
 import com.retroarch.R
 
 /** What a per-console BIOS import did: the files it took, the ones it did not and why, and the names the console expects. */
@@ -83,7 +83,7 @@ fun BiosImportSheet(report: BiosImportReport, onClose: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.settings_bios_expects, console.fullName), style = Type.Section.copy(fontSize = 13.sp, color = Oe.Muted))
                 Text(
-                    KNOWN_BIOS.filter { it.console == console }.flatMap { it.files }.joinToString(" · "),
+                    biosNamesFor(console).values.joinToString(" · "),
                     style = Type.Small.copy(lineHeight = 19.sp),
                 )
             }

@@ -85,29 +85,28 @@ private fun importOne(
     hashCap: Long,
 ): BiosImportReport.Outcome {
     if (source.size > maxBytes) return BiosImportReport.Reason.TOO_LARGE
-    var byContent = false
-    val target = names[source.name.lowercase()] ?: run {
-        // Only a console that knows a hash, and only a file small enough to be the one it knows.
-        if (hashes.isEmpty() || source.size > hashCap) return BiosImportReport.Reason.WRONG_NAME
-        val stream = source.open() ?: return BiosImportReport.Reason.IO
-        val hash = stream.use { md5Capped(it, hashCap) }
-        byContent = true
-        hash?.let { hashes[it] } ?: return BiosImportReport.Reason.WRONG_NAME
-    }
-    val dest = File(systemDir, target)
-    val part = File(systemDir, ".$target.part")
+    val named = names[source.name.lowercase()]
+    // Only a console that knows a hash, and only a file small enough to be the one it knows.
+    if (named == null && (hashes.isEmpty() || source.size > hashCap)) return BiosImportReport.Reason.WRONG_NAME
+    // One read: the copy is hashed as it lands, so what is recognized is exactly what is saved.
+    val part = File(systemDir, ".bios-import.part")
     try {
         val input = source.open() ?: return BiosImportReport.Reason.IO
-        val hash = input.use { copyCapped(it, part, maxBytes) }
-        val replaced = dest.exists() && (dest.length() != part.length() || md5Of(dest) != hash)
-        if (!part.renameTo(dest)) {
-            // renameTo does not replace on every filesystem: drop the old file and try again.
-            dest.delete()
-            if (!part.renameTo(dest)) return BiosImportReport.Reason.IO
+        val hash = try {
+            input.use { copyCapped(it, part, if (named != null) maxBytes else hashCap) }
+        } catch (e: TooLarge) {
+            // Past the hash cap (the size the provider gave can be wrong), it cannot be the file we know.
+            return if (named != null) BiosImportReport.Reason.TOO_LARGE else BiosImportReport.Reason.WRONG_NAME
         }
-        return BiosImportReport.Imported(source.name, target, byContent, replaced)
-    } catch (e: TooLarge) {
-        return BiosImportReport.Reason.TOO_LARGE
+        val target = named ?: hashes[hash] ?: return BiosImportReport.Reason.WRONG_NAME
+        val dest = File(systemDir, target)
+        val replaced = dest.exists() && (dest.isDirectory || dest.length() != part.length() || md5Of(dest) != hash)
+        if (!part.renameTo(dest)) {
+            // rename(2) will not put a file over a folder: clear an empty one and try again.
+            // An existing file is never deleted first, so a failed rename keeps the BIOS that was there.
+            if (!dest.isDirectory || !dest.delete() || !part.renameTo(dest)) return BiosImportReport.Reason.IO
+        }
+        return BiosImportReport.Imported(source.name, target, byContent = named == null, replaced)
     } finally {
         part.delete()
     }
@@ -131,21 +130,15 @@ private fun copyCapped(input: InputStream, out: File, max: Long): String {
     return hex(digest.digest())
 }
 
-/** The MD5 of [input], or null when it runs past [max] bytes (the size the provider gave can be wrong). */
-private fun md5Capped(input: InputStream, max: Long): String? {
+private fun md5Of(file: File): String = file.inputStream().use { input ->
     val digest = MessageDigest.getInstance("MD5")
-    var total = 0L
     val buf = ByteArray(64 * 1024)
     while (true) {
         val n = input.read(buf)
         if (n < 0) break
-        total += n
-        if (total > max) return null
         digest.update(buf, 0, n)
     }
-    return hex(digest.digest())
+    hex(digest.digest())
 }
-
-private fun md5Of(file: File): String = file.inputStream().use { md5Capped(it, Long.MAX_VALUE)!! }
 
 private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
