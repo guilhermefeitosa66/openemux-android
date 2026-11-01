@@ -1574,7 +1574,8 @@ private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<Strin
             val color = if (on) Oe.AccentOnSoft else Oe.Text
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text(filterName(id), style = Type.Body.copy(color = color)) },
-                leadingIcon = if (id == "ALL") null else ({ FilterIcon(id) }),
+                // "All" has no icon; its room is kept so the names line up.
+                leadingIcon = { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { FilterIcon(id) } },
                 trailingIcon = { Text(NumberFormat.getIntegerInstance().format(counts[id] ?: 0), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted)) },
                 modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
                     .semantics { selected = on },
