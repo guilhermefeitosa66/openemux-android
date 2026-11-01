@@ -66,18 +66,26 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">部分主机只有在使用原版系统文件时才能启动。请使用从你自己的设备中提取的文件。</string>
-    <string name="settings_bios_checking">正在检查文件...</string>
-    <string name="settings_bios_import_from_device">从设备导入</string>
-    <string name="settings_bios_pick_help">选择存放这些文件的文件夹（下载、SD 卡等）。OpenEmux 会按文件名识别每个文件，已知时也会按哈希识别，并将其安装到系统文件夹。</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="other">已识别并安装 %d 个文件。</item>
+    <string name="settings_bios_import_help">在某个主机上点“导入”，然后选择它的文件。每个文件都必须使用该主机需要的文件名。</string>
+    <string name="settings_bios_import">导入</string>
+    <string name="settings_bios_import_a11y">为 %s 导入 BIOS</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="other">已导入 %d 个文件</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="other">已跳过 %d 个。</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="other">已导入 %1$d 个文件，共 %2$d 个</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="other">该文件夹中没有已知的 BIOS。已检查 %d 个文件。</item>
-    </plurals>
+    <string name="settings_bios_result_none">未导入任何文件</string>
+    <string name="settings_bios_section_imported">已导入</string>
+    <string name="settings_bios_section_rejected">未导入</string>
+    <string name="settings_bios_saved_as">已保存为 %s</string>
+    <string name="settings_bios_by_content">已通过内容识别</string>
+    <string name="settings_bios_replaced">已替换原有文件</string>
+    <string name="settings_bios_reason_name">不是该主机需要的文件名</string>
+    <string name="settings_bios_reason_io">无法读取或保存</string>
+    <string name="settings_bios_reason_size">文件太大，不像是 BIOS</string>
+    <string name="settings_bios_expects">%s 需要的文件</string>
+    <string name="settings_bios_done">完成</string>
     <string name="settings_bios_consoles">需要 BIOS 的主机</string>
     <string name="settings_bios_ready_count">%1$d / %2$d 已就绪</string>
     <string name="settings_count_of">%1$d / %2$d</string>

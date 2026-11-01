@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -80,6 +81,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -318,23 +320,45 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     }
 }
 
+/**
+ * The quiet button. [compact] is the small one that sits at the end of a row
+ * (40 dp, the label at 14 sp); [busy] swaps its icon for a spinner and stops it taking taps.
+ */
 @Composable
-fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 52.dp, icon: String? = null) {
+fun SecondaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 52.dp,
+    icon: String? = null,
+    compact: Boolean = false,
+    busy: Boolean = false,
+) {
+    val corner = if (compact) 14.dp else 16.dp
     Row(
         modifier
-            .height(height)
-            .gamepadFocus(corner = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(if (compact) 40.dp else height)
+            .gamepadFocus(corner = corner)
+            .clip(RoundedCornerShape(corner))
             .background(Oe.Surface2)
-            .clickable(role = Role.Button, onClick = onClick),
+            // Busy, it stays focusable and only ignores the press: a disabled clickable drops the pad's focus,
+            // which then lands on another item, and the sheet that follows gives focus back there (issue 668).
+            .clickable(role = Role.Button) { if (!busy) onClick() }
+            .semantics { if (busy) disabled() }
+            .alpha(if (busy) DISABLED_ALPHA else 1f)
+            .padding(horizontal = if (compact) 14.dp else 0.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
-            Icon(icon, Oe.Text, 18.dp)
-            Spacer(Modifier.width(8.dp))
+        val iconSize = if (compact) 16.dp else 18.dp
+        if (busy) {
+            CircularProgressIndicator(Modifier.size(iconSize), color = Oe.Text, strokeWidth = 2.dp)
+            Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
+        } else if (icon != null) {
+            Icon(icon, Oe.Text, iconSize, stroke = if (compact) 2.2f else 2f)
+            Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         }
-        Text(text, style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp))
+        Text(text, style = Type.Button.copy(color = Oe.Text, fontSize = if (compact) 14.sp else 15.sp))
     }
 }
 

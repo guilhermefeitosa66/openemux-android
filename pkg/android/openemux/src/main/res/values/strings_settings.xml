@@ -70,21 +70,28 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">Some consoles only boot with the original system file. Use the ones you dumped from your own device.</string>
-    <string name="settings_bios_checking">Checking the files...</string>
-    <string name="settings_bios_import_from_device">Import from device</string>
-    <string name="settings_bios_pick_help">Pick the folder that holds the files (Downloads, SD card...). OpenEmux recognizes each one by name, or by hash when it knows it, and installs it in the system folder.</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="one">%d file recognized and installed.</item>
-        <item quantity="other">%d files recognized and installed.</item>
+    <string name="settings_bios_import_help">Use Import on a console and pick its files. Each file must have the name that console expects.</string>
+    <string name="settings_bios_import">Import</string>
+    <string name="settings_bios_import_a11y">Import BIOS for %s</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="one">%d file imported</item>
+        <item quantity="other">%d files imported</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="one">%d skipped.</item>
-        <item quantity="other">%d skipped.</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="one">%1$d of %2$d file imported</item>
+        <item quantity="other">%1$d of %2$d files imported</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="one">No known BIOS in that folder. %d file checked.</item>
-        <item quantity="other">No known BIOS in that folder. %d files checked.</item>
-    </plurals>
+    <string name="settings_bios_result_none">No files imported</string>
+    <string name="settings_bios_section_imported">Imported</string>
+    <string name="settings_bios_section_rejected">Not imported</string>
+    <string name="settings_bios_saved_as">Saved as %s</string>
+    <string name="settings_bios_by_content">Recognized by its content</string>
+    <string name="settings_bios_replaced">Replaced the file that was there</string>
+    <string name="settings_bios_reason_name">Not a name this console expects</string>
+    <string name="settings_bios_reason_io">Could not be read or saved</string>
+    <string name="settings_bios_reason_size">Too large to be a BIOS</string>
+    <string name="settings_bios_expects">%s expects</string>
+    <string name="settings_bios_done">Done</string>
     <string name="settings_bios_consoles">Consoles with BIOS</string>
     <string name="settings_bios_ready_count">%1$d of %2$d ready</string>
     <string name="settings_count_of">%1$d of %2$d</string>

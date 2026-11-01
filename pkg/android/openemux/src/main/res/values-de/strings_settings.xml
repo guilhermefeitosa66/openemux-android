@@ -70,21 +70,28 @@
 
     <!-- BIOS -->
     <string name="settings_bios_intro">Manche Konsolen starten nur mit der originalen Systemdatei. Nutze die, die du aus deinem eigenen Gerät ausgelesen hast.</string>
-    <string name="settings_bios_checking">Dateien werden geprüft...</string>
-    <string name="settings_bios_import_from_device">Vom Gerät importieren</string>
-    <string name="settings_bios_pick_help">Wähle den Ordner mit den Dateien (Downloads, SD-Karte...). OpenEmux erkennt jede am Namen oder, wenn bekannt, an der Prüfsumme und installiert sie im Systemordner.</string>
-    <plurals name="settings_bios_imported">
-        <item quantity="one">%d Datei erkannt und installiert.</item>
-        <item quantity="other">%d Dateien erkannt und installiert.</item>
+    <string name="settings_bios_import_help">Tippe bei einer Konsole auf Importieren und wähle ihre Dateien. Jede Datei muss den Namen haben, den diese Konsole erwartet.</string>
+    <string name="settings_bios_import">Importieren</string>
+    <string name="settings_bios_import_a11y">BIOS für %s importieren</string>
+    <plurals name="settings_bios_result_all">
+        <item quantity="one">%d Datei importiert</item>
+        <item quantity="other">%d Dateien importiert</item>
     </plurals>
-    <plurals name="settings_bios_skipped">
-        <item quantity="one">%d übersprungen.</item>
-        <item quantity="other">%d übersprungen.</item>
+    <plurals name="settings_bios_result_some">
+        <item quantity="one">%1$d von %2$d Datei importiert</item>
+        <item quantity="other">%1$d von %2$d Dateien importiert</item>
     </plurals>
-    <plurals name="settings_bios_none_found">
-        <item quantity="one">Kein bekanntes BIOS in diesem Ordner. %d Datei geprüft.</item>
-        <item quantity="other">Kein bekanntes BIOS in diesem Ordner. %d Dateien geprüft.</item>
-    </plurals>
+    <string name="settings_bios_result_none">Keine Dateien importiert</string>
+    <string name="settings_bios_section_imported">Importiert</string>
+    <string name="settings_bios_section_rejected">Nicht importiert</string>
+    <string name="settings_bios_saved_as">Gespeichert als %s</string>
+    <string name="settings_bios_by_content">Am Inhalt erkannt</string>
+    <string name="settings_bios_replaced">Vorhandene Datei ersetzt</string>
+    <string name="settings_bios_reason_name">Kein Name, den diese Konsole erwartet</string>
+    <string name="settings_bios_reason_io">Konnte nicht gelesen oder gespeichert werden</string>
+    <string name="settings_bios_reason_size">Zu groß für ein BIOS</string>
+    <string name="settings_bios_expects">%s erwartet</string>
+    <string name="settings_bios_done">Fertig</string>
     <string name="settings_bios_consoles">Konsolen mit BIOS</string>
     <string name="settings_bios_ready_count">%1$d von %2$d bereit</string>
     <string name="settings_count_of">%1$d von %2$d</string>
