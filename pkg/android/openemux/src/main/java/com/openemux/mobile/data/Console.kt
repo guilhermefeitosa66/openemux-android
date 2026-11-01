@@ -354,7 +354,7 @@ enum class Console(
             "FDS" to R.drawable.console_fds,
             "FC" to R.drawable.console_fds,
             "GB" to R.drawable.console_gb,
-            "GBC" to R.drawable.console_gb,
+            "GBC" to R.drawable.console_gbc,
             "GBA" to R.drawable.console_gba,
             "GG" to R.drawable.console_gg,
             "INTV" to R.drawable.console_intv,
