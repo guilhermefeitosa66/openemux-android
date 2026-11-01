@@ -170,10 +170,13 @@ class MainActivity : ComponentActivity() {
                 if (pads.connected != was) followPads()
             }
         }
-        if (!InputMode.gamepad) {
+        // Every press records the pad as the last input, the gamepad layout's too: turning the layout off then
+        // keeps the look a pad press gives until the next touch.
+        val woke = !InputMode.gamepad
+        InputMode.gamepad = true
+        if (woke) {
             // The first press only wakes the highlight on the item that already has focus;
             // with none, it goes through and focus lands on the screen's first item.
-            InputMode.gamepad = true
             if (code in DPAD && InputMode.focused > 0) return true
         }
         when (code) {
@@ -210,6 +213,13 @@ class MainActivity : ComponentActivity() {
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         if (!ev.isFromSource(InputDevice.SOURCE_JOYSTICK) || ev.actionMasked != MotionEvent.ACTION_MOVE) {
             return super.dispatchGenericMotionEvent(ev)
+        }
+        // A pad whose first input is its stick counts as connected too: the D-pad keys made from it below do not
+        // carry the joystick source.
+        ev.device?.let { device ->
+            val was = pads.connected
+            pads.padPress(ev.deviceId, padInfo(device))
+            if (pads.connected != was) followPads()
         }
         val x = ev.getAxisValue(MotionEvent.AXIS_X).takeIf { kotlin.math.abs(it) > 0.5f } ?: ev.getAxisValue(MotionEvent.AXIS_HAT_X)
         val y = ev.getAxisValue(MotionEvent.AXIS_Y).takeIf { kotlin.math.abs(it) > 0.5f } ?: ev.getAxisValue(MotionEvent.AXIS_HAT_Y)
