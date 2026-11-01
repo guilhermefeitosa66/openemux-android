@@ -53,11 +53,13 @@ class ImportedSkinRenderer {
 
     /**
      * A glyph lifted off the art: the [w] x [h] box at ([left], [top]), its pixels [px] as read, how much of each is
-     * glyph ([alpha], 0 to 1), the colour around it ([bg]), the glyph's own colour ([ink]) and its height in pixels
-     * ([height]).
+     * glyph for the lit pill ([alpha], 0 to 1, the faint shading left out), how much of each the glyph covers ([cover],
+     * its difference from the colour around it over the glyph's full one, anti-aliased edges included), the colour
+     * around it ([bg]), the glyph's own colour ([ink]) and its height in pixels ([height]).
      */
     private class Lifted(
-        val left: Int, val top: Int, val w: Int, val h: Int, val px: IntArray, val alpha: FloatArray, val bg: Int, val ink: Int, val height: Int,
+        val left: Int, val top: Int, val w: Int, val h: Int, val px: IntArray, val alpha: FloatArray, val cover: FloatArray,
+        val bg: Int, val ink: Int, val height: Int,
     )
 
     /**
@@ -273,7 +275,7 @@ class ImportedSkinRenderer {
         lifted.forEach { (i, l) ->
             l ?: return@forEach
             val to = place.rect(layout.moved.getValue(i))
-            val image = Bitmap.createBitmap(IntArray(l.px.size) { p -> color(l.ink, l.alpha[p] * if (i == ff) dim else 1f) }, l.w, l.h, Bitmap.Config.ARGB_8888)
+            val image = Bitmap.createBitmap(IntArray(l.px.size) { p -> color(l.ink, l.cover[p] * if (i == ff) dim else 1f) }, l.w, l.h, Bitmap.Config.ARGB_8888)
             canvas.drawBitmap(image, (to.centerX() - l.w / 2f).roundToInt().toFloat(), (to.centerY() - l.h / 2f).roundToInt().toFloat(), null)
             image.recycle()
         }
@@ -295,15 +297,17 @@ class ImportedSkinRenderer {
     /** [ink] with its alpha times [share]. */
     private fun color(ink: Int, share: Float) = (((ink ushr 24) * share).roundToInt() shl 24) or (ink and 0xFFFFFF)
 
-    /** The glyph of [l] blended back into the colour around it, so its box on [art] is left empty. */
+    /**
+     * The glyph of [l] taken off [art]: every pixel of its box that differs from the colour around it gets that colour,
+     * so not even the anti-aliased edges are left behind.
+     */
     private fun erase(art: Bitmap, l: Lifted) {
         val x0 = maxOf(0, l.left)
         val y0 = maxOf(0, l.top)
         val x1 = minOf(art.width, l.left + l.w)
         val y1 = minOf(art.height, l.top + l.h)
         if (x1 <= x0 || y1 <= y0) return
-        fun mix(c: Int, a: Float, shift: Int) = (((c shr shift) and 0xFF) * (1f - a) + ((l.bg shr shift) and 0xFF) * a).roundToInt() shl shift
-        val out = IntArray(l.px.size) { i -> listOf(24, 16, 8, 0).fold(0) { acc, sh -> acc or mix(l.px[i], l.alpha[i], sh) } }
+        val out = IntArray(l.px.size) { i -> if (l.cover[i] > ERASE_MIN_COVER) l.bg else l.px[i] }
         art.setPixels(out, (y0 - l.top) * l.w + (x0 - l.left), l.w, x0, y0, x1 - x0, y1 - y0)
     }
 
@@ -346,9 +350,10 @@ class ImportedSkinRenderer {
         if (most < GLYPH_MIN_DIFF) return null
         // The faintest fifth is the art's own shading; the glyph's anti-aliased edge ramps up to its full colour.
         val alpha = FloatArray(px.size) { i -> ((diff[i] - most * 0.2f) / (most * 0.5f)).coerceIn(0f, 1f) }
-        val rows = (0 until h).filter { y -> (0 until w).any { x -> alpha[y * w + x] >= 0.5f } }
+        val cover = FloatArray(px.size) { i -> diff[i].toFloat() / most }
+        val rows = (0 until h).filter { y -> (0 until w).any { x -> cover[y * w + x] >= 0.5f } }
         val bgColor = (median(24) shl 24) or (bg[0] shl 16) or (bg[1] shl 8) or bg[2]
-        return Lifted(left, top, w, h, px, alpha, bgColor, px[diff.indexOf(most)], rows.last() - rows.first() + 1)
+        return Lifted(left, top, w, h, px, alpha, cover, bgColor, px[diff.indexOf(most)], rows.last() - rows.first() + 1)
     }
 
     /**
@@ -472,6 +477,9 @@ class ImportedSkinRenderer {
 
         /** The least difference from its surroundings a toggle's glyph has, out of 255 per channel. */
         private const val GLYPH_MIN_DIFF = 48
+
+        /** How much of a pixel a lifted glyph covers before erasing it paints the colour around it there: noise stays. */
+        private const val ERASE_MIN_COVER = 0.06f
 
         /** Where the skins' buttons sit on the RetroPad, for the consoles whose names differ (as in data/Skin.kt). */
         private val CONSOLE_BINDS = mapOf(
