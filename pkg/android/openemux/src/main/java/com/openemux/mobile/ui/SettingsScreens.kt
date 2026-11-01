@@ -673,15 +673,14 @@ fun BiosScreen(embedded: Boolean = false) {
     val revision by importer.biosRevision.collectAsState()
     // Each console's Import button, so closing the summary puts the pad's focus back on the one that was used.
     val importTargets = remember { mutableMapOf<Console, PadFocusTarget>() }
-    var refocus by remember { mutableStateOf<Console?>(null) }
     val padScope = LocalPadScope.current
-    LaunchedEffect(refocus) {
-        val c = refocus ?: return@LaunchedEffect
-        // After the sheet's own hand-back (posted when its window goes), so this one is the last word.
-        withFrameNanos { }
-        withFrameNanos { }
-        if (InputMode.gamepad) importTargets[c]?.let { padScope.focus(it) }
-        refocus = null
+    fun refocus(c: Console) {
+        scope.launch {
+            // After the sheet's own hand-back (posted when its window goes), so this one is the last word.
+            withFrameNanos { }
+            withFrameNanos { }
+            if (InputMode.gamepad) importTargets[c]?.let { padScope.focus(it) }
+        }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
         val console = pending?.let { name -> Console.entries.firstOrNull { it.name == name } }
@@ -765,7 +764,7 @@ fun BiosScreen(embedded: Boolean = false) {
         )
         Spacer(Modifier.height(hintBarInset))
     } }
-    report?.let { r -> BiosImportSheet(r) { refocus = r.console; report = null } }
+    report?.let { r -> BiosImportSheet(r) { report = null; refocus(r.console) } }
 }
 
 @Composable
