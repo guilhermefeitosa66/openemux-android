@@ -27,6 +27,7 @@ import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
+import com.openemux.mobile.game.Gamepads
 import com.openemux.mobile.ui.folds
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
@@ -172,7 +173,10 @@ class GameLauncher(
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
-            val drawn = GameSkin.render(context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright)
+            val drawn = GameSkin.render(
+                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright,
+                gamepad = Gamepads.connected(),
+            )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
 
@@ -246,7 +250,8 @@ class GameLauncher(
             "input_overlay_opacity" to "1.000000",
             "input_overlay_auto_scale" to "false",
             "input_overlay_hide_in_menu" to "true",
-            "input_overlay_hide_when_gamepad_connected" to "true",
+            // The skin switches to its gamepad layout instead (GameActivity): the app controls stay on screen.
+            "input_overlay_hide_when_gamepad_connected" to "false",
             "input_overlay_show_inputs" to "0",
             "input_menu_toggle_gamepad_combo" to "0",
             "libretro_directory" to paths.cores.absolutePath,
