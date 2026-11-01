@@ -6,13 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -373,8 +366,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         // A phone on its side: the cartridge with its name on the left, every action on the right. Continue,
         // Restart and the colour fit 360dp of height with the hint bar; the settings below them scroll, and say so.
         DetailStyle.Landscape -> Row(
-            Modifier.fillMaxSize().statusBarsPadding()
-                .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.End).union(WindowInsets.navigationBars.only(WindowInsetsSides.End))),
+            // The app's root already pads the system bars and the cutout on every side.
+            Modifier.fillMaxSize().statusBarsPadding(),
         ) {
             // One focus group per column: Right from the header enters the actions, Left from them comes back.
             Box(Modifier.fillMaxWidth(0.42f).fillMaxHeight().focusGroup()) {
@@ -400,7 +393,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             val scroll = rememberScrollState()
             // Up from the play buttons stays on them, off the rail and the header beside them.
             Box(Modifier.weight(1f).fillMaxHeight().holdFocusAtEnd(FocusDirection.Up)) {
-                MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 12.dp, end = 20.dp, top = 12.dp)) {
+                // A focused row stops above the fade, not under it.
+                MarginFocusScroll(trailing = maxOf(FocusMargin, EndFade) + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 12.dp, end = 20.dp, top = 12.dp)) {
                     playButtons(48.dp, 112.dp)
                     Box(Modifier.padding(top = 14.dp)) { statesSection(3, 50.dp) }
                     if (rom.console.frame != null) Box(Modifier.padding(top = 14.dp)) { colorBlock(true) }
@@ -412,7 +406,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 // There is more below: the foot fades into the page until the end is reached.
                 if (scroll.canScrollForward) {
                     Box(
-                        Modifier.align(Alignment.BottomCenter).padding(bottom = hintBarInset).fillMaxWidth().height(44.dp)
+                        Modifier.align(Alignment.BottomCenter).padding(bottom = hintBarInset).fillMaxWidth().height(EndFade)
                             .background(Brush.verticalGradient(listOf(Oe.Bg.copy(alpha = 0f), Oe.Bg))),
                     )
                 }

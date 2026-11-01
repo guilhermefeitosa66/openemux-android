@@ -297,6 +297,9 @@ fun Modifier.linkTarget(): Modifier =
 /** The room a focused item keeps from the edges of a vertical list. */
 val FocusMargin = 24.dp
 
+/** How far a list's end fades into the page while more of it can scroll in. */
+val EndFade = 44.dp
+
 /** The hint bar's height, its divider included. */
 val HintBarHeight = 40.dp
 
@@ -506,13 +509,14 @@ fun FocusRow(
 ) {
     val scroll = rememberScrollState()
     val page = Oe.Bg
-    MarginFocusScroll(leading = bleed, trailing = bleed) {
+    // With the fade, a focused item stops short of it instead of sitting under it.
+    MarginFocusScroll(leading = bleed, trailing = if (fadeEnd) maxOf(bleed, EndFade) else bleed) {
         Row(
             modifier.bleed(bleed).fillMaxWidth()
                 .then(if (fadeEnd) Modifier.drawWithContent {
                     drawContent()
                     if (scroll.canScrollForward) {
-                        val fade = minOf(44.dp.toPx(), size.width)
+                        val fade = minOf(EndFade.toPx(), size.width)
                         drawRect(
                             Brush.horizontalGradient(listOf(page.copy(alpha = 0f), page), startX = size.width - fade, endX = size.width),
                             topLeft = Offset(size.width - fade, 0f), size = Size(fade, size.height),
