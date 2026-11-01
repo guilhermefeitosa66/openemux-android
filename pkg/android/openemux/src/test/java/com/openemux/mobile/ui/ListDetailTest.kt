@@ -11,6 +11,7 @@ class ListDetailTest {
 
     private val items = listOf(
         SettingsItem.Console("GBA"), SettingsItem.Bios, SettingsItem.Theme, SettingsItem.Language, SettingsItem.ControllerLayout,
+        SettingsItem.ButtonLabels,
         SettingsItem.Achievements, SettingsItem.Backup, SettingsItem.About, SettingsItem.License("gpl"),
     )
 
@@ -122,6 +123,7 @@ class ListDetailTest {
         assertNull(SettingsItem.Theme.route)
         assertNull(SettingsItem.Language.route)
         assertNull(SettingsItem.ControllerLayout.route)
+        assertNull(SettingsItem.ButtonLabels.route)
     }
 
     @Test
@@ -168,5 +170,9 @@ class ListDetailTest {
         assertEquals(SettingsItem.Language, sheetToPane(themeSheet = false, languageSheet = true))
         assertEquals(SettingsItem.ControllerLayout, sheetToPane(themeSheet = false, languageSheet = false, controllerSheet = true))
         assertNull(sheetToPane(themeSheet = false, languageSheet = false))
+        assertEquals(SettingsItem.ButtonLabels, sheetToPane(themeSheet = false, languageSheet = false, buttonLabelsSheet = true))
+        assertNull(sheetToPane(themeSheet = false, languageSheet = false, buttonLabelsSheet = false))
+        assertEquals("button_labels", SettingsItem.ButtonLabels.key)
+        assertEquals(SettingsItem.ButtonLabels, SettingsItem.of("button_labels"))
     }
 }

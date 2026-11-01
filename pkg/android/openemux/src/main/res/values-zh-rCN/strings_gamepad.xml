@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Content descriptions of the drawn button faces in the gamepad hints. -->
+    <string name="pad_glyph_cross">叉</string>
+    <string name="pad_glyph_circle">圈</string>
+    <string name="pad_glyph_square">方块</string>
+    <string name="pad_glyph_triangle">三角</string>
+    <string name="pad_glyph_menu">菜单</string>
+    <string name="pad_glyph_view">视图</string>
+</resources>

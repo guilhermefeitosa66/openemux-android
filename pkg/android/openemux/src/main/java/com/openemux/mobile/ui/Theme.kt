@@ -113,6 +113,23 @@ object ThemePref {
     }
 }
 
+/** How the hint bar names the buttons: "auto" (the pad in use), or a family forced. */
+object ButtonLabelsPref {
+    var value by mutableStateOf(ButtonLabelsKeys.AUTO)
+        private set
+
+    private fun prefs(context: Context) = context.getSharedPreferences("openemux", Context.MODE_PRIVATE)
+
+    fun load(context: Context) {
+        value = ButtonLabelsKeys.parse(prefs(context).getString("button_labels", null))
+    }
+
+    fun set(context: Context, labels: String) {
+        value = labels
+        prefs(context).edit().putString("button_labels", labels).apply()
+    }
+}
+
 @Composable
 fun OpenEmuxTheme(content: @Composable () -> Unit) {
     MaterialTheme(

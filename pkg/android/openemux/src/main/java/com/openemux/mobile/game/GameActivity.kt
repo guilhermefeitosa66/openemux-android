@@ -37,6 +37,8 @@ import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ThemePref
+import com.openemux.mobile.ui.ButtonLabelsPref
+import com.openemux.mobile.ui.PadLabels
 import com.openemux.mobile.ui.WindowLayout
 import com.openemux.mobile.ui.folds
 import com.retroarch.BuildConfig
@@ -396,6 +398,8 @@ class GameActivity : RetroActivityFuture() {
         if (!BuildConfig.DEBUG) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                // A vendor says which pad names the buttons in the pause sheet, the way it does in the library.
+                if (PadLabels.debug(intent)) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
                 Log.i(TAG, "debug gamepad: $gamepadOverride")
                 followGamepad()
@@ -743,6 +747,10 @@ class GameActivity : RetroActivityFuture() {
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
         InputMode.padConnected = gamepadOverride ?: Gamepads.connected()
+        ButtonLabelsPref.load(this)
+        // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
+        // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.
+        PadLabels.scan()
         Oe.syncSystem(this)
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

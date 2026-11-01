@@ -89,6 +89,13 @@ internal fun SectionHeader(text: String, trailing: String? = null) {
     }
 }
 
+private val BUTTON_LABELS = listOf(
+    Triple(ButtonLabelsKeys.AUTO, R.string.settings_button_labels_auto, R.string.settings_button_labels_auto_desc),
+    Triple(ButtonLabelsKeys.XBOX, R.string.settings_button_labels_xbox, R.string.settings_button_labels_xbox_desc),
+    Triple(ButtonLabelsKeys.NINTENDO, R.string.settings_button_labels_nintendo, R.string.settings_button_labels_nintendo_desc),
+    Triple(ButtonLabelsKeys.PLAYSTATION, R.string.settings_button_labels_playstation, R.string.settings_button_labels_playstation_desc),
+)
+
 private val THEMES = listOf(
     Triple(ThemePref.SYSTEM, R.string.settings_theme_system, R.string.settings_theme_system_desc),
     Triple(ThemePref.LIGHT, R.string.settings_theme_light, R.string.settings_theme_light_desc),
@@ -108,6 +115,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
     var themeSheet by rememberSaveable { mutableStateOf(false) }
     var languageSheet by rememberSaveable { mutableStateOf(false) }
     var controllerSheet by rememberSaveable { mutableStateOf(false) }
+    var buttonLabelsSheet by rememberSaveable { mutableStateOf(false) }
     var nameSheet by rememberSaveable { mutableStateOf(false) }
     GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_open), "B" to stringResource(R.string.settings_hint_back), "L1 R1" to stringResource(R.string.settings_hint_tabs)))
     val a = LocalActions.current
@@ -121,6 +129,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             SettingsItem.Theme -> themeSheet = true
             SettingsItem.Language -> languageSheet = true
             SettingsItem.ControllerLayout -> controllerSheet = true
+            SettingsItem.ButtonLabels -> buttonLabelsSheet = true
             else -> item.route?.let { a.nav.navigate(it) }
         }
     }
@@ -132,11 +141,12 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             // A license text sits on About on a phone too, so Back steps there first as it does in the pane.
             if (it is SettingsItem.License) openAlone(SettingsItem.About)
             openAlone(it)
-        } else sheetToPane(themeSheet, languageSheet, controllerSheet)?.let {
+        } else sheetToPane(themeSheet, languageSheet, controllerSheet, buttonLabelsSheet)?.let {
             // The phone's sheet becomes the pane's item; the screens of their own hand theirs back by themselves.
             themeSheet = false
             languageSheet = false
             controllerSheet = false
+            buttonLabelsSheet = false
             pickedKey = it.key
         }
     }
@@ -170,6 +180,26 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
                 Text(stringResource(R.string.settings_controller_layout), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
                 ControllerLayoutOptions()
             }
+        }
+    }
+    if (buttonLabelsSheet) {
+        OeSheet({ buttonLabelsSheet = false }, scroll = false) {
+            SheetBarIcons()
+            // The cards take only the height left over by the hint bar below: in landscape they scroll
+            // and the bar stays at the bottom of the sheet, instead of being pushed out of the window.
+            MarginFocusScroll { Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(stringResource(R.string.settings_button_labels), style = Type.Title.copy(fontSize = 22.sp))
+                Text(stringResource(R.string.settings_button_labels_lead), style = Type.Small, modifier = Modifier.padding(bottom = 6.dp))
+                ButtonLabelOptions(Oe.Raised)
+            } }
+            // A sheet is a window of its own, over the screen's hint bar: it draws its hints itself,
+            // so choosing a family shows at once what the buttons read.
+            val hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back))
+            GamepadButtons(hints = hints)
+            HintBar(hints)
         }
     }
     if (languageSheet) {
@@ -299,6 +329,10 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
                 selected = picked == SettingsItem.ControllerLayout, onClick = { onPick(SettingsItem.ControllerLayout) },
             )
             ListRow(
+                stringResource(R.string.settings_button_labels), value = stringResource(BUTTON_LABELS.first { it.first == ButtonLabelsPref.value }.second),
+                divider = true, selected = picked == SettingsItem.ButtonLabels, onClick = { onPick(SettingsItem.ButtonLabels) },
+            )
+            ListRow(
                 stringResource(R.string.settings_backup), subtitle = stringResource(R.string.settings_backup_desc), divider = true, minHeight = 60.dp,
                 selected = picked == SettingsItem.Backup, onClick = { onPick(SettingsItem.Backup) },
             )
@@ -332,6 +366,7 @@ private fun SettingsPane(picked: SettingsItem?, onPick: (SettingsItem) -> Unit) 
                     SettingsItem.Theme -> ThemePane()
                     SettingsItem.Language -> LanguagePane()
                     SettingsItem.ControllerLayout -> ControllerLayoutPane()
+                    SettingsItem.ButtonLabels -> ButtonLabelsPane()
                     SettingsItem.Achievements -> AchievementsScreen(embedded = true)
                     SettingsItem.Backup -> BackupScreen(embedded = true)
                     SettingsItem.About -> AboutScreen(embedded = true, onOpenLicense = { onPick(SettingsItem.License(it)) })
@@ -376,6 +411,31 @@ private fun ControllerLayoutPane() {
         PaneTitle(stringResource(R.string.settings_controller_layout), stringResource(R.string.settings_controller_layout_lead))
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ControllerLayoutOptions(background = Oe.Surface)
+        }
+        Spacer(Modifier.height(hintBarInset))
+    } }
+}
+
+/** The "Button labels" choices, each with the faces it draws. */
+@Composable
+private fun ButtonLabelOptions(background: androidx.compose.ui.graphics.Color) {
+    val context = LocalContext.current
+    BUTTON_LABELS.forEach { (id, name, blurb) ->
+        RadioCard(
+            ButtonLabelsPref.value == id, stringResource(name), stringResource(blurb),
+            onClick = { ButtonLabelsPref.set(context, id) }, background = background,
+            leading = { FaceDiamond(effectiveFamily(id, PadLabels.detected)) },
+        )
+    }
+}
+
+/** Button labels in the settings pane: the same cards as the phone's sheet. */
+@Composable
+private fun ButtonLabelsPane() {
+    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        PaneTitle(stringResource(R.string.settings_button_labels), stringResource(R.string.settings_button_labels_lead))
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ButtonLabelOptions(Oe.Surface)
         }
         Spacer(Modifier.height(hintBarInset))
     } }
