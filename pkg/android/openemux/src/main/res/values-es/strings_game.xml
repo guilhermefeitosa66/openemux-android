@@ -13,6 +13,7 @@
     <string name="game_shader_this_session">Solo en esta sesión</string>
     <string name="game_toast_saved_slot">Estado guardado en la ranura %1$d</string>
     <string name="game_toast_fast_forward_on">Avance rápido al reanudar</string>
+    <string name="game_toast_slow_motion_on">Cámara lenta al reanudar</string>
     <string name="game_toast_fast_forward_off">Velocidad normal</string>
     <string name="game_toast_screenshot">Captura guardada</string>
     <string name="game_toast_sound_off">Sonido desactivado</string>
@@ -23,6 +24,7 @@
     <string name="game_save_state">Guardar estado</string>
     <string name="game_load">Cargar</string>
     <string name="game_fast_forward">Avance rápido</string>
+    <string name="game_slow_motion">Cámara lenta</string>
     <string name="game_screenshot">Captura de pantalla</string>
     <string name="game_audio">Audio</string>
     <string name="game_muted">Silenciado</string>

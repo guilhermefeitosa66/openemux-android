@@ -37,7 +37,9 @@ internal object OverlayWriter {
     const val KNOB_TRAVEL = 0.65f
 
     /** The engine state each toggle hotkey lights its button with. */
-    val LIT_BY = mapOf("turbo_fire_toggle" to "turbo", "toggle_fast_forward" to "fast_forward")
+    val LIT_BY = mapOf(
+        "turbo_fire_toggle" to "turbo", "toggle_slowmotion" to "slow_motion", "toggle_fast_forward" to "fast_forward",
+    )
 
     /** A toggle's "on" pill, [w] x [h] pixels: the accent with its light inner ring of [ring] pixels. */
     fun pill(w: Int, h: Int, radius: Float, ring: Float): Bitmap {

@@ -69,12 +69,14 @@ class GameActivity : RetroActivityFuture() {
 
     /** Written on the engine thread (onToggleStates): whether fast forward is on, for the pause sheet. */
     @Volatile private var fastForwardOn = false
+    /** Written on the engine thread (onToggleStates): whether slow motion is on, for the pause sheet. */
+    @Volatile private var slowMotionOn = false
     /**
-     * What the pause sheet's fast-forward tile asked for and the engine has not been sent yet; null = nothing pending.
-     * A sheet opened before it is applied shows it and takes it over.
+     * The speed the pause sheet's fast-forward and slow-motion tiles asked for and the engine has not been sent yet;
+     * null = nothing pending. A sheet opened before it is applied shows it and takes it over.
      */
-    @Volatile private var fastForwardWanted: Boolean? = null
-    /** Bumped each time the pause sheet opens, so a deferred fast-forward toggle knows a newer sheet took over. */
+    @Volatile private var speedWanted: Speed? = null
+    /** Bumped each time the pause sheet opens, so a deferred speed change knows a newer sheet took over. */
     @Volatile private var sheetCount = 0
     /** Armed by the sheet's "RetroArch menu" row: the next menu request opens RetroArch's own menu. */
     private val retroArchMenu = RetroArchMenuGate()
@@ -490,12 +492,13 @@ class GameActivity : RetroActivityFuture() {
     }
 
     /**
-     * Called on the engine thread when fast forward or turbo goes on or off, whatever flipped it: the skin's strip,
-     * the pause sheet or a gamepad hotkey. The strip draws its own "on" look (overlayN_descM_lit_by); the pause
-     * sheet reads fast forward from here.
+     * Called on the engine thread when fast forward, turbo or slow motion goes on or off, whatever flipped it: the
+     * skin's strip, the pause sheet or a gamepad hotkey. The strip draws its own "on" look (overlayN_descM_lit_by);
+     * the pause sheet reads fast forward and slow motion from here.
      */
-    override fun onToggleStates(fastForward: Boolean, turbo: Boolean) {
+    override fun onToggleStates(fastForward: Boolean, turbo: Boolean, slowMotion: Boolean) {
         fastForwardOn = fastForward
+        slowMotionOn = slowMotion
     }
 
     /**
@@ -677,20 +680,21 @@ class GameActivity : RetroActivityFuture() {
 
     /**
      * The engine turns fast forward off on any toggle it gets while paused (runloop.c, "Don't allow fastmotion
-     * while paused"), so the sheet's choice is sent only after the resume has taken: wait until the engine reports
-     * it is playing, then toggle if its state still differs. Blocks: call from a background thread. Gives up, and
-     * leaves the choice to the next sheet, when that sheet opens first.
+     * while paused") and ignores slow motion then ("Don't allow slowmotion while paused"), so the sheet's choice is
+     * sent only after the resume has taken: wait until the engine reports it is playing, then toggle whatever still
+     * differs. Blocks: call from a background thread. Gives up, and leaves the choice to the next sheet, when that
+     * sheet opens first.
      */
-    private fun applyFastForward(sheet: Int) {
+    private fun applySpeed(sheet: Int) {
         if (!awaitPlaying(attempts = 20) { sheetCount != sheet }) {
             // Never seen running: drop the choice, so the next sheet shows the engine's own state.
-            if (sheetCount == sheet) fastForwardWanted = null
+            if (sheetCount == sheet) speedWanted = null
             return
         }
-        val wanted = fastForwardWanted ?: return
+        val wanted = speedWanted ?: return
         if (sheetCount != sheet) return
-        if (fastForwardOn != wanted) RaCommand.send("FAST_FORWARD")
-        fastForwardWanted = null
+        wanted.commandsFrom(fastForwardOn, slowMotionOn).forEach { RaCommand.send(it) }
+        speedWanted = null
     }
 
     /**
@@ -731,7 +735,7 @@ class GameActivity : RetroActivityFuture() {
         retroArchMenu.cancel()
         val sheet = ++sheetCount
         // A choice from the previous sheet not sent yet is what the tile shows, and this sheet's dismissal sends it.
-        val session = PauseSession.fromIntent(intent, sessionStart, fastForwardWanted ?: fastForwardOn)
+        val session = PauseSession.fromIntent(intent, sessionStart, speedWanted ?: Speed.of(fastForwardOn, slowMotionOn))
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
         Oe.syncSystem(this)
@@ -755,7 +759,7 @@ class GameActivity : RetroActivityFuture() {
                             Thread { RaCommand.send("QUIT") }.start()
                         },
                         onScreens = if (ndsScreens) ({ getString(nextNdsLayout().label) }) else null,
-                        onFastForward = { fastForwardWanted = it },
+                        onSpeed = { speedWanted = it },
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.
                             d.dismiss()
@@ -769,10 +773,10 @@ class GameActivity : RetroActivityFuture() {
         d.setContentView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         d.setOnDismissListener {
             sheetOpen = false
-            val pending = fastForwardWanted != null
+            val pending = speedWanted != null
             Thread {
                 RaCommand.resume()
-                if (pending) applyFastForward(sheet)
+                if (pending) applySpeed(sheet)
             }.start()
         }
         d.window?.let { window ->

@@ -322,10 +322,8 @@ class GameLauncher(
         )
         settings.putAll(cheevos)
         // RetroArch still fast-forwards in hardcore; the skin and the pause sheet leave it out, and so do the keys.
-        if (hardcore) {
-            settings["input_toggle_fast_forward"] = "nul"
-            settings["input_hold_fast_forward"] = "nul"
-        }
+        // It refuses slow motion there already: its keys go too, so no binding even reaches it.
+        if (hardcore) HARDCORE_UNBOUND_KEYS.forEach { settings[it] = "nul" }
         // The PS skin has both sticks: Beetle PSX and PCSX ReARMed read them as a DualShock.
         if (rom.console == Console.PS) settings["input_libretro_device_p1"] = "517"
         // Genesis Plus GX only gives a pad six buttons when the ROM header asks; the MD skins draw X, Y, Z and MODE

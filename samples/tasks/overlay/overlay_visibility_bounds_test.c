@@ -27,7 +27,7 @@
  *   9. without the cache block every image is set every pass.
  *
  * A desc can also be lit by a frontend state (_lit_by: fast_forward,
- * turbo), how the Android skin draws a toggle's "on" look:
+ * turbo, slow_motion), how the Android skin draws a toggle's "on" look:
  *
  *  10. its image shows only while its state is on, each state on its
  *      own, with or without the LED driver;
@@ -322,12 +322,15 @@ static void test_alpha_no_cache(void)
 
 #define FF    (1u << (OVERLAY_LIT_BY_FAST_FORWARD - 1))
 #define TURBO (1u << (OVERLAY_LIT_BY_TURBO - 1))
+#define SLOW  (1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1))
 
-/* Image 1 is lit by fast forward, image 3 by turbo. */
+/* Image 1 is lit by fast forward, image 3 by turbo, image 2 by slow
+ * motion. */
 static void build_lit(void)
 {
    build(NULL);
    descs[1].lit_by = OVERLAY_LIT_BY_FAST_FORWARD;
+   descs[2].lit_by = OVERLAY_LIT_BY_SLOW_MOTION;
    descs[3].lit_by = OVERLAY_LIT_BY_TURBO;
    pack.flags     |= INPUT_OVERLAY_HAS_LIT_BY;
 }
@@ -349,10 +352,16 @@ static void test_lit_by(void)
    printf("images lit by frontend state\n");
 
    build_lit();
-   check(lit_hidden(1, 0, 0, NULL) && lit_hidden(3, 0, 0, NULL),
-         "with every state off, both lit images are hidden");
-   check(!lit_hidden(0, 0, 0, NULL) && !lit_hidden(2, 0, 0, NULL),
+   check(lit_hidden(1, 0, 0, NULL) && lit_hidden(3, 0, 0, NULL)
+         && lit_hidden(2, 0, 0, NULL),
+         "with every state off, every lit image is hidden");
+   check(!lit_hidden(0, 0, 0, NULL) && !lit_hidden(4, 0, 0, NULL),
          "and the other images are not");
+   check(!lit_hidden(2, SLOW, 0, NULL) && lit_hidden(1, SLOW, 0, NULL)
+         && lit_hidden(3, SLOW, 0, NULL),
+         "slow motion on shows its image only");
+   check(lit_hidden(2, FF | TURBO, 0, NULL),
+         "fast forward and turbo do not show the slow-motion image");
    check(!lit_hidden(1, FF, 0, NULL) && lit_hidden(3, FF, 0, NULL),
          "fast forward on shows its image only");
    check(lit_hidden(1, TURBO, 0, NULL) && !lit_hidden(3, TURBO, 0, NULL),
@@ -419,6 +428,8 @@ static void test_lit_by_parse(void)
          == OVERLAY_LIT_BY_FAST_FORWARD, "\"fast_forward\"");
    check(input_overlay_lit_by_parse("turbo") == OVERLAY_LIT_BY_TURBO,
          "\"turbo\"");
+   check(input_overlay_lit_by_parse("slow_motion")
+         == OVERLAY_LIT_BY_SLOW_MOTION, "\"slow_motion\"");
    check(input_overlay_lit_by_parse("rewind") == OVERLAY_LIT_BY_NONE
          && input_overlay_lit_by_parse("") == OVERLAY_LIT_BY_NONE
          && input_overlay_lit_by_parse(NULL) == OVERLAY_LIT_BY_NONE,

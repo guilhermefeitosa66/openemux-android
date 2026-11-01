@@ -57,14 +57,17 @@ when the content closes, and the library must survive that.
    one, so the activity's idea of it stays true.
    `input_overlay_keep_active()` in `input/input_driver.c`.
 5. **Toggles lit.** An overlay desc can name a frontend state its image
-   shows (`overlayN_descM_lit_by = "fast_forward"` or `"turbo"`): the image
-   is hidden while that state is off, with or without the overlay LED
-   driver (`input/input_overlay_alpha.c`). When either state changes, the
-   activity's `onToggleStates()` hears it once, so the pause sheet shows the
-   engine's fast forward. `android_app_toggle_states()` in
+   shows (`overlayN_descM_lit_by = "fast_forward"`, `"turbo"` or
+   `"slow_motion"`): the image is hidden while that state is off, with or
+   without the overlay LED driver (`input/input_overlay_alpha.c`). When any
+   of them changes, the activity's `onToggleStates()` hears it once, so the
+   pause sheet shows the engine's fast forward and slow motion. `android_app_toggle_states()` in
    `frontend/drivers/platform_unix.c`, called from `input_overlay_states()`
    in `input/input_driver.c` on every input poll, whether or not an overlay
    is shown (a connected gamepad hides it).
+   Fast forward and slow motion never run together: turning one on turns
+   the other off, whatever control did it (`runloop.c`; a core's fast
+   motion override is left alone).
 6. **D-pad dead zone.** An eight-way area (`dpad_area`, `abxy_area`) takes
    `overlayN_descM_dead_zone`, a radius as a fraction of the area's range
    inside which the touch holds the area but presses no direction. The
@@ -130,11 +133,13 @@ console's colors, its face buttons, shoulders and console keys, each bound to
 a RetroPad button, an analog stick or a hotkey. `SkinRenderer` draws it at
 the screen's exact pixel size (portrait and landscape) and writes a RetroArch
 overlay with those touch areas, plus `menu_toggle` and the quick actions
-(`save_state`, `load_state`, `turbo_fire_toggle`, `toggle_fast_forward`).
-Turbo and fast forward each get a `nul` desc over their button with the
-"on" pill as its image and `_lit_by` naming the state, so the engine shows
-the pill exactly while the toggle is on (never fast forward's in
-RetroAchievements hardcore, where its button is greyed out).
+(`save_state`, `load_state`, `turbo_fire_toggle`, `toggle_slowmotion`,
+`toggle_fast_forward`). Turbo, slow motion and fast forward each get a `nul`
+desc over their button with the "on" pill as its image and `_lit_by` naming
+the state, so the engine shows the pill exactly while the toggle is on (never
+slow motion's or fast forward's in RetroAchievements hardcore, where their
+buttons are greyed out). Slow motion runs at RetroArch's default
+`slowmotion_ratio` (a third of the speed), like the desktop app.
 Each overlay also sets where the game is drawn (`overlayN_viewport`, which
 RetroArch fits keeping the aspect): on top in portrait, capped like the
 design, and centred between the control sides in landscape, with the quick
@@ -156,6 +161,14 @@ set to that layout. An item bound to turbo or toggle fast forward gets the
 same lit `nul` desc as the drawn strip: the accent pill over the item's
 frame, with the skin's own glyph lifted off the art (what differs from the
 colour around it) and drawn on it in white, so a user's skin lights up too.
+The packages have no slow-motion item, so the renderer makes one right
+before fast forward (`launch/SlowMotionSlot.kt`): the keys edge to edge with
+fast forward on its row (the bundled skins' save, load, turbo, fast forward)
+are spread over the same span in one more cell, their glyphs lifted off the
+art and drawn again at their new places, and slow motion's ring is drawn in
+fast forward's colour; a lone fast-forward button is split in two. In
+RetroAchievements hardcore both speed keys are drawn at 0.45 with no touch
+area.
 `launch/OverlayWriter.kt` writes the overlays and their images for both
 renderers, each stick's movable knob (`<overlay>-knob<N>.png`) and its
 widened touch zone included.

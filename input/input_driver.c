@@ -6065,6 +6065,9 @@ static uint32_t input_overlay_states(void)
    /* The turbo hotkey flips this bool (CMD_EVENT_TURBO_FIRE_TOGGLE). */
    if (config_get_ptr()->bools.input_turbo_enable)
       states |= 1u << (OVERLAY_LIT_BY_TURBO - 1);
+   /* OpenEmux: the slow-motion toggle lights its key too */
+   if (runloop_state_get_ptr()->flags & RUNLOOP_FLAG_SLOWMOTION)
+      states |= 1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1);
 
    if (states != input_driver_st.overlay_states_last)
    {
@@ -6073,7 +6076,8 @@ static uint32_t input_overlay_states(void)
       /* OpenEmux: the frontend follows the toggles, once per change */
       android_app_toggle_states(
             !!(states & (1u << (OVERLAY_LIT_BY_FAST_FORWARD - 1))),
-            !!(states & (1u << (OVERLAY_LIT_BY_TURBO - 1))));
+            !!(states & (1u << (OVERLAY_LIT_BY_TURBO - 1))),
+            !!(states & (1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1))));
 #endif
    }
    return states;
