@@ -89,6 +89,13 @@ data class WindowLayout(
     /** The game's detail as two columns, the cartridge on the left. */
     val twoColumnDetail get() = roomy
 
+    /**
+     * The game's detail split for a phone on its side: the cartridge on the left, the actions on the right, so
+     * Continue never sits below the fold. Only with [LANDSCAPE_DETAIL_MIN_DP] beside the phone's rail; a short
+     * split-screen half keeps the portrait column.
+     */
+    val landscapeDetail get() = short && widthDp > heightDp && widthDp - railWidthDp(this) >= LANDSCAPE_DETAIL_MIN_DP
+
     /** The width the library's grid gets: the window less the rail, the pane beside it and the grid's margins. */
     val libraryListDp get() = widthDp - railWidthDp(this) - (if (libraryPane) LIBRARY_PANE_DP else 0f) - 2 * contentSideDp(this)
 
@@ -108,6 +115,19 @@ data class WindowLayout(
         fun of(widthDp: Float, heightDp: Float, posture: Posture = Posture.Flat, fold: Fold? = null, density: Float = 1f) =
             WindowLayout(widthDp, heightDp, SizeClass.widthOf(widthDp), SizeClass.heightOf(heightDp), posture, fold, density)
     }
+}
+
+/**
+ * The narrowest content (window less the rail) that gets the landscape detail: a 732dp phone on its side leaves
+ * 652dp, a 400dp split-screen half 320dp, too little for the play buttons beside the cartridge.
+ */
+const val LANDSCAPE_DETAIL_MIN_DP = 520f
+
+/** How the game's detail screen is laid out in [layout]: two columns on a roomy window, split on a phone on its side, else a column. */
+fun detailStyleOf(layout: WindowLayout): DetailStyle = when {
+    layout.twoColumnDetail -> DetailStyle.TwoColumns
+    layout.landscapeDetail -> DetailStyle.Landscape
+    else -> DetailStyle.Phone
 }
 
 /** The settings list beside its detail on a tablet held upright. */

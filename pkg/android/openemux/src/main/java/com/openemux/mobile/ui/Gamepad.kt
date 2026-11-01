@@ -61,6 +61,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -296,6 +297,9 @@ fun Modifier.linkTarget(): Modifier =
 /** The room a focused item keeps from the edges of a vertical list. */
 val FocusMargin = 24.dp
 
+/** How far a list's end fades into the page while more of it can scroll in. */
+val EndFade = 44.dp
+
 /** The hint bar's height, its divider included. */
 val HintBarHeight = 40.dp
 
@@ -491,7 +495,8 @@ internal fun Modifier.shrinkToFit(): Modifier = layout { measurable, constraints
  * A row that scrolls sideways under the gamepad without cutting the first
  * and last items' ring: it reaches [bleed] into its parent's side padding
  * and pads its content by as much inside the scroll, so the content lines up
- * with the rest of the screen while the ring has room at both ends.
+ * with the rest of the screen while the ring has room at both ends. With
+ * [fadeEnd], its end fades into the page while more can scroll in.
  */
 @Composable
 fun FocusRow(
@@ -499,11 +504,26 @@ fun FocusRow(
     bleed: Dp = 20.dp,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     verticalAlignment: Alignment.Vertical = Alignment.Top,
+    fadeEnd: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
-    MarginFocusScroll(leading = bleed, trailing = bleed) {
+    val scroll = rememberScrollState()
+    val page = Oe.Bg
+    // With the fade, a focused item stops short of it instead of sitting under it.
+    MarginFocusScroll(leading = bleed, trailing = if (fadeEnd) maxOf(bleed, EndFade) else bleed) {
         Row(
-            modifier.bleed(bleed).fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = bleed),
+            modifier.bleed(bleed).fillMaxWidth()
+                .then(if (fadeEnd) Modifier.drawWithContent {
+                    drawContent()
+                    if (scroll.canScrollForward) {
+                        val fade = minOf(EndFade.toPx(), size.width)
+                        drawRect(
+                            Brush.horizontalGradient(listOf(page.copy(alpha = 0f), page), startX = size.width - fade, endX = size.width),
+                            topLeft = Offset(size.width - fade, 0f), size = Size(fade, size.height),
+                        )
+                    }
+                } else Modifier)
+                .horizontalScroll(scroll).padding(horizontal = bleed),
             horizontalArrangement = horizontalArrangement,
             verticalAlignment = verticalAlignment,
             content = content,

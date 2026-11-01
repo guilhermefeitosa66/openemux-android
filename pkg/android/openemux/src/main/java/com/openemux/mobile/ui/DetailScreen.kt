@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,15 +84,18 @@ private enum class Sheet { None, Core, Shader, States }
 /** One of the game's settings: what the list row or the tabletop tile shows, and what a tap opens. */
 private class Setting(val label: String, val value: String, val isDefault: Boolean, val onClick: (() -> Unit)?)
 
-/** How a game's detail is laid out: a phone's column, the library's side pane, or two columns on a tablet. */
-enum class DetailStyle { Phone, Pane, TwoColumns }
+/**
+ * How a game's detail is laid out: a phone's column, the library's side pane, two columns on a tablet, or a
+ * phone on its side with the cartridge left of the actions.
+ */
+enum class DetailStyle { Phone, Pane, TwoColumns, Landscape }
 
 @Composable
 fun DetailScreen(key: String) {
     val layout = LocalWindowLayout.current
     // Opened on its own beside a library that a resize gives its pane back: the game goes back there.
     ReturnToSplit(libraryPaneShown(), Routes.LIBRARY, key)
-    RomDetail(key, if (layout.twoColumnDetail) DetailStyle.TwoColumns else DetailStyle.Phone)
+    RomDetail(key, detailStyleOf(layout))
 }
 
 /**
@@ -246,10 +250,11 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             )
         }
     }
-    val colorBlock: @Composable () -> Unit = {
+    // [fadeEnd]: the swatches row fades at its end while more swatches can scroll in.
+    val colorBlock: @Composable (Boolean) -> Unit = { fadeEnd ->
         Column {
             colorHeader()
-            ColorSwatches(color, Modifier.padding(top = 10.dp)) { id -> lib.updateRom(key) { it.copy(color = id) } }
+            ColorSwatches(color, Modifier.padding(top = 10.dp), fadeEnd = fadeEnd) { id -> lib.updateRom(key) { it.copy(color = id) } }
         }
     }
     // The game's settings: label, value, whether the console's default applies, and what a tap opens.
@@ -278,7 +283,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 SettingTiles(settings, columns = if (compact) 2 else 4)
                 if (rom.console.frame != null) {
                     Spacer(Modifier.height(18.dp))
-                    colorBlock()
+                    colorBlock(false)
                 }
             } }
         }
@@ -325,7 +330,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 Box(Modifier.padding(horizontal = 20.dp)) { playButtons(52.dp, 120.dp) }
                 Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) { statesSection(3, 58.dp) }
 
-                if (rom.console.frame != null) Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) { colorBlock() }
+                if (rom.console.frame != null) Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) { colorBlock(false) }
 
                 settingsCard(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp))
                 Spacer(Modifier.height(28.dp))
@@ -356,6 +361,56 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 Spacer(Modifier.height(TabBarHeight + 24.dp))
                 Spacer(Modifier.height(hintBarInset))
             } }
+        }
+
+        // A phone on its side: the cartridge with its name on the left, every action on the right. Continue,
+        // Restart and the colour fit 360dp of height with the hint bar; the settings below them scroll, and say so.
+        DetailStyle.Landscape -> Row(
+            // The app's root already pads the system bars and the cutout on every side.
+            Modifier.fillMaxSize().statusBarsPadding(),
+        ) {
+            // One focus group per column: Right from the header enters the actions, Left from them comes back.
+            Box(Modifier.fillMaxWidth(0.42f).fillMaxHeight().focusGroup()) {
+                Glow(Modifier.fillMaxWidth().fillMaxHeight(0.9f).offset(y = 30.dp))
+                Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+                    header()
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                        // The cartridge by the height left over (less its shadow), never wider than the column.
+                        val width = minOf(maxWidth, (maxHeight - 16.dp) * rom.console.cartAspect).coerceAtLeast(0.dp)
+                        cartridge(Modifier.width(width))
+                    }
+                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(rom.title, style = Type.Title, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
+                            style = Type.Small, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp + hintBarInset))
+                }
+            }
+            val scroll = rememberScrollState()
+            // Up from the play buttons stays on them, off the rail and the header beside them.
+            Box(Modifier.weight(1f).fillMaxHeight().holdFocusAtEnd(FocusDirection.Up)) {
+                // A focused row stops above the fade, not under it.
+                MarginFocusScroll(trailing = maxOf(FocusMargin, EndFade) + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 12.dp, end = 20.dp, top = 12.dp)) {
+                    playButtons(48.dp, 112.dp)
+                    Box(Modifier.padding(top = 14.dp)) { statesSection(3, 50.dp) }
+                    if (rom.console.frame != null) Box(Modifier.padding(top = 14.dp)) { colorBlock(true) }
+                    Text(stringResource(R.string.detail_settings_for_game), style = Type.Section, modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
+                    settingsCard(Modifier)
+                    Spacer(Modifier.height(28.dp + hintBarInset))
+                    Spacer(Modifier.navigationBarsPadding())
+                } }
+                // There is more below: the foot fades into the page until the end is reached.
+                if (scroll.canScrollForward) {
+                    Box(
+                        Modifier.align(Alignment.BottomCenter).padding(bottom = hintBarInset).fillMaxWidth().height(EndFade)
+                            .background(Brush.verticalGradient(listOf(Oe.Bg.copy(alpha = 0f), Oe.Bg))),
+                    )
+                }
+            }
         }
 
         DetailStyle.TwoColumns -> BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -487,8 +542,8 @@ private fun SettingTiles(settings: List<Setting>, columns: Int) {
 }
 
 @Composable
-fun ColorSwatches(selected: String, modifier: Modifier = Modifier, onPick: (String) -> Unit) {
-    FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+fun ColorSwatches(selected: String, modifier: Modifier = Modifier, fadeEnd: Boolean = false, onPick: (String) -> Unit) {
+    FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), fadeEnd = fadeEnd) {
         CART_COLORS.forEach { c ->
             Box(
                 Modifier.size(padSize(SwatchSize, SwatchSizePad)).gamepadFocus(corner = padSize(19.dp, 22.dp)).clip(CircleShape)
