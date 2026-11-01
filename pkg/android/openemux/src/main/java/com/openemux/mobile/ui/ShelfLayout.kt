@@ -23,6 +23,19 @@ fun shelfCardSpec(tablet: Boolean): ShelfCardSpec =
 fun shelfColumns(widthDp: Float, maxColumns: Int = 2, side: Float = SHELF_SIDE_DP, gap: Float = SHELF_GAP_DP): Int =
     gridColumns(widthDp - 2 * side, SHELF_MIN_CARD_DP, gap, floor = 1).coerceAtMost(maxOf(1, maxColumns))
 
+/**
+ * The shelves pinned before the consoles: "ALL" whenever the library has games, then "FAV" when
+ * at least one of them is a favorite (issue 655). Neither on an empty library.
+ */
+fun pinnedShelves(total: Int, favorites: Int): List<String> = when {
+    total <= 0 -> emptyList()
+    favorites <= 0 -> listOf("ALL")
+    else -> listOf("ALL", "FAV")
+}
+
+/** One column with both pinned shelves: they share a row, half width each, instead of a row apiece. */
+fun pinnedAsPair(columns: Int, pinned: List<String>): Boolean = columns == 1 && pinned.size == 2
+
 /** A card on screen, in any unit, as the grid laid it out. */
 data class Slot<K>(val key: K, val x: Float, val y: Float, val width: Float, val height: Float)
 

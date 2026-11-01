@@ -24,6 +24,7 @@
     <string name="library_favorites">お気に入り</string>
     <string name="library_favorites_eyebrow">お気に入り</string>
     <string name="library_all_games">すべてのゲーム</string>
+    <string name="library_all_eyebrow">ライブラリ</string>
     <string name="library_all_consoles_eyebrow">すべてのコンソール</string>
     <string name="library_chip_all">すべて</string>
     <string name="library_search">検索</string>

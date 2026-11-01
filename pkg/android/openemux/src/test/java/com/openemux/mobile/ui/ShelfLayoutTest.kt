@@ -1,7 +1,9 @@
 package com.openemux.mobile.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShelfLayoutTest {
@@ -60,5 +62,21 @@ class ShelfLayoutTest {
         assertNull(reorderTarget(150f, 110f, "GBA", slots, movable))
         assertNull(reorderTarget(-1f, 80f, "MD", slots, movable))
         assertNull(reorderTarget(10f, 59f, "MD", slots, movable))
+    }
+
+    @Test
+    fun pinnedShelvesFollowTheLibrary() {
+        assertEquals(emptyList<String>(), pinnedShelves(0, 0))
+        assertEquals(listOf("ALL"), pinnedShelves(5, 0))
+        assertEquals(listOf("ALL", "FAV"), pinnedShelves(5, 2))
+    }
+
+    @Test
+    fun pinnedShelvesPairOnlyInOneColumnWithBoth() {
+        assertTrue(pinnedAsPair(1, listOf("ALL", "FAV")))
+        assertFalse(pinnedAsPair(1, listOf("ALL")))
+        assertFalse(pinnedAsPair(1, emptyList()))
+        assertFalse(pinnedAsPair(2, listOf("ALL", "FAV")))
+        assertFalse(pinnedAsPair(3, listOf("ALL", "FAV")))
     }
 }

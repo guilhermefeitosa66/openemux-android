@@ -26,6 +26,7 @@
     <string name="library_favorites">Favoriten</string>
     <string name="library_favorites_eyebrow">FAVORITEN</string>
     <string name="library_all_games">Alle Spiele</string>
+    <string name="library_all_eyebrow">BIBLIOTHEK</string>
     <string name="library_all_consoles_eyebrow">ALLE KONSOLEN</string>
     <string name="library_chip_all">Alle</string>
     <string name="library_search">Suchen</string>
