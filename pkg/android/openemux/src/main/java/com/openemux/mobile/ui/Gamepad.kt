@@ -598,14 +598,19 @@ fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier) {
     }
 }
 
+/** The faces the pad in use (or the forced family) prints for [token], as one badge shows them. */
+fun padFaces(token: String): List<Face> {
+    val pref = ButtonLabelsPref.value
+    return badgeFaces(faces(token, effectiveFamily(pref, PadLabels.detected), effectiveDualSense(pref, PadLabels.dualSense)))
+}
+
 /**
  * One hint badge: the face the pad in use prints on the button at [token]'s position. The confirm
  * position (the bottom button, token "A") keeps the accent fill whatever its face reads.
  */
 @Composable
 fun PadBadge(token: String) {
-    val pref = ButtonLabelsPref.value
-    val shown = badgeFaces(faces(token, effectiveFamily(pref, PadLabels.detected), effectiveDualSense(pref, PadLabels.dualSense)))
+    val shown = padFaces(token)
     val confirm = token == "A"
     val color = if (confirm) Color.White else Oe.Text
     val text = (shown.singleOrNull() as? Face.Text)?.text

@@ -193,7 +193,11 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
                 Text(stringResource(R.string.settings_button_labels_lead), style = Type.Small, modifier = Modifier.padding(bottom = 6.dp))
                 ButtonLabelOptions(Oe.Raised)
             } }
-            GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back)))
+            // A sheet is a window of its own, over the screen's hint bar: it draws its hints itself,
+            // so choosing a family shows at once what the buttons read.
+            val hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back))
+            GamepadButtons(hints = hints)
+            HintBar(hints)
         }
     }
     if (languageSheet) {

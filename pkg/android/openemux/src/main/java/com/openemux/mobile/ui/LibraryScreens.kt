@@ -1284,11 +1284,15 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
     }
 }
 
-/** A shoulder button's name beside the chips it switches, as the hint bar draws its badges; not focusable. */
+/**
+ * A shoulder button's name beside the chips it switches, as the hint bar draws its badges (LB, L or L1
+ * with the pad in use); not focusable.
+ */
 @Composable
 private fun ShoulderPill(button: String) {
+    val face = (padFaces(button).singleOrNull() as? Face.Text)?.text ?: button
     Box(Modifier.background(Oe.Raised, RoundedCornerShape(11.dp)).padding(horizontal = 8.dp, vertical = 3.dp), contentAlignment = Alignment.Center) {
-        Text(button, style = Type.Tag.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Oe.Text))
+        Text(face, style = Type.Tag.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Oe.Text))
     }
 }
 
