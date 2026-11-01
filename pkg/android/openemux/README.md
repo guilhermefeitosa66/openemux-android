@@ -161,6 +161,14 @@ set to that layout. An item bound to turbo or toggle fast forward gets the
 same lit `nul` desc as the drawn strip: the accent pill over the item's
 frame, with the skin's own glyph lifted off the art (what differs from the
 colour around it) and drawn on it in white, so a user's skin lights up too.
+The packages have no slow-motion item, so the renderer makes one right
+before fast forward (`launch/SlowMotionSlot.kt`): the keys edge to edge with
+fast forward on its row (the bundled skins' save, load, turbo, fast forward)
+are spread over the same span in one more cell, their glyphs lifted off the
+art and drawn again at their new places, and slow motion's ring is drawn in
+fast forward's colour; a lone fast-forward button is split in two. In
+RetroAchievements hardcore both speed keys are drawn at 0.45 with no touch
+area.
 `launch/OverlayWriter.kt` writes the overlays and their images for both
 renderers, each stick's movable knob (`<overlay>-knob<N>.png`) and its
 widened touch zone included.
