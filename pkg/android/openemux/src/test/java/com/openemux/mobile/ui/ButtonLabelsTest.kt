@@ -29,6 +29,7 @@ class ButtonLabelsTest {
         assertEquals(PadFamily.PLAYSTATION, familyOf(0, 0, "Wireless Controller"))
         assertEquals(PadFamily.NINTENDO, familyOf(0, 0, "Pro Controller"))
         assertEquals(PadFamily.NINTENDO, familyOf(0, 0, "Joy-Con (L)"))
+        assertEquals(PadFamily.XBOX, familyOf(0, 0, "Xbox Wireless Controller"))
         assertEquals(PadFamily.XBOX, familyOf(0, 0, "Generic USB Joystick"))
         assertEquals(PadFamily.XBOX, familyOf(0, 0, null))
     }

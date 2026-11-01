@@ -37,6 +37,8 @@ fun familyOf(vendorId: Int, productId: Int, name: String?): PadFamily = when (ve
 private fun familyOfName(name: String?): PadFamily {
     val n = name?.lowercase() ?: return PadFamily.XBOX
     return when {
+        // "Xbox Wireless Controller" holds "wireless controller" too: the brand is read first.
+        "xbox" in n -> PadFamily.XBOX
         "dualsense" in n || "dualshock" in n || "wireless controller" in n -> PadFamily.PLAYSTATION
         "pro controller" in n || "joy-con" in n -> PadFamily.NINTENDO
         else -> PadFamily.XBOX

@@ -145,12 +145,17 @@ object PadLabels {
         refresh()
     }
 
-    /** A key from a real pad makes it the one that names the buttons. */
+    /**
+     * A key press from a real pad makes it the one that names the buttons. The event's source decides, as it does
+     * for the gamepad layout: a pad that reports late has no gamepad source on its device yet.
+     */
     fun pressed(event: KeyEvent) {
+        if (event.action != KeyEvent.ACTION_DOWN) return
+        if (!event.isFromSource(InputDevice.SOURCE_GAMEPAD) && !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return
         val device = event.device ?: return
-        if (!isPad(device)) return
+        if (device.isVirtual) return
         tracker.pressed(device.id, padOf(device))
-        if (event.action == KeyEvent.ACTION_DOWN) refresh()
+        refresh()
     }
 
     val listener = object : InputManager.InputDeviceListener {
@@ -172,15 +177,17 @@ object PadLabels {
 
     /**
      * Debug builds: `DEBUG_GAMEPAD` with `--ei vendor <id>` (and `--ei product`, `--es name`) says which pad is in
-     * use; `--ez clear true` goes back to the devices. The emulator has no pad of its own to read.
+     * use; `--ez clear true` goes back to the devices. The emulator has no pad of its own to read. Returns whether
+     * the broadcast was only about the labels, so the caller leaves its connected override alone.
      */
-    fun debug(intent: Intent) {
+    fun debug(intent: Intent): Boolean {
         tracker.override = when {
             intent.getBooleanExtra("clear", false) -> null
             intent.hasExtra("vendor") -> PadId(intent.getIntExtra("vendor", 0), intent.getIntExtra("product", 0), intent.getStringExtra("name"))
-            else -> return
+            else -> return false
         }
         refresh()
+        return intent.hasExtra("vendor") && !intent.hasExtra("connected") && !intent.hasExtra("clear")
     }
 }
 

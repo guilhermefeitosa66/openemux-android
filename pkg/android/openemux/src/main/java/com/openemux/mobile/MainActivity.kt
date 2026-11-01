@@ -155,8 +155,7 @@ class MainActivity : ComponentActivity() {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 // A vendor (`--ei vendor <id> [--ei product <id>] [--es name <text>]`) says which pad names the buttons.
-                PadLabels.debug(intent)
-                if (intent.hasExtra("vendor") && !intent.hasExtra("connected") && !intent.hasExtra("clear")) return
+                if (PadLabels.debug(intent)) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
                 Log.i(TAG, "debug gamepad: $gamepadOverride")
                 followPads()

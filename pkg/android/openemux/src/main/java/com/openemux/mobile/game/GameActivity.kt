@@ -399,8 +399,7 @@ class GameActivity : RetroActivityFuture() {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 // A vendor says which pad names the buttons in the pause sheet, the way it does in the library.
-                PadLabels.debug(intent)
-                if (intent.hasExtra("vendor") && !intent.hasExtra("connected") && !intent.hasExtra("clear")) return
+                if (PadLabels.debug(intent)) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
                 Log.i(TAG, "debug gamepad: $gamepadOverride")
                 followGamepad()
