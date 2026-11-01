@@ -469,7 +469,7 @@ fun OeTextField(
         ) {
             BasicTextField(
                 value, onChange,
-                Modifier.weight(1f).padding(vertical = 14.dp).let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
+                Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically().let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
                 readOnly = readOnly,
                 singleLine = true,
                 textStyle = Type.Body,

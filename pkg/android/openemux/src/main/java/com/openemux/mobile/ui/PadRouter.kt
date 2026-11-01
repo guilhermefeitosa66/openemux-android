@@ -9,6 +9,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.Window
+import android.view.inputmethod.InputMethodManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
@@ -21,11 +24,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -135,27 +144,29 @@ fun stickDelay(sameKey: Boolean): Long = if (sameKey) 90L else 380L
 data class LandingSpot(val shown: Boolean, val initial: Boolean, val lastFocus: Long, val x: Float = 0f, val y: Float = 0f)
 
 /**
- * Where a press that finds nothing focused lands, as an index into [spots]
- * (-1 for none). The item that held focus last, if it still shows; else,
- * when [anchor] says where that item was on screen, the showing item
- * nearest that place (the user scrolled it away: focus stays where the eye
- * was); else the screen's initial item, if it shows; else the first one
- * showing, in reading order; else the initial item or the last focused,
- * wherever they are.
+ * Where a press that finds nothing focused lands: indexes into [spots], best
+ * first, the next one tried when an item turns focus down. The item that held
+ * focus last, if it still shows; then, when [anchor] says where that item was
+ * on screen, the showing items nearest that place (the user scrolled it away:
+ * focus stays where the eye was); then the screen's initial item, if it
+ * shows; then the showing ones in reading order; then the initial item and
+ * the last focused, wherever they are.
  */
-fun pickLanding(spots: List<LandingSpot>, anchor: Pair<Float, Float>? = null): Int {
+fun rankLanding(spots: List<LandingSpot>, anchor: Pair<Float, Float>? = null): List<Int> {
     val indexed = spots.withIndex()
     val latest = indexed.filter { it.value.lastFocus > 0 }.maxByOrNull { it.value.lastFocus }
-    if (latest != null && latest.value.shown) return latest.index
     val shown = indexed.filter { it.value.shown }
+    val order = mutableListOf<Int>()
+    if (latest != null && latest.value.shown) order += latest.index
     if (anchor != null) {
         val (ax, ay) = anchor
-        shown.minByOrNull { (it.value.x - ax).let { d -> d * d } + (it.value.y - ay).let { d -> d * d } }?.let { return it.index }
+        order += shown.sortedBy { (it.value.x - ax).let { d -> d * d } + (it.value.y - ay).let { d -> d * d } }.map { it.index }
     }
-    shown.firstOrNull { it.value.initial }?.let { return it.index }
-    shown.minWithOrNull(compareBy({ it.value.y }, { it.value.x }))?.let { return it.index }
-    indexed.firstOrNull { it.value.initial }?.let { return it.index }
-    return latest?.index ?: -1
+    order += shown.filter { it.value.initial }.map { it.index }
+    order += shown.sortedWith(compareBy({ it.value.y }, { it.value.x })).map { it.index }
+    order += indexed.filter { it.value.initial }.map { it.index }
+    if (latest != null) order += latest.index
+    return order.distinct()
 }
 
 /** An item that can take the gamepad's focus, in one window. */
@@ -231,16 +242,14 @@ class PadScope {
     /** The item that holds focus, else the last one that did. */
     fun current(): PadTarget? = targets.firstOrNull { it.focused } ?: targets.filter { it.lastFocus > 0 }.maxByOrNull { it.lastFocus }
 
-    /** Puts focus on the item [pickLanding] chooses; false when there is none. */
+    /** Puts focus on the first item of [rankLanding] that takes it; false when none does. */
     fun land(): Boolean {
         val list = targets.toList()
         val spots = list.map { t ->
             val c = if (t.shown()) t.center() else null
             LandingSpot(c != null, t.initial, t.lastFocus, c?.first ?: 0f, c?.second ?: 0f)
         }
-        val i = pickLanding(spots, anchor)
-        if (i < 0) return false
-        return focus(list[i])
+        return rankLanding(spots, anchor).any { focus(list[it]) }
     }
 
     /** Puts focus on [target], out of touch mode first: there the items are not focusable, and only a D-pad key leaves it. */
@@ -248,7 +257,7 @@ class PadScope {
         view?.let { v -> if (v.isInTouchMode) runCatching { v.requestFocusFromTouch() } }
         // Leaving touch mode here is not a press to wait for (touchExit), or the root would turn this request down.
         touchExit = false
-        return runCatching { target.requester.requestFocus() }.isSuccess
+        return runCatching { target.requester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
     }
 }
 
@@ -292,7 +301,7 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
                     event.metaState, event.deviceId, event.scanCode, event.flags, InputDevice.SOURCE_DPAD,
                 ),
             )
-            is PadDecision.Back -> { if (decision.act) back(); true }
+            is PadDecision.Back -> { if (decision.act && !hideKeyboard(s.view)) back(); true }
             is PadDecision.Bus -> { if (decision.act) GamepadBus.dispatch { it.handler(decision.button) }; true }
             PadDecision.Land -> { landed = code; s.land(); s.touchExit = false; true }
             PadDecision.Swallow -> { landed = 0; true }
@@ -320,6 +329,16 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
     }
 }
 
+/** B with the keyboard up closes the keyboard first, as the system back does; true when it did. */
+private fun hideKeyboard(view: View?): Boolean {
+    if (view == null) return false
+    val shown = ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+    if (!shown) return false
+    val imm = view.context.getSystemService(InputMethodManager::class.java) ?: return false
+    imm.hideSoftInputFromWindow(view.windowToken, 0)
+    return true
+}
+
 /** A dialog window's callback with the pad's handling in front; everything else goes to [original]. */
 private class PadCallback(private val original: Window.Callback, private val router: PadRouter) : Window.Callback by original {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean = router.key(event) { original.dispatchKeyEvent(it) }
@@ -338,6 +357,24 @@ internal fun Modifier.padTarget(target: PadTarget, attach: Boolean = true): Modi
     (if (attach) focusRequester(target.requester) else this)
         .onPlaced { target.coords = it; scope.placed(target) }
         .onFocusChanged { scope.focusChanged(target, it.isFocused || it.hasFocus) }
+}
+
+/**
+ * A single-line field keeps the D-pad's up and down for its cursor, and the
+ * pad could never leave it: in gamepad mode they move focus out instead.
+ */
+fun Modifier.leaveFieldVertically(): Modifier = composed {
+    val focus = LocalFocusManager.current
+    onPreviewKeyEvent { e ->
+        val dir = when (e.key) {
+            Key.DirectionUp -> FocusDirection.Up
+            Key.DirectionDown -> FocusDirection.Down
+            else -> null
+        }
+        if (dir == null || !InputMode.gamepad) return@onPreviewKeyEvent false
+        if (e.type == KeyEventType.KeyDown) focus.moveFocus(dir)
+        true
+    }
 }
 
 /** Tells [scope] whether anything under this root holds focus. */

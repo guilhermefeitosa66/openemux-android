@@ -130,34 +130,40 @@ class PadRouterTest {
         assertEquals(90L, stickDelay(true))
     }
 
-    private fun spot(shown: Boolean, initial: Boolean = false, last: Long = 0, top: Float = 0f, left: Float = 0f) =
-        LandingSpot(shown, initial, last, top, left)
+    private fun spot(shown: Boolean, initial: Boolean = false, last: Long = 0, x: Float = 0f, y: Float = 0f) =
+        LandingSpot(shown, initial, last, x, y)
 
     @Test
-    fun landingPrefersTheLastFocusedItemThatShows() {
+    fun anItemFocusedEarlierIsNotPreferred() {
+        // The latest one (9) is gone: one focused before it has no say, the initial item and reading order do.
         val spots = listOf(spot(true, initial = true), spot(true, last = 2), spot(true, last = 5), spot(false, last = 9))
-        assertEquals(2, pickLanding(spots))
+        assertEquals(listOf(0, 1, 2, 3), rankLanding(spots))
     }
 
     @Test
-    fun landingFallsBackToTheInitialItemThatShows() {
-        // The last focused one scrolled away.
-        val spots = listOf(spot(true, top = 0f), spot(false, last = 4), spot(true, initial = true, top = 50f))
-        assertEquals(2, pickLanding(spots))
+    fun landingTakesTheLatestWhenItShows() {
+        val spots = listOf(spot(true, initial = true), spot(true, last = 7, y = 50f))
+        assertEquals(listOf(1, 0), rankLanding(spots))
     }
 
     @Test
-    fun landingTakesTheFirstShownInReadingOrder() {
-        val spots = listOf(spot(true, top = 40f, left = 0f), spot(true, top = 10f, left = 30f), spot(true, top = 10f, left = 5f), spot(false, initial = false))
-        assertEquals(2, pickLanding(spots))
+    fun aScrolledAwayFocusLandsNearestWhereItWas() {
+        val spots = listOf(spot(true, x = 0f, y = 0f), spot(false, last = 4), spot(true, x = 100f, y = 100f), spot(true, initial = true, x = 300f, y = 0f))
+        assertEquals(listOf(2, 0, 3, 1), rankLanding(spots, anchor = 90f to 110f))
+    }
+
+    @Test
+    fun withoutAnAnchorTheInitialItemThenReadingOrder() {
+        val spots = listOf(spot(true, x = 0f, y = 40f), spot(true, x = 30f, y = 10f), spot(true, x = 5f, y = 10f), spot(true, initial = true, y = 90f))
+        assertEquals(listOf(3, 2, 1, 0), rankLanding(spots))
     }
 
     @Test
     fun withNothingShownLandingTakesTheInitialThenTheLast() {
-        assertEquals(1, pickLanding(listOf(spot(false, last = 3), spot(false, initial = true))))
-        assertEquals(1, pickLanding(listOf(spot(false, last = 3), spot(false, last = 7))))
-        assertEquals(-1, pickLanding(listOf(spot(false))))
-        assertEquals(-1, pickLanding(emptyList()))
+        assertEquals(listOf(1, 0), rankLanding(listOf(spot(false, last = 3), spot(false, initial = true))))
+        assertEquals(listOf(1), rankLanding(listOf(spot(false, last = 3), spot(false, last = 7))))
+        assertEquals(emptyList<Int>(), rankLanding(listOf(spot(false))))
+        assertEquals(emptyList<Int>(), rankLanding(emptyList()))
     }
 
     @Test
