@@ -11,6 +11,8 @@
         <item quantity="one">%1$d Spiel</item>
         <item quantity="other">%1$d Spiele</item>
     </plurals>
+    <!-- A console group's caption: its abbreviation and its name. -->
+    <string name="library_group_caption">%1$s – %2$s</string>
     <string name="library_shelf_empty_title">Dein Regal ist leer</string>
     <string name="library_shelf_empty_body">Importiere ROMs der Spiele, die du besitzt, einzeln oder als .zip. Die unterstützten Formate stehen im Tab „Import“.</string>
     <string name="library_shelf_empty_action">ROMs importieren</string>
