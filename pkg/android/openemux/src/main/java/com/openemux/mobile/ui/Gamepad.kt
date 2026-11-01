@@ -31,6 +31,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -396,6 +398,25 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
             InputMode.last = requester
         }
     }
+}
+
+/** Where the rows of a screen remember the one that held focus; null outside such a screen. */
+val LocalRowFocus = compositionLocalOf<MutableState<String?>?> { null }
+
+/**
+ * The rows in [content] (ListRow, SwitchRow, SettingTile) remember which one
+ * held focus, and focus it again when the screen comes back in gamepad mode.
+ */
+@Composable
+fun RememberRowFocus(content: @Composable () -> Unit) {
+    val saved = rememberSaveable { mutableStateOf<String?>(null) }
+    CompositionLocalProvider(LocalRowFocus provides saved, content = content)
+}
+
+/** A row restorable under its screen's [RememberRowFocus], by [key]. */
+fun Modifier.rowFocus(key: String): Modifier = composed {
+    val saved = LocalRowFocus.current
+    if (saved == null) this else restorableFocus(key, saved)
 }
 
 /** The gamepad hint bar: badge + label pairs, only in gamepad mode. */

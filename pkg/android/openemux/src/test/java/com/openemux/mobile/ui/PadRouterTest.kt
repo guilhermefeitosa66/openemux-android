@@ -201,4 +201,17 @@ class PadRouterTest {
     fun landingInAnEmptyScopeFindsNothing() {
         assertFalse(PadScope().land())
     }
+
+    @Test
+    fun theDpadScrollsATextByTwoThirdsOfAScreen() {
+        assertEquals(600f, textScrollStep(down = true, up = false, height = 900, value = 0, max = 5000))
+        assertEquals(-600f, textScrollStep(down = false, up = true, height = 900, value = 100, max = 5000))
+    }
+
+    @Test
+    fun atAnEndOrOnAnotherKeyTheTextLetsThePressGo() {
+        assertNull(textScrollStep(down = true, up = false, height = 900, value = 5000, max = 5000))
+        assertNull(textScrollStep(down = false, up = true, height = 900, value = 0, max = 5000))
+        assertNull(textScrollStep(down = false, up = false, height = 900, value = 10, max = 5000))
+    }
 }

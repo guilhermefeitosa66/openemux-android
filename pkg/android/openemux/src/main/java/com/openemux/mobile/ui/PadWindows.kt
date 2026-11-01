@@ -40,7 +40,8 @@ fun OeSheet(
 ) {
     val opener = LocalPadScope.current
     val scope = remember { PadScope() }
-    CompositionLocalProvider(LocalPadScope provides scope) {
+    // A sheet's rows are not the screen's: they do not take its remembered row.
+    CompositionLocalProvider(LocalPadScope provides scope, LocalRowFocus provides null) {
         ModalBottomSheet(
             onDismissRequest, Modifier.padRoot(scope), sheetState = sheetState, containerColor = Oe.Sheet,
             scrimColor = scrimColor, properties = properties,

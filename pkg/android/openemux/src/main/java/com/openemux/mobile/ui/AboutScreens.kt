@@ -246,7 +246,8 @@ fun LicenseTextScreen(id: String, embedded: Boolean = false, onBack: (() -> Unit
     val text by produceState("") {
         value = withContext(Dispatchers.IO) { context.assets.open(file).bufferedReader().use { it.readText() } }
     }
-    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding().readingWidth().padding(horizontal = 20.dp)) {
+    val scroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().statusBarsPadding().padScrollsText(scroll).verticalScroll(scroll).navigationBarsPadding().readingWidth().padding(horizontal = 20.dp)) {
         BackLink(stringResource(if (embedded) R.string.settings_about_licenses else R.string.about_licenses)) { onBack?.invoke() ?: a.nav.popBackStack() }
         Text(
             text, style = Type.Small.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp, color = Oe.Text),

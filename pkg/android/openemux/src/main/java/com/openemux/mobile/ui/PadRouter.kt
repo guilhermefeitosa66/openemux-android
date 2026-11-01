@@ -15,7 +15,16 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -223,15 +232,13 @@ class PadScope {
     fun focusChanged(target: PadTarget, now: Boolean) {
         target.focused = now
         if (now) target.lastFocus = ++tick
-        if (now) target.center()?.let { anchor = it }
+        if (now && target.shown()) target.center()?.let { anchor = it }
     }
 
     /** The focused item moved (its list scrolled to it): the anchor follows it while it shows. */
     fun placed(target: PadTarget) {
         if (target.focused && target.shown()) target.center()?.let { anchor = it }
     }
-
-    fun debug(): String = targets.filter { it.focused }.joinToString { t -> "f(att=${t.coords?.isAttached} b=${runCatching { t.coords?.boundsInWindow() }.getOrNull()})" } + " n=${targets.size}"
 
     /** Whether an item that shows holds focus; one the scope does not know counts as showing. */
     fun focusShown(): Boolean {
@@ -282,7 +289,6 @@ class PadRouter(private val scope: () -> PadScope, private val back: () -> Unit)
         val code = event.keyCode
         val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
         val decision = decidePadKey(code, event.action, fromPad, scope().focusShown(), landed)
-        android.util.Log.d("PADDBG", "code=$code act=${event.action} shown=${scope().focusShown()} root=${scope().rootHasFocus} d=$decision ${scope().debug()}")
         val s = scope()
         if (decision == PadDecision.NotPad) { s.touchExit = false; return dispatch(event) }
         InputMode.gamepad = true
@@ -375,6 +381,40 @@ fun Modifier.leaveFieldVertically(): Modifier = composed {
         if (e.type == KeyEventType.KeyDown) focus.moveFocus(dir)
         true
     }
+}
+
+/**
+ * A screen of plain text has nothing for the D-pad to move to: the text
+ * takes focus, and up and down scroll it by most of a screen, so the pad can
+ * read it all. B still goes back.
+ */
+fun Modifier.padScrollsText(scroll: ScrollState): Modifier = composed {
+    val scope = rememberCoroutineScope()
+    var height by remember { mutableIntStateOf(0) }
+    // The text itself holds focus, so it always shows while it scrolls (a link above it would scroll away).
+    val target = remember { PadTarget(initial = true) }
+    LaunchedEffect(InputMode.gamepad) {
+        if (!InputMode.gamepad) return@LaunchedEffect
+        withFrameNanos { }
+        runCatching { target.requester.requestFocus() }
+    }
+    padTarget(target).focusable().onSizeChanged { height = it.height }.onPreviewKeyEvent { e ->
+        val step = textScrollStep(e.key == Key.DirectionDown, e.key == Key.DirectionUp, height, scroll.value, scroll.maxValue)
+        if (step == null || !InputMode.gamepad) return@onPreviewKeyEvent false
+        if (e.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(step) }
+        true
+    }
+}
+
+/**
+ * How far a D-pad press scrolls a text of [height] px, at [value] of [max]:
+ * two thirds of it down or up; null when the key is neither, or the text is
+ * already at that end (up at the top lets focus go to what lies above).
+ */
+fun textScrollStep(down: Boolean, up: Boolean, height: Int, value: Int, max: Int): Float? = when {
+    down && value < max -> height * 2f / 3f
+    up && value > 0 -> -height * 2f / 3f
+    else -> null
 }
 
 /** Tells [scope] whether anything under this root holds focus. */

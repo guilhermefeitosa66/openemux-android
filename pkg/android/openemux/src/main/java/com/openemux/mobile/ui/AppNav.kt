@@ -213,15 +213,16 @@ fun OpenEmuxRoot() {
                         composable(Routes.LIBRARY) { LibraryScreen(it.arguments?.getString("filter") ?: "ALL", it) }
                         composable(Routes.ROM) { DetailScreen(Uri.decode(it.arguments?.getString("key") ?: "")) }
                         composable(Routes.RECENT) { RecentScreen() }
-                        composable(Routes.IMPORT) { ImportScreen() }
-                        composable(Routes.SETTINGS) { SettingsScreen(it) }
-                        composable(Routes.CONSOLE) { ConsoleSettingsScreen(it.arguments?.getString("console") ?: "GBA") }
-                        composable(Routes.BIOS) { BiosScreen() }
-                        composable(Routes.ACHIEVEMENTS) { AchievementsScreen() }
-                        composable(Routes.BACKUP) { BackupScreen() }
-                        composable(Routes.ABOUT) { AboutScreen() }
-                        composable(Routes.LICENSES) { LicensesScreen() }
-                        composable(Routes.LICENSE) { LicenseTextScreen(it.arguments?.getString("id").orEmpty()) }
+                        // Rows (ListRow, SwitchRow, SettingTile) get their focus back on these when they come back.
+                        composable(Routes.IMPORT) { RememberRowFocus { ImportScreen() } }
+                        composable(Routes.SETTINGS) { RememberRowFocus { SettingsScreen(it) } }
+                        composable(Routes.CONSOLE) { RememberRowFocus { ConsoleSettingsScreen(it.arguments?.getString("console") ?: "GBA") } }
+                        composable(Routes.BIOS) { RememberRowFocus { BiosScreen() } }
+                        composable(Routes.ACHIEVEMENTS) { RememberRowFocus { AchievementsScreen() } }
+                        composable(Routes.BACKUP) { RememberRowFocus { BackupScreen() } }
+                        composable(Routes.ABOUT) { RememberRowFocus { AboutScreen() } }
+                        composable(Routes.LICENSES) { RememberRowFocus { LicensesScreen() } }
+                        composable(Routes.LICENSE) { RememberRowFocus { LicenseTextScreen(it.arguments?.getString("id").orEmpty()) } }
                         composable(Routes.SHARE) { ShareScreen(receive = false) }
                         composable(Routes.SHARE_RECEIVE) { ShareScreen(receive = true) }
                         composable(Routes.SHARE_ITEMS) { WhatToSendScreen() }
