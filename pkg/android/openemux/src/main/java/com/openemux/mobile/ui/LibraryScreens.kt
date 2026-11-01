@@ -37,6 +37,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -1197,10 +1206,81 @@ private fun CappedCell(spec: GridSpec, content: @Composable (Modifier) -> Unit) 
 /** A console's header over its games on a mixed page. */
 @Composable
 private fun GroupHeader(console: Console, count: Int) {
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        ConsoleChip(console)
-        Text(console.displayName, style = Type.Section.copy(fontSize = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp).semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        ConsoleIcon(console, 24.dp)
+        Text(groupCaption(console), style = Type.Section.copy(fontSize = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Text(countString(R.plurals.library_games_count, count, count), style = Type.Caption)
+    }
+}
+
+/** A group's caption: the console's abbreviation and its name, "SNES – Super Nintendo". */
+@Composable
+private fun groupCaption(console: Console) = stringResource(R.string.library_group_caption, console.short, console.displayName)
+
+/** In the sideways row, the small label over a console's games: icon, caption and count on one line. */
+@Composable
+private fun GroupLabelLine(console: Console, count: Int, modifier: Modifier) {
+    Row(
+        modifier.height(18.dp).semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ConsoleIcon(console, 16.dp)
+        Text(groupCaption(console), style = Type.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false))
+        Text("·", style = Type.Caption.copy(color = Oe.Faint), modifier = Modifier.padding(horizontal = 6.dp).clearAndSetSemantics {})
+        Text(countString(R.plurals.library_games_count, count, count), style = Type.Caption.copy(color = Oe.Faint), maxLines = 1, softWrap = false)
+    }
+}
+
+/**
+ * Over the landscape row of a mixed page, one label per console in view: over
+ * the console's first game, stuck at the row's start ([edge]) once that game
+ * scrolls past, pushed out by the next console's label. Positions are read at
+ * layout time, so scrolling only moves them.
+ *
+ * Accessibility drops a node that a later sibling covers, and the row covers
+ * the labels drawn under it. So the labels come twice: [semanticsOnly] false
+ * draws them under the row with no semantics, true lays them out over the row
+ * drawing nothing, for TalkBack to read.
+ */
+@Composable
+private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyListState, edge: Dp, semanticsOnly: Boolean, modifier: Modifier) {
+    val starts = remember(groups) { GroupLabel.starts(groups.map { it.second.size }) }
+    // The groups with a game in view; changes only when a group enters or leaves.
+    val inView by remember(groups, starts) {
+        derivedStateOf {
+            val visible = state.layoutInfo.visibleItemsInfo
+            if (visible.isEmpty() || starts.isEmpty()) emptyList()
+            else (GroupLabel.groupAt(visible.first().index, starts)..GroupLabel.groupAt(visible.last().index, starts)).toList()
+        }
+    }
+    val widths = remember { mutableStateMapOf<String, Int>() }
+    val density = LocalDensity.current
+    val edgePx = with(density) { edge.roundToPx() }
+    val gapPx = with(density) { 12.dp.roundToPx() }
+    // Where group [g]'s label sits, from the last group in view back to [g].
+    fun labelX(g: Int): Int {
+        val info = state.layoutInfo
+        val startX = info.visibleItemsInfo.firstOrNull { it.index == starts[g] }?.let { it.offset - info.viewportStartOffset }
+        val next = g + 1
+        val nextX = if (next in inView && groups[next].first != null) labelX(next) else null
+        return GroupLabel.stickyX(startX, nextX, groups[g].first?.let { widths[it.id] } ?: 0, edgePx, gapPx)
+    }
+    BoxWithConstraints(modifier.fillMaxWidth().height(18.dp).clipToBounds()) {
+        inView.forEach { g ->
+            val console = groups[g].first ?: return@forEach
+            key(console.id) {
+                GroupLabelLine(
+                    console, groups[g].second.size,
+                    (if (semanticsOnly) Modifier.drawWithContent {} else Modifier.clearAndSetSemantics {})
+                        .widthIn(max = maxWidth - edge * 2)
+                        .onSizeChanged { widths[console.id] = it.width }
+                        .offset { IntOffset(labelX(g), 0) },
+                )
+            }
+        }
     }
 }
 
@@ -1263,16 +1343,20 @@ private fun LandscapeLibrary(
             // The focused game stays in the middle; the first and last rest at the row's edges.
             // The last game sits at the row's end, which is the left in a right-to-left layout.
             val rowEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) FocusDirection.Left else FocusDirection.Right
+            // A mixed page names each console over its games, under the row so a focus ring is never covered.
+            val rowState = rememberLazyListState()
+            val mixed = groups.any { it.first != null }
+            if (mixed) GroupLabels(groups, rowState, margin, semanticsOnly = false, Modifier.padding(top = 8.dp))
             CenteredFocusScroll { LazyRow(
                 // While selecting, the D-pad stays on the games, as in the portrait grid.
                 Modifier.fillMaxSize().holdFocusAtEnd(rowEnd).holdGamepadFocus(pick.selection.active),
+                state = rowState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = margin),
                 horizontalArrangement = Arrangement.spacedBy(gap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val firstKey = groups.firstOrNull()?.second?.firstOrNull()?.key
-                groups.forEach { (group, groupRoms) ->
-                    if (group != null) item(key = "group-${group.id}") { LandscapeGroupHeader(group, groupRoms.size) }
+                groups.forEach { (_, groupRoms) ->
                     items(groupRoms, key = { it.key }) { rom ->
                         val open = { a.nav.navigate(Routes.rom(rom.key)) }
                         val favorite = meta.roms[rom.key]?.favorite == true
@@ -1311,17 +1395,9 @@ private fun LandscapeLibrary(
                     }
                 }
             } }
+            // The same labels over the row, invisible, so the row does not hide them from TalkBack.
+            if (mixed) GroupLabels(groups, rowState, margin, semanticsOnly = true, Modifier.padding(top = 8.dp))
         }
-    }
-}
-
-/** In the sideways row, a console's name stands before its games. */
-@Composable
-private fun LandscapeGroupHeader(console: Console, count: Int) {
-    Column(Modifier.width(170.dp)) {
-        ConsoleChip(console)
-        Text(console.displayName, style = Type.Section.copy(fontSize = 16.sp), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
-        Text(countString(R.plurals.library_games_count, count, count), style = Type.Caption, modifier = Modifier.padding(top = 2.dp))
     }
 }
 

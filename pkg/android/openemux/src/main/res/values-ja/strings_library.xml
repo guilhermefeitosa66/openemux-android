@@ -9,6 +9,8 @@
     <plurals name="library_games_count">
         <item quantity="other">%1$d 本</item>
     </plurals>
+    <!-- A console group's caption: its abbreviation and its name. -->
+    <string name="library_group_caption">%1$s – %2$s</string>
     <string name="library_shelf_empty_title">棚は空です</string>
     <string name="library_shelf_empty_body">持っているゲームの ROM を、そのままでも .zip でも取り込めます。対応形式は「取り込み」タブに一覧があります。</string>
     <string name="library_shelf_empty_action">ROM を取り込む</string>
