@@ -27,6 +27,7 @@ import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
+import com.openemux.mobile.game.Gamepads
 import com.openemux.mobile.ui.folds
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
@@ -172,7 +173,10 @@ class GameLauncher(
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
-            val drawn = GameSkin.render(context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright)
+            val drawn = GameSkin.render(
+                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright,
+                gamepad = Gamepads.connected(),
+            )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
 
@@ -246,7 +250,8 @@ class GameLauncher(
             "input_overlay_opacity" to "1.000000",
             "input_overlay_auto_scale" to "false",
             "input_overlay_hide_in_menu" to "true",
-            "input_overlay_hide_when_gamepad_connected" to "true",
+            // The skin switches to its gamepad layout instead (GameActivity): the app controls stay on screen.
+            "input_overlay_hide_when_gamepad_connected" to "false",
             "input_overlay_show_inputs" to "0",
             "input_menu_toggle_gamepad_combo" to "0",
             "libretro_directory" to paths.cores.absolutePath,
@@ -278,6 +283,23 @@ class GameLauncher(
             "auto_overrides_enable" to "false",
             "auto_remaps_enable" to "false",
             "menu_show_load_content_animation" to "false",
+            // RetroArch's own menu, opened from the pause sheet for advanced settings: Close Content quits like the
+            // sheet's Quit game (auto save, back to the library) instead of leaving an empty menu with no game.
+            "quit_on_close_content" to "1",
+            // Entries that would load other content or cores, update, restart or switch config files: a session the app
+            // does not manage. Quit RetroArch stays: it is Quit game in effect.
+            "menu_show_load_core" to "false",
+            "menu_show_load_content" to "false",
+            "menu_show_load_disc" to "false",
+            "menu_show_dump_disc" to "false",
+            "menu_show_online_updater" to "false",
+            "menu_show_core_updater" to "false",
+            "menu_show_restart_retroarch" to "false",
+            "menu_show_configurations" to "false",
+            "content_show_history" to "false",
+            "content_show_playlists" to "false",
+            "content_show_favorites" to "false",
+            "content_show_explore" to "false",
             "notification_show_autoconfig" to "false",
             "notification_show_remap_load" to "false",
             "notification_show_config_override_load" to "false",

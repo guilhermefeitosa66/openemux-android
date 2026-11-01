@@ -13,12 +13,14 @@ import java.util.Locale
  * that state on. A stick with a [well] (the circle drawn around it) has the knob's travel for its rect, [knob] the
  * image the engine moves with the thumb and [saturate] where along the travel the value peaks. [dpad] makes it an
  * eight-way D-pad area with those up, down, left, right binds, whose rect is the travel of its circle ([knob]), and
- * which is touched [reach] times its half-size on each side of its centre (left, top, right, bottom).
+ * which is touched [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
+ * drawn over its rect all the time (an app control drawn apart from the page's image, which its collapsed twin shares).
  */
 internal class OverlayDesc(
     val name: String, val rect: RectF, val radial: Boolean = false, val next: String? = null, val lit: OverlayLit? = null,
     val well: RectF? = null, val knob: Bitmap? = null, val saturate: Float = 1f,
     val dpad: List<String>? = null, val reach: FloatArray = floatArrayOf(1f, 1f, 1f, 1f),
+    val image: Bitmap? = null,
 )
 
 /** The image of a desc lit by an engine state (overlayN_descM_lit_by: fast_forward or turbo). */
@@ -54,26 +56,34 @@ internal object OverlayWriter {
     }
 
     /**
-     * Writes the overlay's [bitmap] as [image] in [outDir], and its descs' lit images and moving images (a stick's
-     * knob, a D-pad's circle) next to it; a moving image is recycled once written.
+     * Writes the overlay's [bitmap] as [image] in [outDir] (none: the page has no image of its own, or shares one
+     * already written), and its descs' lit images, moving images (a stick's knob, a D-pad's circle) and own images
+     * next to it, named after [prefix]; a moving image or an own image is recycled once written.
      */
-    fun saveImages(outDir: File, image: String, bitmap: Bitmap, descs: List<OverlayDesc>) {
-        File(outDir, image).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    fun saveImages(outDir: File, image: String?, bitmap: Bitmap?, descs: List<OverlayDesc>, prefix: String = image!!.removeSuffix(".png")) {
+        if (image != null && bitmap != null) File(outDir, image).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         descs.forEachIndexed { i, d ->
             d.lit?.let { lit ->
-                File(outDir, litImage(image, lit)).outputStream().use { lit.bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                File(outDir, litImage(prefix, lit)).outputStream().use { lit.bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             }
             d.knob?.let { knob ->
-                File(outDir, knobImage(image, i)).outputStream().use { knob.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                File(outDir, knobImage(prefix, i)).outputStream().use { knob.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 knob.recycle()
+            }
+            d.image?.let { own ->
+                File(outDir, ownImage(prefix, i)).outputStream().use { own.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                own.recycle()
             }
         }
     }
 
-    private fun litImage(image: String, lit: OverlayLit) = image.removeSuffix(".png") + "-lit-${lit.state}.png"
+    private fun litImage(prefix: String, lit: OverlayLit) = "$prefix-lit-${lit.state}.png"
 
     /** The moving image (a stick's knob, a D-pad's circle) of the desc at [i]. */
-    private fun knobImage(image: String, i: Int) = image.removeSuffix(".png") + "-knob$i.png"
+    private fun knobImage(prefix: String, i: Int) = "$prefix-knob$i.png"
+
+    /** The image of its own the desc at [i] is drawn with. */
+    private fun ownImage(prefix: String, i: Int) = "$prefix-image$i.png"
 
     /**
      * Overlay [index] of the cfg, [w] x [h] pixels, with the game in [picture]; [other] is the overlay of the other
@@ -81,11 +91,13 @@ internal object OverlayWriter {
      * circle, which RetroArch stretches over its desc's range (a D-pad's touch area grows through its reach). A
      * stick's zone reaches past its travel up to the other controls and the [clear] areas, [gap] short of them.
      * [hidden] is where the auto-rotate switch sits, as a fraction of the height: off the fold on a tabletop overlay.
+     * A null [image] writes a page with no image of its own; the descs' images are named after [prefix], as
+     * [saveImages] wrote them.
      */
     fun write(
-        cfg: StringBuilder, index: Int, name: String, other: String, image: String,
+        cfg: StringBuilder, index: Int, name: String, other: String, image: String?,
         descs: List<OverlayDesc>, w: Int, h: Int, picture: RectF, grow: Float, clear: List<RectF>, gap: Float,
-        hidden: Float = 0.5f,
+        hidden: Float = 0.5f, prefix: String = image!!.removeSuffix(".png"),
     ) {
         fun touch(d: OverlayDesc) = touchArea(d, grow)
         // What a stick's touch zone must stay clear of: every other control, as touched, and the [clear] areas.
@@ -99,7 +111,7 @@ internal object OverlayWriter {
                 p, picture.left / w, (h - picture.bottom) / h, picture.width() / w, picture.height() / h,
             )
         )
-        cfg.append("${p}_overlay = \"$image\"\n")
+        if (image != null) cfg.append("${p}_overlay = \"$image\"\n")
         cfg.append("${p}_full_screen = true\n")
         cfg.append("${p}_normalized = true\n")
         cfg.append("${p}_range_mod = 1.0\n")
@@ -115,17 +127,19 @@ internal object OverlayWriter {
                 )
             )
             when {
-                d.well != null -> stick(cfg, p, i, d, image, taken.filterIndexed { j, _ -> j != i }, gap)
+                // A "nul" desc is an image (an app control's, a panel), no control: the stick's zone may reach over it.
+                d.well != null -> stick(cfg, p, i, d, prefix, taken.filterIndexed { j, _ -> j != i && descs.getOrNull(j)?.name != "nul" }, gap)
                 // A stick with no knob image (a package that has none), over its whole frame.
                 d.radial -> cfg.append("${p}_desc${i}_saturate_pct = 0.65\n")
                 d.dpad != null -> {
                     OverlayLines.dpad(cfg, "${p}_desc$i", d.dpad, d.reach)
-                    if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(image, i))
+                    if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(prefix, i))
                 }
             }
+            if (d.image != null) cfg.append("${p}_desc${i}_overlay = \"${ownImage(prefix, i)}\"\n")
             d.next?.let { cfg.append("${p}_desc${i}_next_target = \"$it\"\n") }
             d.lit?.let {
-                cfg.append("${p}_desc${i}_overlay = \"${litImage(image, it)}\"\n")
+                cfg.append("${p}_desc${i}_overlay = \"${litImage(prefix, it)}\"\n")
                 cfg.append("${p}_desc${i}_lit_by = \"${it.state}\"\n")
             }
         }
@@ -136,9 +150,12 @@ internal object OverlayWriter {
         cfg.append("${p}_desc${n}_next_target = \"$other\"\n")
     }
 
-    /** Where a touch on [d] registers: its rect [grow] times, except a stick's range, a lit image and a D-pad's circle. */
+    /**
+     * Where a touch on [d] registers: its rect [grow] times, except a stick's range, a lit image, an own image and a
+     * D-pad's circle.
+     */
     internal fun touchArea(d: OverlayDesc, grow: Float): RectF {
-        val g = if (d.radial || d.lit != null || d.dpad != null) 1f else grow
+        val g = if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow
         val hw = d.rect.width() / 2f * g
         val hh = d.rect.height() / 2f * g
         return RectF(d.rect.centerX() - hw, d.rect.centerY() - hh, d.rect.centerX() + hw, d.rect.centerY() + hh)
@@ -164,10 +181,10 @@ internal object OverlayWriter {
      * its [OverlayDesc.saturate]), its knob is the image the engine moves with the thumb, and the touch zone reaches
      * past the travel up to the [taken] areas, [gap] short of them.
      */
-    private fun stick(cfg: StringBuilder, p: String, i: Int, d: OverlayDesc, image: String, taken: List<RectF>, gap: Float) {
+    private fun stick(cfg: StringBuilder, p: String, i: Int, d: OverlayDesc, prefix: String, taken: List<RectF>, gap: Float) {
         val pct = if (d.saturate == 1f) "1.0" else String.format(Locale.US, "%.3f", d.saturate)
         cfg.append("${p}_desc${i}_saturate_pct = $pct\n")
-        if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(image, i))
+        if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(prefix, i))
         // Never smaller than the well drawn around it, which was the whole zone before it could reach past it.
         val floor = d.well?.let { maxOf(1f, minOf(it.width(), it.height()) / d.rect.width()) } ?: 1f
         val reach = stickReach(d.rect, taken, gap, floor)

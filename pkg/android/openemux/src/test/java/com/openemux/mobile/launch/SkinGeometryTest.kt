@@ -58,10 +58,14 @@ class SkinGeometryTest {
         assertEquals(g.picture.w, g.strip.w, 1e-3f)
         assertEquals(g.picture.x, g.strip.x, 1e-3f)
         assertTrue(g.strip.bottom <= h)
-        val boxes = listOfNotNull(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.name, g.layoutKey)
+        val boxes = listOfNotNull(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.hide, g.name, g.layoutKey)
         boxes.forEach { assertTrue("$it outside $w x $h", it.inside(w, h)) }
         // Nothing drawn over the picture: touch reaches the game (the NDS bottom screen).
         boxes.filter { it != g.picture }.forEach { assertFalse("$it over the picture", it.intersects(g.picture)) }
+        // The shoulders and the menu and hide keys keep clear of each other.
+        listOf(g.shouldersLeft, g.shouldersRight, g.menu, g.hide).let { keys ->
+            keys.forEachIndexed { i, a -> keys.drop(i + 1).forEach { b -> assertFalse("$a over $b", a.intersects(b)) } }
+        }
         assertFalse(g.shouldersLeft.intersects(g.menu))
         // The columns mirror each other.
         assertEquals(g.shouldersLeft.x, w - g.shouldersRight.right, 1e-3f)
@@ -164,11 +168,17 @@ class SkinGeometryTest {
         assertEquals(0f, g.picture.y, 0f)
         assertEquals(w / 2f, g.picture.cx, 1e-3f)
         assertEquals(Box(0f, g.picture.bottom, w, SkinGeometry.STRIP), g.strip)
-        val boxes = listOf(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.name)
+        val boxes = listOf(g.picture, g.strip, g.shouldersLeft, g.shouldersRight, g.menu, g.hide, g.name)
         boxes.forEach { assertTrue("$it outside $w x $h", it.inside(w, h)) }
         boxes.filter { it != g.picture }.forEach { assertFalse("$it over the picture", it.intersects(g.picture)) }
         assertFalse(g.shouldersLeft.intersects(g.menu))
         assertFalse(g.shouldersRight.intersects(g.menu))
+        assertFalse(g.shouldersRight.intersects(g.hide))
+        assertEquals(g.menu.y, g.hide.y, 0.01f)
+        // The shoulders and the menu and hide keys keep clear of each other.
+        listOf(g.shouldersLeft, g.shouldersRight, g.menu, g.hide).let { keys ->
+            keys.forEachIndexed { i, a -> keys.drop(i + 1).forEach { b -> assertFalse("$a over $b", a.intersects(b)) } }
+        }
         assertTrue(g.shouldersLeft.y >= g.strip.bottom)
         assertEquals(g.shouldersLeft.x, w - g.shouldersRight.right, 1e-3f)
         assertEquals(w - g.lx, g.rx, 1e-3f)

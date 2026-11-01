@@ -94,4 +94,61 @@ class SkinSpecsTest {
         assertEquals(cfg.trimEnd('\n') + "\n", withOverlays(cfg, 0, ""))
         assertEquals("x\n$body", withOverlays("x", 1, body))
     }
+
+    @Test fun everyTouchPageGetsItsCollapsedAndGamepadTwinsAfterTheTouchPages() {
+        val touch = overlaySpecs(1.5f, keypad = true, nds = null, tabletop = true)
+        val all = withAppModes(touch)
+        assertEquals(names(touch), names(all).take(touch.size))
+        assertEquals(touch.size * 4, all.size)
+        assertEquals(names(touch).map { "min-$it" }, names(all).subList(touch.size, 2 * touch.size))
+        assertEquals(names(touch).map { "pad-$it" }, names(all).subList(2 * touch.size, 3 * touch.size))
+        assertEquals(names(touch).map { "min-pad-$it" }, names(all).drop(3 * touch.size))
+        all.forEach { s ->
+            val n = OverlayName.parse(s.name)!!
+            assertEquals(s.gamepad, n.gamepad)
+            assertEquals(s.collapsed, n.collapsed)
+            // Turning keeps the mode and lands on the other orientation.
+            val r = OverlayName.parse(s.rotate)!!
+            assertEquals(n.gamepad to n.collapsed, r.gamepad to r.collapsed)
+            assertEquals(!s.portrait, r.portrait)
+            // Every collapsed page has its expanded twin, and the other way around.
+            assertTrue(n.withCollapsed(!n.collapsed).toString() in names(all))
+        }
+        val k = all.first { it.name == "pad-keypad-$TABLETOP" }
+        assertTrue(k.keypadOpen && k.tabletop && k.gamepad && !k.collapsed)
+        assertEquals("pad-keypad-landscape", k.rotate)
+    }
+
+    @Test fun ndsTwinsStepTheirLayoutsInTheirOwnMode() {
+        val all = withAppModes(overlaySpecs(1.5f, keypad = false, nds = stacked to side, tabletop = true, ndsTabletop = top))
+        all.filter { it.layoutNext != null }.forEach { s ->
+            val n = OverlayName.parse(s.name)!!
+            val next = OverlayName.parse(s.layoutNext!!)!!
+            assertEquals(n.copy(layout = next.layout), next)
+        }
+        val pad = all.first { it.name == "pad-portrait@stacked" }
+        assertEquals("pad-landscape@side", pad.rotate)
+        assertEquals(stacked, pad.layout)
+    }
+
+    @Test fun withoutAHideKeyThereIsNoCollapsedTouchPage() {
+        val touch = packageTabletopSpecs(1.5f, nds = false)
+        assertEquals(listOf(TABLETOP, "pad-$TABLETOP", "min-pad-$TABLETOP"), names(withAppModes(touch, collapsible = false)))
+    }
+
+    @Test fun aPackageSkinGetsTheGamepadLayoutForItsOwnPagesAndTheTabletopOnes() {
+        assertEquals(
+            listOf("pad-portrait", "pad-landscape", "min-pad-portrait", "min-pad-landscape"),
+            names(packageSpecs(1.5f, nds = false, tabletop = emptyList())),
+        )
+        val folded = packageSpecs(1.5f, nds = false, tabletop = packageTabletopSpecs(1.5f, nds = false))
+        assertEquals(
+            listOf(TABLETOP, "pad-portrait", "pad-landscape", "pad-$TABLETOP", "min-pad-portrait", "min-pad-landscape", "min-pad-$TABLETOP"),
+            names(folded),
+        )
+        assertEquals("pad-landscape", folded.first { it.name == "pad-$TABLETOP" }.rotate)
+        assertEquals(1.5f, folded.first { it.name == "pad-portrait" }.aspect, 0f)
+        // NDS: its art stacks the two screens.
+        packageSpecs(1.5f, nds = true, tabletop = emptyList()).forEach { assertEquals(PACKAGE_NDS_ASPECT, it.aspect, 0f) }
+    }
 }

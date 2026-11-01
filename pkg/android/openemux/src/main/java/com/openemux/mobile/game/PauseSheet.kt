@@ -65,6 +65,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
@@ -173,6 +174,8 @@ fun PauseSheet(
      * engine refuses either while paused.
      */
     onSpeed: (Speed) -> Unit = {},
+    /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
+    onRetroArchMenu: () -> Unit = {},
 ) {
     OpenEmuxTheme {
         var page by remember { mutableStateOf(Page.Main) }
@@ -358,6 +361,7 @@ fun PauseSheet(
                                 command("MUTE", context.getString(if (SessionToggles.muted) R.string.game_toast_sound_off else R.string.game_toast_sound_on))
                             },
                             onReset = { command("RESET") { onResume() } },
+                            onRetroArchMenu = onRetroArchMenu,
                             onQuit = onQuit.takeUnless { panel },
                         )
                         Page.States -> StatesPage(states, ::load)
@@ -405,6 +409,7 @@ private fun MainPage(
     onAudio: () -> Unit,
     onScreens: (() -> Unit)?,
     onReset: () -> Unit,
+    onRetroArchMenu: () -> Unit,
     /** Null on the tablet panel, which pins Quit at its foot. */
     onQuit: (() -> Unit)?,
 ) {
@@ -466,6 +471,9 @@ private fun MainPage(
                 BigButton(stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f), onReset)
                 if (onQuit != null) QuitButton(Modifier.width(168.dp).height(56.dp), onQuit)
             }
+            Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
+                RetroArchMenuRow(divider = false, minHeight = 56.dp, onClick = onRetroArchMenu)
+            }
         }
         return
     }
@@ -484,6 +492,7 @@ private fun MainPage(
             Column(Modifier.padding(top = if (landscape) 16.dp else 20.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
                 ListRow(stringResource(R.string.game_save_states), value = stateCount.toString(), onClick = onLoad, enabled = !hardcore)
                 ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset)
+                RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
             if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)
         }
@@ -499,6 +508,18 @@ private fun MainPage(
             rest(Modifier)
         }
     }
+}
+
+/** The advanced way out: RetroArch's own menu, its changes kept for this session only (the subtitle says so). */
+@Composable
+private fun RetroArchMenuRow(divider: Boolean, minHeight: Dp = 50.dp, onClick: () -> Unit) {
+    ListRow(
+        stringResource(R.string.game_retroarch_menu),
+        subtitle = stringResource(R.string.game_retroarch_menu_note),
+        divider = divider,
+        minHeight = minHeight,
+        onClick = onClick,
+    )
 }
 
 @Composable

@@ -33,6 +33,8 @@ import com.retroarch.R
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * The window a skin is drawn for: its short and long sides and the camera
@@ -88,11 +90,16 @@ class SkinRenderer(private val context: Context) {
      * side, opening on [ndsTabletop] for NDS; the activity switches to them by name, and reads their band and the NDS
      * screen gaps from [TABLETOP_FILE]. With [under], a package skin's skin.cfg (ImportedSkinRenderer), only those
      * tabletop overlays are drawn, after the package's own: it has no tabletop art, and opening flat brings it back.
+     *
+     * Every page has its twins (OverlayName): the gamepad layout, with the app controls only, and each with the app
+     * controls collapsed to the key that shows them again. A package skin gets the gamepad ones only, its art being
+     * its author's. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page.
      */
     fun render(
         console: Console, width: Int, height: Int, outDir: File, cutout: Int = 0,
         ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, hardcore: Boolean = false, coreId: String? = null,
         density: Float, first: String? = null, fold: Fold? = null, ndsTabletop: ScreenLayout? = null, under: File? = null,
+        gamepad: Boolean = false,
     ): File {
         outDir.mkdirs()
         val skin = console.skin.forCore(coreId)
@@ -105,32 +112,50 @@ class SkinRenderer(private val context: Context) {
         val wide = portraitW / density >= SkinGeometry.TABLETOP_WIDE
         val base = under?.readText()
         val flat = base?.let(::overlayNames).orEmpty()
-        val specs = when {
-            base == null -> overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop)
-            band != null -> packageTabletopSpecs(console.gameAspect, console == Console.NDS, ndsTabletop)
-            else -> emptyList()
-        }.let { all ->
-            // A package skin opened on its own [first] already (ImportedSkinRenderer): its tabletop overlays go after.
-            if (base == null && first != null && all.any { it.name == first }) all.sortedBy { if (it.name == first) 0 else 1 } else all
+        val packaged = base != null
+        val specs = if (!packaged) {
+            withAppModes(overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop)).let { all ->
+                val opening = first?.takeIf { f -> all.any { it.name == f } }
+                    ?: if (gamepad) OverlayName.map(all.first().name) { it.withGamepad(true) } else null
+                if (opening != null) all.sortedBy { if (it.name == opening) 0 else 1 } else all
+            }
+        } else {
+            // A package skin opened on its own [first] already (ImportedSkinRenderer): these go after.
+            val tabletop = if (band != null) packageTabletopSpecs(console.gameAspect, console == Console.NDS, ndsTabletop) else emptyList()
+            packageSpecs(console.gameAspect, console == Console.NDS, tabletop)
         }
         val gaps = mutableMapOf<String, Int>()
         val cfg = StringBuilder()
+        // A page's collapsed and gamepad twins draw the same art as the page (the app controls are images of their
+        // own): the engine loads an image named twice once.
+        val written = mutableSetOf<String>()
         specs.forEachIndexed { n, spec ->
             val i = flat.size + n
             val w = if (spec.portrait) portraitW else portraitH
             val h = if (spec.portrait) portraitH else portraitW
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            val toggle = if (spec.keypadOpen) spec.name.removePrefix("keypad-") else "keypad-${spec.name}"
-            val layout = Layout(Canvas(bitmap), skin, unit, spec.aspect, spec.keypadOpen, toggle, spec.layoutNext, hardcore, spec.layout)
+            // The gamepad layout draws no virtual buttons, so no page image, unless its keypad is open.
+            val art = !spec.gamepad || spec.keypadOpen
+            val prefix = spec.name.replace('@', '-')
+            val image = if (art) OverlayName.map(spec.name) { it.touch }.replace('@', '-') + ".png" else null
+            val fresh = image != null && written.add(image)
+            val bitmap = if (fresh) Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) else Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            val toggle = OverlayName.map(spec.name) { it.copy(keypad = !spec.keypadOpen) }
+            // A package skin's own pages have no hide key, nor do the touch pages drawn under them.
+            val hide = OverlayName.map(spec.name) { it.withCollapsed(true) }.takeIf { spec.gamepad || !packaged }
+            val show = OverlayName.map(spec.name) { it.withCollapsed(false) }
+            val layout = Layout(
+                Canvas(bitmap), skin, unit, spec.aspect, spec.keypadOpen, toggle, spec.layoutNext, hardcore, spec.layout,
+                spec.collapsed, hide, show,
+            )
             val descs = when {
+                !art -> layout.pad(w, h, band.takeIf { spec.tabletop }, spec.portrait, keypad = skin.keypad.isNotEmpty() && !packaged)
                 spec.tabletop && band != null -> layout.tabletop(w, h, band.startPx / unit, band.endPx / unit, wide)
                 tablet && spec.portrait -> layout.tabletPortrait(w, h)
                 tablet -> layout.tabletLandscape(w, h)
                 spec.portrait -> layout.portrait(h)
                 else -> layout.landscape(w)
             }
-            val image = spec.name.replace('@', '-') + ".png"
-            OverlayWriter.saveImages(outDir, image, bitmap, descs)
+            OverlayWriter.saveImages(outDir, image.takeIf { fresh }, bitmap.takeIf { fresh }, descs, prefix)
             bitmap.recycle()
             // Touch areas a little larger than what is drawn: thumbs are wide. A stick's zone keeps clear of the game
             // and, on a tabletop overlay, of the fold's band.
@@ -141,7 +166,7 @@ class SkinRenderer(private val context: Context) {
             }
             OverlayWriter.write(
                 cfg, i, spec.name, spec.rotate, image, descs, w, h, layout.picture, grow = TOUCH_GROW,
-                clear = clear, gap = 2f * unit, hidden = if (spec.tabletop) 0.002f else 0.5f,
+                clear = clear, gap = 2f * unit, hidden = if (spec.tabletop) 0.002f else 0.5f, prefix = prefix,
             )
             if (spec.layout != null && spec.tabletop) gaps[spec.name] = layout.gap
         }
@@ -165,14 +190,16 @@ class SkinRenderer(private val context: Context) {
         console: Console, size: SkinSize, outDir: File,
         ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, hardcore: Boolean = false, coreId: String? = null,
         density: Float, first: String? = null, fold: Fold? = null, ndsTabletop: ScreenLayout? = null, under: File? = null,
-    ): File = render(console, size.short, size.long, outDir, size.cutout, ndsLayouts, hardcore, coreId, density, first, fold, ndsTabletop, under)
+        gamepad: Boolean = false,
+    ): File = render(console, size.short, size.long, outDir, size.cutout, ndsLayouts, hardcore, coreId, density, first, fold, ndsTabletop, under, gamepad)
 
     /**
      * One orientation, drawn in the design's units (its phone frame is 390
      * wide in portrait and 390 tall in landscape): [unit] pixels each.
      */
     private inner class Layout(
-        private val c: Canvas,
+        /** The page's image; an app control swaps in a canvas of its own while it is drawn (appLayer). */
+        private var c: Canvas,
         /** The console's skin with the launched core's binds. */
         private val skin: Skin,
         private val unit: Float, private val aspect: Float,
@@ -184,6 +211,11 @@ class SkinRenderer(private val context: Context) {
         private val hardcore: Boolean,
         /** The NDS layout this overlay shows, named on the tablet's layout key. */
         private val screenLayout: ScreenLayout?,
+        /** The app controls are collapsed: only the key that shows them, where the menu key is, at [showNext]. */
+        private val collapsed: Boolean,
+        /** The collapsed twin the hide key switches to; null: no hide key (a package skin's pages). */
+        private val hideNext: String?,
+        private val showNext: String,
     ) {
         private val colors: SkinColors = skin.colors
         private val descs = mutableListOf<OverlayDesc>()
@@ -223,9 +255,9 @@ class SkinRenderer(private val context: Context) {
             ox = 195f * (1f - f)
             oy = top
 
-            shoulderRow(skin.shouldersLeft, 16f, 167f, 16f, 40f, 15f)
-            shoulderRow(skin.shouldersRight, 223f, 374f, 16f, 40f, 15f)
-            menu(rect(171f, 14f, 48f, 44f))
+            shoulderRow(skin.shouldersLeft, 16f, 141f, 16f, 40f, 15f)
+            shoulderRow(skin.shouldersRight, 249f, 374f, 16f, 40f, 15f)
+            menu(rect(145f, 14f, 48f, 44f), rect(197f, 14f, 48f, 44f))
 
             val m0 = 68f
             val m1 = pd - 108f
@@ -245,12 +277,12 @@ class SkinRenderer(private val context: Context) {
             ox = 195f * (1f - f)
             oy = top
             val pills = skin.pills.filter { it.bind != null }
-            val shoulders = if (pills.isEmpty()) 151f else 100f
+            val shoulders = if (pills.isEmpty()) 125f else 76f
             shoulderRow(skin.shouldersLeft, 16f, 16f + shoulders, 8f, 32f, 13f)
             shoulderRow(skin.shouldersRight, 374f - shoulders, 374f, 8f, 32f, 13f)
-            menu(rect(171f, 6f, 48f, 36f))
+            menu(rect(147f, 6f, 46f, 36f), rect(197f, 6f, 46f, 36f))
             val half = (pills.size + 1) / 2
-            listOf(pills.take(half) to (22f + shoulders to 165f), pills.drop(half) to (225f to 368f - shoulders)).forEach { (keys, span) ->
+            listOf(pills.take(half) to (22f + shoulders to 141f), pills.drop(half) to (249f to 368f - shoulders)).forEach { (keys, span) ->
                 val w = (span.second - span.first - 6f * (keys.size - 1)) / keys.size.coerceAtLeast(1)
                 keys.forEachIndexed { i, key -> pill(key, span.first + i * (w + 6f) + w / 2f, 13f, w, 22f, 0f) }
             }
@@ -280,7 +312,7 @@ class SkinRenderer(private val context: Context) {
             val rx = wd - side / 2f
             shoulderRow(skin.shouldersLeft, 12f, side - 12f, 12f, 36f, 13f)
             shoulderRow(skin.shouldersRight, wd - side + 12f, wd - 12f, 12f, 36f, 13f)
-            menu(rect(lx - 22f, 54f, 44f, 36f))
+            menu(rect(lx - 48f, 54f, 44f, 36f), rect(lx + 4f, 54f, 44f, 36f))
 
             clusters(lx, rx, rows = mapOf(SkinRow.CENTER to 196f, SkinRow.UPPER to 142f, SkinRow.LOWER to 262f), k = 0.82f, dpadK = 0.85f)
             if (keypadOpen) keypad(rx, 200f, side - 16f, 230f)
@@ -394,7 +426,7 @@ class SkinRenderer(private val context: Context) {
         private fun frame(g: TabletFrame) {
             shoulderRow(skin.shouldersLeft, g.shouldersLeft.x, g.shouldersLeft.right, g.shouldersLeft.y, g.shouldersLeft.h, 15f)
             shoulderRow(skin.shouldersRight, g.shouldersRight.x, g.shouldersRight.right, g.shouldersRight.y, g.shouldersRight.h, 15f)
-            menu(px(g.menu))
+            menu(px(g.menu), px(g.hide))
             clusters(g.lx, g.rx, rows = mapOf(SkinRow.UPPER to g.rows.upper, SkinRow.CENTER to g.rows.center, SkinRow.LOWER to g.rows.lower), k = g.k, dpadK = g.k)
         }
 
@@ -426,13 +458,18 @@ class SkinRenderer(private val context: Context) {
 
         /** The NDS layout key over the picture: the screens icon and the layout's name; it steps to the next layout. */
         private fun layoutKey(b: Box) {
+            if (collapsed) return
             val box = px(b)
+            appLayer(box) { drawLayoutKey(b, box) }
+            descs += OverlayDesc("overlay_next", box, next = layoutNext)
+        }
+
+        private fun drawLayoutKey(b: Box, box: RectF) {
             c.drawRoundRect(box, box.height() / 2f, box.height() / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.pill })
             val icon = s(16f)
             c.drawPath(stripIcon("screens", box.left + s(20f), box.centerY(), icon), stripPaint("screens", icon, colors.menuInk))
             val name = screenLayout?.let { context.getString(it.label).uppercase(context.resources.configuration.locales[0]) }.orEmpty()
             label(name, b.x + 30f, b.y + b.h / 2f - 5.5f, b.w - 36f, 10f, 0.06f, alpha = 0xFF, color = colors.menuInk)
-            descs += OverlayDesc("overlay_next", box, next = layoutNext)
         }
 
         private fun px(b: Box) = RectF(b.x * unit, b.y * unit, b.right * unit, b.bottom * unit)
@@ -545,22 +582,171 @@ class SkinRenderer(private val context: Context) {
             }
         }
 
-        private fun menu(box: RectF) {
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.menu }
-            c.drawRoundRect(box, box.height() / 2f, box.height() / 2f, paint)
-            val u = s(20f) / 24f
+        /**
+         * The menu key at [box] and the hide key beside it at [hide], each an image of its own; collapsed, the show
+         * key alone, in the hide key's place: the eye never moves.
+         */
+        private fun menu(box: RectF, hide: RectF) {
+            if (collapsed) return showKey(hide)
+            appLayer(box) { roundKey(box); menuGlyph(box, s(20f)) }
+            descs += OverlayDesc("menu_toggle", box)
+            if (hideNext == null) return
+            appLayer(hide) { roundKey(hide); eye(hide, s(20f), slashed = true) }
+            descs += OverlayDesc("overlay_next", hide, next = hideNext)
+        }
+
+        /** The key that shows the app controls again: faint, and touched over at least [MIN_TOUCH] units. */
+        private fun showKey(box: RectF) {
+            appLayer(box, alpha = if (padStyle) PAD_SHOW_ALPHA else SHOW_ALPHA) { roundKey(box); eye(box, s(20f), slashed = false) }
+            val half = maxOf(box.width(), box.height(), MIN_TOUCH * unit) / 2f
+            descs += OverlayDesc("overlay_next", RectF(box.centerX() - half, box.centerY() - half, box.centerX() + half, box.centerY() + half), next = showNext)
+        }
+
+        /**
+         * The gamepad layout's look: black panels and faint keys, so the controls stay out of the game's way. Touch
+         * layouts keep the skin's own colours.
+         */
+        private var padStyle = false
+        private val keyFill get() = if (padStyle) PAD_KEY_FILL else colors.menu
+        private val keyInk get() = if (padStyle) PAD_INK else colors.menuInk
+
+        private fun roundKey(box: RectF) {
+            val r = minOf(box.width(), box.height()) / 2f
+            c.drawRoundRect(box, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = keyFill })
+        }
+
+        /** Three lines, [size] across. */
+        private fun menuGlyph(box: RectF, size: Float) {
+            val u = size / 24f
             val left = box.centerX() - 12f * u
             val top = box.centerY() - 12f * u
             val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = 2f * u; color = colors.menuInk; strokeCap = Paint.Cap.ROUND
+                style = Paint.Style.STROKE; strokeWidth = 2f * u; color = keyInk; strokeCap = Paint.Cap.ROUND
             }
             for (ly in floatArrayOf(7f, 12f, 17f)) c.drawLine(left + 5 * u, top + ly * u, left + 19 * u, top + ly * u, stroke)
-            descs += OverlayDesc("menu_toggle", box)
+        }
+
+        /** An eye, [size] across, stroked like the turbo bolt; [slashed] crosses it out (hide). */
+        private fun eye(box: RectF, size: Float, slashed: Boolean) {
+            val path = PathParser.createPathFromPathData(if (slashed) EYE_OFF else EYE)
+            path.transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(box.centerX() - size / 2f, box.centerY() - size / 2f) })
+            c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = keyInk; style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f
+                strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+            })
+        }
+
+        /** A keypad's three by three keys, [size] across. */
+        private fun keypadGlyph(box: RectF, size: Float) {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = keyInk }
+            for (r in -1..1) for (k in -1..1) c.drawCircle(box.centerX() + k * size / 3f, box.centerY() + r * size / 3f, size / 10f, paint)
+        }
+
+        /**
+         * Draws [draw] (an app control over [box]) into an image of its own, a "nul" desc placed before the descs it
+         * adds, so their lit images go over it: the page's own image stays free of it, and the page's collapsed twin
+         * shares that image. [alpha] fades the whole control.
+         */
+        private fun appLayer(box: RectF, alpha: Int = 0xFF, draw: () -> Unit) {
+            val left = floor(box.left)
+            val top = floor(box.top)
+            val w = (ceil(box.right) - left).toInt().coerceAtLeast(1)
+            val h = (ceil(box.bottom) - top).toInt().coerceAtLeast(1)
+            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val page = c
+            val mark = descs.size
+            c = Canvas(bitmap).apply { translate(-left, -top) }
+            try {
+                if (alpha != 0xFF) c.saveLayerAlpha(null, alpha)
+                draw()
+                if (alpha != 0xFF) c.restore()
+            } finally {
+                c = page
+            }
+            descs.add(mark, OverlayDesc("nul", RectF(left, top, left + w, top + h), image = bitmap))
+        }
+
+        /** A plain [color] behind the gamepad layout's keys: a few pixels the engine stretches over [box]. */
+        private fun panel(box: RectF, color: Int) {
+            val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+            descs += OverlayDesc("nul", box, image = bitmap)
+        }
+
+        /**
+         * The gamepad layout (SkinGeometry.padLandscape, padPortrait, padTabletop with the fold's [band]): no virtual
+         * buttons and no page image, the panels and the keys images of their own; [keypad] adds the keypad key.
+         * Collapsed, the show key alone, the picture fit to the screen.
+         */
+        fun pad(width: Int, height: Int, band: TabletopBand?, portrait: Boolean, keypad: Boolean): List<OverlayDesc> {
+            val wd = width / unit
+            val hd = height / unit
+            val keys = SkinGeometry.padKeys(screens = layoutNext != null, keypad = keypad)
+            val g = when {
+                band != null -> SkinGeometry.padTabletop(
+                    wd, hd, band.startPx / unit, band.endPx / unit, aspect, keys, collapsed, screenLayout?.id, NDS_SCREEN_GAPS,
+                ).also { gap = it.gap }
+                portrait -> SkinGeometry.padPortrait(wd, hd, aspect, keys, collapsed)
+                else -> SkinGeometry.padLandscape(wd, hd, aspect, keys, collapsed)
+            }
+            picture = px(g.picture)
+            padStyle = true
+            if (collapsed) {
+                showKey(px(g.hide))
+                return descs
+            }
+            // Black, like the bars around the picture: no grey band beside the game.
+            g.panels.forEach { panel(px(it), PAD_PANEL) }
+            g.shade?.let { panel(px(it), PAD_PANEL) }
+            val icon = s(22f)
+            for ((key, slot) in g.keys) {
+                val box = px(slot)
+                when (key) {
+                    SkinGeometry.PAD_MENU -> {
+                        appLayer(box) { roundKey(box); menuGlyph(box, icon) }
+                        descs += OverlayDesc("menu_toggle", box)
+                    }
+                    SkinGeometry.PAD_HIDE -> {
+                        appLayer(box) { roundKey(box); eye(box, icon, slashed = true) }
+                        descs += OverlayDesc("overlay_next", box, next = hideNext)
+                    }
+                    SkinGeometry.PAD_KEYPAD -> {
+                        appLayer(box) { roundKey(box); keypadGlyph(box, icon) }
+                        descs += OverlayDesc("overlay_next", box, next = toggle)
+                    }
+                    else -> action(key, box, icon)
+                }
+            }
+            return descs
+        }
+
+        /** A quick action (the strip's icons) on its own in [box]: its icon, its touch area and its "on" look. */
+        private fun action(action: String, box: RectF, icon: Float) {
+            val off = hardcore && action == "toggle_fast_forward"
+            // At 0.45, like the pause sheet's disabled tiles.
+            // A faint round key like the others; hardcore's disabled fast forward fainter still.
+            val color = if (off) (PAD_INK and 0x00FFFFFF) or (0x30 shl 24) else PAD_INK
+            appLayer(box) { roundKey(box); c.drawPath(stripIcon(action, box.centerX(), box.centerY(), icon), stripPaint(action, icon, color)) }
+            if (off) return
+            descs += if (action == SkinGeometry.PAD_SCREENS) OverlayDesc("overlay_next", box, next = layoutNext) else OverlayDesc(action, box)
+            OverlayWriter.LIT_BY[action]?.let { descs += litPill(action, it, box.centerX(), box.centerY(), box.width(), icon, alpha = PAD_LIT_ALPHA) }
         }
 
         private fun pill(key: SkinKey, cx: Float, top: Float, w: Float, h: Float, font: Float) {
             val box = rect(cx - w / 2f, top, w, h)
             val keypad = key.bind == KEYPAD_BIND
+            // The keypad key is an app control: an image of its own, with its name under it, and gone when collapsed.
+            if (keypad) {
+                if (collapsed) return
+                val area = if (font == 0f) box else rect(cx - maxOf(w, 80f) / 2f, top, maxOf(w, 80f), h + 5f + font * 1.6f)
+                appLayer(area) { drawPill(key, box, cx, top, w, h, font, keypad = true) }
+                descs += OverlayDesc("overlay_next", box, next = toggle)
+                return
+            }
+            drawPill(key, box, cx, top, w, h, font, keypad = false)
+            descs += OverlayDesc(key.bind!!, box)
+        }
+
+        private fun drawPill(key: SkinKey, box: RectF, cx: Float, top: Float, w: Float, h: Float, font: Float, keypad: Boolean) {
             // The keypad key stays lit while the keypad is open.
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (keypad && keypadOpen) colors.ink else colors.pill }
             c.drawRoundRect(box, s(12f), s(12f), paint)
@@ -568,7 +754,6 @@ class SkinRenderer(private val context: Context) {
             // A [font] of 0 writes the label inside the key, for the compact panel.
             if (font == 0f) label(text, cx - w / 2f, top + h / 2f - 5.5f, w, 10f, 0.06f, alpha = 0xFF, color = colors.menuInk)
             else label(text, cx - 40f, top + h + 5f, 80f, font, 0.08f, alpha = 0xFF)
-            descs += if (keypad) OverlayDesc("overlay_next", box, next = toggle) else OverlayDesc(key.bind!!, box)
         }
 
         /** The keypad's keys in a grid of [w] by [h] around ([cx], [cy]), on the face buttons' side. */
@@ -599,6 +784,10 @@ class SkinRenderer(private val context: Context) {
          * unless [screens] is off.
          */
         private fun strip(box: RectF, icon: Float, opaque: Boolean, screens: Boolean = true) {
+            if (!collapsed) appLayer(box) { drawStrip(box, icon, opaque, screens) }
+        }
+
+        private fun drawStrip(box: RectF, icon: Float, opaque: Boolean, screens: Boolean) {
             fill(box, if (opaque) colors.strip else (colors.strip and 0x00FFFFFF) or (0xCC shl 24))
             val actions = stripActions(layoutKey = layoutNext != null && screens)
             val slot = box.width() / actions.size
@@ -646,11 +835,15 @@ class SkinRenderer(private val context: Context) {
          * A toggle's "on" look, shown by the engine while [state] is on: the app accent's pill, 46 x 30 (no wider than
          * the slot less 8), its light inner ring, and the icon over it in white. A "nul" desc, so it presses nothing.
          */
-        private fun litPill(action: String, state: String, cx: Float, cy: Float, slot: Float, size: Float): OverlayDesc {
-            val bitmap = OverlayWriter.pill(minOf(s(46f), slot - s(8f)).toInt(), s(30f).toInt(), s(10f), s(1.5f))
-            val w = bitmap.width
-            val h = bitmap.height
-            Canvas(bitmap).drawPath(stripIcon(action, w / 2f, h / 2f, size), stripPaint(action, size, 0xFFFFFFFF.toInt()))
+        private fun litPill(action: String, state: String, cx: Float, cy: Float, slot: Float, size: Float, alpha: Int = 0xFF): OverlayDesc {
+            val pill = OverlayWriter.pill(minOf(s(46f), slot - s(8f)).toInt(), s(30f).toInt(), s(10f), s(1.5f))
+            val w = pill.width
+            val h = pill.height
+            Canvas(pill).drawPath(stripIcon(action, w / 2f, h / 2f, size), stripPaint(action, size, 0xFFFFFFFF.toInt()))
+            // The gamepad layout's lit pill is translucent too, so "on" does not pull the eye off the game.
+            val bitmap = if (alpha == 0xFF) pill else Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                Canvas(it).drawBitmap(pill, 0f, 0f, Paint().apply { this.alpha = alpha })
+            }
             val rect = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
             return OverlayDesc("nul", rect, lit = OverlayLit(state, bitmap))
         }
@@ -682,6 +875,24 @@ class SkinRenderer(private val context: Context) {
     }
 
     companion object {
+        /** The show key's alpha: faint, as the desktop bar's show button. */
+        private const val SHOW_ALPHA = 0x80
+
+        /** The gamepad layout: black panels, keys a faint white disc with a 45% white glyph, show at 35%, lit at 70%. */
+        private const val PAD_PANEL = 0xFF000000.toInt()
+        private const val PAD_KEY_FILL = 0x12FFFFFF
+        private const val PAD_INK = 0x73FFFFFF
+        private const val PAD_SHOW_ALPHA = 0xB3
+        private const val PAD_LIT_ALPHA = 0xB3
+
+        /** The least a key is touched over, in units (dp on a phone). */
+        private const val MIN_TOUCH = 48f
+
+        /** Feather's eye and eye-off (MIT), on a 24 grid. */
+        private const val EYE = "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z"
+        private const val EYE_OFF = "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" +
+            "M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22"
+
         /** Beside skin.cfg when the skin has tabletop overlays: their band, their names and the NDS screen gaps. */
         const val TABLETOP_FILE = "tabletop.properties"
 

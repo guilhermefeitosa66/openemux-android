@@ -29,6 +29,8 @@
     <string name="game_audio">声音</string>
     <string name="game_muted">静音</string>
     <string name="game_restart">重启游戏</string>
+    <string name="game_retroarch_menu">RetroArch 菜单</string>
+    <string name="game_retroarch_menu_note">高级设置，仅限本次会话</string>
     <string name="game_quit">退出游戏</string>
     <string name="game_no_states">还没有即时存档。</string>
     <string name="game_state_auto">自动</string>
