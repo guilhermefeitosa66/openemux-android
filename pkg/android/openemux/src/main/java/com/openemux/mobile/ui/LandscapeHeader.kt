@@ -32,5 +32,8 @@ fun headerBand(rowWidthDp: Float, padLayout: Boolean): HeaderBand = when {
 fun stepFilter(ids: List<String>, current: String, step: Int): String =
     ids[(ids.indexOf(current).coerceAtLeast(0) + step).coerceIn(0, ids.lastIndex)]
 
-/** Whether stepping [step] from [current] reaches another filter, rather than stopping at an end. */
-fun canStep(ids: List<String>, current: String, step: Int): Boolean = stepFilter(ids, current, step) != ids[ids.indexOf(current).coerceAtLeast(0)]
+/**
+ * Whether stepping [step] from [current] reaches another filter, rather than stopping at an end. An
+ * unknown [current] (its console's last game just removed) always moves, as the shoulders do.
+ */
+fun canStep(ids: List<String>, current: String, step: Int): Boolean = stepFilter(ids, current, step) != current

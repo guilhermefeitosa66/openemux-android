@@ -86,6 +86,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.runtime.CompositionLocalProvider
 import java.text.NumberFormat
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
@@ -772,7 +773,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             "A" to stringResource(R.string.library_hint_detail), "X" to stringResource(R.string.library_hint_favorite),
             "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
             "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
-        ).filter { !landscapeRow || it.first != "L1 R1" },
+        )
+        // The pager's steps show the shoulders; while the search field has its place, the hint still does.
+        .filter { !landscapeRow || searching || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
         x = { focusedRom.value?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
@@ -841,11 +844,13 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
 
     if (landscapeRow) Box(Modifier.fillMaxSize()) {
         // Games per filter, for the pager's menu; the search does not narrow them.
-        val counts = chipIds.associateWith { id ->
-            when (id) {
-                "ALL" -> roms.size
-                "FAV" -> roms.count { meta.roms[it.key]?.favorite == true }
-                else -> roms.count { it.console.id == id }
+        val counts = remember(roms, meta, chipIds) {
+            chipIds.associateWith { id ->
+                when (id) {
+                    "ALL" -> roms.size
+                    "FAV" -> roms.count { meta.roms[it.key]?.favorite == true }
+                    else -> roms.count { it.console.id == id }
+                }
             }
         }
         LandscapeLibrary(
@@ -1533,6 +1538,7 @@ private fun FilterStep(step: Int, filters: List<String>, current: String, onStep
 @Composable
 private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String, shown: Int, counts: Map<String, Int>, onPick: (String) -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    val numbers = rememberCountFormat()
     val name = filterName(current)
     val description = stringResource(R.string.library_filter_label, name, countString(R.plurals.library_games_count, shown, shown))
     Box {
@@ -1551,7 +1557,7 @@ private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String
                 modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {},
             )
             if (band.count) Text(
-                NumberFormat.getIntegerInstance().format(shown), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted),
+                numbers.format(shown), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted),
                 modifier = Modifier.clearAndSetSemantics {},
             )
             if (band.caret) Icon(if (menu) Icons.ChevronUp else Icons.ChevronDown, Oe.Muted, 14.dp)
@@ -1560,12 +1566,23 @@ private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String
     }
 }
 
+/**
+ * Digits for a count in the app's language: the configuration's locale, not the JVM default, which
+ * below API 33 stays the system's when a language is picked in the settings (see AppLocale).
+ */
+@Composable
+private fun rememberCountFormat(): NumberFormat {
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(locale) { NumberFormat.getIntegerInstance(locale) }
+}
+
 /** Every filter, for a direct pick: a popup the pad drives on its own, as the detail screen's menu. */
 @Composable
 private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<String>, current: String, counts: Map<String, Int>, onPick: (String) -> Unit) {
     val opener = LocalPadScope.current
     // Not keyed on [open]: a new scope while the menu animates out would land focus in the closing popup.
     val menuScope = remember { PadScope() }
+    val numbers = rememberCountFormat()
     CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
         open, onDismiss, Modifier.padPopup(menuScope, opener, onDismiss), containerColor = Oe.Surface2,
     ) {
@@ -1576,7 +1593,7 @@ private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<Strin
                 text = { Text(filterName(id), style = Type.Body.copy(color = color)) },
                 // "All" has no icon; its room is kept so the names line up.
                 leadingIcon = { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { FilterIcon(id) } },
-                trailingIcon = { Text(NumberFormat.getIntegerInstance().format(counts[id] ?: 0), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted)) },
+                trailingIcon = { Text(numbers.format(counts[id] ?: 0), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted)) },
                 modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
                     .semantics { selected = on },
                 onClick = { onPick(id) },

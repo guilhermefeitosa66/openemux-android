@@ -67,8 +67,8 @@ class LandscapeHeaderTest {
         assertFalse(canStep(ids, "GBA", 1))
         assertFalse(canStep(listOf("ALL"), "ALL", 1))
         assertFalse(canStep(listOf("ALL"), "ALL", -1))
-        // An unknown filter steps from the first one.
-        assertFalse(canStep(ids, "MD", -1))
+        // An unknown filter steps from the first one, and either way it leaves for a known one.
+        assertTrue(canStep(ids, "MD", -1))
         assertTrue(canStep(ids, "MD", 1))
     }
 }
