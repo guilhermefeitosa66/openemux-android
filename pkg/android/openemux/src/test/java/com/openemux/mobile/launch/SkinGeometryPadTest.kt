@@ -8,6 +8,7 @@ import com.openemux.mobile.launch.SkinGeometry.PAD_LOAD
 import com.openemux.mobile.launch.SkinGeometry.PAD_MENU
 import com.openemux.mobile.launch.SkinGeometry.PAD_SAVE
 import com.openemux.mobile.launch.SkinGeometry.PAD_SCREENS
+import com.openemux.mobile.launch.SkinGeometry.PAD_SLOW
 import com.openemux.mobile.launch.SkinGeometry.PAD_TURBO
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -36,8 +37,8 @@ class SkinGeometryPadTest {
     }
 
     @Test fun theKeysAreTheAppControlsHideLast() {
-        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_FF, PAD_HIDE), six)
-        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_FF, PAD_SCREENS, PAD_KEYPAD, PAD_HIDE), eight)
+        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_HIDE), six)
+        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_SCREENS, PAD_KEYPAD, PAD_HIDE), eight)
     }
 
     @Test fun landscapePutsTwoRailsAndTheFullHeightPictureBetweenThem() {
@@ -51,11 +52,13 @@ class SkinGeometryPadTest {
         // Everything stacked from the top, nothing at the foot (a controller clip's grip): menu, save and load down
         // the left rail; hide at the top of the right one, then turbo, fast forward, screens and keypad.
         listOf(PAD_MENU, PAD_SAVE, PAD_LOAD).forEach { assertEquals(44f, slot(g, it).cx, 1e-3f) }
-        listOf(PAD_HIDE, PAD_TURBO, PAD_FF, PAD_SCREENS, PAD_KEYPAD).forEach { assertEquals(822f, slot(g, it).cx, 1e-3f) }
+        listOf(PAD_HIDE, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_SCREENS, PAD_KEYPAD).forEach { assertEquals(822f, slot(g, it).cx, 1e-3f) }
         assertEquals(slot(g, PAD_MENU).y, slot(g, PAD_HIDE).y, 1e-3f)
         assertEquals(slot(g, PAD_SAVE).y, slot(g, PAD_TURBO).y, 1e-3f)
         assertTrue(slot(g, PAD_MENU).y < slot(g, PAD_SAVE).y && slot(g, PAD_SAVE).y < slot(g, PAD_LOAD).y)
-        assertTrue(slot(g, PAD_HIDE).y < slot(g, PAD_TURBO).y && slot(g, PAD_TURBO).y < slot(g, PAD_FF).y)
+        assertTrue(slot(g, PAD_HIDE).y < slot(g, PAD_TURBO).y && slot(g, PAD_TURBO).y < slot(g, PAD_SLOW).y)
+        // Slow motion right before fast forward, as on the touch strip and the desktop bar.
+        assertTrue(slot(g, PAD_SLOW).y < slot(g, PAD_FF).y)
         assertTrue(slot(g, PAD_FF).y < slot(g, PAD_SCREENS).y && slot(g, PAD_SCREENS).y < slot(g, PAD_KEYPAD).y)
         assertTrue(slot(g, PAD_LOAD).bottom < 390f / 2f + 60f)
         assertEquals(slot(g, PAD_MENU), g.menu)
@@ -81,9 +84,11 @@ class SkinGeometryPadTest {
         // Centred in the room above the strip.
         assertEquals((866f - 96f) / 2f, g.picture.y + g.picture.h / 2f, 1e-3f)
         assertEquals(six, g.keys.map { it.first })
-        g.keys.zipWithNext().forEach { (a, b) -> assertEquals(65f, b.second.cx - a.second.cx, 1e-3f) }
-        // Eight keys still leave each at least 48 units.
-        assertKeysFit(SkinGeometry.padPortrait(390f, 866f, 4f / 3f, eight, collapsed = false), 390f, 866f)
+        g.keys.zipWithNext().forEach { (a, b) -> assertEquals(390f / six.size, b.second.cx - a.second.cx, 1e-3f) }
+        // The fullest real strip, an NDS game's (the screens key; the keypad belongs to other consoles, never both),
+        // still leaves each key at least 48 units.
+        val nds = SkinGeometry.padKeys(screens = true, keypad = false)
+        assertKeysFit(SkinGeometry.padPortrait(390f, 866f, 4f / 3f, nds, collapsed = false), 390f, 866f)
         val min = SkinGeometry.padPortrait(390f, 866f, 4f / 3f, six, collapsed = true)
         assertTrue(min.panels.isEmpty())
         assertEquals(g.menu, min.menu)

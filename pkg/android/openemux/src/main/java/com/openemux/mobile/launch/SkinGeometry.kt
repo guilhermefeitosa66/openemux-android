@@ -300,12 +300,13 @@ object SkinGeometry {
      * NDS screens key ([screens]) and the keypad key ([keypad]) when there are, hide last.
      */
     fun padKeys(screens: Boolean, keypad: Boolean): List<String> =
-        listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_FF) + listOfNotNull(PAD_SCREENS.takeIf { screens }, PAD_KEYPAD.takeIf { keypad }) + PAD_HIDE
+        listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF) + listOfNotNull(PAD_SCREENS.takeIf { screens }, PAD_KEYPAD.takeIf { keypad }) + PAD_HIDE
 
     const val PAD_MENU = "menu_toggle"
     const val PAD_SAVE = "save_state"
     const val PAD_LOAD = "load_state"
     const val PAD_TURBO = "turbo_fire_toggle"
+    const val PAD_SLOW = "toggle_slowmotion"
     const val PAD_FF = "toggle_fast_forward"
     const val PAD_SCREENS = "screens"
     const val PAD_KEYPAD = "keypad"
@@ -323,9 +324,10 @@ object SkinGeometry {
         val lx = PAD_RAIL / 2f
         val rx = w - PAD_RAIL / 2f
         val top = 18f + PAD_KEY / 2f
-        val step = 64f
         val left = listOf(PAD_MENU, PAD_SAVE, PAD_LOAD)
         val right = listOf(PAD_HIDE) + keys.filter { it !in left && it != PAD_HIDE }
+        // 64 units apart, closer when the right rail's keys would not fit the height otherwise.
+        val step = minOf(64f, (h - 36f - PAD_KEY) / (maxOf(left.size, right.size) - 1))
         val slots = keys.map { key ->
             key to if (key in left) slot(lx, top + left.indexOf(key) * step, PAD_KEY) else slot(rx, top + right.indexOf(key) * step, PAD_KEY)
         }

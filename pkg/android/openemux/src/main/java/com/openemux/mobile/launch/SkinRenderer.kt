@@ -721,9 +721,8 @@ class SkinRenderer(private val context: Context) {
 
         /** A quick action (the strip's icons) on its own in [box]: its icon, its touch area and its "on" look. */
         private fun action(action: String, box: RectF, icon: Float) {
-            val off = hardcore && action == "toggle_fast_forward"
-            // At 0.45, like the pause sheet's disabled tiles.
-            // A faint round key like the others; hardcore's disabled fast forward fainter still.
+            val off = stripActionOff(action, hardcore)
+            // A faint round key like the others; hardcore's disabled speed keys fainter still.
             val color = if (off) (PAD_INK and 0x00FFFFFF) or (0x30 shl 24) else PAD_INK
             appLayer(box) { roundKey(box); c.drawPath(stripIcon(action, box.centerX(), box.centerY(), icon), stripPaint(action, icon, color)) }
             if (off) return
