@@ -52,6 +52,9 @@ data class TabletFrame(
  */
 data class PadFrame(val picture: Box, val panels: List<Box>, val shade: Box?, val keys: List<Pair<String, Box>>, val gap: Int = 0) {
     val menu: Box get() = keys.first { it.first == SkinGeometry.PAD_MENU }.second
+
+    /** Where the hide key sits, and so where the show key sits once collapsed: the eye never moves. */
+    val hide: Box get() = keys.first { it.first == SkinGeometry.PAD_HIDE }.second
 }
 
 /** The forbidden band around a fold across the skin's long side: a y range of its portrait frame, in pixels. */
@@ -311,25 +314,20 @@ object SkinGeometry {
     private fun slot(cx: Float, cy: Float, side: Float) = Box(cx - side / 2f, cy - side / 2f, side, side)
 
     /**
-     * Gamepad layout, landscape [w] x [h]: two rails, menu at the top of the left one with save and load near its foot,
-     * turbo and fast forward at the top of the right one (the screens and keypad keys under them) and hide at its foot;
-     * the picture fit between the rails. [collapsed]: no rails, the picture fit to the whole screen.
+     * Gamepad layout, landscape [w] x [h]: two rails, every key stacked from the top (nothing at the foot, where a
+     * controller clip's grip sits): menu, save and load down the left one; hide at the top of the right one, then turbo,
+     * fast forward, screens and keypad under it. The picture fit between the rails. [collapsed]: no rails, the picture
+     * fit to the whole screen, the show key where hide was.
      */
     fun padLandscape(w: Float, h: Float, aspect: Float, keys: List<String>, collapsed: Boolean): PadFrame {
         val lx = PAD_RAIL / 2f
         val rx = w - PAD_RAIL / 2f
         val top = 18f + PAD_KEY / 2f
-        val step = 68f
-        val foot = h - 17f - PAD_KEY / 2f
-        val right = keys.filter { it != PAD_MENU && it != PAD_SAVE && it != PAD_LOAD && it != PAD_HIDE }
+        val step = 64f
+        val left = listOf(PAD_MENU, PAD_SAVE, PAD_LOAD)
+        val right = listOf(PAD_HIDE) + keys.filter { it !in left && it != PAD_HIDE }
         val slots = keys.map { key ->
-            key to when (key) {
-                PAD_MENU -> slot(lx, top, PAD_KEY)
-                PAD_SAVE -> slot(lx, foot - step, PAD_KEY)
-                PAD_LOAD -> slot(lx, foot, PAD_KEY)
-                PAD_HIDE -> slot(rx, foot, PAD_KEY)
-                else -> slot(rx, top + right.indexOf(key) * step, PAD_KEY)
-            }
+            key to if (key in left) slot(lx, top + left.indexOf(key) * step, PAD_KEY) else slot(rx, top + right.indexOf(key) * step, PAD_KEY)
         }
         if (collapsed) return PadFrame(fitIn(Box(0f, 0f, w, h), aspect), emptyList(), null, slots)
         val rails = listOf(Box(0f, 0f, PAD_RAIL, h), Box(w - PAD_RAIL, 0f, PAD_RAIL, h))

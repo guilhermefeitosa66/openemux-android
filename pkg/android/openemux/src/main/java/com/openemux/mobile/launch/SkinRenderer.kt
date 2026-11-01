@@ -584,10 +584,10 @@ class SkinRenderer(private val context: Context) {
 
         /**
          * The menu key at [box] and the hide key beside it at [hide], each an image of its own; collapsed, the show
-         * key in the menu key's place alone.
+         * key alone, in the hide key's place: the eye never moves.
          */
         private fun menu(box: RectF, hide: RectF) {
-            if (collapsed) return showKey(box)
+            if (collapsed) return showKey(hide)
             appLayer(box) { roundKey(box); menuGlyph(box, s(20f)) }
             descs += OverlayDesc("menu_toggle", box)
             if (hideNext == null) return
@@ -597,14 +597,22 @@ class SkinRenderer(private val context: Context) {
 
         /** The key that shows the app controls again: faint, and touched over at least [MIN_TOUCH] units. */
         private fun showKey(box: RectF) {
-            appLayer(box, alpha = SHOW_ALPHA) { roundKey(box); eye(box, s(20f), slashed = false) }
+            appLayer(box, alpha = if (padStyle) PAD_SHOW_ALPHA else SHOW_ALPHA) { roundKey(box); eye(box, s(20f), slashed = false) }
             val half = maxOf(box.width(), box.height(), MIN_TOUCH * unit) / 2f
             descs += OverlayDesc("overlay_next", RectF(box.centerX() - half, box.centerY() - half, box.centerX() + half, box.centerY() + half), next = showNext)
         }
 
+        /**
+         * The gamepad layout's look: black panels and faint keys, so the controls stay out of the game's way. Touch
+         * layouts keep the skin's own colours.
+         */
+        private var padStyle = false
+        private val keyFill get() = if (padStyle) PAD_KEY_FILL else colors.menu
+        private val keyInk get() = if (padStyle) PAD_INK else colors.menuInk
+
         private fun roundKey(box: RectF) {
             val r = minOf(box.width(), box.height()) / 2f
-            c.drawRoundRect(box, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.menu })
+            c.drawRoundRect(box, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = keyFill })
         }
 
         /** Three lines, [size] across. */
@@ -613,7 +621,7 @@ class SkinRenderer(private val context: Context) {
             val left = box.centerX() - 12f * u
             val top = box.centerY() - 12f * u
             val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = 2f * u; color = colors.menuInk; strokeCap = Paint.Cap.ROUND
+                style = Paint.Style.STROKE; strokeWidth = 2f * u; color = keyInk; strokeCap = Paint.Cap.ROUND
             }
             for (ly in floatArrayOf(7f, 12f, 17f)) c.drawLine(left + 5 * u, top + ly * u, left + 19 * u, top + ly * u, stroke)
         }
@@ -623,14 +631,14 @@ class SkinRenderer(private val context: Context) {
             val path = PathParser.createPathFromPathData(if (slashed) EYE_OFF else EYE)
             path.transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(box.centerX() - size / 2f, box.centerY() - size / 2f) })
             c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = colors.menuInk; style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f
+                color = keyInk; style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f
                 strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
             })
         }
 
         /** A keypad's three by three keys, [size] across. */
         private fun keypadGlyph(box: RectF, size: Float) {
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.menuInk }
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = keyInk }
             for (r in -1..1) for (k in -1..1) c.drawCircle(box.centerX() + k * size / 3f, box.centerY() + r * size / 3f, size / 10f, paint)
         }
 
@@ -681,13 +689,14 @@ class SkinRenderer(private val context: Context) {
                 else -> SkinGeometry.padLandscape(wd, hd, aspect, keys, collapsed)
             }
             picture = px(g.picture)
+            padStyle = true
             if (collapsed) {
-                showKey(px(g.menu))
+                showKey(px(g.hide))
                 return descs
             }
-            // The strip's colour, which its icons are drawn for on every skin, light ones too.
-            g.panels.forEach { panel(px(it), colors.strip) }
-            g.shade?.let { panel(px(it), shade(colors.strip)) }
+            // Black, like the bars around the picture: no grey band beside the game.
+            g.panels.forEach { panel(px(it), PAD_PANEL) }
+            g.shade?.let { panel(px(it), PAD_PANEL) }
             val icon = s(22f)
             for ((key, slot) in g.keys) {
                 val box = px(slot)
@@ -714,11 +723,12 @@ class SkinRenderer(private val context: Context) {
         private fun action(action: String, box: RectF, icon: Float) {
             val off = hardcore && action == "toggle_fast_forward"
             // At 0.45, like the pause sheet's disabled tiles.
-            val color = if (off) (colors.icon and 0x00FFFFFF) or (0x73 shl 24) else colors.icon
-            appLayer(box) { c.drawPath(stripIcon(action, box.centerX(), box.centerY(), icon), stripPaint(action, icon, color)) }
+            // A faint round key like the others; hardcore's disabled fast forward fainter still.
+            val color = if (off) (PAD_INK and 0x00FFFFFF) or (0x30 shl 24) else PAD_INK
+            appLayer(box) { roundKey(box); c.drawPath(stripIcon(action, box.centerX(), box.centerY(), icon), stripPaint(action, icon, color)) }
             if (off) return
             descs += if (action == SkinGeometry.PAD_SCREENS) OverlayDesc("overlay_next", box, next = layoutNext) else OverlayDesc(action, box)
-            OverlayWriter.LIT_BY[action]?.let { descs += litPill(action, it, box.centerX(), box.centerY(), box.width(), icon) }
+            OverlayWriter.LIT_BY[action]?.let { descs += litPill(action, it, box.centerX(), box.centerY(), box.width(), icon, alpha = PAD_LIT_ALPHA) }
         }
 
         private fun pill(key: SkinKey, cx: Float, top: Float, w: Float, h: Float, font: Float) {
@@ -820,11 +830,15 @@ class SkinRenderer(private val context: Context) {
          * A toggle's "on" look, shown by the engine while [state] is on: the app accent's pill, 46 x 30 (no wider than
          * the slot less 8), its light inner ring, and the icon over it in white. A "nul" desc, so it presses nothing.
          */
-        private fun litPill(action: String, state: String, cx: Float, cy: Float, slot: Float, size: Float): OverlayDesc {
-            val bitmap = OverlayWriter.pill(minOf(s(46f), slot - s(8f)).toInt(), s(30f).toInt(), s(10f), s(1.5f))
-            val w = bitmap.width
-            val h = bitmap.height
-            Canvas(bitmap).drawPath(stripIcon(action, w / 2f, h / 2f, size), stripPaint(action, size, 0xFFFFFFFF.toInt()))
+        private fun litPill(action: String, state: String, cx: Float, cy: Float, slot: Float, size: Float, alpha: Int = 0xFF): OverlayDesc {
+            val pill = OverlayWriter.pill(minOf(s(46f), slot - s(8f)).toInt(), s(30f).toInt(), s(10f), s(1.5f))
+            val w = pill.width
+            val h = pill.height
+            Canvas(pill).drawPath(stripIcon(action, w / 2f, h / 2f, size), stripPaint(action, size, 0xFFFFFFFF.toInt()))
+            // The gamepad layout's lit pill is translucent too, so "on" does not pull the eye off the game.
+            val bitmap = if (alpha == 0xFF) pill else Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                Canvas(it).drawBitmap(pill, 0f, 0f, Paint().apply { this.alpha = alpha })
+            }
             val rect = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
             return OverlayDesc("nul", rect, lit = OverlayLit(state, bitmap))
         }
@@ -858,6 +872,13 @@ class SkinRenderer(private val context: Context) {
     companion object {
         /** The show key's alpha: faint, as the desktop bar's show button. */
         private const val SHOW_ALPHA = 0x80
+
+        /** The gamepad layout: black panels, keys a faint white disc with a 45% white glyph, show at 35%, lit at 70%. */
+        private const val PAD_PANEL = 0xFF000000.toInt()
+        private const val PAD_KEY_FILL = 0x12FFFFFF
+        private const val PAD_INK = 0x73FFFFFF
+        private const val PAD_SHOW_ALPHA = 0xB3
+        private const val PAD_LIT_ALPHA = 0xB3
 
         /** The least a key is touched over, in units (dp on a phone). */
         private const val MIN_TOUCH = 48f

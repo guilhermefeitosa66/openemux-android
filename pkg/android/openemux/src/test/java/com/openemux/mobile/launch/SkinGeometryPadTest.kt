@@ -48,24 +48,29 @@ class SkinGeometryPadTest {
         assertNull(g.shade)
         assertEquals(390f, g.picture.h, 1e-3f)
         assertEquals(433f, g.picture.cx, 1e-3f)
-        // Menu on top of the left rail, save and load at its foot; turbo, fast forward, screens and keypad down the
-        // right one, hide at its foot.
+        // Everything stacked from the top, nothing at the foot (a controller clip's grip): menu, save and load down
+        // the left rail; hide at the top of the right one, then turbo, fast forward, screens and keypad.
         listOf(PAD_MENU, PAD_SAVE, PAD_LOAD).forEach { assertEquals(44f, slot(g, it).cx, 1e-3f) }
-        listOf(PAD_TURBO, PAD_FF, PAD_SCREENS, PAD_KEYPAD, PAD_HIDE).forEach { assertEquals(822f, slot(g, it).cx, 1e-3f) }
+        listOf(PAD_HIDE, PAD_TURBO, PAD_FF, PAD_SCREENS, PAD_KEYPAD).forEach { assertEquals(822f, slot(g, it).cx, 1e-3f) }
+        assertEquals(slot(g, PAD_MENU).y, slot(g, PAD_HIDE).y, 1e-3f)
+        assertEquals(slot(g, PAD_SAVE).y, slot(g, PAD_TURBO).y, 1e-3f)
         assertTrue(slot(g, PAD_MENU).y < slot(g, PAD_SAVE).y && slot(g, PAD_SAVE).y < slot(g, PAD_LOAD).y)
-        assertTrue(slot(g, PAD_TURBO).y < slot(g, PAD_FF).y && slot(g, PAD_FF).y < slot(g, PAD_SCREENS).y)
-        assertTrue(slot(g, PAD_KEYPAD).bottom < slot(g, PAD_HIDE).y)
-        assertEquals(slot(g, PAD_LOAD).y, slot(g, PAD_HIDE).y, 1e-3f)
+        assertTrue(slot(g, PAD_HIDE).y < slot(g, PAD_TURBO).y && slot(g, PAD_TURBO).y < slot(g, PAD_FF).y)
+        assertTrue(slot(g, PAD_FF).y < slot(g, PAD_SCREENS).y && slot(g, PAD_SCREENS).y < slot(g, PAD_KEYPAD).y)
+        assertTrue(slot(g, PAD_LOAD).bottom < 390f / 2f + 60f)
         assertEquals(slot(g, PAD_MENU), g.menu)
+        assertEquals(slot(g, PAD_HIDE), g.hide)
     }
 
-    @Test fun collapsedLandscapeFitsThePictureToTheScreenAndKeepsTheMenuSlot() {
+    @Test fun collapsedLandscapeFitsThePictureToTheScreenAndKeepsTheHideSlot() {
         val open = SkinGeometry.padLandscape(866f, 390f, 2f, six, collapsed = false)
         val g = SkinGeometry.padLandscape(866f, 390f, 2f, six, collapsed = true)
         assertTrue(g.panels.isEmpty())
         assertEquals(780f, g.picture.w, 1e-3f)
         assertTrue(g.picture.w > open.picture.w)
         assertEquals(open.menu, g.menu)
+        // The show key goes where hide was: the eye does not move when the controls collapse.
+        assertEquals(open.hide, g.hide)
     }
 
     @Test fun portraitPutsTheStripAtTheFootAndThePictureAcrossAboveIt() {
@@ -82,6 +87,7 @@ class SkinGeometryPadTest {
         val min = SkinGeometry.padPortrait(390f, 866f, 4f / 3f, six, collapsed = true)
         assertTrue(min.panels.isEmpty())
         assertEquals(g.menu, min.menu)
+        assertEquals(g.hide, min.hide)
         assertEquals(433f, min.picture.y + min.picture.h / 2f, 1e-3f)
     }
 
@@ -101,6 +107,7 @@ class SkinGeometryPadTest {
         assertNull(min.shade)
         assertEquals(g.picture, min.picture)
         assertEquals(g.menu, min.menu)
+        assertEquals(g.hide, min.hide)
     }
 
     @Test fun ndsTabletopPutsTheRowAtTheFootUnderTheBottomScreen() {
