@@ -167,8 +167,11 @@ class ImportedSkinRenderer {
             item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let { box(it) }
         }
         // Slow motion goes right before fast forward, in a slot made among the keys beside it.
-        val ff = (0 until items.length()).firstOrNull { i ->
-            (items.getJSONObject(i).get("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) in PACKAGE_FAST_FORWARD_INPUTS } == true
+        // The toggle wins over the hold key when a skin has both, whatever their order in the items.
+        val ff = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
+            (0 until items.length()).firstOrNull { i ->
+                (items.getJSONObject(i).get("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true
+            }
         }
         val slow = ff?.let { slowMotionLayout(boxes, it) }
         if (ff != null && slow != null) respace(bitmap, slow, boxes, ff, place)
@@ -177,13 +180,12 @@ class ImportedSkinRenderer {
             val f = slow?.moved?.get(i) ?: box(item.getJSONObject("frame"))
             val e = item.optJSONObject("extendedEdges") ?: defaultEdges
             fun edge(k: String) = e?.optDouble(k, 0.0)?.toFloat() ?: 0f
-            fun touchOf(b: SkinBox) = place.rect(
-                SkinBox(b.x - edge("left"), b.y - edge("top"), b.w + edge("left") + edge("right"), b.h + edge("top") + edge("bottom")),
-            )
             val frame = place.rect(f)
-            val touch = touchOf(f)
-            if (i == ff && slow != null && !hardcore) {
-                descs += OverlayDesc(SLOW_MOTION, touchOf(slow.slowMotion))
+            // Fast forward's and slow motion's touch areas stop at the side they share, so one press never hits both.
+            val speed = slow?.takeIf { i == ff }?.let { speedTouches(it.slowMotion, f, extended(it.slowMotion, ::edge), extended(f, ::edge)) }
+            val touch = place.rect(speed?.second ?: extended(f, ::edge))
+            if (speed != null && slow != null && !hardcore) {
+                descs += OverlayDesc(SLOW_MOTION, place.rect(speed.first))
                 OverlayWriter.LIT_BY[SLOW_MOTION]?.let { descs += litPill(bitmap, it, place.rect(slow.slowMotion), place.s) }
             }
             when (val inputs = item.get("inputs")) {
@@ -426,6 +428,10 @@ class ImportedSkinRenderer {
         }
     }
 
+    /** [b] grown by the item's extended edges ([edge] of "left", "top", "right", "bottom"), in mapping units. */
+    private fun extended(b: SkinBox, edge: (String) -> Float) =
+        SkinBox(b.x - edge("left"), b.y - edge("top"), b.w + edge("left") + edge("right"), b.h + edge("top") + edge("bottom"))
+
     private fun box(f: JSONObject) =
         SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
 
@@ -473,7 +479,7 @@ class ImportedSkinRenderer {
         private const val SLOW_MOTION = "toggle_slowmotion"
 
         /** A speed key's share of opacity in hardcore: 0.45, like the drawn skins' strip and the pause sheet's disabled tiles. */
-        private const val DISABLED_ALPHA = 0x73 / 255f
+        private const val DISABLED_ALPHA = SPEED_OFF_ALPHA / 255f
 
         /** The least difference from its surroundings a toggle's glyph has, out of 255 per channel. */
         private const val GLYPH_MIN_DIFF = 48

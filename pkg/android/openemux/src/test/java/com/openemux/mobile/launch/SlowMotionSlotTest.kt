@@ -95,4 +95,33 @@ class SlowMotionSlotTest {
         assertEquals(126f, SkinBox(6f, 4f, 120f, 30f).right, 0f)
         assertEquals(34f, SkinBox(6f, 4f, 120f, 30f).bottom, 0f)
     }
+
+    @Test
+    fun `side by side speed keys stop their touch areas at the side they share`() {
+        // A lone wide fast forward split in two, the skin's extended edges 10 units all round.
+        val slow = SkinBox(100f, 80f, 30f, 30f)
+        val ff = SkinBox(130f, 80f, 30f, 30f)
+        val (slowTouch, ffTouch) = speedTouches(slow, ff, SkinBox(90f, 70f, 50f, 50f), SkinBox(120f, 70f, 50f, 50f))
+        assertBox(SkinBox(90f, 70f, 40f, 50f), slowTouch)
+        assertBox(SkinBox(130f, 70f, 40f, 50f), ffTouch)
+    }
+
+    @Test
+    fun `stacked speed keys stop their touch areas at the side they share`() {
+        // A tall fast forward split in two: slow motion on top.
+        val slow = SkinBox(100f, 80f, 30f, 30f)
+        val ff = SkinBox(100f, 110f, 30f, 30f)
+        val (slowTouch, ffTouch) = speedTouches(slow, ff, SkinBox(90f, 70f, 50f, 50f), SkinBox(90f, 100f, 50f, 50f))
+        assertBox(SkinBox(90f, 70f, 50f, 40f), slowTouch)
+        assertBox(SkinBox(90f, 110f, 50f, 40f), ffTouch)
+    }
+
+    @Test
+    fun `touch areas with no extended edges are left as they are`() {
+        val slow = SkinBox(100f, 80f, 30f, 30f)
+        val ff = SkinBox(130f, 80f, 30f, 30f)
+        val (slowTouch, ffTouch) = speedTouches(slow, ff, slow, ff)
+        assertBox(slow, slowTouch)
+        assertBox(ff, ffTouch)
+    }
 }

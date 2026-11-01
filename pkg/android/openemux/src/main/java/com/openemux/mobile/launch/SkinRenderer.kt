@@ -608,7 +608,7 @@ class SkinRenderer(private val context: Context) {
                 val cy = box.centerY()
                 val off = stripActionOff(action, hardcore)
                 // At 0.45, like the pause sheet's disabled tiles.
-                val color = if (off) (colors.icon and 0x00FFFFFF) or (0x73 shl 24) else colors.icon
+                val color = if (off) (colors.icon and 0x00FFFFFF) or (SPEED_OFF_ALPHA shl 24) else colors.icon
                 c.drawPath(stripIcon(action, cx, cy, size), stripPaint(action, size, color))
                 val area = RectF(box.left + slot * i, box.top, box.left + slot * (i + 1), box.bottom)
                 if (off) return@forEachIndexed

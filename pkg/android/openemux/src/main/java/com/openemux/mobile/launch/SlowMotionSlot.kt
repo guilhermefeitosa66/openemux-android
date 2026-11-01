@@ -55,3 +55,20 @@ fun slowMotionLayout(items: List<SkinBox?>, ff: Int): SlowMotionLayout {
     fun box(i: Int) = SkinBox(x0 + cell * i, key.y, cell, key.h)
     return SlowMotionLayout(box(at), run.withIndex().associate { (i, item) -> item to box(if (i < at) i else i + 1) })
 }
+
+/**
+ * The touch boxes of the slow-motion key and fast forward, [slowTouch] and [ffTouch] (their frames [slow] and [ff] with
+ * the skin's extended edges), kept off each other's key. Slow motion sits right before fast forward, edge to edge (left
+ * of it, or above it when a tall button was split), so an extended edge reaching across that shared side would let a
+ * single press hit both toggles.
+ */
+fun speedTouches(slow: SkinBox, ff: SkinBox, slowTouch: SkinBox, ffTouch: SkinBox): Pair<SkinBox, SkinBox> {
+    val sideBySide = ff.x >= slow.right - slow.w * 0.01f
+    return if (sideBySide) {
+        val ffLeft = maxOf(ffTouch.x, slow.right)
+        slowTouch.copy(w = minOf(slowTouch.right, ff.x) - slowTouch.x) to ffTouch.copy(x = ffLeft, w = ffTouch.right - ffLeft)
+    } else {
+        val ffTop = maxOf(ffTouch.y, slow.bottom)
+        slowTouch.copy(h = minOf(slowTouch.bottom, ff.y) - slowTouch.y) to ffTouch.copy(y = ffTop, h = ffTouch.bottom - ffTop)
+    }
+}

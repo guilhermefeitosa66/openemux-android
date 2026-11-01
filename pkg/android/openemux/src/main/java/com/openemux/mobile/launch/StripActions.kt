@@ -11,6 +11,9 @@ fun stripActions(layoutKey: Boolean): List<String> =
 /** The strip's speed toggles: RetroAchievements hardcore draws them off, with no touch area and no "on" look. */
 val STRIP_SPEED_ACTIONS = setOf("toggle_slowmotion", "toggle_fast_forward")
 
+/** The alpha (of 255) a speed key is drawn at while off in hardcore: 0.45, like the pause sheet's disabled tiles. */
+const val SPEED_OFF_ALPHA = 0x73
+
 /** Whether [action] is drawn off and does nothing on the strip: a speed toggle in [hardcore]. */
 fun stripActionOff(action: String, hardcore: Boolean) = hardcore && action in STRIP_SPEED_ACTIONS
 
