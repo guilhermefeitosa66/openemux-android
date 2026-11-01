@@ -81,6 +81,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -340,7 +341,10 @@ fun SecondaryButton(
             .gamepadFocus(corner = corner)
             .clip(RoundedCornerShape(corner))
             .background(Oe.Surface2)
-            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
+            // Busy, it stays focusable and only ignores the press: a disabled clickable drops the pad's focus,
+            // which then lands on another item, and the sheet that follows gives focus back there (issue 668).
+            .clickable(role = Role.Button) { if (!busy) onClick() }
+            .semantics { if (busy) disabled() }
             .alpha(if (busy) DISABLED_ALPHA else 1f)
             .padding(horizontal = if (compact) 14.dp else 0.dp),
         horizontalArrangement = Arrangement.Center,

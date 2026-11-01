@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -51,6 +52,7 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -669,6 +671,18 @@ fun BiosScreen(embedded: Boolean = false) {
     // The console the picker was opened for, kept across a process death while the picker is up.
     var pending by rememberSaveable { mutableStateOf<String?>(null) }
     val revision by importer.biosRevision.collectAsState()
+    // Each console's Import button, so closing the summary puts the pad's focus back on the one that was used.
+    val importTargets = remember { mutableMapOf<Console, PadFocusTarget>() }
+    var refocus by remember { mutableStateOf<Console?>(null) }
+    val padScope = LocalPadScope.current
+    LaunchedEffect(refocus) {
+        val c = refocus ?: return@LaunchedEffect
+        // After the sheet's own hand-back (posted when its window goes), so this one is the last word.
+        withFrameNanos { }
+        withFrameNanos { }
+        if (InputMode.gamepad) importTargets[c]?.let { padScope.focus(it) }
+        refocus = null
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
         val console = pending?.let { name -> Console.entries.firstOrNull { it.name == name } }
         pending = null
@@ -722,7 +736,8 @@ fun BiosScreen(embedded: Boolean = false) {
                                         picker.launch(arrayOf("*/*"))
                                     }
                                 },
-                                Modifier.semantics { contentDescription = label },
+                                Modifier.focusRequester(importTargets.getOrPut(c) { PadFocusTarget() }.requester)
+                                    .semantics { contentDescription = label },
                                 icon = Icons.Download, compact = true, busy = working == c,
                             )
                         },
@@ -750,7 +765,7 @@ fun BiosScreen(embedded: Boolean = false) {
         )
         Spacer(Modifier.height(hintBarInset))
     } }
-    report?.let { BiosImportSheet(it) { report = null } }
+    report?.let { r -> BiosImportSheet(r) { refocus = r.console; report = null } }
 }
 
 @Composable
