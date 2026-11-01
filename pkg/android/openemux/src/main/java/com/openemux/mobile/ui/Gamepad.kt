@@ -61,6 +61,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -491,7 +492,8 @@ internal fun Modifier.shrinkToFit(): Modifier = layout { measurable, constraints
  * A row that scrolls sideways under the gamepad without cutting the first
  * and last items' ring: it reaches [bleed] into its parent's side padding
  * and pads its content by as much inside the scroll, so the content lines up
- * with the rest of the screen while the ring has room at both ends.
+ * with the rest of the screen while the ring has room at both ends. With
+ * [fadeEnd], its end fades into the page while more can scroll in.
  */
 @Composable
 fun FocusRow(
@@ -499,11 +501,25 @@ fun FocusRow(
     bleed: Dp = 20.dp,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     verticalAlignment: Alignment.Vertical = Alignment.Top,
+    fadeEnd: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val scroll = rememberScrollState()
+    val page = Oe.Bg
     MarginFocusScroll(leading = bleed, trailing = bleed) {
         Row(
-            modifier.bleed(bleed).fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = bleed),
+            modifier.bleed(bleed).fillMaxWidth()
+                .then(if (fadeEnd) Modifier.drawWithContent {
+                    drawContent()
+                    if (scroll.canScrollForward) {
+                        val fade = minOf(44.dp.toPx(), size.width)
+                        drawRect(
+                            Brush.horizontalGradient(listOf(page.copy(alpha = 0f), page), startX = size.width - fade, endX = size.width),
+                            topLeft = Offset(size.width - fade, 0f), size = Size(fade, size.height),
+                        )
+                    }
+                } else Modifier)
+                .horizontalScroll(scroll).padding(horizontal = bleed),
             horizontalArrangement = horizontalArrangement,
             verticalAlignment = verticalAlignment,
             content = content,

@@ -120,4 +120,31 @@ class WindowLayoutTest {
         assertTrue(WindowLayout.of(800f, 1280f).tablet)   // 10" portrait
         assertTrue(WindowLayout.of(1280f, 800f).tablet)   // 10" landscape
     }
+
+    @Test
+    fun landscapeDetailIsAPhoneOnItsSide() {
+        assertTrue(WindowLayout.of(800f, 360f).landscapeDetail)
+        assertTrue(WindowLayout.of(732f, 360f).landscapeDetail)
+        assertTrue(WindowLayout.of(915f, 412f).landscapeDetail)
+        // Portrait, a tablet, a short split-screen half and a square window keep their layouts.
+        assertFalse(WindowLayout.of(412f, 915f).landscapeDetail)
+        assertFalse(WindowLayout.of(1280f, 800f).landscapeDetail)
+        assertFalse(WindowLayout.of(400f, 360f).landscapeDetail)
+        assertFalse(WindowLayout.of(360f, 360f).landscapeDetail)
+    }
+
+    @Test
+    fun landscapeDetailNeedsItsWidthBesideTheRail() {
+        // 600 - the 80dp phone rail = exactly the minimum.
+        assertTrue(WindowLayout.of(600f, 360f).landscapeDetail)
+        assertFalse(WindowLayout.of(599f, 360f).landscapeDetail)
+    }
+
+    @Test
+    fun detailStylePicksOnePerWindow() {
+        assertEquals(DetailStyle.TwoColumns, detailStyleOf(WindowLayout.of(1280f, 800f)))
+        assertEquals(DetailStyle.Landscape, detailStyleOf(WindowLayout.of(800f, 360f)))
+        assertEquals(DetailStyle.Phone, detailStyleOf(WindowLayout.of(412f, 915f)))
+        assertEquals(DetailStyle.Phone, detailStyleOf(WindowLayout.of(400f, 360f)))
+    }
 }
