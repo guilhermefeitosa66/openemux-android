@@ -264,6 +264,10 @@ def main():
     if only and only not in known:
         raise SystemExit(f"unknown variant: {only} (one of {', '.join(sorted(known))})")
     write_catalog(cat)
+    # Consoles named on the command line that do not come in the variant asked for would build nothing, silently.
+    lacking = [c for c in args if only and only not in {v["id"] for v in cat[c]}]
+    if lacking:
+        raise SystemExit(f"{', '.join(lacking)} not sold in {only}")
     with tempfile.TemporaryDirectory() as profile:
         for c in consoles:
             for v in cat[c]:

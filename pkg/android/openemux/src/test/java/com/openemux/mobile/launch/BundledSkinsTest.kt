@@ -103,8 +103,8 @@ class BundledSkinsTest {
     @Test fun everyColorPackageIsInTheCatalog() {
         SkinVariant.entries.filter { it.description == null }.forEach { v ->
             packages(File(assets, v.assetDir)).forEach { pkg ->
-                val console = Console.entries.first { it.id == pkg.name.substringBeforeLast('.') }
-                assertTrue("${v.id}/${pkg.name} is not in the catalog", SkinCatalog.parse(catalog, console).any { it.variant == v })
+                val console = Console.entries.firstOrNull { it.id == pkg.name.substringBeforeLast('.') }
+                assertTrue("${v.id}/${pkg.name} is not in the catalog", console != null && SkinCatalog.parse(catalog, console).any { it.variant == v })
             }
         }
     }

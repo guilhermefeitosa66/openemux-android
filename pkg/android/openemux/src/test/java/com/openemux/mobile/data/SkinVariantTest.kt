@@ -26,7 +26,7 @@ class SkinVariantTest {
     @Test fun eachColorVariantIsNamedAfterItsColorAndHasNoDescription() {
         assertEquals(SkinVariant.CLEAR_BLUE, SkinVariant.byId("clear-blue"))
         assertEquals("skins/clear-blue", SkinVariant.CLEAR_BLUE.assetDir)
-        SkinVariant.entries.drop(2).forEach {
+        (SkinVariant.entries - SkinVariant.CONSOLE - SkinVariant.DARK).forEach {
             assertEquals("skins/${it.id}", it.assetDir)
             assertEquals(null, it.description)
         }

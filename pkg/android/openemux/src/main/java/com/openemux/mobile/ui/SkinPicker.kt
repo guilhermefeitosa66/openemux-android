@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,14 +75,20 @@ fun rememberSkinChoice(library: Library, console: Console): SkinChoice? {
     val context = LocalContext.current
     val choice by produceState<SkinChoice?>(null, console) {
         value = withContext(Dispatchers.IO) {
-            val catalog = runCatching { context.assets.open(SkinCatalog.ASSET).bufferedReader().use { it.readText() } }.getOrNull()
-            SkinChoice.of(catalog, console, ImportedSkinRenderer.imported(library.paths.base, console) != null) {
+            SkinChoice.of(skinCatalog(context), console, ImportedSkinRenderer.imported(library.paths.base, console) != null) {
                 ImportedSkinRenderer.bundledName(context.assets.list(it.assetDir), console) != null
             }
         }
     }
     return choice
 }
+
+/** The catalog's JSON, read from the APK once per process: it only changes with an update, which restarts the app. */
+@Volatile
+private var catalogJson: String? = null
+
+private fun skinCatalog(context: Context): String? = catalogJson
+    ?: runCatching { context.assets.open(SkinCatalog.ASSET).bufferedReader().use { it.readText() } }.getOrNull()?.also { catalogJson = it }
 
 /** The shell's color with a button's on it, a small picture of the variant (issue 720). */
 @Composable
