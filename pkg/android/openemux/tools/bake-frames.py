@@ -5,8 +5,12 @@ Each SVG embeds one PNG; the color variants add an Inkscape "colorize"
 filter (desaturate, linear transfer, multiply by a flood color, keep alpha),
 which Android cannot render, so it is applied here.
 
+Consoles redone by tools/render-cartridge-frames.py are skipped: that script
+is their source now, and a .png next to its .webp would not build.
+
     tools/bake-frames.py ~/projetos/pessoal/OpenEmux/src/openemux/ui/assets/images/cartridges
 """
+import ast
 import base64
 import io
 import pathlib
@@ -15,7 +19,17 @@ import sys
 
 from PIL import Image
 
-OUT = pathlib.Path(__file__).resolve().parent.parent / "src/main/res/drawable-nodpi"
+TOOLS = pathlib.Path(__file__).resolve().parent
+OUT = TOOLS.parent / "src/main/res/drawable-nodpi"
+
+
+def rendered_consoles():
+    """The keys of CONSOLES in render-cartridge-frames.py, read without importing it (it needs numpy)."""
+    tree = ast.parse((TOOLS / "render-cartridge-frames.py").read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "CONSOLES" for t in node.targets):
+            return {key.value for key in node.value.keys}
+    sys.exit("bake-frames: no CONSOLES in render-cartridge-frames.py")
 
 
 def embedded_png(svg):
@@ -47,8 +61,11 @@ def colorize(img, svg):
 
 
 def main(src):
+    skip = rendered_consoles()
     for path in sorted(pathlib.Path(src).expanduser().glob("*.svg")):
         console, _, color = path.stem.partition("-")
+        if console in skip:
+            continue
         svg = path.read_text()
         img = embedded_png(svg)
         if "feFlood" in svg:
