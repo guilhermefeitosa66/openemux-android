@@ -25,6 +25,8 @@ object GameExtras {
     const val ROM_KEY = "OE_ROM_KEY"
     /** The folder a shader picked in game is dropped into for the library (ShaderPicks). */
     const val SHADER_PICKS = "OE_SHADER_PICKS"
+    /** The console's SkinVariant id, so a redraw in game uses the skin the launch did. */
+    const val SKIN_VARIANT = "OE_SKIN_VARIANT"
 }
 
 /**

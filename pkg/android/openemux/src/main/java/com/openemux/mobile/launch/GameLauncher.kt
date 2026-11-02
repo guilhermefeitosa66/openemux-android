@@ -24,6 +24,7 @@ import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Labels
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.Rom
+import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
@@ -170,6 +171,7 @@ class GameLauncher(
             val metrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).maximumWindowMetrics
             val size = SkinSize.of(metrics)
             val core = library.effectiveCore(rom)
+            val skinVariant = SkinVariant.byId(library.consoleSettings(rom.console).skin)
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
@@ -178,6 +180,7 @@ class GameLauncher(
             val drawn = GameSkin.render(
                 context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id,
                 first = "landscape".takeIf { landscape }, fold = upright, gamepad = Gamepads.connected(),
+                variant = skinVariant,
             )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
@@ -228,6 +231,7 @@ class GameLauncher(
                 putExtra(GameExtras.SKIN_SIZE, size.toString())
                 putExtra(GameExtras.SKINS_BASE, paths.base.absolutePath)
                 putExtra(GameExtras.CORE_ID, core.id)
+                putExtra(GameExtras.SKIN_VARIANT, skinVariant.id)
                 if (slot != null && !hardcore) putExtra(GameExtras.LOAD_SLOT, slot)
             }
         }

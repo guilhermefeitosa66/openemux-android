@@ -78,6 +78,8 @@ import com.openemux.mobile.data.KNOWN_BIOS
 import com.openemux.mobile.data.LoginResult
 import com.openemux.mobile.data.RaLogin
 import com.openemux.mobile.data.SHADERS
+import com.openemux.mobile.data.SkinVariant
+import com.openemux.mobile.launch.ImportedSkinRenderer
 import com.openemux.mobile.data.shaderById
 import com.openemux.mobile.share.ShareProtocol
 import com.retroarch.BuildConfig
@@ -544,6 +546,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
     val count = roms.count { it.console == console }
     var colorSheet by remember { mutableStateOf(false) }
     var ownSheet by remember { mutableStateOf(false) }
+    var skinSheet by remember { mutableStateOf(false) }
     val sample = roms.firstOrNull { it.console == console }
 
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
@@ -603,7 +606,10 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
             } else {
                 ListRow("BIOS", subtitle = stringResource(R.string.settings_bios_not_needed), value = "—")
             }
-            ListRow(stringResource(R.string.settings_default_skin), value = "OpenEmux ${console.short}", divider = true)
+            ListRow(
+                stringResource(R.string.settings_default_skin), value = stringResource(SkinVariant.byId(settings.skin).label), divider = true,
+                onClick = { skinSheet = true },
+            )
             if (console.frame != null) ListRow(
                 stringResource(R.string.settings_cart_color), value = stringResource(CART_COLORS.first { it.id == settings.color }.label), divider = true,
                 onClick = { colorSheet = true },
@@ -639,6 +645,28 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                     Spacer(Modifier.height(16.dp))
                 }
                 ColorSwatches(settings.color) { c -> lib.updateConsole(console) { it.copy(color = c) } }
+            }
+        }
+    }
+    if (skinSheet) {
+        // Read when the sheet opens: an imported package wins over both bundled skins.
+        val imported = remember { ImportedSkinRenderer.imported(lib.paths.base, console) != null }
+        OeSheet({ skinSheet = false }) {
+            SheetBarIcons()
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+                Text(stringResource(R.string.settings_default_skin), style = Type.Title.copy(fontSize = 22.sp))
+                Text(stringResource(R.string.settings_skin_sheet_desc, console.short), style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SkinVariant.entries.forEach { v ->
+                        RadioCard(
+                            SkinVariant.byId(settings.skin) == v, stringResource(v.label), stringResource(v.description),
+                            onClick = { lib.updateConsole(console) { it.copy(skin = v.id) } },
+                        )
+                    }
+                }
+                if (imported) {
+                    Text(stringResource(R.string.settings_skin_imported, console.short), style = Type.Small, modifier = Modifier.padding(top = 12.dp))
+                }
             }
         }
     }

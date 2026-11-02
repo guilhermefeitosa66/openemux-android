@@ -17,6 +17,7 @@ import android.util.Log
 import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
 import org.json.JSONObject
@@ -527,25 +528,32 @@ class ImportedSkinRenderer {
             Console.GC to mapOf("z" to "r", "l" to "l2", "r" to "r2"),
         )
 
-        /**
-         * The skin for [console]: one the user put in files/skins/<console> (the first .deltaskin or
-         * .manicskin), else the one the app ships in assets/skins, copied out so it can be read as a zip.
-         */
         /** The NDS screens key's input: the app's own name (tools/skins), which other emulators ignore. */
         const val SCREENS_INPUT = "screens"
 
         /** The NDS layouts a package draws apart from its representations' own art, one over the other. */
         private val NDS_ART_LAYOUTS = listOf("top", "bottom", "side")
 
-        fun find(context: Context, base: File, console: Console): File? {
+        /** The skin the user put in files/skins/<console> for [console] (the first .deltaskin or .manicskin), if any. */
+        fun imported(base: File, console: Console): File? =
             File(base, "skins/${console.id}").listFiles()
-                ?.filter { it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true) }
+                ?.filter { it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
                 ?.minByOrNull { it.name }
-                ?.let { return it }
-            val name = context.assets.list("skins")?.firstOrNull { it.substringBeforeLast('.') == console.id } ?: return null
-            val out = File(context.cacheDir, "skins/$name")
+
+        /** The package [names] (an assets folder's listing) holds for [console], if any. */
+        fun bundledName(names: Array<String>?, console: Console): String? =
+            names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }
+
+        /**
+         * The skin for [console]: the one the user imported ([imported]), else the one the app ships in
+         * [variant]'s assets folder, copied out (to a cache folder of its own per variant) so it can be read as a zip.
+         */
+        fun find(context: Context, base: File, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
+            imported(base, console)?.let { return it }
+            val name = bundledName(context.assets.list(variant.assetDir), console) ?: return null
+            val out = File(context.cacheDir, "${variant.assetDir}/$name")
             out.parentFile?.mkdirs()
-            context.assets.open("skins/$name").use { input -> out.outputStream().use { input.copyTo(it) } }
+            context.assets.open("${variant.assetDir}/$name").use { input -> out.outputStream().use { input.copyTo(it) } }
             return out
         }
     }

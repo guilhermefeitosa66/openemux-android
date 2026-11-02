@@ -5,6 +5,7 @@ import android.util.Log
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Fold
 import java.io.File
 
@@ -28,11 +29,12 @@ object GameSkin {
      * for (a package's iPad art, the drawn tablet shape); [first] is the overlay RetroArch opens on.
      * [fold], the one the window has now, adds the drawn tabletop overlays when it runs across the long side.
      * [gamepad]: a gamepad is connected, the drawn skin opens on its gamepad layout.
+     * [variant]: which of the app's packages the console plays with (its own colors or Dark).
      */
     fun render(
         context: Context, base: File, console: Console, size: SkinSize, outDir: File,
         density: Float, hardcore: Boolean, coreId: String?, first: String? = null, fold: Fold? = null,
-        gamepad: Boolean = false,
+        gamepad: Boolean = false, variant: SkinVariant = SkinVariant.CONSOLE,
     ): Drawn {
         val tablet = SkinGeometry.tablet(size.short, size.long, density)
         val ndsTabletop = if (console == Console.NDS) NdsLayouts.loadTabletop(context.filesDir) else null
@@ -41,7 +43,7 @@ object GameSkin {
         // the screens one over the other, which the package's own art draws.
         val packageNds = ndsLayouts?.takeIf { "desmume" in coreId.orEmpty() }
         val importer = ImportedSkinRenderer()
-        val packaged = ImportedSkinRenderer.find(context, base, console)?.let {
+        val packaged = ImportedSkinRenderer.find(context, base, console, variant)?.let {
             runCatching {
                 // The page in [first]'s orientation (and NDS layout, when the package draws one page per layout) opens.
                 importer.render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, packageNds)

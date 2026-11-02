@@ -53,6 +53,12 @@
     <string name="settings_bios_missing">なし</string>
     <string name="settings_bios_not_needed">このコンソールには不要です</string>
     <string name="settings_default_skin">既定のスキン</string>
+    <string name="settings_skin_console">本体カラー</string>
+    <string name="settings_skin_console_desc">本体そのままの色。</string>
+    <string name="settings_skin_dark">ダーク</string>
+    <string name="settings_skin_dark_desc">黒い背景と濃いグレーのボタン。部屋を暗くして遊ぶときに。</string>
+    <string name="settings_skin_sheet_desc">%1$s のすべてのゲームで使う仮想コントローラー。</string>
+    <string name="settings_skin_imported">%1$s 用にインポートしたスキンが代わりに使われます。</string>
     <string name="settings_cart_color">カートリッジの色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">%2$s のゲーム %1$d 本すべてに適用されます。</item>
