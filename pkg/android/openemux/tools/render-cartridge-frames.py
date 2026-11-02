@@ -641,7 +641,7 @@ def mega_drive():
         # Two big rounded grip columns at the sides; the label runs up to the top edge.
         body = cv.rpoly([(3, 3), (291.5, 3), (291.5, 196.5), (3, 196.5)], [11, 11, 5, 5])
         layers = [
-            (cv.rrect((3, 3, 40, 196.5, 9), (254.5, 3, 291.5, 196.5, 9)), 1.10, 1.70),  # grip columns
+            (cv.rrect((5, 3, 39, 196.5, 9), (255.5, 3, 289.5, 196.5, 9)), 1.80, 2.60),  # grip columns
             (cv.rrect((40.5, -10, 42.5, 210, 0.8), (252, -10, 254, 210, 0.8)), -0.40, 0.14),  # column seams
             (cv.rrect((44, -10, 250.5, 173.5, 3)), -0.45, 0.35),                    # label recess
             (cv.rrect((41, 186.5, 253.5, 210, 0)), -0.15, 0.60),                    # bottom edge rolls off
