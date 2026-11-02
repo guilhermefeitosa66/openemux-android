@@ -320,7 +320,7 @@ def sega_32x():
     return build
 
 
-ATARI_BLACK = (0.30, 0.30, 0.31)  # the Atari shells are black today
+ATARI_BLACK = SEGA_BLACK  # the Atari shells are the same black plastic today
 
 
 def atari_vcs():
