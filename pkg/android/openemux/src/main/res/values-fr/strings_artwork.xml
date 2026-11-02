@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The per-game artwork manager (issue 746). -->
+<resources>
+    <string name="detail_artwork">Illustrations…</string>
+    <string name="detail_search_artwork">Chercher une illustration…</string>
+    <string name="artwork_title">Illustrations</string>
+    <string name="artwork_subtitle">%1$s · %2$s</string>
+    <string name="artwork_cover">Jaquette</string>
+    <string name="artwork_label">Étiquette</string>
+    <string name="artwork_pill_automatic">Automatique</string>
+    <string name="artwork_pill_manual">Manuelle</string>
+    <string name="artwork_pill_local">Fichier local</string>
+    <string name="artwork_pill_missing">Manquante</string>
+    <string name="artwork_synced_on">Synchronisée le %1$s</string>
+    <string name="artwork_saved_on">Enregistrée le %1$s</string>
+    <string name="artwork_synced_unknown">Issue de la synchronisation des illustrations</string>
+    <string name="artwork_from_mirror">Du miroir OpenEmux</string>
+    <string name="artwork_from_screenscraper">De ScreenScraper</string>
+    <string name="artwork_chosen_by_you">Choisie par vous</string>
+    <string name="artwork_found_on_device">Trouvée sur l\'appareil</string>
+    <string name="artwork_missing_cover">Pas encore de jaquette</string>
+    <string name="artwork_missing_label">Pas encore d\'étiquette</string>
+    <string name="artwork_missing_cover_hint">Synchronisez-la depuis le miroir d\'illustrations OpenEmux.</string>
+    <string name="artwork_missing_label_hint">Sans étiquette, la cartouche n\'affiche que sa coque.</string>
+    <string name="artwork_details">%1$s · %2$d × %3$d</string>
+    <string name="artwork_unreadable">Impossible de lire le fichier</string>
+    <string name="artwork_sync_now">Synchroniser maintenant</string>
+    <string name="artwork_syncing">Synchronisation…</string>
+    <string name="artwork_reset_cover">Revenir à la jaquette synchronisée</string>
+    <string name="artwork_reset_label">Revenir à l\'étiquette synchronisée</string>
+    <string name="artwork_remove_cover">Supprimer la jaquette</string>
+    <string name="artwork_remove_label">Supprimer l\'étiquette</string>
+    <string name="artwork_reset_title_cover">Revenir à la jaquette synchronisée ?</string>
+    <string name="artwork_reset_title_label">Revenir à l\'étiquette synchronisée ?</string>
+    <string name="artwork_reset_body_cover">La jaquette choisie sera remplacée par celle que la synchronisation trouve pour ce jeu. Si rien n\'est trouvé, la jaquette actuelle reste.</string>
+    <string name="artwork_reset_body_label">L\'étiquette choisie sera remplacée par celle que la synchronisation trouve pour ce jeu. Si rien n\'est trouvé, l\'étiquette actuelle reste.</string>
+    <string name="artwork_reset_confirm">Rétablir</string>
+    <string name="artwork_msg_busy">Une synchronisation de la bibliothèque est en cours. Réessayez quand elle sera terminée.</string>
+    <string name="artwork_msg_unavailable">Le service d\'illustrations est injoignable. Rien n\'a été modifié.</string>
+    <string name="artwork_msg_reset_not_found_cover">Aucune jaquette synchronisée trouvée pour %1$s. L\'actuelle reste.</string>
+    <string name="artwork_msg_reset_not_found_label">Aucune étiquette synchronisée trouvée pour %1$s. L\'actuelle reste.</string>
+    <string name="artwork_msg_sync_not_found_cover">Aucune jaquette trouvée pour %1$s.</string>
+    <string name="artwork_msg_sync_not_found_label">Aucune étiquette trouvée pour %1$s.</string>
+    <string name="artwork_preview_cover">Jaquette de %1$s</string>
+    <string name="artwork_preview_label">Étiquette de %1$s</string>
+    <string name="artwork_dismiss">Fermer</string>
+</resources>

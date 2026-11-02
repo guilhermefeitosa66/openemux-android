@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The per-game artwork manager (issue 746). -->
+<resources>
+    <string name="detail_artwork">Artwork…</string>
+    <string name="detail_search_artwork">Search artwork…</string>
+    <string name="artwork_title">Artwork</string>
+    <string name="artwork_subtitle">%1$s · %2$s</string>
+    <string name="artwork_cover">Cover</string>
+    <string name="artwork_label">Label</string>
+    <string name="artwork_pill_automatic">Automatic</string>
+    <string name="artwork_pill_manual">Manual</string>
+    <string name="artwork_pill_local">Local file</string>
+    <string name="artwork_pill_missing">Missing</string>
+    <string name="artwork_synced_on">Synced %1$s</string>
+    <string name="artwork_saved_on">Saved %1$s</string>
+    <string name="artwork_synced_unknown">From the artwork sync</string>
+    <string name="artwork_from_mirror">From the OpenEmux mirror</string>
+    <string name="artwork_from_screenscraper">From ScreenScraper</string>
+    <string name="artwork_chosen_by_you">Chosen by you</string>
+    <string name="artwork_found_on_device">Found on the device</string>
+    <string name="artwork_missing_cover">No cover yet</string>
+    <string name="artwork_missing_label">No label yet</string>
+    <string name="artwork_missing_cover_hint">Sync it from the OpenEmux artwork mirror.</string>
+    <string name="artwork_missing_label_hint">Without a label the cartridge shows its shell only.</string>
+    <string name="artwork_details">%1$s · %2$d × %3$d</string>
+    <string name="artwork_unreadable">The file could not be read</string>
+    <string name="artwork_sync_now">Sync now</string>
+    <string name="artwork_syncing">Syncing…</string>
+    <string name="artwork_reset_cover">Reset to synced cover</string>
+    <string name="artwork_reset_label">Reset to synced label</string>
+    <string name="artwork_remove_cover">Remove cover</string>
+    <string name="artwork_remove_label">Remove label</string>
+    <string name="artwork_reset_title_cover">Reset to the synced cover?</string>
+    <string name="artwork_reset_title_label">Reset to the synced label?</string>
+    <string name="artwork_reset_body_cover">The cover you chose will be replaced by the one the artwork sync finds for this game. If nothing is found, the current cover stays.</string>
+    <string name="artwork_reset_body_label">The label you chose will be replaced by the one the artwork sync finds for this game. If nothing is found, the current label stays.</string>
+    <string name="artwork_reset_confirm">Reset</string>
+    <string name="artwork_msg_busy">A library sync is running. Try again when it finishes.</string>
+    <string name="artwork_msg_unavailable">The artwork service could not be reached. Nothing was changed.</string>
+    <string name="artwork_msg_reset_not_found_cover">No synced cover was found for %1$s. The current one stays.</string>
+    <string name="artwork_msg_reset_not_found_label">No synced label was found for %1$s. The current one stays.</string>
+    <string name="artwork_msg_sync_not_found_cover">No cover was found for %1$s.</string>
+    <string name="artwork_msg_sync_not_found_label">No label was found for %1$s.</string>
+    <string name="artwork_preview_cover">Cover of %1$s</string>
+    <string name="artwork_preview_label">Label of %1$s</string>
+    <string name="artwork_dismiss">Dismiss</string>
+</resources>

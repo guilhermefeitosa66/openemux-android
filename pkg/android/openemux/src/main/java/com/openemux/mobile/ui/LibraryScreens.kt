@@ -572,7 +572,7 @@ private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modif
     ) {
         // Tall shells are sized by the card's height, so they stay inside it.
         val cart = minOf(112.dp, (height - 24.dp) * rom.console.cartAspect)
-        Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(cart), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+        Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(cart), pending = labelPending(rom), cover = coverFor(rom))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(rom.title, style = Type.BodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${rom.console.short} · ${formatAgo(lastPlayed)}", style = Type.Small, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
@@ -617,7 +617,7 @@ private fun AddedCartridge(rom: Rom, modifier: Modifier, focus: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CappedCell(GridSpec.Carts) {
-            Cartridge(rom.console, labelFor(rom), rom.title, a.app.library.effectiveColor(rom), it, pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+            Cartridge(rom.console, labelFor(rom), rom.title, a.app.library.effectiveColor(rom), it, pending = labelPending(rom), cover = coverFor(rom))
         }
         Text(
             rom.title, style = Type.Caption.copy(color = Oe.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
@@ -953,7 +953,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
-                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
                         Text(
@@ -1134,7 +1134,7 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
         if (selecting) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
         Row(Modifier.weight(1f).clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(76.dp), contentAlignment = Alignment.Center) {
-                if (rom.console.frame != null) Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(76.dp), pending = labelPending(rom), cover = LocalActions.current.app.covers.urlFor(rom))
+                if (rom.console.frame != null) Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(76.dp), pending = labelPending(rom), cover = coverFor(rom))
                 else BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = 56.dp)
             }
             Column(Modifier.weight(1f).padding(start = 14.dp, end = 10.dp)) {
@@ -1348,7 +1348,7 @@ private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyList
 
 @Composable
 private fun BoxArt(rom: Rom, modifier: Modifier, maxHeight: Dp? = null) =
-    CoverArt(LocalActions.current.app.covers.urlFor(rom), rom.title, modifier, maxHeight)
+    CoverArt(coverFor(rom), rom.title, modifier, maxHeight)
 
 /**
  * Landscape: one header row (the filter pager in it, issue 669) and one row of games that scrolls
@@ -1452,7 +1452,7 @@ private fun LandscapeLibrary(
                             val picked = rom.key in pick.selection
                             Box(Modifier.selectionLook(selecting, picked)) {
                                 if (itemMode == ViewMode.Carts) {
-                                    Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(w!!), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+                                    Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(w!!), pending = labelPending(rom), cover = coverFor(rom))
                                 } else {
                                     BoxArt(rom, Modifier.clip(RoundedCornerShape(10.dp)), maxHeight = itemH)
                                 }
@@ -1747,7 +1747,7 @@ fun RecentScreen() {
                 Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true).clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(96.dp), cover = a.app.covers.urlFor(rom))
+                Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(96.dp), cover = coverFor(rom))
                 Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                     Text(rom.title, style = Type.BodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text("${rom.console.short} · ${formatAgo(meta.roms[rom.key]!!.lastPlayed)}", style = Type.Small, modifier = Modifier.padding(top = 2.dp))

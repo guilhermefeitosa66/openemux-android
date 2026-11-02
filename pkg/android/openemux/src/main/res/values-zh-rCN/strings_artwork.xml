@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The per-game artwork manager (issue 746). -->
+<resources>
+    <string name="detail_artwork">封面图…</string>
+    <string name="detail_search_artwork">搜索封面图…</string>
+    <string name="artwork_title">封面图</string>
+    <string name="artwork_subtitle">%1$s · %2$s</string>
+    <string name="artwork_cover">封面</string>
+    <string name="artwork_label">标签</string>
+    <string name="artwork_pill_automatic">自动</string>
+    <string name="artwork_pill_manual">手动</string>
+    <string name="artwork_pill_local">本地文件</string>
+    <string name="artwork_pill_missing">缺失</string>
+    <string name="artwork_synced_on">同步于 %1$s</string>
+    <string name="artwork_saved_on">保存于 %1$s</string>
+    <string name="artwork_synced_unknown">来自封面图同步</string>
+    <string name="artwork_from_mirror">来自 OpenEmux 镜像</string>
+    <string name="artwork_from_screenscraper">来自 ScreenScraper</string>
+    <string name="artwork_chosen_by_you">由你选择</string>
+    <string name="artwork_found_on_device">在设备上找到</string>
+    <string name="artwork_missing_cover">还没有封面</string>
+    <string name="artwork_missing_label">还没有标签</string>
+    <string name="artwork_missing_cover_hint">可从 OpenEmux 封面图镜像同步。</string>
+    <string name="artwork_missing_label_hint">没有标签时，卡带只显示外壳。</string>
+    <string name="artwork_details">%1$s · %2$d × %3$d</string>
+    <string name="artwork_unreadable">无法读取该文件</string>
+    <string name="artwork_sync_now">立即同步</string>
+    <string name="artwork_syncing">正在同步…</string>
+    <string name="artwork_reset_cover">恢复为同步的封面</string>
+    <string name="artwork_reset_label">恢复为同步的标签</string>
+    <string name="artwork_remove_cover">移除封面</string>
+    <string name="artwork_remove_label">移除标签</string>
+    <string name="artwork_reset_title_cover">恢复为同步的封面？</string>
+    <string name="artwork_reset_title_label">恢复为同步的标签？</string>
+    <string name="artwork_reset_body_cover">你选择的封面将被替换为封面图同步为这款游戏找到的封面。如果什么都没找到，当前封面将保留。</string>
+    <string name="artwork_reset_body_label">你选择的标签将被替换为封面图同步为这款游戏找到的标签。如果什么都没找到，当前标签将保留。</string>
+    <string name="artwork_reset_confirm">恢复</string>
+    <string name="artwork_msg_busy">游戏库正在同步。请在同步完成后再试。</string>
+    <string name="artwork_msg_unavailable">无法连接封面图服务。没有做任何更改。</string>
+    <string name="artwork_msg_reset_not_found_cover">没有找到 %1$s 的同步封面。当前封面将保留。</string>
+    <string name="artwork_msg_reset_not_found_label">没有找到 %1$s 的同步标签。当前标签将保留。</string>
+    <string name="artwork_msg_sync_not_found_cover">没有找到 %1$s 的封面。</string>
+    <string name="artwork_msg_sync_not_found_label">没有找到 %1$s 的标签。</string>
+    <string name="artwork_preview_cover">%1$s 的封面</string>
+    <string name="artwork_preview_label">%1$s 的标签</string>
+    <string name="artwork_dismiss">关闭</string>
+</resources>

@@ -145,6 +145,8 @@ object Icons {
     const val Mute = "M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6"
     const val Reset = "M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"
     const val Trash = "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
+    /** A picture: the artwork manager (issue 746). */
+    const val Image = "M4 4h16v16H4zM9 7.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3M20 15l-5-5-11 10"
     const val Expand = "M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"
     const val Dots = "M5 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M19 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2"
     const val Trophy = "M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"
@@ -173,6 +175,15 @@ fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, fille
         )
     }.build()
     Image(vector, contentDescription = null, modifier = modifier.size(size))
+}
+
+/** What to draw as the ROM's box art; follows the artwork manager's changes (issue 746). */
+@Composable
+fun coverFor(rom: Rom): String? {
+    val app = LocalActions.current.app
+    // Read to recompose on a change; the lookup itself runs every time, so a cover that arrives later shows.
+    app.artwork.changes.collectAsState().value
+    return app.covers.urlFor(rom)
 }
 
 /** The ROM's cartridge label, once [com.openemux.mobile.data.Labels] has it. */

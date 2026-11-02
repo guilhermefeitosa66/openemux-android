@@ -94,6 +94,7 @@ object Routes {
     const val SHELF = "shelf"
     const val LIBRARY = "library/{filter}"
     const val ROM = "rom/{key}"
+    const val ARTWORK = "artwork/{key}"
     const val RECENT = "recent"
     const val IMPORT = "import"
     const val SETTINGS = "settings"
@@ -111,6 +112,7 @@ object Routes {
 
     fun library(filter: String) = "library/$filter"
     fun rom(key: String) = "rom/${Uri.encode(key)}"
+    fun artwork(key: String) = "artwork/${Uri.encode(key)}"
     fun console(id: String) = "settings/$id"
     fun license(id: String) = "about/license/$id"
     fun shareAddress(address: String) = "share/address?addr=${Uri.encode(address)}"
@@ -227,6 +229,7 @@ fun OpenEmuxRoot() {
                         composable(Routes.SHELF) { ShelfScreen() }
                         composable(Routes.LIBRARY) { LibraryScreen(it.arguments?.getString("filter") ?: "ALL", it) }
                         composable(Routes.ROM) { DetailScreen(Uri.decode(it.arguments?.getString("key") ?: "")) }
+                        composable(Routes.ARTWORK) { RememberRowFocus { ArtworkScreen(Uri.decode(it.arguments?.getString("key") ?: "")) } }
                         composable(Routes.RECENT) { RecentScreen() }
                         // Rows (ListRow, SwitchRow, SettingTile) get their focus back on these when they come back.
                         composable(Routes.IMPORT) { RememberRowFocus { ImportScreen() } }
@@ -431,7 +434,7 @@ private fun LaunchingOverlay(rom: Rom) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Cartridge(
                 rom.console, labelFor(rom), rom.title, app.library.effectiveColor(rom),
-                Modifier.size(width = 220.dp, height = 140.dp), cover = app.covers.urlFor(rom),
+                Modifier.size(width = 220.dp, height = 140.dp), cover = coverFor(rom),
             )
             Row(Modifier.padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), color = Oe.AccentText, strokeWidth = 2.dp)
