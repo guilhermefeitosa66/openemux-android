@@ -111,6 +111,10 @@ object InputMode {
     /** Pad presses so far, so a screen can tell focus the player moved from focus the platform put somewhere. */
     var presses = 0L
 
+    /** Times a highlighted item took focus, and that count at the last press: a gain since then is the platform's doing. */
+    var focusGains = 0L
+    var gainsAtPress = 0L
+
     /** How many highlighted items hold focus now (0 or 1 in practice). */
     var focused = 0
 
@@ -359,6 +363,7 @@ fun Modifier.gamepadFocus(
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
             if (now != focused) InputMode.focused += if (now) 1 else -1
+            if (now && !focused) InputMode.focusGains++
             focused = now
         }
         .graphicsLayer { scaleX = grow; scaleY = grow }
@@ -561,20 +566,23 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     // the initial item, so the others do not recompose when it flips.
     val forgotten = remember(saved) { derivedStateOf { saved.value == null } }
     val screens = LocalNavFocus.current
-    // The pad presses when the item came in: only focus no press has moved since the screen opened is the
-    // platform's to take over, not focus after a later press (A on a filter chip, the press that wakes the pad).
-    val openedAt = remember { InputMode.presses }
+    // Whether the pad was on when this ran last: the press that wakes it lands focus where it chose.
+    val wasPad = remember { booleanArrayOf(InputMode.gamepad) }
     // Also when the gamepad wakes up with nothing focused, or when the screen forgets
     // its focused item (it was removed), so focus is never missing.
     LaunchedEffect(InputMode.gamepad, initial && forgotten.value) {
+        val woke = !wasPad[0]
+        wasPad[0] = InputMode.gamepad
         if (!InputMode.gamepad) return@LaunchedEffect
         if (saved.value == key) {
             withFrameNanos { }
             runCatching { requester.requestFocus() }
         } else if (saved.value == null && initial) {
             // Let a screen or page transition hand its focus over first.
+            val presses = InputMode.presses
             delay(150)
-            if (takesInitialFocus(InputMode.focused, screens?.held, InputMode.presses != openedAt)) runCatching { requester.requestFocus() }
+            val byPlatform = focusByPlatform(woke, InputMode.presses != presses, InputMode.focusGains, InputMode.gainsAtPress)
+            if (takesInitialFocus(InputMode.focused, screens?.held, byPlatform)) runCatching { requester.requestFocus() }
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
@@ -601,16 +609,21 @@ fun Modifier.tracksFocus(flag: FocusFlag): Modifier = onFocusChanged { flag.held
  */
 val LocalNavFocus = compositionLocalOf<FocusFlag?> { null }
 
+/** Whether the platform moved focus: it changed hands since the last press, with no press since, and not on waking the pad. */
+fun focusByPlatform(woke: Boolean, pressedSince: Boolean, gains: Long, gainsAtPress: Long): Boolean =
+    !woke && !pressedSince && gains != gainsAtPress
+
 /**
- * Whether a screen's initial item takes the gamepad's focus as the screen opens: when nothing holds
- * focus, and also when the focus in the screens was put there by the platform, with no press since
- * the screen opened ([pressed] false). When A opens a screen, the item it pressed leaves with the old
- * one, Compose clears focus and the platform enters the window again on the first item at the top
- * left: the new screen's back arrow or search, against the hint bar (issue 701). Focus on the tabs or
- * the rail stays there, and so does focus the player has moved.
+ * Whether a screen's initial item takes the gamepad's focus as it comes in (the screen opens, or its
+ * filter changes): when nothing holds focus, and also when the focus in the screens was put there by
+ * the platform ([byPlatform]: it moved since the last press, with no press since, and not by the press
+ * that woke the pad). When A opens a screen or L1/R1 changes the filter, the focused game leaves,
+ * Compose clears focus and the platform enters the window again on the first item at the top left:
+ * the back arrow or search, against the hint bar (issue 701). Focus on the tabs or the rail, focus the
+ * player moved and focus a press kept (A on a filter chip) stay where they are.
  */
-fun takesInitialFocus(focused: Int, inScreens: Boolean?, pressed: Boolean): Boolean =
-    focused == 0 || (inScreens == true && !pressed)
+fun takesInitialFocus(focused: Int, inScreens: Boolean?, byPlatform: Boolean): Boolean =
+    focused == 0 || (inScreens == true && byPlatform)
 
 /** Where the rows of a screen remember the one that held focus; null outside such a screen. */
 val LocalRowFocus = compositionLocalOf<MutableState<String?>?> { null }

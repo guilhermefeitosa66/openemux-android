@@ -304,7 +304,7 @@ class PadRouter(
         val decision = decidePadKey(code, event.action, fromPad, s.focusShown(), landed)
         if (decision == PadDecision.NotPad) { s.touchExit = false; return dispatch(event) }
         InputMode.gamepad = true
-        if (event.action == KeyEvent.ACTION_DOWN) InputMode.presses++
+        if (event.action == KeyEvent.ACTION_DOWN) { InputMode.presses++; InputMode.gainsAtPress = InputMode.focusGains }
         if (s.touchExit) {
             // The press that took the window out of touch mode only lands focus.
             s.touchExit = false
