@@ -59,6 +59,7 @@
     <string name="settings_skin_dark_desc">黒い背景と濃いグレーのボタン。部屋を暗くして遊ぶときに。</string>
     <string name="settings_skin_sheet_desc">%1$s のすべてのゲームで使う仮想コントローラー。</string>
     <string name="settings_skin_imported">%1$s 用にインポートしたスキンが代わりに使われます。</string>
+    <string name="settings_skin_imported_value">インポートしたスキン</string>
     <string name="settings_cart_color">カートリッジの色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">%2$s のゲーム %1$d 本すべてに適用されます。</item>

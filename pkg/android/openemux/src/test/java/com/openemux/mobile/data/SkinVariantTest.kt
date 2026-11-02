@@ -43,8 +43,11 @@ class SkinVariantTest {
         assertEquals(ConsoleSettings("mgba", "none"), ConsoleSettings.fromJson(noColor))
     }
 
-    @Test fun anUnknownSavedSkinIsReadAsTheConsolesColors() {
+    @Test fun anUnknownSavedSkinIsKeptAndPlaysInTheConsolesColors() {
         val odd = JSONObject("""{"core":"mgba","shader":"none","color":"default","skin":"neon"}""")
-        assertEquals("console", ConsoleSettings.fromJson(odd).skin)
+        val read = ConsoleSettings.fromJson(odd)
+        assertEquals("neon", read.skin)
+        assertEquals("neon", read.toJson().getString("skin"))
+        assertEquals(SkinVariant.CONSOLE, SkinVariant.byId(read.skin))
     }
 }

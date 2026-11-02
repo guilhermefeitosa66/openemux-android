@@ -31,6 +31,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -547,6 +550,17 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
     var colorSheet by remember { mutableStateOf(false) }
     var ownSheet by remember { mutableStateOf(false) }
     var skinSheet by remember { mutableStateOf(false) }
+    // Off the main thread, once per console and again each time the sheet closes: whether the app ships a Dark
+    // package for it (only the consoles tools/skins builds) and whether an imported skin replaces both.
+    val context = LocalContext.current
+    val skinChoice by produceState<SkinChoice?>(null, console, skinSheet) {
+        value = withContext(Dispatchers.IO) {
+            SkinChoice(
+                ImportedSkinRenderer.bundledName(context.assets.list(SkinVariant.DARK.assetDir), console) != null,
+                ImportedSkinRenderer.imported(lib.paths.base, console) != null,
+            )
+        }
+    }
     val sample = roms.firstOrNull { it.console == console }
 
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
@@ -606,10 +620,19 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
             } else {
                 ListRow("BIOS", subtitle = stringResource(R.string.settings_bios_not_needed), value = "—")
             }
-            ListRow(
-                stringResource(R.string.settings_default_skin), value = stringResource(SkinVariant.byId(settings.skin).label), divider = true,
-                onClick = { skinSheet = true },
-            )
+            val choice = skinChoice
+            when {
+                choice?.imported == true -> ListRow(
+                    stringResource(R.string.settings_default_skin), value = stringResource(R.string.settings_skin_imported_value), divider = true,
+                    onClick = if (choice.dark) ({ skinSheet = true }) else null,
+                )
+                choice?.dark == true -> ListRow(
+                    stringResource(R.string.settings_default_skin), value = stringResource(SkinVariant.byId(settings.skin).label), divider = true,
+                    onClick = { skinSheet = true },
+                )
+                // A console the app draws its own skin for has no Dark package: nothing to pick.
+                else -> ListRow(stringResource(R.string.settings_default_skin), value = "OpenEmux ${console.short}", divider = true)
+            }
             if (console.frame != null) ListRow(
                 stringResource(R.string.settings_cart_color), value = stringResource(CART_COLORS.first { it.id == settings.color }.label), divider = true,
                 onClick = { colorSheet = true },
@@ -649,8 +672,6 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
         }
     }
     if (skinSheet) {
-        // Read when the sheet opens: an imported package wins over both bundled skins.
-        val imported = remember { ImportedSkinRenderer.imported(lib.paths.base, console) != null }
         OeSheet({ skinSheet = false }) {
             SheetBarIcons()
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
@@ -664,7 +685,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                         )
                     }
                 }
-                if (imported) {
+                if (skinChoice?.imported == true) {
                     Text(stringResource(R.string.settings_skin_imported, console.short), style = Type.Small, modifier = Modifier.padding(top = 12.dp))
                 }
             }
@@ -1089,3 +1110,6 @@ private fun DeviceNameSheet(onClose: () -> Unit) {
         }
     }
 }
+
+/** What the "Default skin" row offers for a console: [dark], a Dark package ships for it; [imported], the user's own skin wins. */
+private data class SkinChoice(val dark: Boolean, val imported: Boolean)

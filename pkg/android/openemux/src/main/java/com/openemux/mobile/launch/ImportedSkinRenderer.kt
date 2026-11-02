@@ -553,7 +553,14 @@ class ImportedSkinRenderer {
             val name = bundledName(context.assets.list(variant.assetDir), console) ?: return null
             val out = File(context.cacheDir, "${variant.assetDir}/$name")
             out.parentFile?.mkdirs()
-            context.assets.open("${variant.assetDir}/$name").use { input -> out.outputStream().use { input.copyTo(it) } }
+            // Copied once per install or update of the app, through a file of this process's own renamed into place:
+            // the launcher and the game's redraws run in two processes and both look here.
+            val installed = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+            if (!out.isFile || out.lastModified() < installed) {
+                val tmp = File(out.parentFile, "$name.${android.os.Process.myPid()}.tmp")
+                context.assets.open("${variant.assetDir}/$name").use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                tmp.renameTo(out)
+            }
             return out
         }
     }

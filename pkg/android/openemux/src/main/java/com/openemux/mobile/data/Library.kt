@@ -80,7 +80,8 @@ data class ConsoleSettings(
     companion object {
         fun fromJson(c: JSONObject) = ConsoleSettings(
             c.getString("core"), c.getString("shader"), c.optString("color", "default"),
-            SkinVariant.byId(c.optString("skin").ifEmpty { null }).id,
+            // Kept as saved, even an id this build does not know (a newer build's), so a save here never drops it.
+            c.optString("skin").ifEmpty { SkinVariant.CONSOLE.id },
         )
     }
 }

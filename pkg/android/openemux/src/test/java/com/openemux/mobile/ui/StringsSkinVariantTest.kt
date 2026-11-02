@@ -18,6 +18,7 @@ class StringsSkinVariantTest {
         "settings_skin_dark_desc" to emptyList(),
         "settings_skin_sheet_desc" to listOf("%1\$s"),
         "settings_skin_imported" to listOf("%1\$s"),
+        "settings_skin_imported_value" to emptyList(),
     )
 
     private fun strings(folder: String): Map<String, String> {

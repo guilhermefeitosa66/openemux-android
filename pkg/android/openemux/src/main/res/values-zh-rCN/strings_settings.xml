@@ -59,6 +59,7 @@
     <string name="settings_skin_dark_desc">黑色背景、深灰色按键，适合关灯游玩。</string>
     <string name="settings_skin_sheet_desc">每款 %1$s 游戏都使用的虚拟手柄。</string>
     <string name="settings_skin_imported">将改用你为 %1$s 导入的皮肤。</string>
+    <string name="settings_skin_imported_value">已导入的皮肤</string>
     <string name="settings_cart_color">卡带颜色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">应用于全部 %1$d 款 %2$s 游戏。</item>
