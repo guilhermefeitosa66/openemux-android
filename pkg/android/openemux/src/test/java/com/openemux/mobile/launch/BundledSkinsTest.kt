@@ -16,15 +16,19 @@ class BundledSkinsTest {
 
     @Test fun theUsersOwnPackageIsFoundFirstByName() {
         val base = Files.createTempDirectory("skins-base").toFile()
-        assertNull(ImportedSkinRenderer.imported(base, Console.SFC))
-        val dir = File(base, "skins/SFC").apply { mkdirs() }
-        File(dir, "notes.txt").writeText("not a skin")
-        File(dir, "folder.deltaskin").mkdirs()
-        assertNull(ImportedSkinRenderer.imported(base, Console.SFC))
-        File(dir, "b.manicskin").writeText("")
-        File(dir, "a.DELTASKIN").writeText("")
-        assertEquals("a.DELTASKIN", ImportedSkinRenderer.imported(base, Console.SFC)?.name)
-        assertNull(ImportedSkinRenderer.imported(base, Console.FC))
+        try {
+            assertNull(ImportedSkinRenderer.imported(base, Console.SFC))
+            val dir = File(base, "skins/SFC").apply { mkdirs() }
+            File(dir, "notes.txt").writeText("not a skin")
+            File(dir, "folder.deltaskin").mkdirs()
+            assertNull(ImportedSkinRenderer.imported(base, Console.SFC))
+            File(dir, "b.manicskin").writeText("")
+            File(dir, "a.DELTASKIN").writeText("")
+            assertEquals("a.DELTASKIN", ImportedSkinRenderer.imported(base, Console.SFC)?.name)
+            assertNull(ImportedSkinRenderer.imported(base, Console.FC))
+        } finally {
+            base.deleteRecursively()
+        }
     }
 
     @Test fun theBundledPackageIsTheOneNamedForTheConsole() {

@@ -546,20 +546,29 @@ class ImportedSkinRenderer {
 
         /**
          * The skin for [console]: the one the user imported ([imported]), else the one the app ships in
-         * [variant]'s assets folder, copied out (to a cache folder of its own per variant) so it can be read as a zip.
+         * [variant]'s assets folder (the console's own when that variant ships none for it), copied out (to a cache
+         * folder of its own per variant) so it can be read as a zip.
          */
         fun find(context: Context, base: File, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
             imported(base, console)?.let { return it }
-            val name = bundledName(context.assets.list(variant.assetDir), console) ?: return null
-            val out = File(context.cacheDir, "${variant.assetDir}/$name")
+            val (dir, name) = listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v ->
+                bundledName(context.assets.list(v.assetDir), console)?.let { v.assetDir to it }
+            } ?: return null
+            val out = File(context.cacheDir, "$dir/$name")
             out.parentFile?.mkdirs()
-            // Copied once per install or update of the app, through a file of this process's own renamed into place:
-            // the launcher and the game's redraws run in two processes and both look here.
+            // Copied once per install or update of the app, stamped with its time (an exact match, so a clock that
+            // moved does not keep an old copy), through a temporary file of its own renamed into place: the launcher
+            // and the game's redraws run in two processes and both look here.
             val installed = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
-            if (!out.isFile || out.lastModified() < installed) {
-                val tmp = File(out.parentFile, "$name.${android.os.Process.myPid()}.tmp")
-                context.assets.open("${variant.assetDir}/$name").use { input -> tmp.outputStream().use { input.copyTo(it) } }
-                tmp.renameTo(out)
+            if (!out.isFile || out.lastModified() != installed) {
+                val tmp = File.createTempFile(name, ".tmp", out.parentFile)
+                try {
+                    context.assets.open("$dir/$name").use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                    tmp.setLastModified(installed)
+                    if (!tmp.renameTo(out) && !out.isFile) return null
+                } finally {
+                    tmp.delete()
+                }
             }
             return out
         }

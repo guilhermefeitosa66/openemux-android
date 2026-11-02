@@ -37,11 +37,11 @@ fun skinValueLabel(choice: SkinChoice?, skin: String): Int? = when {
     else -> null
 }
 
-/** [SkinChoice] for [console], read off the main thread; null until it is known. [key] reads it again when it changes. */
+/** [SkinChoice] for [console], read off the main thread; null until it is known. */
 @Composable
-fun rememberSkinChoice(library: Library, console: Console, key: Any? = null): SkinChoice? {
+fun rememberSkinChoice(library: Library, console: Console): SkinChoice? {
     val context = LocalContext.current
-    val choice by produceState<SkinChoice?>(null, console, key) {
+    val choice by produceState<SkinChoice?>(null, console) {
         value = withContext(Dispatchers.IO) {
             SkinChoice(
                 ImportedSkinRenderer.bundledName(context.assets.list(SkinVariant.DARK.assetDir), console) != null,

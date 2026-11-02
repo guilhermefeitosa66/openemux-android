@@ -1077,4 +1077,3 @@ private fun DeviceNameSheet(onClose: () -> Unit) {
         }
     }
 }
-
