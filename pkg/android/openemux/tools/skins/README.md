@@ -22,7 +22,14 @@ stick item names it as its `thumbstick` (`<device>_<orient>_knob<N>.png`), so
 the app can move it with the thumb. Nor is the D-pad's circle, which the app
 moves with the thumb too: it is one more image per package (`dpad_knob.png`,
 the circle on its travel square), which each D-pad item names under `knob`, a
-key of the app's own that other emulators ignore. Intermediate images go to
+key of the app's own that other emulators ignore. A console with two screens
+(the DS) gets one art per screen layout: the base representation shows the two
+one over the other, as Delta expects, and its `layouts` key (the app's own
+again) holds the `top`, `bottom` and `side` ones, each with its own art,
+screens and items, so the picture always takes the room the layout needs. Its
+chin has a fifth key, `screens`, which the app turns into the step to the next
+layout. The build stops when a screen would leave the art or cover a key.
+Intermediate images go to
 `build/skins/`. Needs Node, Google Chrome and ImageMagick.
 
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the
