@@ -104,6 +104,16 @@ class Canvas:
             d.polygon([(self.p(x), self.p(y)) for x, y in pts], fill=255)
         return self._arr(im)
 
+    def line(self, width, *paths):
+        """Union of strokes of the given width (frame units) through each path's points, round joints and ends."""
+        im, d = self._new()
+        r = self.p(width) / 2
+        for pts in paths:
+            d.line([(self.p(x), self.p(y)) for x, y in pts], fill=255, width=max(1, round(self.p(width))), joint="curve")
+            for x, y in (pts[0], pts[-1]):
+                d.ellipse([self.p(x) - r, self.p(y) - r, self.p(x) + r, self.p(y) + r], fill=255)
+        return self._arr(im)
+
     def outline_triangle(self, outer, inner):
         return np.clip(self.poly(outer) - self.poly(inner), 0, 1)
 
@@ -232,11 +242,93 @@ def virtual_boy():
     return build
 
 
+SEGA_BLACK = (0.30, 0.30, 0.31)   # the Sega shells are black today
+
+
+def master_system():
+    def build():
+        cv = Canvas(295, 200)
+        grooves = ((53.8, 55.6), (59.0, 60.8), (64.8, 66.6))
+        # The three grooves below the label strip run across the front and notch both sides.
+        notches = cv.rrect(*[(x0, y0, x1, y1, 0) for y0, y1 in grooves for x0, x1 in ((-10, 5), (288, 305))])
+        body = np.minimum(cv.rrect((3, 6, 290, 190, 3.5)), 1 - notches)
+        layers = [
+            (cv.rrect((5.8, 7.2, 287.2, 50.2, 3)), -0.40, 0.30),                    # label recess
+            (cv.rrect(*[(-10, y0, 305, y1, 0.6) for y0, y1 in grooves]), -0.55, 0.16),
+        ]
+        window = cv.rrect((10.7, 8.7, 283.4, 46.6, 2.5))
+        return Frame(cv, body, window, layers, SEGA_BLACK)
+    return build
+
+
+def game_gear():
+    def build():
+        cv = Canvas(400, 403)
+        body = cv.rrect((9, 8, 392, 397, 6))
+        # Details share the shell's axis (x 200.5); the vents sit clear of the rounded rim.
+        vents = cv.rrect(*[(x - 1.6, 12.4, x + 1.6, 15.6, 1.6) for x in (200.5 + 11 * (k - 4.5) for k in range(10))])
+        # The arch over the window: thick across the top, narrow down the sides.
+        arch = np.clip(cv.rrect((22, 40, 379, 165, 36)) - cv.rrect((36, 72, 365, 220, 22)), 0, 1)
+        sega = cv.text([(ch, "NotoSans-Black.ttf", 24, 1.6) for ch in "SEGA"], 200.5, 362)
+        layers = [
+            (vents, -0.50, 0.10),
+            (arch, 0.55, 0.35),
+            (cv.rrect((108.5, 49.4, 292.5, 51.2, 0.9), (108.5, 61, 292.5, 62.8, 0.9)), -0.50, 0.12),  # arch grooves
+            (cv.rrect((40.5, 76.5, 362.8, 312.8, 4)), -0.50, 0.35),                 # label recess
+            (cv.rrect((126.5, 333, 274.5, 374, 20.5)), -0.55, 0.30),                    # SEGA plate
+            (sega, 0.60, 0.10),
+        ]
+        window = cv.rrect((47.3, 83.3, 356, 306, 2))
+        return Frame(cv, body, window, layers, SEGA_BLACK)
+    return build
+
+
+def sg1000():
+    def build():
+        cv = Canvas(400, 461)
+        # Ten grip tabs stand out of each side, as in the current frame.
+        tabs = cv.rrect(*[(x0, y, x1, y + 12, 1.5) for y in (35 + 17.4 * k for k in range(10))
+                          for x0, x1 in ((3, 11), (388, 396))])
+        body = np.maximum(cv.rrect((5, 3, 394, 455, 4)), tabs)
+        layers = [
+            (tabs * cv.rrect((-10, -10, 9, 470, 0), (390, -10, 410, 470, 0)), 0.35, 0.15),
+            (cv.rrect((35, 4.5, 367, 271.5, 3)), -0.45, 0.35),                      # label recess
+        ]
+        window = cv.rrect((40.7, 8.7, 361.3, 266, 2))
+        return Frame(cv, body, window, layers, SEGA_BLACK)
+    return build
+
+
+def sega_32x():
+    def build():
+        cv = Canvas(400, 263)
+        body = cv.rrect((8, 5, 387, 256.5, 19))
+        # Raised bezel round the window: slanted sides and a lower edge that dips in the middle.
+        curve = [(62 + (333 - 62) * t, 195 + 19 * 4 * t * (1 - t)) for t in np.linspace(0, 1, 33)]
+        bezel = cv.poly([(40, -10), (355, -10), *curve[::-1]])
+        sweeps = cv.line(1.6, [(14, 40), (24, 120), (34, 190), (56, 238)],
+                         [(381, 40), (371, 120), (361, 190), (339, 238)])
+        slots = cv.rrect(*[(x - 2.2, 229, x + 2.2, 249, 2.2) for x in (197.5 + 37.5 * (k - 2.5) for k in range(6))])
+        layers = [
+            (bezel, 0.45, 0.40),
+            (sweeps, -0.45, 0.14),
+            (slots, -0.70, 0.14),
+            (cv.rrect((66, 30.5, 328.7, 189.5, 4)), -0.50, 0.35),                   # label recess
+        ]
+        window = cv.rrect((72, 36.7, 322.7, 183.3, 2))
+        return Frame(cv, body, window, layers, SEGA_BLACK)
+    return build
+
+
 CONSOLES = {
     "GBC": game_boy((0.80, 0.80, 0.815)),
     "GB": game_boy((0.90, 0.90, 0.905)),
     "FC": nes(),
     "VB": virtual_boy(),
+    "SMS": master_system(),
+    "GG": game_gear(),
+    "SG1000": sg1000(),
+    "S32X": sega_32x(),
 }
 
 
@@ -399,7 +491,7 @@ def bake(console):
     save(img, base)
     for color_id, _name, base_hex in colors.PALETTE:
         save(colorize(img, window, base_hex, r), f"{base}_{color_id}")
-    print(f"{console:4} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
+    print(f"{console:6} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
     return console, img
 
 
