@@ -561,6 +561,9 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     // the initial item, so the others do not recompose when it flips.
     val forgotten = remember(saved) { derivedStateOf { saved.value == null } }
     val screens = LocalNavFocus.current
+    // The pad presses when the item came in: only focus no press has moved since the screen opened is the
+    // platform's to take over, not focus after a later press (A on a filter chip, the press that wakes the pad).
+    val openedAt = remember { InputMode.presses }
     // Also when the gamepad wakes up with nothing focused, or when the screen forgets
     // its focused item (it was removed), so focus is never missing.
     LaunchedEffect(InputMode.gamepad, initial && forgotten.value) {
@@ -570,9 +573,8 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
             runCatching { requester.requestFocus() }
         } else if (saved.value == null && initial) {
             // Let a screen or page transition hand its focus over first.
-            val presses = InputMode.presses
             delay(150)
-            if (takesInitialFocus(InputMode.focused, screens?.held, InputMode.presses != presses)) runCatching { requester.requestFocus() }
+            if (takesInitialFocus(InputMode.focused, screens?.held, InputMode.presses != openedAt)) runCatching { requester.requestFocus() }
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
@@ -593,7 +595,10 @@ class FocusFlag { var held = false }
 /** Keeps [flag] up to date with whether anything below holds focus. */
 fun Modifier.tracksFocus(flag: FocusFlag): Modifier = onFocusChanged { flag.held = it.hasFocus }
 
-/** Whether focus is in the NavHost's screens (not the tabs, the rail or the deck); null outside it, in a sheet's window. */
+/**
+ * Whether focus is in the NavHost's screens (not the tabs, the rail or the deck); null outside the NavHost's
+ * composition (the deck). A sheet or dialog opened from a screen inherits it, so there it reads the screens' focus.
+ */
 val LocalNavFocus = compositionLocalOf<FocusFlag?> { null }
 
 /**

@@ -814,11 +814,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     if (confirmRemove) {
         // The dialog is modal for the gamepad too: X, Start, L1/R1 and Select would otherwise
         // reach the selection (or the filter) behind it and change which games get removed.
-        val swallow = {}
-        GamepadButtons(
-            hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
-            l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
-        )
+        ModalPadButtons()
         val doomed = list.filter { it.key in selection }
         val n = doomed.size
         OeConfirmDialog(
@@ -834,7 +830,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         )
     }
     // Y's options for one game, the detail's three-dot menu without leaving the list.
-    roms.firstOrNull { it.key == optionsFor }?.let { rom ->
+    optionsFor?.let { k -> roms.firstOrNull { it.key == k } }?.let { rom ->
+        // Modal for the gamepad: X, L1/R1, Select and Start would act on the list behind the sheet.
+        ModalPadButtons()
         GameOptionsSheet(
             rom,
             onDismiss = { optionsFor = null },
@@ -846,13 +844,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             onRemove = { optionsFor = null; removeKey = rom.key },
         )
     }
-    roms.firstOrNull { it.key == removeKey }?.let { rom ->
+    removeKey?.let { k -> roms.firstOrNull { it.key == k } }?.let { rom ->
         // Modal for the gamepad too, as the bulk remove: the buttons behind it would act on the list.
-        val swallow = {}
-        GamepadButtons(
-            hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
-            l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
-        )
+        ModalPadButtons()
         OeConfirmDialog(
             { removeKey = null },
             stringResource(R.string.detail_remove_title, rom.title), stringResource(R.string.detail_remove_message),
@@ -1767,6 +1761,16 @@ private fun PoweredByRetroArch() {
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Oe.Faint),
         )
     }
+}
+
+/** Makes a sheet or dialog over the list modal for the screen buttons: they would act on the list behind it. */
+@Composable
+private fun ModalPadButtons() {
+    val swallow = {}
+    GamepadButtons(
+        hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
+        l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
+    )
 }
 
 /** A game's options from the list (Y): what the detail's three-dot menu offers, for the focused game. */

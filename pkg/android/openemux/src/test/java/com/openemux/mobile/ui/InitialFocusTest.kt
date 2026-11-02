@@ -30,7 +30,7 @@ class InitialFocusTest {
     }
 
     @Test
-    fun aSheetsWindowKeepsTheOldRule() {
+    fun outsideTheScreensKeepsTheOldRule() {
         assertFalse(takesInitialFocus(1, inScreens = null, pressed = false))
     }
 }
