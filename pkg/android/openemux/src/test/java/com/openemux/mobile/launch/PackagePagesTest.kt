@@ -33,6 +33,7 @@ class PackagePagesTest {
         assertEquals("landscape@side", packagePages(nds, false, "pad-landscape@side").first().name)
         assertEquals("landscape@top", packagePages(nds, false, "landscape").first().name)
         assertEquals("portrait@stacked", packagePages(nds, false, "portrait@halves").first().name)
+        assertEquals("portrait@stacked", packagePages(nds, false, "portrait-tabletop@side").first().name)
         assertEquals("portrait@bottom", packagePages(nds, false, "min-pad-portrait@bottom").first().name)
         assertEquals(8, packagePages(nds, false, "landscape@side").size)
     }

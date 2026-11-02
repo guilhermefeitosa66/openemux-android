@@ -23,7 +23,8 @@ fun packagePages(nds: Pair<ScreenLayout, ScreenLayout>?, tablet: Boolean, first:
     }
     val pages = ndsFlatSpecs(nds, tablet).map { PackagePage(it.name, it.portrait, it.rotate, it.layout?.id, it.layoutNext) }
     val names = pages.map { it.name }
-    val opening = shown?.let { s -> OverlayName(portrait = s.portrait, layout = s.layout).toString().takeIf { it in names } }
+    // A tabletop page has no package namesake: "tabletop@side" is not the portrait side-by-side page.
+    val opening = shown?.takeIf { !it.tabletop }?.let { s -> OverlayName(portrait = s.portrait, layout = s.layout).toString().takeIf { it in names } }
         ?: if (shown?.portrait == false) "landscape@${nds.second.id}" else null
     return if (opening != null) pages.sortedBy { if (it.name == opening) 0 else 1 } else pages
 }

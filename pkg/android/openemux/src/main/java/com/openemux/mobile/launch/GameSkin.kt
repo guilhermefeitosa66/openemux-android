@@ -37,15 +37,18 @@ object GameSkin {
         val tablet = SkinGeometry.tablet(size.short, size.long, density)
         val ndsTabletop = if (console == Console.NDS) NdsLayouts.loadTabletop(context.filesDir) else null
         val ndsLayouts = if (console == Console.NDS) NdsLayouts.load(context.filesDir) else null
+        // A package's page per layout only on DeSmuME, the core the activity sets to the page shown: melonDS keeps
+        // the screens one over the other, which the package's own art draws.
+        val packageNds = ndsLayouts?.takeIf { "desmume" in coreId.orEmpty() }
         val importer = ImportedSkinRenderer()
         val packaged = ImportedSkinRenderer.find(context, base, console)?.let {
             runCatching {
                 // The page in [first]'s orientation (and NDS layout, when the package draws one page per layout) opens.
-                importer.render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, ndsLayouts)
+                importer.render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, packageNds)
             }.onFailure { e -> Log.e("ImportedSkin", "falling back to the built-in skin", e) }.getOrNull()
         }
         if (packaged != null) {
-            val pages = ndsLayouts?.takeIf { importer.wroteNdsLayouts }
+            val pages = packageNds?.takeIf { importer.wroteNdsLayouts }
             // A package skin has no gamepad layout nor tabletop art: the drawn skin's go after its own.
             val file = runCatching {
                 SkinRenderer(context).render(

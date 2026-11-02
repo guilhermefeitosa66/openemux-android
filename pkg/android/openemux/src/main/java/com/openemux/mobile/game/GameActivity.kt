@@ -627,7 +627,9 @@ class GameActivity : RetroActivityFuture() {
         ++postureSeq
         val name = shown?.takeIf { it.layout != null && it.orientation == orientation }?.copy(layout = layout.id)?.toString()
         val gap = if (orientation == TABLETOP) tabletopSkin?.gaps?.get(name ?: "$TABLETOP@${layout.id}") ?: 0 else null
-        val asked = NdsShown(orientation, layout.id).takeIf { name != null }
+        // The overlay already shown (its own layout picked again) is selected without a word from the engine: no
+        // switch is coming to wait for, and a stale wait would swallow the skin's next screens key.
+        val asked = NdsShown(orientation, layout.id).takeIf { name != null && name != overlay }
         ndsAsked = asked
         ndsSwitches.execute {
             val reply = name?.let { RaCommand.ask("OVERLAY_SELECT $it", 300) }
