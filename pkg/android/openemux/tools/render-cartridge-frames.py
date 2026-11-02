@@ -356,7 +356,7 @@ def atari_5200():
         # Sixteen grip teeth stand out of each side, between chamfered full-width blocks at the
         # top and the bottom, as in the current frame.
         teeth = cv.rrect(*[(x0, y, x1, y + 11, 1) for y in (37 + 18.75 * k for k in range(16))
-                           for x0, x1 in ((9, 15), (385, 391))])
+                           for x0, x1 in ((9, 15), (384, 390))])
         blocks = cv.poly([(20, 9), (379, 9), (390, 18), (390, 29), (9, 29), (9, 18)],
                          [(9, 337), (390, 337), (390, 351), (382, 358), (17, 358), (9, 351)])
         body = np.maximum.reduce([cv.rrect((14, 9, 385, 358, 2)), blocks, teeth])
@@ -482,8 +482,8 @@ def render(name):
 def ramp(img, dark, colors):
     """The colorize filter's luminance ramp, measured as gen-cartridge-colors.py does.
 
-    Dark-plastic zones (the Virtual Boy's lower band) are left out of the measure, so
-    they do not flatten the shell's relief in every color."""
+    Second-albedo zones (the Virtual Boy's dark band, the Lynx's contacts) are left out of
+    the measure, so they do not flatten the shell's relief in every color."""
     a = np.asarray(img, dtype=np.int32)
     opaque = (a[..., 3] >= 200) & (dark < 0.5)
     lum = (a[..., 0] * 299 + a[..., 1] * 587 + a[..., 2] * 114) // 1000
