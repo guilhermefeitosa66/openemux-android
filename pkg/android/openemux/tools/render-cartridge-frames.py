@@ -61,6 +61,7 @@ LIP_DEPTH = 0.9
 LIP_ALPHA_GAIN, LIP_ALPHA_MAX = 1.25, 0.75
 RIM_SOFTNESS = 0.85
 GRAIN = 0.0035
+METAL_SPEC = 2.5     # extra specular on metal contacts
 
 
 def _load_tool(name):
@@ -169,11 +170,18 @@ def shift(a, dx, dy):
 class Frame:
     """What a console contributes: shapes only, lighting is shared."""
 
-    def __init__(self, cv, body, window, layers, albedo, dark=None, dark_albedo=0.12):
+    def __init__(self, cv, body, window, layers, albedo, dark=None, dark_albedo=0.12, metal=None):
         self.cv, self.body, self.window = cv, body, window
         self.layers = layers            # (mask, height, softness) in reference units
         self.albedo = np.array(albedo, np.float32)
         self.dark, self.dark_albedo = dark, dark_albedo
+        # Metal contacts: (mask, rgb albedo). They keep their own color in every variant.
+        self.metal = metal or []
+
+    def metal_mask(self):
+        if not self.metal:
+            return None
+        return np.clip(sum(mask for mask, _rgb in self.metal), 0, 1)
 
 
 def game_boy(albedo):
@@ -320,6 +328,163 @@ def sega_32x():
     return build
 
 
+DARK_PLASTIC = SEGA_BLACK        # the other black shells use the Sega frames' grey
+LIGHT_PLASTIC = (0.88, 0.88, 0.885)
+GOLD = (0.86, 0.68, 0.30)
+COPPER = (0.80, 0.47, 0.26)
+
+
+def pc_engine():
+    def build():
+        cv = Canvas(400, 506)
+        # White HuCard: black top panel with the gold contacts, label below, ribbed tab at the bottom.
+        body = cv.rrect((42.5, 8, 351.5, 496.5, 9))
+        panel = cv.rrect((50, 18.5, 344, 150, 1.5), (50, 18.5, 344, 163, 12))
+        pins = cv.rrect(*[(x - 1.7, 22.5, x + 1.7, 42, 1.7) for x in (59 + 7.46 * k for k in range(38))])
+        tab = np.maximum(cv.poly([(154, 478), (197, 465.5), (240, 478)]), cv.rrect((154, 477, 240, 493.5, 0.6)))
+        ribs = cv.rrect(*[(155.5, y, 238.5, y + 1.1, 0.5) for y in (479.5, 483.2, 486.9, 490.6)])
+        layers = [
+            (panel, -0.30, 0.25),
+            (pins, 0.25, 0.08),
+            (cv.rrect((50, 172.5, 349.5, 465.5, 3)), -0.35, 0.30),                   # label recess
+            (tab, 0.30, 0.15),
+            (ribs, -0.30, 0.08),
+        ]
+        window = cv.rrect((54.3, 177.5, 345.7, 460.4, 2))
+        return Frame(cv, body, window, layers, LIGHT_PLASTIC, dark=panel, metal=[(pins, GOLD)])
+    return build
+
+
+def colecovision():
+    def build():
+        cv = Canvas(400, 461)
+        # Seven ridged grips stand out of each upper side; the label sits in a deep well.
+        notches = cv.rrect(*[(x0, y, x1, y + 3, 1.2) for y in (20.5 + 13.5 * k for k in range(6))
+                             for x0, x1 in ((-10, 12.5), (383.5, 410))])
+        grips = np.minimum(cv.rrect((8.5, 10, 30, 108, 3), (366, 10, 387.5, 108, 3)), 1 - notches)
+        body = np.maximum(cv.rrect((15, 3, 381, 455.5, 4)), grips)
+        layers = [
+            (grips * cv.rrect((-10, -10, 15, 470, 0), (381, -10, 410, 470, 0)), 0.35, 0.18),
+            (cv.rrect((15, 3, 381, 12.5, 3)), 0.40, 0.25),                          # top cap bar
+            (cv.rrect((31, 14, 365, 357.5, 3)), -0.55, 0.30),                       # window well
+            (cv.rrect((43, 18, 352.7, 335.3, 3)), -0.30, 0.25),                     # label recess
+        ]
+        window = cv.rrect((49.3, 24, 346.7, 329.3, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def intellivision():
+    def build():
+        cv = Canvas(400, 494)
+        slots = [276 + 26 * k for k in range(4)]
+        # Four grip slots on each side run in from the edge and notch it.
+        body = np.minimum(cv.rrect((4, 4, 396, 490, 4)),
+                          1 - cv.rrect(*[(x0, y + 2, x1, y + 15, 0) for y in slots for x0, x1 in ((-10, 6), (394, 410))]))
+        bold = "NotoSans-Black.ttf"
+        layers = [
+            (cv.text([("INSERT TO", bold, 23, 0)], 198, 238.5), -0.45, 0.10),
+            (cv.rrect((15, 249.5, 384, 252.5, 1.5)), -0.50, 0.12),                  # the line
+            (cv.text([("THIS LINE", bold, 23, 0)], 200, 290.5), -0.45, 0.10),
+            (cv.rrect(*[(-10, y, 124, y + 17, 8.5) for y in slots]), -0.50, 0.20),
+            (cv.rrect(*[(273, y, 410, y + 17, 8.5) for y in slots]), -0.50, 0.20),
+            (cv.rrect((4, 371, 396, 490, 4)), 0.30, 0.25),                           # bottom band
+            (cv.rrect((17, 384, 383, 483, 3)), -0.25, 0.60),                         # bevelled frame
+            (cv.rrect((26.5, 389.5, 373, 473, 2)), -0.30, 0.25),                     # label recess
+        ]
+        window = cv.rrect((32, 394.7, 367.3, 467.3, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def neo_geo_pocket():
+    def build():
+        cv = Canvas(400, 400)
+        body = cv.rrect((3.5, 19.5, 395.5, 370.5, 6))
+        ribs = cv.rrect(*[(41, y, 358, y + 2.2, 1) for y in (44 + 6.3 * k for k in range(8))])
+        layers = [
+            (cv.rrect((3.5, 19.5, 395.5, 78, 6)), 0.35, 0.50),                      # top cap
+            (cv.rrect((39, 40, 360, 95, 3)), -0.60, 0.25),                          # ribbed panel
+            (ribs, 0.35, 0.12),
+            (cv.rrect((38, 98.5, 362.5, 279.5, 4)), -0.45, 0.35),                   # label recess
+            (cv.rrect((-10, 297.3, 410, 298.7, 0)), -0.35, 0.10),                   # seam
+            (cv.rrect((37, 315, 144, 353, 2), (256, 315, 363, 353, 2)), -0.40, 0.20),  # plates
+            (cv.text([("SNK", "NotoSans-BlackItalic.ttf", 31, 0)], 90.5, 344.5), 0.45, 0.10),
+            (cv.text([("NEOGEO POCKET", "NotoSans-Black.ttf", 10.5, 0)], 309.5, 345), 0.40, 0.08),
+            (cv.poly([(171, 316), (229, 316), (200, 352)]), -0.50, 0.12),            # arrow
+        ]
+        window = cv.rrect((44.7, 105.3, 356, 272.7, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def odyssey2():
+    def build():
+        cv = Canvas(400, 603)
+        # A handle with a see-through hole on top, the label below, a slot and a pad at the bottom.
+        shell = np.maximum(cv.rrect((9.5, 6, 390.5, 300, 16)), cv.rrect((9.5, 200, 390.5, 597, 4)))
+        body = np.minimum(shell, 1 - cv.rrect((69, 51, 336, 145, 10)))
+        layers = [
+            (cv.rrect((9.5, 6, 390.5, 140, 16)), 0.45, 0.50),                       # handle
+            (cv.rrect((139.5, 8, 141, 50, 0), (261, 8, 262.5, 50, 0)), -0.50, 0.08),  # seams
+            (cv.rrect((31.5, 165.5, 365.5, 504, 4)), -0.45, 0.35),                  # label recess
+            (cv.rrect((117, 535, 162, 610, 0)), -0.70, 0.15),                       # slot
+            (cv.rrect((162, 535, 282, 610, 0)), -0.20, 0.25),                       # pad
+        ]
+        window = cv.rrect((36.5, 170.1, 360.1, 498, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def vectrex():
+    def build():
+        cv = Canvas(400, 391)
+        body = np.maximum(cv.rrect((11, 9, 390, 160, 2)), cv.rrect((7.5, 150, 392.5, 384, 10)))
+        arrow = cv.outline_triangle(
+            [(200, 37), (232, 57), (221, 57), (221, 70), (179, 70), (179, 57), (168, 57)],
+            [(200, 41), (222.5, 54.5), (218, 54.5), (218, 67), (182, 67), (182, 54.5), (177.5, 54.5)])
+        layers = [
+            (cv.rrect((12, 9, 22, 150, 0), (378, 9, 389, 150, 0)), -0.80, 0.15),    # side rails
+            (cv.rrect((22, 9, 378, 148, 2)), 0.25, 0.25),                           # insert panel
+            (arrow, -0.50, 0.10),
+            (cv.text([("INSERT TO THIS LINE", "NotoSans-CondensedBlack.ttf", 22, 0)], 200, 137), -0.45, 0.10),
+            (cv.rrect((7.5, 150, 392.5, 163, 2)), 0.20, 0.20),                      # lower ledge
+            (cv.rrect(*[(6, y, 10.5, y + 1.6, 0.5) for y in (272 + 4 * k for k in range(22))]), -0.30, 0.08),
+            (cv.rrect((21, 171.5, 379, 368, 3)), -0.45, 0.35),                      # label recess
+        ]
+        window = cv.rrect((28, 178.7, 372, 360.7, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def wonderswan():
+    def build():
+        cv = Canvas(400, 241)
+        # The shell, then the narrower connector with side notches, holes and copper fingers.
+        connector = np.minimum(cv.rrect((15, 180, 385, 238.5, 3)),
+                               1 - cv.rrect((-10, 207, 23, 226, 3), (377, 207, 410, 226, 3)))
+        body = np.maximum(cv.rrect((3, 2, 398, 186, 4)), connector)
+        holes = [33, 46, 53, 59, 66, 76, 83, 90, 213, 226, 234, 251, 260]
+        holes += [127 + 6.15 * k for k in range(13)] + [310 + 6 * k for k in range(10)]
+        fingers = cv.rrect(*[(x - 1.3, 195, x + 1.3, 234, 0.6) for x in (33 + 4.2 * k for k in range(81))
+                             if abs(x - 200) > 2.5])
+        layers = [
+            (cv.rrect((116, 8, 288, 27, 9.5)), -0.35, 0.20),                       # logo plate
+            (cv.text([("WonderSwan", "NotoSans-BlackItalic.ttf", 16, 0)], 202, 23.5), 0.45, 0.08),
+            (cv.rrect((12, 9, 14, 29, 0.6), (55, 9, 57, 29, 0.6), (296, 9, 298, 29, 0.6)), 0.30, 0.08),
+            (cv.text([("U", "NotoSans-Bold.ttf", 12, 0)], 341, 28), 0.30, 0.08),
+            (cv.rrect((11, 29, 389, 171, 3)), -0.40, 0.30),                         # label recess
+            (cv.rrect((14, 173, 386, 185, 1.5)), -0.25, 0.20),                      # ledge
+            (connector, -0.20, 0.25),
+            (cv.rrect(*[(x - 1.8, 186.3, x + 1.8, 189.9, 1.8) for x in holes]), -0.60, 0.08),
+            (cv.rrect((30, 192, 370, 236.5, 1.5)), -0.60, 0.15),                    # contact bay
+            (fingers, 0.20, 0.06),
+        ]
+        window = cv.rrect((16.7, 34, 383.3, 166, 2))
+        return Frame(cv, body, window, layers, LIGHT_PLASTIC, metal=[(fingers, COPPER)])
+    return build
+
+
 CONSOLES = {
     "GBC": game_boy((0.80, 0.80, 0.815)),
     "GB": game_boy((0.90, 0.90, 0.905)),
@@ -329,6 +494,13 @@ CONSOLES = {
     "GG": game_gear(),
     "SG1000": sg1000(),
     "S32X": sega_32x(),
+    "PCE": pc_engine(),
+    "CV": colecovision(),
+    "INTV": intellivision(),
+    "NGP": neo_geo_pocket(),
+    "O2": odyssey2(),
+    "VECTREX": vectrex(),
+    "WS": wonderswan(),
 }
 
 
@@ -373,6 +545,13 @@ def shade(frame, h):
     if frame.dark is not None:
         dark = blur(frame.dark, 0.2)[..., None]
         albedo = albedo * (1 - dark) + frame.dark_albedo * dark
+    if frame.metal:
+        shine = np.zeros_like(h)
+        for mask, metal_rgb in frame.metal:
+            m = blur(mask, 0.08)
+            albedo = albedo * (1 - m[..., None]) + np.array(metal_rgb, np.float32) * m[..., None]
+            shine = np.maximum(shine, m)
+        spec = spec * (1 + METAL_SPEC * shine)
     lit = AMBIENT * ao + DIFFUSE * ndl * shadow
     rgb = albedo * lit[..., None] + spec[..., None]
     rgb = np.clip(rgb * np.linspace(*FALLOFF, h.shape[0])[:, None, None], 0, 1)
@@ -386,7 +565,7 @@ def shade(frame, h):
 
 
 def render(name):
-    """The neutral frame at export size, plus its window and dark-plastic coverage (0..1)."""
+    """The neutral frame at export size, plus its window, dark-plastic and metal coverage (0..1)."""
     frame = CONSOLES[name]()
     rgb, alpha = shade(frame, height(frame))
     img = Image.fromarray((np.dstack([rgb, alpha]) * 255 + 0.5).astype(np.uint8), "RGBA")
@@ -399,15 +578,16 @@ def render(name):
         im = Image.fromarray((np.clip(mask, 0, 1) * 255 + 0.5).astype(np.uint8)).resize(size, Image.BOX)
         return np.asarray(im, dtype=np.float32) / 255.0
 
-    return img.resize(size, Image.LANCZOS), coverage(frame.window), coverage(frame.dark)
+    return img.resize(size, Image.LANCZOS), coverage(frame.window), coverage(frame.dark), coverage(frame.metal_mask())
 
 
 # ---------------------------------------------------------------- colors
 def ramp(img, dark, colors):
     """The colorize filter's luminance ramp, measured as gen-cartridge-colors.py does.
 
-    Dark-plastic zones (the Virtual Boy's lower band) are left out of the measure, so
-    they do not flatten the shell's relief in every color."""
+    Dark-plastic zones (the Virtual Boy's lower band) and metal contacts are left out
+    of the measure (dark is their combined coverage), so they do not flatten the
+    shell's relief in every color."""
     a = np.asarray(img, dtype=np.int32)
     opaque = (a[..., 3] >= 200) & (dark < 0.5)
     lum = (a[..., 0] * 299 + a[..., 1] * 587 + a[..., 2] * 114) // 1000
@@ -420,8 +600,9 @@ def ramp(img, dark, colors):
 def colorize(img, window, base_hex, ramp_):
     """bake-frames.py's colorize (desaturate, linear ramp, multiply the flood, keep alpha).
 
-    The lip's shadow inside the label window stays a neutral shadow, blended by the
-    window's coverage so its edge has no colored halo."""
+    The lip's shadow inside the label window (and any metal contacts, passed in the
+    same coverage) stays as rendered, blended by that coverage so its edge has no
+    colored halo."""
     slope, intercept = ramp_
     a = np.asarray(img, dtype=np.float32) / 255.0
     lum = 0.2126 * a[..., 0] + 0.7152 * a[..., 1] + 0.0722 * a[..., 2]
@@ -485,8 +666,9 @@ def label_composite(rect, frame_img, label):
 def bake(console):
     """Render one console and write its neutral and colored drawables."""
     colors = _load_tool("gen-cartridge-colors")
-    img, window, dark = render(console)
-    r = ramp(img, dark, colors)
+    img, window, dark, metal = render(console)
+    r = ramp(img, np.maximum(dark, metal), colors)
+    window = np.maximum(window, metal)
     base = f"cart_{console.lower()}"
     save(img, base)
     for color_id, _name, base_hex in colors.PALETTE:
