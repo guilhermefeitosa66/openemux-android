@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">Solo los que el núcleo del otro dispositivo puede cargar</string>
     <string name="share_items_cover">Portada</string>
     <string name="share_items_label">Etiqueta del cartucho</string>
+    <string name="share_items_bios">Archivos de BIOS</string>
     <string name="share_items_details">Detalles de la biblioteca</string>
     <string name="share_items_details_hint">Favorito, color del cartucho, núcleo, shader, tiempo de juego</string>
     <string name="share_items_expand">Mostrar elementos</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">estado guardado</string>
     <string name="share_kind_cover">portada</string>
     <string name="share_kind_label">etiqueta del cartucho</string>
+    <string name="share_kind_bios">archivo de BIOS</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">Conectar por dirección</string>
     <string name="share_address_other">Otro dispositivo</string>
     <string name="share_address_qr">Código QR con la dirección de este dispositivo</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">Juego</string>
     <string name="share_offer_part_cover">portada</string>
     <string name="share_offer_part_label">etiqueta</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: este dispositivo no es compatible con %2$s.</string>
     <string name="share_offer_expires">Caduca en %1$s</string>
     <string name="share_offer_decline">Rechazar</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d juego enviado</item>
         <item quantity="other">%1$d juegos enviados</item>
     </plurals>
+    <string name="share_result_bios_received">Archivos de BIOS añadidos: %1$s</string>
+    <string name="share_result_bios_sent">Archivos de BIOS enviados: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d partida conservada (la tuya era más reciente)</item>
         <item quantity="other">%1$d partidas conservadas (las tuyas eran más recientes)</item>

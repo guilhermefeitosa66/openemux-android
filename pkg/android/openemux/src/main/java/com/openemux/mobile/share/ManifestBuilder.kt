@@ -5,6 +5,7 @@ import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SHADERS
+import com.openemux.mobile.data.biosFilesIn
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -20,7 +21,9 @@ class BuiltManifest(val json: JSONObject, val sources: Map<String, File>, val ex
 /**
  * The sending side: a selection of games becomes the manifest of spec §10 —
  * each game's ROM unit, its battery saves, its states tagged with the core
- * that made them, its local cover and label, and its own settings. Hashing
+ * that made them, its local cover and label, and its own settings; the first
+ * game of each console also carries that console's catalog BIOS from the
+ * system folder (#678), once. Hashing
  * reads every file up to [hashLimit], so this runs off the main thread;
  * [cancelled] is checked between files and between chunks.
  */
@@ -31,7 +34,13 @@ class ManifestBuilder(
     private val onProgress: (done: Long, total: Long) -> Unit = { _, _ -> },
     private val cancelled: () -> Boolean = { false },
 ) {
-    private class GameFile(val kind: String, val file: File, val role: String? = null, val state: JSONObject? = null)
+    private class GameFile(
+        val kind: String,
+        val file: File,
+        val role: String? = null,
+        val state: JSONObject? = null,
+        val name: String = file.name,
+    )
 
     fun build(roms: List<Rom>): BuiltManifest {
         val games = JSONArray()
@@ -40,13 +49,15 @@ class ManifestBuilder(
         val toHash = mutableListOf<JSONObject>()
         var count = 0
         var totalSize = 0L
+        /** Consoles whose BIOS a game already carries: they travel once. */
+        val carried = mutableSetOf<String>()
         for (rom in roms) {
             val unit = Units.collectUnit(rom.file)
             if (unit == null) {
                 excluded += Excluded(rom.key, SkipReason.UNIT_INCOMPLETE)
                 continue
             }
-            val files = gameFiles(rom, unit)
+            val files = gameFiles(rom, unit).toMutableList()
             if (!files.all { Units.isReceivableName(it.file.name) }) {
                 excluded += Excluded(rom.key, SkipReason.INVALID_ITEM)
                 continue
@@ -55,13 +66,21 @@ class ManifestBuilder(
                 excluded += Excluded(rom.key, SkipReason.TOO_MANY_ITEMS)
                 continue
             }
+            if (rom.console.id !in carried) {
+                // The BIOS never cost the game its place: when they do not fit, the next game of the console takes them.
+                val bios = biosFiles(rom)
+                if (count + files.size + bios.size <= ShareProtocol.MAX_ITEMS) {
+                    files += bios
+                    carried += rom.console.id
+                }
+            }
             count += files.size
             val gameId = "g${games.length() + 1}"
             val items = JSONArray()
             files.forEachIndexed { index, file ->
                 val size = file.file.length()
                 val item = JSONObject().put("id", "${gameId}i${index + 1}").put("kind", file.kind)
-                    .put("name", file.file.name).put("size", size).put("mtime", file.file.lastModified() / 1000)
+                    .put("name", file.name).put("size", size).put("mtime", file.file.lastModified() / 1000)
                 if (file.role != null && unit.multi) item.put("part", JSONObject().put("unit", gameId).put("role", file.role))
                 file.state?.let { item.put("state", it) }
                 items.put(item)
@@ -96,6 +115,10 @@ class ManifestBuilder(
         File(paths.labels(rom.console), "$stem.png").takeIf { it.isFile }?.let { files += GameFile(Item.LABEL, it) }
         return files
     }
+
+    /** The console's catalog BIOS in the system folder, under the catalog's spelling (the one a core opens). */
+    private fun biosFiles(rom: Rom): List<GameFile> =
+        biosFilesIn(library.paths.system, rom.console).map { (name, file) -> GameFile(Item.BIOS, file, name = name) }
 
     /** Only what this game sets for itself: the console's defaults belong to the receiver. */
     private fun metadata(rom: Rom): JSONObject? {

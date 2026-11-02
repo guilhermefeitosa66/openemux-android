@@ -452,6 +452,34 @@ class ShareCoordinatorTest {
     }
 
     @Test
+    fun `a receive names the BIOS files it added`() {
+        layer.incoming.value = IncomingOffer(
+            "offer1", sender,
+            manifest { game("g1", "PS", "Game") { item("rom", "Game.chd"); item("bios", "scph5501.bin") } },
+            "482913",
+        )
+        share.accept()
+        layer.onReceiveDone(ReceiveResult(TransferStatus.DONE))
+        val result = (share.transfer.value as TransferState.Finished).result
+        assertEquals(listOf("scph5501.bin"), result.bios)
+        assertEquals(1, result.games)
+    }
+
+    @Test
+    fun `a send names the BIOS files that went`() {
+        File(paths.system, "scph5501.bin").put("bios")
+        val rom = lib.rom(Console.PS, "Game.chd")
+        layer.built = ManifestBuilder(lib).build(listOf(rom))
+        share.startSend(listOf(rom))
+        share.openScreen(send = true)
+        share.send(peer())
+        layer.onSendDone(SendResult(SendResult.DONE, listOf("g1i1", "g1i2")))
+        val result = (share.transfer.value as TransferState.Finished).result
+        assertEquals(listOf("scph5501.bin"), result.bios)
+        assertEquals(1, result.games)
+    }
+
+    @Test
     fun `a refused accept keeps the sheet with the reason`() {
         layer.incoming.value = offer()
         layer.acceptError = ShareError(ErrorCode.TOO_LARGE, "no room")

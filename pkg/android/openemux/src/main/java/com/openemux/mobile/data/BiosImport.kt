@@ -36,6 +36,22 @@ data class BiosImportReport(val console: Console, val imported: List<Imported>, 
 fun biosNamesFor(console: Console): Map<String, String> =
     KNOWN_BIOS.filter { it.console == console }.flatMap { it.files }.associateBy { it.lowercase() }
 
+/**
+ * The catalog BIOS of [console] that [systemDir] holds, as `(catalog name, file)`
+ * sorted by name: matched without regard to case, a file with the exact
+ * catalog spelling winning over a case variant. Nothing else in the folder.
+ */
+fun biosFilesIn(systemDir: File, console: Console): List<Pair<String, File>> {
+    val names = biosNamesFor(console)
+    val found = sortedMapOf<String, File>()
+    for (file in systemDir.listFiles().orEmpty().sortedBy { it.name }) {
+        val canonical = names[file.name.lowercase()] ?: continue
+        if (!file.isFile) continue
+        if (canonical !in found || file.name == canonical) found[canonical] = file
+    }
+    return found.map { (name, file) -> name to file }
+}
+
 /** The known MD5s of [console]'s entries, to the name the file is saved under. */
 fun biosHashesFor(console: Console): Map<String, String> =
     KNOWN_BIOS.filter { it.console == console }.flatMap { def -> def.md5.map { it to def.files.first() } }.toMap()

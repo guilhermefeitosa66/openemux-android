@@ -39,7 +39,9 @@ class Item(
         const val STATE = "state"
         const val COVER = "cover"
         const val LABEL = "label"
-        val KINDS = setOf(ROM, BATTERY_SAVE, STATE, COVER, LABEL)
+        /** A BIOS file of the game's console (#678): carried by the first game of each console only. */
+        const val BIOS = "bios"
+        val KINDS = setOf(ROM, BATTERY_SAVE, STATE, COVER, LABEL, BIOS)
 
         /** [Item.isMainRom] for a manifest item still in its JSON form. */
         fun isMainRom(kind: String, json: JSONObject): Boolean =

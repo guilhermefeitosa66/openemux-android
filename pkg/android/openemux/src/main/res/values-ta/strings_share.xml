@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">மற்ற சாதனத்தின் கோர் ஏற்றக்கூடியவை மட்டும்</string>
     <string name="share_items_cover">அட்டை</string>
     <string name="share_items_label">கார்ட்ரிட்ஜ் லேபிள்</string>
+    <string name="share_items_bios">BIOS கோப்புகள்</string>
     <string name="share_items_details">நூலக விவரங்கள்</string>
     <string name="share_items_details_hint">பிடித்தது, கார்ட்ரிட்ஜ் நிறம், கோர், ஷேடர், விளையாடிய நேரம்</string>
     <string name="share_items_expand">உருப்படிகளைக் காட்டு</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">சேமித்த நிலை</string>
     <string name="share_kind_cover">அட்டை</string>
     <string name="share_kind_label">கார்ட்ரிட்ஜ் லேபிள்</string>
+    <string name="share_kind_bios">BIOS கோப்பு</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">முகவரி மூலம் இணை</string>
     <string name="share_address_other">மற்றொரு சாதனம்</string>
     <string name="share_address_qr">இந்தச் சாதனத்தின் முகவரி கொண்ட QR குறியீடு</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">கேம்</string>
     <string name="share_offer_part_cover">அட்டை</string>
     <string name="share_offer_part_label">லேபிள்</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: இந்தச் சாதனம் %2$s-ஐ ஆதரிக்கவில்லை.</string>
     <string name="share_offer_expires">%1$s-இல் காலாவதியாகும்</string>
     <string name="share_offer_decline">நிராகரி</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d கேம் அனுப்பப்பட்டது</item>
         <item quantity="other">%1$d கேம்கள் அனுப்பப்பட்டன</item>
     </plurals>
+    <string name="share_result_bios_received">சேர்க்கப்பட்ட BIOS கோப்புகள்: %1$s</string>
+    <string name="share_result_bios_sent">அனுப்பப்பட்ட BIOS கோப்புகள்: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d சேமிப்பு வைக்கப்பட்டது (உங்களுடையது புதியது)</item>
         <item quantity="other">%1$d சேமிப்புகள் வைக்கப்பட்டன (உங்களுடையவை புதியவை)</item>
