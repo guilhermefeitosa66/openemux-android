@@ -127,11 +127,12 @@ data class SendSelection(
         val all = (0 until source.length()).map { source.getJSONObject(it) }
         fun itemsOf(game: JSONObject) = game.getJSONArray("items").let { list -> (0 until list.length()).map { list.getJSONObject(it) } }
         // A console's BIOS leave the game the manifest gave them to and join the one that takes them.
-        val bios = all.flatMap(::itemsOf).filter { it.getString("kind") == Item.BIOS }
+        val bios = all.flatMap(::itemsOf).filter { it.getString("kind") == Item.BIOS }.associateBy { it.getString("id") }
         for (game in all) {
             val id = game.getString("id")
+            val console = game.getString("console")
             val items = JSONArray()
-            val carried = bios.filter { biosCarriers[game.getString("console")] == id && it.getString("id") in biosOf.getValue(game.getString("console")).itemIds }
+            val carried = if (biosCarriers[console] == id) biosOf.getValue(console).itemIds.mapNotNull(bios::get) else emptyList()
             for (item in itemsOf(game).filter { it.getString("kind") != Item.BIOS } + carried) {
                 if (item.getString("id") in drop) continue
                 items.put(item)
