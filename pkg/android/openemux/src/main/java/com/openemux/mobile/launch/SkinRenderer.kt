@@ -93,7 +93,8 @@ class SkinRenderer(private val context: Context) {
      *
      * Every page has its twins (OverlayName): the gamepad layout, with the app controls only, and each with the app
      * controls collapsed to the key that shows them again. A package skin gets the gamepad ones only, its art being
-     * its author's. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page.
+     * its author's; with [under] on NDS, [ndsLayouts] says the package drew one page per layout (ImportedSkinRenderer),
+     * and the gamepad pages follow them. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page.
      */
     fun render(
         console: Console, width: Int, height: Int, outDir: File, cutout: Int = 0,
@@ -114,15 +115,16 @@ class SkinRenderer(private val context: Context) {
         val flat = base?.let(::overlayNames).orEmpty()
         val packaged = base != null
         val specs = if (!packaged) {
-            withAppModes(overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop)).let { all ->
+            withAppModes(overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop, tablet)).let { all ->
                 val opening = first?.takeIf { f -> all.any { it.name == f } }
                     ?: if (gamepad) OverlayName.map(all.first().name) { it.withGamepad(true) } else null
                 if (opening != null) all.sortedBy { if (it.name == opening) 0 else 1 } else all
             }
         } else {
             // A package skin opened on its own [first] already (ImportedSkinRenderer): these go after.
-            val tabletop = if (band != null) packageTabletopSpecs(console.gameAspect, console == Console.NDS, ndsTabletop) else emptyList()
-            packageSpecs(console.gameAspect, console == Console.NDS, tabletop)
+            val nds = console == Console.NDS
+            val tabletop = if (band != null) packageTabletopSpecs(console.gameAspect, nds, ndsTabletop, ndsLayouts?.second, tablet) else emptyList()
+            packageSpecs(console.gameAspect, nds, tabletop, ndsLayouts, tablet)
         }
         val gaps = mutableMapOf<String, Int>()
         val cfg = StringBuilder()
@@ -177,7 +179,8 @@ class SkinRenderer(private val context: Context) {
             props.append(String.format(Locale.US, "band_start_dp=%.2f\nband_end_dp=%.2f\n", (band.startPx + cutout) / density, (band.endPx + cutout) / density))
             props.append("overlays=${(flat + specs.map { it.name }).joinToString(",")}\n")
             gaps.forEach { (name, gap) -> props.append("gap.$name=$gap\n") }
-            if (base != null && console == Console.NDS) props.append("flat_layout=$PACKAGE_NDS_LAYOUT\n")
+            // A package with one page per layout sets the core from the page it lands on, as the drawn skin does.
+            if (base != null && console == Console.NDS && ndsLayouts == null) props.append("flat_layout=$PACKAGE_NDS_LAYOUT\n")
             File(outDir, TABLETOP_FILE).writeText(props.toString())
         }
         val file = File(outDir, "skin.cfg")
@@ -305,7 +308,9 @@ class SkinRenderer(private val context: Context) {
             // The overlay sits over the game: the picture's box stays clear.
             fill(RectF(0f, 0f, wd * unit, 390f * unit), colors.body)
             c.drawRect(picture, Paint().apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) })
-            strip(RectF(left * unit, (top + gameH) * unit, (left + gameW) * unit, (top + gameH + 36f) * unit), 20f, opaque = true)
+            val stripW = phoneLandscapeStripW(gameW, stripActions(layoutNext != null).size)
+            val stripX = left + (gameW - stripW) / 2f
+            strip(RectF(stripX * unit, (top + gameH) * unit, (stripX + stripW) * unit, (top + gameH + 36f) * unit), 20f, opaque = true)
 
             val side = left
             val lx = side / 2f
@@ -384,7 +389,8 @@ class SkinRenderer(private val context: Context) {
             val top = Box(0f, 0f, wd, start)
             val view = when (screenLayout?.id) {
                 null -> g.picture
-                "top" -> SkinGeometry.fitIn(top, aspect, 14f)
+                // Side by side: both screens in the top half, as wide as it allows.
+                "top", "side" -> SkinGeometry.fitIn(top, aspect, 14f)
                 "bottom" -> SkinGeometry.fitIn(g.picture, aspect)
                 else -> SkinGeometry.ndsHalvesFit(start, end, g.picture, NDS_SCREEN_GAPS)?.also { gap = it.gap }?.viewport
                     // No gap covers the band: both screens in the top half rather than one on the fold.

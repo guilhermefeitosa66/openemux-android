@@ -16,8 +16,10 @@ import java.io.File
  */
 object GameSkin {
     /**
-     * [packaged]: a .deltaskin/.manicskin was used, which draws the two NDS
-     * screens one over the other; [ndsLayouts] the drawn skin's NDS layouts.
+     * [packaged]: a .deltaskin/.manicskin was used; [ndsLayouts] the saved NDS
+     * layouts when the skin has one page per layout (the drawn skin, or a
+     * package with the art for each), else null: a package draws the two
+     * screens one over the other.
      */
     class Drawn(val file: File, val packaged: Boolean, val ndsLayouts: Pair<ScreenLayout, ScreenLayout>?)
 
@@ -34,25 +36,25 @@ object GameSkin {
     ): Drawn {
         val tablet = SkinGeometry.tablet(size.short, size.long, density)
         val ndsTabletop = if (console == Console.NDS) NdsLayouts.loadTabletop(context.filesDir) else null
+        val ndsLayouts = if (console == Console.NDS) NdsLayouts.load(context.filesDir) else null
+        val importer = ImportedSkinRenderer()
         val packaged = ImportedSkinRenderer.find(context, base, console)?.let {
             runCatching {
-                // Its own pages are a plain "portrait" and "landscape": the one in [first]'s orientation opens.
-                val own = first?.let { f -> OverlayName.map(f) { n -> OverlayName(n.portrait) } }
-                ImportedSkinRenderer().render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, own)
+                // The page in [first]'s orientation (and NDS layout, when the package draws one page per layout) opens.
+                importer.render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, ndsLayouts)
             }.onFailure { e -> Log.e("ImportedSkin", "falling back to the built-in skin", e) }.getOrNull()
         }
         if (packaged != null) {
+            val pages = ndsLayouts?.takeIf { importer.wroteNdsLayouts }
             // A package skin has no gamepad layout nor tabletop art: the drawn skin's go after its own.
             val file = runCatching {
                 SkinRenderer(context).render(
-                    console, size, outDir, hardcore = hardcore, coreId = coreId, density = density,
+                    console, size, outDir, pages, hardcore = hardcore, coreId = coreId, density = density,
                     fold = fold, ndsTabletop = ndsTabletop, under = packaged,
                 )
             }.onFailure { e -> Log.e("ImportedSkin", "no gamepad or tabletop overlays", e) }.getOrDefault(packaged)
-            return Drawn(file, true, null)
+            return Drawn(file, true, pages)
         }
-        // The NDS layouts belong to the drawn skin.
-        val ndsLayouts = if (console == Console.NDS) NdsLayouts.load(context.filesDir) else null
         val file = SkinRenderer(context).render(
             console, size, outDir, ndsLayouts, hardcore, coreId, density, first, fold, ndsTabletop.takeIf { ndsLayouts != null },
             gamepad = gamepad,

@@ -7,8 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SkinSpecsTest {
-    private val stacked = NDS_LAYOUTS.getValue("portrait").last()
-    private val side = NDS_LAYOUTS.getValue("landscape").last()
+    private val stacked = NDS_LAYOUTS.getValue("portrait").first { it.id == "stacked" }
+    private val side = NDS_LAYOUTS.getValue("landscape").first { it.id == "side" }
     private val top = NDS_LAYOUTS.getValue("portrait").first()
 
     private fun names(specs: List<OverlaySpec>) = specs.map { it.name }
@@ -21,7 +21,7 @@ class SkinSpecsTest {
         )
         val nds = overlaySpecs(1.5f, keypad = false, nds = top to side)
         assertEquals("portrait@top", nds.first().name)
-        assertEquals(6, nds.size)
+        assertEquals(8, nds.size)
         assertTrue(nds.none { it.tabletop || TABLETOP in it.name })
     }
 
@@ -39,13 +39,15 @@ class SkinSpecsTest {
         assertEquals(listOf(TABLETOP), names(overlaySpecs(1.5f, keypad = false, nds = null, tabletop = true)).drop(2))
     }
 
-    @Test fun ndsGetsThreeTabletopLayoutsFromTheSavedOne() {
+    @Test fun ndsGetsEveryTabletopLayoutFromTheSavedOne() {
         val specs = overlaySpecs(1.5f, keypad = false, nds = stacked to side, tabletop = true, ndsTabletop = top)
         val tabletop = specs.filter { it.tabletop }
-        assertEquals(listOf("$TABLETOP@top", "$TABLETOP@bottom", "$TABLETOP@halves"), names(tabletop))
+        assertEquals(listOf("$TABLETOP@top", "$TABLETOP@bottom", "$TABLETOP@halves", "$TABLETOP@side"), names(tabletop))
         assertEquals("portrait@stacked", specs.first().name)
         assertEquals("$TABLETOP@bottom", tabletop[0].layoutNext)
         assertEquals("$TABLETOP@top", tabletop[2].layoutNext)
+        // Side by side is in the list, not in the quick cycle: its key steps to the cycle's first.
+        assertEquals("$TABLETOP@top", tabletop[3].layoutNext)
         tabletop.forEach { assertEquals("landscape@side", it.rotate) }
         // Nothing saved yet: one per half first.
         val fresh = overlaySpecs(1.5f, keypad = false, nds = stacked to side, tabletop = true)
@@ -74,9 +76,11 @@ class SkinSpecsTest {
         assertTrue(plain[0].tabletop && plain[0].portrait && !plain[0].keypadOpen)
         assertEquals("landscape", plain[0].rotate)
         val nds = packageTabletopSpecs(1.5f, nds = true, ndsTabletop = top)
-        assertEquals(listOf("$TABLETOP@top", "$TABLETOP@bottom", "$TABLETOP@halves"), names(nds))
+        assertEquals(listOf("$TABLETOP@top", "$TABLETOP@bottom", "$TABLETOP@halves", "$TABLETOP@side"), names(nds))
         nds.forEach { assertTrue(it.tabletop && it.layout != null); assertEquals("landscape", it.rotate) }
         assertEquals("$TABLETOP@halves", packageTabletopSpecs(1.5f, nds = true).first().name)
+        // A package with one page per layout: turning lands on its saved landscape one.
+        packageTabletopSpecs(1.5f, nds = true, ndsLandscape = side).forEach { assertEquals("landscape@side", it.rotate) }
     }
 
     @Test fun overlayNamesFollowTheIndexNotTheLineOrder() {
@@ -150,5 +154,46 @@ class SkinSpecsTest {
         assertEquals(1.5f, folded.first { it.name == "pad-portrait" }.aspect, 0f)
         // NDS: its art stacks the two screens.
         packageSpecs(1.5f, nds = true, tabletop = emptyList()).forEach { assertEquals(PACKAGE_NDS_ASPECT, it.aspect, 0f) }
+    }
+
+    @Test fun anNdsPackageWithItsLayoutsGetsAGamepadPagePerLayoutWithItsOwnCycle() {
+        val specs = packageSpecs(1.5f, nds = true, tabletop = emptyList(), ndsLayouts = stacked to side)
+        val pad = specs.filter { !it.collapsed }
+        assertEquals(8, pad.size)
+        assertEquals("pad-portrait@stacked", pad.first().name)
+        pad.forEach { s ->
+            assertTrue(s.gamepad && s.layout != null)
+            // The picture follows the layout: one screen 4:3, side by side 8:3.
+            assertEquals(s.layout!!.aspect, s.aspect, 0f)
+        }
+        val byName = specs.associateBy { it.name }
+        // Landscape with a pad steps on to side by side, and from it back to the first.
+        assertEquals("pad-landscape@side", byName.getValue("pad-landscape@stacked").layoutNext)
+        assertEquals("pad-landscape@top", byName.getValue("pad-landscape@side").layoutNext)
+        // Portrait's cycle has no side by side, but the page exists (picked from the list).
+        assertEquals("pad-portrait@top", byName.getValue("pad-portrait@stacked").layoutNext)
+        assertEquals("pad-portrait@top", byName.getValue("pad-portrait@side").layoutNext)
+        assertEquals("pad-landscape@side", byName.getValue("pad-portrait@top").rotate)
+        assertEquals(16, specs.size)
+        // Without the layouts' art, NDS keeps one page per orientation.
+        assertEquals(4, packageSpecs(1.5f, nds = true, tabletop = emptyList()).size)
+        // A non-NDS console ignores them.
+        assertEquals(4, packageSpecs(1.5f, nds = false, tabletop = emptyList(), ndsLayouts = stacked to side).size)
+    }
+
+    @Test fun theTouchCycleOfAPhoneLeavesSideBySideOutInLandscapeButATabletKeepsIt() {
+        val phone = ndsFlatSpecs(stacked to stacked).associateBy { it.name }
+        assertEquals("landscape@top", phone.getValue("landscape@stacked").layoutNext)
+        assertEquals("landscape@top", phone.getValue("landscape@side").layoutNext)
+        val tablet = ndsFlatSpecs(stacked to stacked, tablet = true).associateBy { it.name }
+        assertEquals("landscape@side", tablet.getValue("landscape@stacked").layoutNext)
+        assertEquals("portrait@top", tablet.getValue("portrait@stacked").layoutNext)
+        // A tablet's gamepad twins keep the tablet's cycle.
+        val twin = tablet.getValue("landscape@side").twin(gamepad = true, collapsed = false)
+        assertEquals("pad-landscape@top", twin.layoutNext)
+        assertTrue(twin.tablet)
+        // Each orientation opens on its saved layout, portrait first.
+        assertEquals(listOf("portrait@side", "portrait@top"), ndsFlatSpecs(side to top).map { it.name }.take(2))
+        assertEquals("landscape@top", ndsFlatSpecs(side to top)[4].name)
     }
 }

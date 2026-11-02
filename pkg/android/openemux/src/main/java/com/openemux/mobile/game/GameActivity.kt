@@ -601,14 +601,17 @@ class GameActivity : RetroActivityFuture() {
     private fun currentNdsShown(): NdsShown = synchronized(ndsLayouts) {
         loadNdsLayouts()
         val orientation = shownNdsOrientation()
-        NdsShown(orientation, NdsLayouts.find(orientation, ndsLayouts[orientation])?.id ?: NdsLayouts.of(orientation).last().id)
+        NdsShown(orientation, (NdsLayouts.find(orientation, ndsLayouts[orientation]) ?: NdsLayouts.default(orientation)).id)
     }
 
-    /** From R3 (in game or on the sheet) and the skin's screens key: the orientation's next layout. */
+    /**
+     * From R3, in game or on the sheet: the orientation's next layout in the gamepad cycle (R3 is a gamepad's, so side
+     * by side is in it in landscape). The skin's screens key steps its pages itself (onOverlayChanged follows).
+     */
     private fun nextNdsLayout(): ScreenLayout = synchronized(ndsLayouts) {
         loadNdsLayouts()
         val orientation = shownNdsOrientation()
-        applyNdsLayout(orientation, NdsLayouts.next(orientation, ndsLayouts[orientation]))
+        applyNdsLayout(orientation, NdsLayouts.next(orientation, ndsLayouts[orientation], gamepad = true))
     }
 
     /**

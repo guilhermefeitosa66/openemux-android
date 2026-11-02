@@ -179,6 +179,7 @@ class GameLauncher(
             )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
+            val landscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
             val shader = library.effectiveShader(rom)
             shader.preset?.let { preset ->
@@ -190,9 +191,10 @@ class GameLauncher(
                     "mgba_use_bios = \"ON\"\n" +
                     // The skins draw the 6-button pad; Genesis Plus GX gets it from its port device (buildConfig).
                     "picodrive_input1 = \"6 button pad\"\n" +
-                    // The skin opens on the saved portrait layout; the activity follows the overlay from there.
-                    (ndsLayouts?.let { "desmume_screens_layout = \"${it.first.value}\"\n" } ?: "") +
-                    (if (rom.console == Console.NDS && drawn.packaged) "desmume_screens_layout = \"$PACKAGE_NDS_LAYOUT\"\n" else "")
+                    // The skin opens on the saved layout of the orientation the game starts in (the engine turns to the
+                    // landscape page at once), so the first frame is drawn right; the activity follows the overlay from there.
+                    (ndsLayouts?.let { "desmume_screens_layout = \"${ndsLaunchLayout(it, landscape).value}\"\n" } ?: "") +
+                    (if (rom.console == Console.NDS && drawn.packaged && ndsLayouts == null) "desmume_screens_layout = \"$PACKAGE_NDS_LAYOUT\"\n" else "")
             )
 
             listOf(paths.states(rom.console), paths.saves(rom.console), paths.system, paths.screenshots, paths.playtime)
