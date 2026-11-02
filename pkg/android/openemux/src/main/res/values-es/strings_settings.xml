@@ -57,6 +57,13 @@
     <string name="settings_bios_missing">Falta</string>
     <string name="settings_bios_not_needed">Esta consola no la necesita</string>
     <string name="settings_default_skin">Diseño predeterminado</string>
+    <string name="settings_skin_console">Colores de la consola</string>
+    <string name="settings_skin_console_desc">Los colores propios de la consola.</string>
+    <string name="settings_skin_dark">Oscuro</string>
+    <string name="settings_skin_dark_desc">Fondo negro y botones gris oscuro, para jugar con la luz apagada.</string>
+    <string name="settings_skin_sheet_desc">El mando virtual que usan todos los juegos de %1$s.</string>
+    <string name="settings_skin_imported">Se usa en su lugar un diseño que importaste para %1$s.</string>
+    <string name="settings_skin_imported_value">Diseño importado</string>
     <string name="settings_cart_color">Color del cartucho</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Se aplica al juego de %2$s.</item>

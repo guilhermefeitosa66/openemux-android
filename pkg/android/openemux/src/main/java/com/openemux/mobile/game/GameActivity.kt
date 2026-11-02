@@ -26,6 +26,7 @@ import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.launch.GameSkin
 import com.openemux.mobile.launch.OverlayName
 import com.openemux.mobile.launch.SkinGeometry
@@ -233,6 +234,7 @@ class GameActivity : RetroActivityFuture() {
                 density = resources.displayMetrics.density,
                 hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
                 coreId = intent.getStringExtra(GameExtras.CORE_ID),
+                variant = SkinVariant.byId(intent.getStringExtra(GameExtras.SKIN_VARIANT)),
                 first = first,
                 gamepad = synchronized(ndsLayouts) { wantGamepad },
                 // Drawn upright, as the launcher does: the fold goes with it.

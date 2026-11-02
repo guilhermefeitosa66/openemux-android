@@ -67,7 +67,24 @@ data class ConsoleSettings(
     val core: String,
     val shader: String,
     val color: String = "default",
-)
+    /** The bundled skin's [SkinVariant] id; a console saved before it existed plays in its own colors. */
+    val skin: String = SkinVariant.CONSOLE.id,
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("core", core)
+        put("shader", shader)
+        put("color", color)
+        put("skin", skin)
+    }
+
+    companion object {
+        fun fromJson(c: JSONObject) = ConsoleSettings(
+            c.getString("core"), c.getString("shader"), c.optString("color", "default"),
+            // Kept as saved, even an id this build does not know (a newer build's), so a save here never drops it.
+            c.optString("skin").ifEmpty { SkinVariant.CONSOLE.id },
+        )
+    }
+}
 
 /** Slot the pause sheet copies the auto state into: the engine loads slots only. */
 const val SCRATCH_SLOT = 999
@@ -194,6 +211,9 @@ class Library(
     fun romMeta(key: String): RomMeta = _meta.value.roms[key] ?: RomMeta()
 
     fun consoleSettings(console: Console): ConsoleSettings = _meta.value.settingsFor(console)
+
+    /** The bundled skin every game of [console] plays with: the one picked in its settings (issue 718). */
+    fun skinVariant(console: Console): SkinVariant = SkinVariant.byId(consoleSettings(console).skin)
 
     private fun Meta.settingsFor(console: Console): ConsoleSettings =
         consoles[console.id] ?: ConsoleSettings(core = console.cores[0].id, shader = console.defaultShader)
@@ -385,8 +405,7 @@ class Library(
             }.orEmpty()
             val consoles = json.optJSONObject("consoles")?.let { obj ->
                 obj.keys().asSequence().associateWith { k ->
-                    val c = obj.getJSONObject(k)
-                    ConsoleSettings(c.getString("core"), c.getString("shader"), c.optString("color", "default"))
+                    ConsoleSettings.fromJson(obj.getJSONObject(k))
                 }
             }.orEmpty()
             val order = json.optJSONArray("consoleOrder")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } }.orEmpty()
@@ -411,13 +430,7 @@ class Library(
             }
         })
         json.put("consoles", JSONObject().apply {
-            m.consoles.forEach { (k, c) ->
-                put(k, JSONObject().apply {
-                    put("core", c.core)
-                    put("shader", c.shader)
-                    put("color", c.color)
-                })
-            }
+            m.consoles.forEach { (k, c) -> put(k, c.toJson()) }
         })
         if (m.consoleOrder.isNotEmpty()) json.put("consoleOrder", org.json.JSONArray(m.consoleOrder))
         paths.meta.parentFile?.mkdirs()

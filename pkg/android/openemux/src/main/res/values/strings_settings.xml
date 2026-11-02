@@ -55,6 +55,13 @@
     <string name="settings_bios_missing">Missing</string>
     <string name="settings_bios_not_needed">This console doesn\'t need one</string>
     <string name="settings_default_skin">Default skin</string>
+    <string name="settings_skin_console">Console colors</string>
+    <string name="settings_skin_console_desc">The console\'s own colors.</string>
+    <string name="settings_skin_dark">Dark</string>
+    <string name="settings_skin_dark_desc">Black background and dark grey buttons, for playing with the lights off.</string>
+    <string name="settings_skin_sheet_desc">The virtual controller every %1$s game uses.</string>
+    <string name="settings_skin_imported">A skin you imported for %1$s is used instead.</string>
+    <string name="settings_skin_imported_value">Imported skin</string>
     <string name="settings_cart_color">Cartridge color</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Applies to the %1$d %2$s game.</item>

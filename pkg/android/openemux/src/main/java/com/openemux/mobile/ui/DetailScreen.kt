@@ -80,7 +80,7 @@ import com.openemux.mobile.data.SaveState
 import com.openemux.mobile.data.shaderById
 import com.retroarch.R
 
-private enum class Sheet { None, Core, Shader, States }
+private enum class Sheet { None, Core, Shader, States, Skin }
 
 /** One of the game's settings: what the list row or the tabletop tile shows, and what a tap opens. */
 private class Setting(val label: String, val value: String, val isDefault: Boolean, val onClick: (() -> Unit)?)
@@ -127,6 +127,9 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val core = lib.effectiveCore(rom)
     val shader = lib.effectiveShader(rom)
     val color = lib.effectiveColor(rom)
+    // The skin is the console's (issue 718): the row shows it and opens the same choice as the console's settings.
+    val skinChoice = rememberSkinChoice(lib, rom.console)
+    val skin = lib.consoleSettings(rom.console).skin
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -273,7 +276,11 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val settings = listOf(
         Setting(stringResource(R.string.detail_core), core.name, romMeta?.core == null) { sheet = Sheet.Core },
         Setting(stringResource(R.string.detail_shader), shader.name(), romMeta?.shader == null) { sheet = Sheet.Shader },
-        Setting(stringResource(R.string.detail_controller_skin), "OpenEmux ${rom.console.short}", false, null),
+        Setting(
+            stringResource(R.string.detail_controller_skin),
+            skinValueLabel(skinChoice, skin)?.let { stringResource(it) } ?: "OpenEmux ${rom.console.short}", false,
+            if (skinChoice?.dark == true) ({ sheet = Sheet.Skin }) else null,
+        ),
         Setting(stringResource(R.string.detail_cheats), stringResource(R.string.detail_coming_soon), false, null),
     )
     val settingsCard: @Composable (Modifier) -> Unit = { modifier ->
@@ -487,6 +494,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.Core -> CoreSheet(rom) { sheet = Sheet.None }
         Sheet.Shader -> ShaderSheet(rom) { sheet = Sheet.None }
         Sheet.States -> StatesSheet(states, ::playState) { sheet = Sheet.None }
+        Sheet.Skin -> SkinSheet(lib, rom.console, skin, skinChoice?.imported == true) { sheet = Sheet.None }
         Sheet.None -> {}
     }
 

@@ -55,6 +55,13 @@
     <string name="settings_bios_missing">இல்லை</string>
     <string name="settings_bios_not_needed">இந்தக் கன்சோலுக்கு இது தேவையில்லை</string>
     <string name="settings_default_skin">இயல்புத் தோற்றம்</string>
+    <string name="settings_skin_console">கன்சோல் நிறங்கள்</string>
+    <string name="settings_skin_console_desc">கன்சோலின் சொந்த நிறங்கள்.</string>
+    <string name="settings_skin_dark">இருண்டது</string>
+    <string name="settings_skin_dark_desc">கருப்புப் பின்னணி, அடர் சாம்பல் பொத்தான்கள்; விளக்கை அணைத்து விளையாட.</string>
+    <string name="settings_skin_sheet_desc">ஒவ்வொரு %1$s விளையாட்டும் பயன்படுத்தும் மெய்நிகர் கட்டுப்படுத்தி.</string>
+    <string name="settings_skin_imported">%1$s-க்கு நீங்கள் இறக்குமதி செய்த தோற்றம் அதற்குப் பதிலாகப் பயன்படுத்தப்படுகிறது.</string>
+    <string name="settings_skin_imported_value">இறக்குமதி செய்த தோற்றம்</string>
     <string name="settings_cart_color">கார்ட்ரிட்ஜ் நிறம்</string>
     <plurals name="settings_applies_all">
         <item quantity="one">%2$s விளையாட்டுக்குப் பொருந்தும்.</item>

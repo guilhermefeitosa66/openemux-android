@@ -55,6 +55,13 @@
     <string name="settings_bios_missing">Fehlt</string>
     <string name="settings_bios_not_needed">Diese Konsole braucht keins</string>
     <string name="settings_default_skin">Standard-Skin</string>
+    <string name="settings_skin_console">Konsolenfarben</string>
+    <string name="settings_skin_console_desc">Die eigenen Farben der Konsole.</string>
+    <string name="settings_skin_dark">Dunkel</string>
+    <string name="settings_skin_dark_desc">Schwarzer Hintergrund und dunkelgraue Tasten, zum Spielen bei ausgeschaltetem Licht.</string>
+    <string name="settings_skin_sheet_desc">Der virtuelle Controller, den jedes %1$s-Spiel verwendet.</string>
+    <string name="settings_skin_imported">Stattdessen wird ein Skin verwendet, den du für %1$s importiert hast.</string>
+    <string name="settings_skin_imported_value">Importierter Skin</string>
     <string name="settings_cart_color">Modulfarbe</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Gilt für das eine %2$s-Spiel.</item>

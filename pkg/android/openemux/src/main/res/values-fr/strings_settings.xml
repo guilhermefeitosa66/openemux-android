@@ -57,6 +57,13 @@
     <string name="settings_bios_missing">Manquant</string>
     <string name="settings_bios_not_needed">Cette console n’en a pas besoin</string>
     <string name="settings_default_skin">Skin par défaut</string>
+    <string name="settings_skin_console">Couleurs de la console</string>
+    <string name="settings_skin_console_desc">Les couleurs d\'origine de la console.</string>
+    <string name="settings_skin_dark">Sombre</string>
+    <string name="settings_skin_dark_desc">Fond noir et boutons gris foncé, pour jouer lumière éteinte.</string>
+    <string name="settings_skin_sheet_desc">La manette virtuelle utilisée par chaque jeu %1$s.</string>
+    <string name="settings_skin_imported">Un skin que vous avez importé pour %1$s est utilisé à la place.</string>
+    <string name="settings_skin_imported_value">Skin importé</string>
     <string name="settings_cart_color">Couleur de la cartouche</string>
     <plurals name="settings_applies_all">
         <item quantity="one">S’applique au seul jeu %2$s.</item>

@@ -55,6 +55,13 @@
     <string name="settings_bios_missing">Faltando</string>
     <string name="settings_bios_not_needed">Este console não precisa</string>
     <string name="settings_default_skin">Skin padrão</string>
+    <string name="settings_skin_console">Cores do console</string>
+    <string name="settings_skin_console_desc">As cores originais do console.</string>
+    <string name="settings_skin_dark">Escuro</string>
+    <string name="settings_skin_dark_desc">Fundo preto e botões cinza-escuro, para jogar com a luz apagada.</string>
+    <string name="settings_skin_sheet_desc">O controle virtual que todo jogo de %1$s usa.</string>
+    <string name="settings_skin_imported">Uma skin que você importou para %1$s é usada no lugar.</string>
+    <string name="settings_skin_imported_value">Skin importada</string>
     <string name="settings_cart_color">Cor dos cartuchos</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Vale para todos os %1$d jogos do %2$s.</item>

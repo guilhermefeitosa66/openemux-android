@@ -8,9 +8,19 @@ console's colors, measured on photos of the console's best-known shell
 (Wikimedia Commons).
 
 ```sh
-python3 tools/skins/build.py          # all twelve
-python3 tools/skins/build.py GBA PS   # some
+python3 tools/skins/build.py                  # all twelve, both variants
+python3 tools/skins/build.py GBA PS           # some
+python3 tools/skins/build.py --variant dark   # only the Dark ones
 ```
+
+Every console comes in two variants. `console` is the console's own colors
+(`src/main/assets/skins/`); `dark` (`src/main/assets/skins/dark/`) is the
+same layout run through one palette the engine applies to every console
+(`DARK` and `darkPalette` in the engine): a black body, the controls in a
+dark grey and the labels in a muted grey, for playing with the lights off.
+Only colors change; the build stops if a Dark representation's frames,
+screens or knobs differ from the console's own. The app picks the variant
+per console (the "Default skin" setting).
 
 For each console it lays out four representations (phone and tablet,
 portrait and landscape: `iphone/edgeToEdge` and `ipad/standard` in the
