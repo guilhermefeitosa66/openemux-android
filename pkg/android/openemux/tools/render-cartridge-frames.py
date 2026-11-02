@@ -143,8 +143,11 @@ def fillet(pts, radii):
     for i, (p, r) in enumerate(zip(pts, radii)):
         a, b = pts[i - 1] - p, pts[(i + 1) % len(pts)] - p
         la, lb = np.hypot(*a), np.hypot(*b)
+        if r <= 0 or la == 0 or lb == 0:      # sharp, or a repeated point with no corner to round
+            out.append(tuple(p))
+            continue
         half = np.arccos(np.clip(a @ b / (la * lb), -1, 1)) / 2
-        if r <= 0 or half > np.deg2rad(89.5):
+        if half > np.deg2rad(89.5):
             out.append(tuple(p))
             continue
         d = min(r / np.tan(half), la / 2, lb / 2)
@@ -590,15 +593,14 @@ def nintendo_64():
         # The arched top, both shoulders split off the centre panel by a groove, and each
         # shoulder's lower corner stepped in under a curved edge, as in the current frame.
         arch = [(x, 6 + 30 * ((x - 155.25) / 149.25) ** 2) for x in np.linspace(6, 304.5, 41)]
-        body = cv.rpoly([(6, 195.5), *arch, (304.5, 195.5)], [2.5, 9] + [0] * 39 + [9, 2.5])
+        body = cv.rpoly([(6, 195.5), *arch, (304.5, 195.5)], [2.5, 9] + [0] * (len(arch) - 2) + [9, 2.5])
         win_arch = [(x, 25 + 5 * ((x - 155) / 66) ** 2) for x in np.linspace(89, 221, 25)]
-        window = cv.rpoly([(89, 176.4), *win_arch, (221, 176.4)], [3] + [3] + [0] * 23 + [3] + [3])
+        window = cv.rpoly([(89, 176.4), *win_arch, (221, 176.4)], [3, 3] + [0] * (len(win_arch) - 2) + [3, 3])
         rec_arch = [(x, 21.5 + 5.6 * ((x - 155) / 70) ** 2) for x in np.linspace(85, 225, 25)]
-        recess = cv.rpoly([(85, 180), *rec_arch, (225, 180)], [4] + [4] + [0] * 23 + [4] + [4])
+        recess = cv.rpoly([(85, 180), *rec_arch, (225, 180)], [4, 4] + [0] * (len(rec_arch) - 2) + [4, 4])
         steps = [[(-10, 137.5), (21, 137.5), (27.5, 140.5), (30.5, 147), (30.5, 210)],
                  [(321, 137.5), (290, 137.5), (283.5, 140.5), (280.5, 147), (280.5, 210)]]
-        corners = cv.poly([(-10, 137.5), (21, 137.5), (27.5, 140.5), (30.5, 147), (30.5, 210), (-10, 210)],
-                          [(321, 137.5), (290, 137.5), (283.5, 140.5), (280.5, 147), (280.5, 210), (321, 210)])
+        corners = cv.poly(steps[0] + [(-10, 210)], steps[1] + [(321, 210)])
         layers = [
             (cv.rrect((-10, -10, 31, 137.5, 0), (280, -10, 321, 137.5, 0)), 0.40, 1.60),   # rounded shoulder edges
             (corners, -0.25, 0.30),                                                  # stepped lower corners
@@ -619,7 +621,7 @@ def game_boy_advance():
                         [12, 12, 3, 2, 3, 3, 2, 3])
         # The recessed logo plate under an arch across the top, lettering embossed in it.
         plate_top = [(x, 13 + 22 * ((x - 200) / 145) ** 4) for x in np.linspace(55, 345, 31)]
-        plate = cv.rpoly([(48, 45), (55, 35), *plate_top[1:-1], (345, 35), (352, 45)], [2, 3] + [0] * 29 + [3, 2])
+        plate = cv.rpoly([(48, 45), *plate_top, (352, 45)], [2, 3] + [0] * (len(plate_top) - 2) + [3, 2])
         lettering = cv.text([("GAME BOY", "NotoSansDisplay-SemiCondensedBlackItalic.ttf", 16.5, 3.5),
                              ("ADVANCE", "NotoSans-Black.ttf", 14, 0)], 200, 43.2)
         layers = [
