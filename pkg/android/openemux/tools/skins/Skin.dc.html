@@ -49,6 +49,8 @@ const OE = (() => {
     circle: 'M5.5 12a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0',
     cross: 'M6.5 6.5l11 11M17.5 6.5l-11 11',
     square: 'M6 6h12v12H6z',
+    // Two screens, one over the other: the NDS layout key.
+    screens: 'M6 3h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM6 13h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z',
   };
   const LEFT_STICK = { up: 'analogStickUp', down: 'analogStickDown', left: 'analogStickLeft', right: 'analogStickRight' };
   const RIGHT_STICK = { up: 'rightAnalogStickUp', down: 'rightAnalogStickDown', left: 'rightAnalogStickLeft', right: 'rightAnalogStickRight' };
@@ -207,36 +209,42 @@ const OE = (() => {
     // The game's screen(s), as large as the room allows, in a thin bezel. The quick actions sit in the
     // bezel's chin, right under the picture, like a TV's buttons under its screen.
     // Two screens touch: DeSmuME draws them with no gap, so the bezel's opening matches the picture exactly.
-    const n = S.screens || 1, gap = 0;
+    // The NDS has one art per screen layout (opts.screens: 'top', 'bottom', 'stacked', 'side'; 'stacked' when not
+    // given): the bezel holds the screens the layout shows, one, two in a column or two in a row, as large as the
+    // controls allow, so a single screen is not drawn in a frame made for two.
+    const nds = S.screens === 2, shown = nds ? (opts.screens || 'stacked') : null;
+    const rows = shown === 'stacked' ? 2 : 1, cols = shown === 'side' ? 2 : 1;
     const m = tab ? 16 : 6, pad = tab ? 10 : 6;
     const chin = tab ? 44 : (port ? 30 : 28);
     let sw, sh;
     if (port) {
       const maxW = W - 2 * m - 2 * pad;
-      const maxH = H * (n === 2 ? (tab ? 0.6 : 0.56) : (tab ? 0.5 : 0.42));
-      sw = maxW; sh = sw / S.aspect;
-      if (n * sh > maxH) { sh = maxH / n; sw = sh * S.aspect; }
+      const maxH = H * (rows === 2 ? (tab ? 0.6 : 0.56) : (tab ? 0.5 : 0.42));
+      sw = maxW / cols; sh = sw / S.aspect;
+      if (rows * sh > maxH) { sh = maxH / rows; sw = sh * S.aspect; }
     } else {
       const minSide = tab ? 240 : 150;
       const maxH = H - 2 * m - pad - chin;
       const maxW = W - 2 * minSide - 2 * pad;
-      sh = maxH / n; sw = sh * S.aspect;
-      if (sw > maxW) { sw = maxW; sh = sw / S.aspect; }
+      sh = maxH / rows; sw = sh * S.aspect;
+      if (cols * sw > maxW) { sw = maxW / cols; sh = sw / S.aspect; }
     }
-    const bw = sw + 2 * pad, bh = n * sh + pad + chin;
+    const bw = cols * sw + 2 * pad, bh = rows * sh + pad + chin;
     const bx = (W - bw) / 2;
     const by = port ? m : (H - bh) / 2;
     add(box(bx, by, bw, bh) + `border-radius:${tab ? 16 : 10}px;background:${S.bezel};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.06)}, 0 1px 0 ${alpha('#ffffff', 0.2)};`);
-    for (let i = 0; i < n; i++) {
-      const sx = bx + pad, sy = by + pad + i * sh;
+    for (let i = 0; i < rows * cols; i++) {
+      const sx = bx + pad + (i % cols) * sw, sy = by + pad + Math.floor(i / cols) * sh;
       screens.push({ x: r1(sx), y: r1(sy), width: r1(sw), height: r1(sh) });
       add(box(sx, sy, sw, sh) + center + `border-radius:2px;background:#0B0C0E;`,
         opts.export ? {} : lbl(S.res, 'rgba(255,255,255,.28)', tab ? 14 : 11, '.12em'));
     }
 
-    // The chin: save, load, turbo, fast forward.
-    const barY = by + pad + n * sh, barH = chin;
-    const acts = [['quickSave', 'save'], ['quickLoad', 'load'], ['turbo', 'turbo'], ['toggleFastForward', 'ff']];
+    // The chin: save, load, turbo, fast forward, and on the NDS the screens key (its input is the app's own name,
+    // which steps to the next layout's art; other emulators ignore it).
+    const barY = by + pad + rows * sh, barH = chin;
+    const acts = [['quickSave', 'save'], ['quickLoad', 'load'], ['turbo', 'turbo'], ['toggleFastForward', 'ff']]
+      .concat(nds ? [['screens', 'screens']] : []);
     const slot = bw / acts.length;
     acts.forEach(([input, ic], i) => {
       // Edges rounded once, so neighbouring slots meet without overlapping.
@@ -406,7 +414,7 @@ class Component extends DCLogic {
     const id = this.props.console ?? 'GBA';
     const device = this.props.device ?? 'phone';
     const orient = this.props.orient ?? 'portrait';
-    const L = OE.layout(id, device, orient);
+    const L = OE.layout(id, device, orient, { screens: this.props.screens });
     let parts = L.parts;
     if (this.props.showTouch) {
       const touch = L.items.map((it) => {

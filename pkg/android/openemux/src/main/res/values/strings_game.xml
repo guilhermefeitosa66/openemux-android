@@ -87,6 +87,12 @@
     <string name="game_screens_stacked">One above the other</string>
     <string name="game_screens_halves">One per half</string>
     <string name="game_screens_side">Side by side</string>
+    <string name="game_screens_current">Current</string>
+    <string name="game_hint_next_layout">Next layout</string>
+    <string name="game_toast_screens_layout">Screens: %1$s</string>
+    <string name="game_screens_remembered_portrait">Remembered for portrait</string>
+    <string name="game_screens_remembered_landscape">Remembered for landscape</string>
+    <string name="game_screens_remembered_tabletop">Remembered for tabletop</string>
 
     <!-- RetroAchievements hardcore -->
     <string name="game_hardcore_tag">HARDCORE</string>

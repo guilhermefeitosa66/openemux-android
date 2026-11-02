@@ -51,8 +51,7 @@ class StripActionsTest {
         )
     }
 
-    /** Every slot keeps room for the lit pill around the glyph (46 wide at most, the slot less 8). */
-    private val floor = 40f
+    private val floor = STRIP_SLOT_FLOOR
 
     private val consoles = listOf(4f / 3f, 8f / 7f, 10f / 9f, 3f / 2f)
 
@@ -68,7 +67,8 @@ class StripActionsTest {
         // From a 16:10 phone (624 units across a 390-unit height) to a 21:9 one.
         listOf(624f, 693f, 844f, 910f).forEach { wd ->
             aspects("landscape").forEach { aspect ->
-                val slot = phoneLandscapeGameW(wd, aspect) / stripActions(layoutKey = true).size
+                val keys = stripActions(layoutKey = true).size
+                val slot = phoneLandscapeStripW(phoneLandscapeGameW(wd, aspect), keys) / keys
                 assertTrue("$wd x $aspect: $slot", slot >= floor)
             }
         }
@@ -84,5 +84,10 @@ class StripActionsTest {
                 )
             } + SkinGeometry.tabletopNds(700f, 840f, 430f, 260f).strip.w
         strips.forEach { assertTrue("$it", it / stripActions(layoutKey = true).size >= floor) }
+    }
+
+    @Test fun aNarrowPictureGetsAStripWiderThanItself() {
+        assertEquals(400f, phoneLandscapeStripW(400f, 6), 0f)
+        assertEquals(240f, phoneLandscapeStripW(236f, 6), 0f)
     }
 }

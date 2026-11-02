@@ -87,6 +87,12 @@
     <string name="game_screens_stacked">Übereinander</string>
     <string name="game_screens_halves">Eine pro Hälfte</string>
     <string name="game_screens_side">Nebeneinander</string>
+    <string name="game_screens_current">Aktuell</string>
+    <string name="game_hint_next_layout">Nächstes Layout</string>
+    <string name="game_toast_screens_layout">Bildschirme: %1$s</string>
+    <string name="game_screens_remembered_portrait">Für Hochformat gespeichert</string>
+    <string name="game_screens_remembered_landscape">Für Querformat gespeichert</string>
+    <string name="game_screens_remembered_tabletop">Für Tischmodus gespeichert</string>
 
     <!-- RetroAchievements hardcore -->
     <string name="game_hardcore_tag">HARDCORE</string>

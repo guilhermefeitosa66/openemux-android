@@ -57,6 +57,8 @@ private fun face(token: String, family: PadFamily, dualSense: Boolean): Face = w
         "R1" -> Face.Text("RB")
         "START" -> Face.Glyph(GlyphKind.MENU)
         "SELECT" -> Face.Glyph(GlyphKind.VIEW)
+        // The right stick click: Xbox pads print it as RS.
+        "R3" -> Face.Text("RS")
         else -> Face.Text(token)
     }
     PadFamily.NINTENDO -> when (token) {

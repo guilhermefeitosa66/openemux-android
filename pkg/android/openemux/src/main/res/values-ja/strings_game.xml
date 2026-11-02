@@ -86,6 +86,12 @@
     <string name="game_screens_stacked">上下に並べる</string>
     <string name="game_screens_halves">半分ずつに1画面</string>
     <string name="game_screens_side">左右に並べる</string>
+    <string name="game_screens_current">現在</string>
+    <string name="game_hint_next_layout">次のレイアウト</string>
+    <string name="game_toast_screens_layout">画面: %1$s</string>
+    <string name="game_screens_remembered_portrait">縦向きで記憶されます</string>
+    <string name="game_screens_remembered_landscape">横向きで記憶されます</string>
+    <string name="game_screens_remembered_tabletop">テーブルトップモードで記憶されます</string>
 
     <!-- RetroAchievements hardcore -->
     <string name="game_hardcore_tag">ハードコア</string>

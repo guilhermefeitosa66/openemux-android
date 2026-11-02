@@ -1130,6 +1130,15 @@ public class RetroActivityCommon extends NativeActivity
   }
 
   /**
+   * OpenEmux: a gamepad shortcut key (R3) pressed while the content plays.
+   * True when it was used; a used press never reaches the core.
+   */
+  public boolean onPadShortcut(int keycode, int action)
+  {
+    return false;
+  }
+
+  /**
    * OpenEmux: the overlay now shown, by its name in the overlay config.
    */
   public void onOverlayChanged(String name)

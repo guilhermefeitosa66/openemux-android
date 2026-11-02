@@ -17,12 +17,14 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentDialog
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.AppLocale
 import com.openemux.mobile.data.Console
-import com.openemux.mobile.data.NDS_LAYOUTS
 import com.openemux.mobile.data.NdsLayouts
+import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.launch.GameSkin
 import com.openemux.mobile.launch.OverlayName
@@ -89,6 +91,16 @@ class GameActivity : RetroActivityFuture() {
     private var ndsOrientation = "portrait"
     private val ndsLayouts = mutableMapOf<String, String>()
     private var ndsRestoring: String? = null
+    /** The NDS screens in use, which the pause sheet shows and changes (main thread writes). */
+    private val ndsShown = mutableStateOf(NdsShown("portrait", ""))
+    /** Bumped when R3 steps the layout while the sheet is open, so the sheet names it (main thread). */
+    private val ndsCycles = mutableIntStateOf(0)
+    private var layoutToast: android.widget.Toast? = null
+    /** The overlay switch the app asked for last and the engine has not shown yet (under ndsLayouts' lock). */
+    private var ndsAsked: NdsShown? = null
+    /** The app's overlay switches, one at a time and in order, so a quick second R3 never lands first. */
+    private val ndsSwitches = Executors.newSingleThreadExecutor()
+    private val r3 = PadShortcut.Press()
 
     // The window the skin in use was drawn for, and the one a redraw is under way for (skin thread writes).
     @Volatile private var skinSize: SkinSize? = null
@@ -162,6 +174,7 @@ class GameActivity : RetroActivityFuture() {
         debugReceiver = null
         handler.removeCallbacks(skinCheck)
         skinThread.shutdownNow()
+        ndsSwitches.shutdown()
         scope.cancel()
         super.onDestroy()
     }
@@ -536,9 +549,10 @@ class GameActivity : RetroActivityFuture() {
             return
         }
         val orientation = page?.orientation ?: return
-        val layout = NDS_LAYOUTS[orientation]?.firstOrNull { it.id == page.layout } ?: return
+        val layout = NdsLayouts.find(orientation, page.layout) ?: return
         loadNdsLayouts()
-        if (orientation != ndsOrientation) ndsRestoring = ndsLayouts[orientation]
+        val sameOrientation = orientation == ndsOrientation
+        if (!sameOrientation) ndsRestoring = ndsLayouts[orientation]
         ndsOrientation = orientation
         // Turning lands on the layout saved at launch: on to the one used last here, in the mode shown (stepping to
         // the next overlay would leave the mode when the skin opened on a page pulled ahead of its own).
@@ -549,7 +563,13 @@ class GameActivity : RetroActivityFuture() {
             return
         }
         ndsRestoring = null
+        // R3 pressed again before the engine showed the first switch: the newer one lands next.
+        if (NdsLayouts.superseded(ndsAsked, orientation, layout.id)) return
+        if (ndsAsked?.orientation == orientation) ndsAsked = null
+        // The skin's screens key steps the overlay: name the layout it landed on, as R3 does.
+        if (NdsLayouts.announce(sameOrientation, ndsLayouts[orientation], layout.id)) runOnUiThread { showLayoutToast(layout) }
         ndsLayouts[orientation] = layout.id
+        publishNdsShown(orientation, layout.id)
         // One per half puts the fold in the gap between the screens; every other layout has none.
         val gap = tabletopSkin?.let { it.gaps[name] ?: 0 }
         Thread {
@@ -571,34 +591,83 @@ class GameActivity : RetroActivityFuture() {
         }
     }
 
+    /** The orientation whose NDS layouts apply now: the tabletop overlay's when it is shown, else the window's. */
+    private fun shownNdsOrientation(): String = NdsLayouts.orientation(
+        tabletopShown = overlay?.let(OverlayName::parse)?.tabletop == true,
+        landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
+    )
+
+    /** The NDS screens in use for the orientation shown. */
+    private fun currentNdsShown(): NdsShown = synchronized(ndsLayouts) {
+        loadNdsLayouts()
+        val orientation = shownNdsOrientation()
+        NdsShown(orientation, (NdsLayouts.find(orientation, ndsLayouts[orientation]) ?: NdsLayouts.default(orientation)).id)
+    }
+
     /**
-     * From the pause sheet: steps the orientation's screens on to the next layout. An overlay that names its layout
-     * (the drawn skin, in whichever mode it shows) steps on with them, which sets the core; one that names none (a
-     * package skin's flat pages), or no overlay answering, leaves the core to be set here.
+     * From R3, in game or on the sheet: the orientation's next layout in the gamepad cycle (R3 is a gamepad's, so side
+     * by side is in it in landscape). The skin's screens key steps its pages itself (onOverlayChanged follows).
      */
     private fun nextNdsLayout(): ScreenLayout = synchronized(ndsLayouts) {
         loadNdsLayouts()
+        val orientation = shownNdsOrientation()
+        applyNdsLayout(orientation, NdsLayouts.next(orientation, ndsLayouts[orientation], gamepad = true))
+    }
+
+    /**
+     * Puts the orientation's screens on [layout]. An overlay that names its layout (the drawn skin, in whichever mode
+     * it shows) switches with them, which sets the core; one that names none (a package skin's flat pages), or no
+     * overlay answering, leaves the core to be set here.
+     */
+    private fun applyNdsLayout(orientation: String, layout: ScreenLayout): ScreenLayout = synchronized(ndsLayouts) {
         val shown = overlay?.let(OverlayName::parse)
-        val orientation = when {
-            shown?.tabletop == true -> TABLETOP
-            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE -> "landscape"
-            else -> "portrait"
-        }
-        val layout = NdsLayouts.next(orientation, ndsLayouts[orientation])
         ndsLayouts[orientation] = layout.id
+        publishNdsShown(orientation, layout.id)
         // Supersedes a switch still waiting for the engine, which would land on the old layout.
         ++postureSeq
         val name = shown?.takeIf { it.layout != null && it.orientation == orientation }?.copy(layout = layout.id)?.toString()
         val gap = if (orientation == TABLETOP) tabletopSkin?.gaps?.get(name ?: "$TABLETOP@${layout.id}") ?: 0 else null
-        Thread {
+        // The overlay already shown (its own layout picked again) is selected without a word from the engine: no
+        // switch is coming to wait for, and a stale wait would swallow the skin's next screens key.
+        val asked = NdsShown(orientation, layout.id).takeIf { name != null && name != overlay }
+        ndsAsked = asked
+        ndsSwitches.execute {
             val reply = name?.let { RaCommand.ask("OVERLAY_SELECT $it", 300) }
             if (reply == null || "no overlay is loaded" in reply) {
+                // No overlay switch is coming: nothing to wait for.
+                synchronized(ndsLayouts) { if (ndsAsked == asked) ndsAsked = null }
                 NdsLayouts.save(filesDir, orientation, layout)
                 gap?.let { RaCommand.send("SET_CORE_OPTION desmume_screens_gap $it") }
                 RaCommand.send("SET_CORE_OPTION desmume_screens_layout ${layout.value}")
             }
-        }.start()
+        }
         layout
+    }
+
+    /** Tells the pause sheet which layout is in use, from whichever thread changed it. */
+    private fun publishNdsShown(orientation: String, layout: String) {
+        val shown = NdsShown(orientation, layout)
+        // At once on the main thread: R3 on the sheet names the layout right after setting it.
+        if (Looper.myLooper() == Looper.getMainLooper()) ndsShown.value = shown else handler.post { ndsShown.value = shown }
+    }
+
+    /** Names the layout just switched to, over the game: the sheet, when open, names it itself. */
+    private fun showLayoutToast(layout: ScreenLayout) {
+        if (sheetOpen || isFinishing) return
+        layoutToast?.cancel()
+        layoutToast = android.widget.Toast.makeText(this, getString(R.string.game_toast_screens_layout, getString(layout.label)), android.widget.Toast.LENGTH_SHORT)
+            .also { it.show() }
+    }
+
+    /**
+     * Called on the engine thread with R3 while the game plays (never while paused: the sheet gets it then). On the
+     * NDS it steps the screen layout, in place of the core's own quick screen switch; both the press and the release
+     * are taken, so the core never sees it. Anything else goes on to the core.
+     */
+    override fun onPadShortcut(keycode: Int, action: Int): Boolean {
+        if (!PadShortcut.claims(keycode, ndsScreens)) return false
+        if (r3.act(PadShortcut.Place.GAME, action)) runOnUiThread { showLayoutToast(nextNdsLayout()) }
+        return true
     }
 
     /**
@@ -648,6 +717,10 @@ class GameActivity : RetroActivityFuture() {
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK ->
                     if (action == KeyEvent.ACTION_UP) d.onBackPressedDispatcher.onBackPressed()
                 KeyEvent.KEYCODE_BUTTON_START -> if (action == KeyEvent.ACTION_UP) d.dismiss()
+                KeyEvent.KEYCODE_BUTTON_THUMBR -> if (ndsScreens && r3.act(PadShortcut.Place.SHEET, action)) {
+                    nextNdsLayout()
+                    ndsCycles.intValue++
+                }
                 KeyEvent.KEYCODE_BUTTON_A -> view.dispatchKeyEvent(KeyEvent(action, KeyEvent.KEYCODE_DPAD_CENTER))
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT,
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER -> {
@@ -752,6 +825,7 @@ class GameActivity : RetroActivityFuture() {
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.
         PadLabels.scan()
         Oe.syncSystem(this)
+        if (ndsScreens) ndsShown.value = currentNdsShown()
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) InputMode.gamepad = false
@@ -771,7 +845,11 @@ class GameActivity : RetroActivityFuture() {
                             d.dismiss()
                             Thread { RaCommand.send("QUIT") }.start()
                         },
-                        onScreens = if (ndsScreens) ({ getString(nextNdsLayout().label) }) else null,
+                        screens = if (ndsScreens) NdsScreens(
+                            shown = ndsShown,
+                            cycles = ndsCycles,
+                            pick = { layout -> applyNdsLayout(ndsShown.value.orientation, layout) },
+                        ) else null,
                         onSpeed = { speedWanted = it },
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.

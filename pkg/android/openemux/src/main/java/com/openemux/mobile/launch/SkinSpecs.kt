@@ -16,12 +16,43 @@ class OverlaySpec(
     val name: String, val portrait: Boolean, val aspect: Float, val rotate: String,
     val keypadOpen: Boolean = false, val layoutNext: String? = null, val layout: ScreenLayout? = null,
     val tabletop: Boolean = false, val gamepad: Boolean = false, val collapsed: Boolean = false,
+    /** A tablet's skin, whose quick NDS cycle is its own (NdsLayouts.cycle). */
+    val tablet: Boolean = false,
 ) {
-    /** The same page in another mode: its name, its rotation and its NDS layout key all stay in that mode. */
+    /**
+     * The same page in another mode: its name, its rotation and its NDS layout key all stay in that mode, and the
+     * layout key steps through that mode's cycle (the gamepad one has side by side in landscape).
+     */
     fun twin(gamepad: Boolean, collapsed: Boolean): OverlaySpec {
         fun mode(n: String) = OverlayName.map(n) { it.copy(gamepad = gamepad, collapsed = collapsed) }
-        return OverlaySpec(mode(name), portrait, aspect, mode(rotate), keypadOpen, layoutNext?.let(::mode), layout, tabletop, gamepad, collapsed)
+        val next = layout?.let { l -> OverlayName.parse(name)?.let { ndsNext(it, l, gamepad, tablet) } }?.let(::mode) ?: layoutNext?.let(::mode)
+        return OverlaySpec(mode(name), portrait, aspect, mode(rotate), keypadOpen, next, layout, tabletop, gamepad, collapsed, tablet)
     }
+}
+
+/** The page [page]'s NDS layout key steps to, from its [layout], in the [gamepad] or touch cycle. */
+private fun ndsNext(page: OverlayName, layout: ScreenLayout, gamepad: Boolean, tablet: Boolean): String =
+    page.copy(layout = NdsLayouts.next(page.orientation, layout.id, gamepad, tablet).id).toString()
+
+/**
+ * The NDS's flat touch pages, one per layout and orientation, each orientation from its saved layout ([nds]: portrait,
+ * landscape) on, the saved portrait one first (RetroArch opens the first): the layout key steps to the next one of
+ * the touch cycle, turning switches to the other orientation's saved one. The drawn skin's, and a package skin's with
+ * one art per layout (ImportedSkinRenderer).
+ */
+fun ndsFlatSpecs(nds: Pair<ScreenLayout, ScreenLayout>, tablet: Boolean = false): List<OverlaySpec> {
+    val (port, land) = nds
+    val specs = mutableListOf<OverlaySpec>()
+    for (orient in listOf("portrait", "landscape")) {
+        val layouts = NDS_LAYOUTS.getValue(orient)
+        val saved = layouts.indexOfFirst { it.id == (if (orient == "portrait") port else land).id }.coerceAtLeast(0)
+        val other = if (orient == "portrait") "landscape@${land.id}" else "portrait@${port.id}"
+        (layouts.drop(saved) + layouts.take(saved)).forEach { l ->
+            val page = OverlayName(portrait = orient == "portrait", layout = l.id)
+            specs += OverlaySpec(page.toString(), page.portrait, l.aspect, other, layoutNext = ndsNext(page, l, false, tablet), layout = l, tablet = tablet)
+        }
+    }
+    return specs
 }
 
 /**
@@ -36,12 +67,18 @@ fun withAppModes(touch: List<OverlaySpec>, collapsible: Boolean = true): List<Ov
 
 /**
  * The pages drawn under a package skin (ImportedSkinRenderer): its [tabletop] ones (packageTabletopSpecs, empty
- * without a fold), then the gamepad layout and its collapsed twin for its own "portrait" and "landscape" pages and for
- * each tabletop one. On NDS its art shows the two screens one over the other, [PACKAGE_NDS_LAYOUT].
+ * without a fold), then the gamepad layout and its collapsed twin for each of its own pages and each tabletop one.
+ * Its own pages are a plain "portrait" and "landscape", or, for an NDS package with one art per layout ([ndsLayouts],
+ * the saved portrait and landscape ones), [ndsFlatSpecs]' pages; an NDS package without them shows the two screens
+ * one over the other, [PACKAGE_NDS_LAYOUT].
  */
-fun packageSpecs(gameAspect: Float, nds: Boolean, tabletop: List<OverlaySpec>): List<OverlaySpec> {
+fun packageSpecs(
+    gameAspect: Float, nds: Boolean, tabletop: List<OverlaySpec>,
+    ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, tablet: Boolean = false,
+): List<OverlaySpec> {
     val aspect = if (nds) PACKAGE_NDS_ASPECT else gameAspect
-    val flat = listOf(OverlaySpec("portrait", true, aspect, "landscape"), OverlaySpec("landscape", false, aspect, "portrait"))
+    val flat = ndsLayouts?.takeIf { nds }?.let { ndsFlatSpecs(it, tablet) }
+        ?: listOf(OverlaySpec("portrait", true, aspect, "landscape"), OverlaySpec("landscape", false, aspect, "portrait"))
     return tabletop + listOf(false, true).flatMap { collapsed -> (flat + tabletop).map { it.twin(true, collapsed) } }
 }
 
@@ -55,24 +92,13 @@ const val PACKAGE_NDS_ASPECT = 256f / 384f
  */
 fun overlaySpecs(
     gameAspect: Float, keypad: Boolean, nds: Pair<ScreenLayout, ScreenLayout>?,
-    tabletop: Boolean = false, ndsTabletop: ScreenLayout? = null,
+    tabletop: Boolean = false, ndsTabletop: ScreenLayout? = null, tablet: Boolean = false,
 ): List<OverlaySpec> {
     val specs = mutableListOf<OverlaySpec>()
     if (nds != null) {
-        // One overlay per NDS layout and orientation, the saved ones first: the layout key steps to the next,
-        // turning switches to the other orientation's saved one, and the activity sets the core to match.
-        val (port, land) = nds
-        for (orient in listOf("portrait", "landscape")) {
-            val layouts = NDS_LAYOUTS.getValue(orient)
-            val saved = layouts.indexOfFirst { it.id == (if (orient == "portrait") port else land).id }
-            val other = if (orient == "portrait") "landscape@${land.id}" else "portrait@${port.id}"
-            (layouts.drop(saved) + layouts.take(saved)).forEach { l ->
-                specs += OverlaySpec("$orient@${l.id}", orient == "portrait", l.aspect, other, layoutNext = "$orient@${NdsLayouts.next(orient, l.id).id}", layout = l)
-            }
-        }
-        // RetroArch opens the first overlay: the saved portrait layout.
-        specs.sortBy { if (it.name == "portrait@${port.id}") 0 else 1 }
-        if (tabletop) specs += ndsTabletopSpecs(ndsTabletop, "landscape@${land.id}")
+        // One overlay per NDS layout and orientation, and the activity sets the core to match the one shown.
+        specs += ndsFlatSpecs(nds, tablet)
+        if (tabletop) specs += ndsTabletopSpecs(ndsTabletop, "landscape@${nds.second.id}", tablet)
         return specs
     }
     specs += OverlaySpec("portrait", true, gameAspect, "landscape")
@@ -93,19 +119,23 @@ fun overlaySpecs(
  * The tabletop overlays drawn under a package skin (ImportedSkinRenderer), which has no tabletop art of its own: its
  * overlays are a plain "portrait" and "landscape" pair with no keypad, and on NDS they show the screens [PACKAGE_NDS_LAYOUT].
  */
-fun packageTabletopSpecs(gameAspect: Float, nds: Boolean, ndsTabletop: ScreenLayout? = null): List<OverlaySpec> =
-    if (nds) ndsTabletopSpecs(ndsTabletop, "landscape") else listOf(OverlaySpec(TABLETOP, true, gameAspect, "landscape", tabletop = true))
+fun packageTabletopSpecs(
+    gameAspect: Float, nds: Boolean, ndsTabletop: ScreenLayout? = null, ndsLandscape: ScreenLayout? = null, tablet: Boolean = false,
+): List<OverlaySpec> =
+    if (nds) ndsTabletopSpecs(ndsTabletop, ndsLandscape?.let { "landscape@${it.id}" } ?: "landscape", tablet)
+    else listOf(OverlaySpec(TABLETOP, true, gameAspect, "landscape", tabletop = true))
 
 /** DeSmuME's screen layout under a package skin: its art draws the two screens one over the other. */
 const val PACKAGE_NDS_LAYOUT = "top/bottom"
 
-/** NDS's three tabletop layouts, from the saved [ndsTabletop] on; turning switches to [rotate]. */
-private fun ndsTabletopSpecs(ndsTabletop: ScreenLayout?, rotate: String): List<OverlaySpec> {
+/** NDS's tabletop layouts, from the saved [ndsTabletop] on; turning switches to [rotate]. */
+private fun ndsTabletopSpecs(ndsTabletop: ScreenLayout?, rotate: String, tablet: Boolean): List<OverlaySpec> {
     val layouts = NDS_LAYOUTS.getValue(TABLETOP)
-    // Nothing saved opens on the default, the last.
-    val saved = layouts.indexOfFirst { it.id == ndsTabletop?.id }.takeIf { it >= 0 } ?: layouts.lastIndex
+    // Nothing saved opens on one per half.
+    val saved = layouts.indexOfFirst { it.id == (ndsTabletop ?: NdsLayouts.find(TABLETOP, "halves"))?.id }.coerceAtLeast(0)
     return (layouts.drop(saved) + layouts.take(saved)).map { l ->
-        OverlaySpec("$TABLETOP@${l.id}", true, l.aspect, rotate, layoutNext = "$TABLETOP@${NdsLayouts.next(TABLETOP, l.id).id}", layout = l, tabletop = true)
+        val page = OverlayName(portrait = true, tabletop = true, layout = l.id)
+        OverlaySpec(page.toString(), true, l.aspect, rotate, layoutNext = ndsNext(page, l, false, tablet), layout = l, tabletop = true, tablet = tablet)
     }
 }
 

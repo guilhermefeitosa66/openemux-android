@@ -173,9 +173,11 @@ class GameLauncher(
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
+            val landscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            // A package skin opens on its page for the orientation the game starts in (the NDS's saved layout there).
             val drawn = GameSkin.render(
-                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright,
-                gamepad = Gamepads.connected(),
+                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id,
+                first = "landscape".takeIf { landscape }, fold = upright, gamepad = Gamepads.connected(),
             )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
@@ -190,9 +192,10 @@ class GameLauncher(
                     "mgba_use_bios = \"ON\"\n" +
                     // The skins draw the 6-button pad; Genesis Plus GX gets it from its port device (buildConfig).
                     "picodrive_input1 = \"6 button pad\"\n" +
-                    // The skin opens on the saved portrait layout; the activity follows the overlay from there.
-                    (ndsLayouts?.let { "desmume_screens_layout = \"${it.first.value}\"\n" } ?: "") +
-                    (if (rom.console == Console.NDS && drawn.packaged) "desmume_screens_layout = \"$PACKAGE_NDS_LAYOUT\"\n" else "")
+                    // The skin opens on the saved layout of the orientation the game starts in (the engine turns to the
+                    // landscape page at once), so the first frame is drawn right; the activity follows the overlay from there.
+                    (ndsLayouts?.let { "desmume_screens_layout = \"${ndsLaunchLayout(it, landscape).value}\"\n" } ?: "") +
+                    (if (rom.console == Console.NDS && drawn.packaged && ndsLayouts == null) "desmume_screens_layout = \"$PACKAGE_NDS_LAYOUT\"\n" else "")
             )
 
             listOf(paths.states(rom.console), paths.saves(rom.console), paths.system, paths.screenshots, paths.playtime)

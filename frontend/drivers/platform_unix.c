@@ -3670,6 +3670,8 @@ static void frontend_unix_init(void *data)
          "onExternalMenuRequested", "()Z");
    GET_METHOD_ID(env, android_app->onExternalMenuInput, class,
          "onExternalMenuInput", "(IIIFF)Z");
+   GET_METHOD_ID(env, android_app->onPadShortcut, class,
+         "onPadShortcut", "(II)Z");
    GET_METHOD_ID(env, android_app->onOverlayChanged, class,
          "onOverlayChanged", "(Ljava/lang/String;)V");
    GET_METHOD_ID(env, android_app->onToggleStates, class,
@@ -4276,6 +4278,23 @@ bool android_app_external_menu_input(int type, int keycode, int action,
    CALL_BOOLEAN_METHOD_PARAM(env, handled, g_android->activity->clazz,
          g_android->onExternalMenuInput, (jint)type, (jint)keycode,
          (jint)action, (jfloat)x, (jfloat)y);
+   return handled == JNI_TRUE;
+#else
+   return false;
+#endif
+}
+
+bool android_app_pad_shortcut(int keycode, int action)
+{
+#ifdef ANDROID
+   jboolean handled = JNI_FALSE;
+   JNIEnv *env      = jni_thread_getenv();
+
+   if (!env || !g_android || !g_android->onPadShortcut)
+      return false;
+
+   CALL_BOOLEAN_METHOD_PARAM(env, handled, g_android->activity->clazz,
+         g_android->onPadShortcut, (jint)keycode, (jint)action);
    return handled == JNI_TRUE;
 #else
    return false;

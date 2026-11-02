@@ -84,6 +84,13 @@ class ButtonLabelsTest {
     }
 
     @Test
+    fun theRightStickClickReadsRsOnXboxAndR3Elsewhere() {
+        assertEquals(listOf(Text("RS")), faces("R3", PadFamily.XBOX, false))
+        assertEquals(listOf(Text("R3")), faces("R3", PadFamily.NINTENDO, false))
+        assertEquals(listOf(Text("R3")), faces("R3", PadFamily.PLAYSTATION, true))
+    }
+
+    @Test
     fun anUnknownTokenIsDrawnAsItIs() {
         for (f in PadFamily.values()) assertEquals(listOf(Text("L2")), faces("L2", f, false))
     }

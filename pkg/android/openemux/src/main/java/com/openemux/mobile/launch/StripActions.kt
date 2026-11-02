@@ -23,6 +23,15 @@ fun stripActionStroked(action: String) = action == "turbo_fire_toggle" || action
 /** Phone landscape: the picture's width, in design units, between the two control sides of a [wd]-unit-wide skin. */
 fun phoneLandscapeGameW(wd: Float, aspect: Float) = minOf(wd - 2f * 170f, 354f * aspect)
 
+/** The smallest width a strip slot gets, room for the lit pill around the glyph (46 wide at most, the slot less 8). */
+const val STRIP_SLOT_FLOOR = 40f
+
+/**
+ * Phone landscape: the strip's width under a [gameW]-unit-wide picture, [keys] slots: the picture's, or wider, centred
+ * on it, when a narrow picture (the NDS screens one over the other) would squeeze the slots under [STRIP_SLOT_FLOOR].
+ */
+fun phoneLandscapeStripW(gameW: Float, keys: Int) = maxOf(gameW, keys * STRIP_SLOT_FLOOR)
+
 /**
  * The speed binds a RetroAchievements hardcore session unbinds ("nul"): fast forward, which the engine still allows
  * there, and slow motion, which it refuses already, so no gamepad binding reaches either.

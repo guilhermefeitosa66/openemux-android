@@ -1,6 +1,7 @@
 package com.openemux.mobile.data
 
 import androidx.annotation.StringRes
+import com.openemux.mobile.launch.TABLETOP
 import com.retroarch.R
 
 /**
@@ -451,13 +452,25 @@ class ScreenLayout(val id: String, val value: String, val aspect: Float, @String
 private val NDS_TOP = ScreenLayout("top", "top only", 256f / 192f, R.string.game_screens_top)
 private val NDS_BOTTOM = ScreenLayout("bottom", "bottom only", 256f / 192f, R.string.game_screens_bottom)
 
-/** The NDS layouts each orientation cycles through, in order; the last is the one it opens in by default. */
+private val NDS_STACKED = ScreenLayout("stacked", "top/bottom", 256f / 384f, R.string.game_screens_stacked)
+private val NDS_SIDE = ScreenLayout("side", "left/right", 512f / 192f, R.string.game_screens_side)
+
+// Half open with the fold across: the stacked layout with a gap over the fold, one screen per half. It is what one
+// above the other is on a fold, so tabletop lists it instead.
+private val NDS_HALVES = ScreenLayout("halves", "top/bottom", 256f / 384f, R.string.game_screens_halves)
+
+/**
+ * Every NDS layout each orientation offers, in the pause menu's order: all of them, whatever the orientation (the quick
+ * key steps through [NdsLayouts.cycle] instead).
+ */
 val NDS_LAYOUTS = mapOf(
-    "portrait" to listOf(NDS_TOP, NDS_BOTTOM, ScreenLayout("stacked", "top/bottom", 256f / 384f, R.string.game_screens_stacked)),
-    "landscape" to listOf(NDS_TOP, NDS_BOTTOM, ScreenLayout("side", "left/right", 512f / 192f, R.string.game_screens_side)),
-    // Half open with the fold across: the stacked layout with a gap over the fold, one screen per half.
-    "portrait-tabletop" to listOf(NDS_TOP, NDS_BOTTOM, ScreenLayout("halves", "top/bottom", 256f / 384f, R.string.game_screens_halves)),
+    "portrait" to listOf(NDS_TOP, NDS_BOTTOM, NDS_STACKED, NDS_SIDE),
+    "landscape" to listOf(NDS_TOP, NDS_BOTTOM, NDS_STACKED, NDS_SIDE),
+    "portrait-tabletop" to listOf(NDS_TOP, NDS_BOTTOM, NDS_HALVES, NDS_SIDE),
 )
+
+/** The layout each orientation opens in when nothing is saved: the two screens, one over the other. */
+private val NDS_DEFAULT = mapOf("portrait" to NDS_STACKED, "landscape" to NDS_STACKED, "portrait-tabletop" to NDS_HALVES)
 
 /** The screen gaps DeSmuME takes (desmume_screens_gap), in core pixels: one per half puts the fold in the gap. */
 val NDS_SCREEN_GAPS = (0..100).toList()
@@ -473,8 +486,10 @@ object NdsLayouts {
         .mapNotNull { line -> line.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }.toMap()
 
     /** A saved layout the orientation no longer has falls back to its default. */
-    private fun pick(saved: Map<String, String>, orientation: String) =
-        NDS_LAYOUTS.getValue(orientation).let { list -> list.firstOrNull { it.id == saved[orientation] } ?: list.last() }
+    private fun pick(saved: Map<String, String>, orientation: String) = find(orientation, saved[orientation]) ?: default(orientation)
+
+    /** The layout [orientation] opens in when nothing is saved for it. */
+    fun default(orientation: String): ScreenLayout = NDS_DEFAULT.getValue(orientation)
 
     fun load(filesDir: java.io.File): Pair<ScreenLayout, ScreenLayout> {
         val saved = saved(filesDir)
@@ -490,9 +505,53 @@ object NdsLayouts {
         runCatching { file(filesDir).writeText(text) }
     }
 
-    /** The layout after [current] in [orientation]'s cycle. */
-    fun next(orientation: String, current: String?): ScreenLayout {
-        val list = NDS_LAYOUTS.getValue(orientation)
-        return list[(list.indexOfFirst { it.id == current } + 1) % list.size]
+    /**
+     * The layouts the quick key steps through in [orientation], the ones that fit right now: side by side only where
+     * it has room, in landscape with a [gamepad] (no virtual buttons beside the picture) or on a [tablet], whose side
+     * columns leave it as much room as one above the other. The full list is the pause menu's.
+     */
+    fun cycle(orientation: String, gamepad: Boolean, tablet: Boolean): List<ScreenLayout> = when (orientation) {
+        TABLETOP -> listOf(NDS_TOP, NDS_BOTTOM, NDS_HALVES)
+        "landscape" -> listOfNotNull(NDS_TOP, NDS_BOTTOM, NDS_STACKED, NDS_SIDE.takeIf { gamepad || tablet })
+        else -> listOf(NDS_TOP, NDS_BOTTOM, NDS_STACKED)
     }
+
+    /** The layout after [current] in [cycle]; the cycle's first when [current] is not in it (picked from the list). */
+    fun step(cycle: List<ScreenLayout>, current: String?): ScreenLayout =
+        cycle[(cycle.indexOfFirst { it.id == current } + 1) % cycle.size]
+
+    /** The layout after [current] in [orientation]'s quick cycle. */
+    fun next(orientation: String, current: String?, gamepad: Boolean = false, tablet: Boolean = false): ScreenLayout =
+        step(cycle(orientation, gamepad, tablet), current)
+
+    /** The layouts [orientation] offers, in the menu's order; none for an orientation the DS has no layouts for. */
+    fun of(orientation: String): List<ScreenLayout> = NDS_LAYOUTS[orientation].orEmpty()
+
+    /** [orientation]'s layout called [id], or null when it has none by that id. */
+    fun find(orientation: String, id: String?): ScreenLayout? = of(orientation).firstOrNull { it.id == id }
+
+    /** The orientation whose layouts apply: the tabletop overlay when it is shown, else the window's. */
+    fun orientation(tabletopShown: Boolean, landscape: Boolean): String = when {
+        tabletopShown -> TABLETOP
+        landscape -> "landscape"
+        else -> "portrait"
+    }
+
+    /**
+     * Whether an overlay switch is the player's (the skin's screens key) and its layout worth naming: the
+     * orientation did not change ([sameOrientation]) and the layout did. Turning the device, which lands on the
+     * remembered layout, a posture or gamepad switch and the hide key keep the layout and name nothing.
+     */
+    fun announce(sameOrientation: Boolean, previous: String?, shown: String): Boolean =
+        sameOrientation && previous != null && previous != shown
+
+    /**
+     * Whether an overlay switch that reached the engine is one the app has since superseded: it [asked] for a newer
+     * layout of the same orientation, which lands next. Such a switch changes nothing and names nothing.
+     */
+    fun superseded(asked: NdsShown?, orientation: String, shown: String): Boolean =
+        asked != null && asked.orientation == orientation && asked.layout != shown
 }
+
+/** The NDS screens the activity shows: the [orientation] in use and its [layout]'s id. */
+data class NdsShown(val orientation: String, val layout: String)

@@ -16,6 +16,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
 import org.json.JSONObject
@@ -65,11 +66,15 @@ class ImportedSkinRenderer {
     /**
      * [tablet] picks the skin's iPad art over its iPhone art; [hardcore] leaves fast forward and slow motion out
      * (drawn dimmed, with no touch area).
-     * [first] ("portrait" or "landscape") is the overlay RetroArch opens on: a skin redrawn in game keeps the one shown.
+     * [first] (a page's name) is the overlay RetroArch opens on: a skin redrawn in game keeps the one shown.
+     * [ndsLayouts] (the saved portrait and landscape NDS layouts) draws one page per layout and orientation when the
+     * package has the art for them (the app's own DS skin: each representation's "layouts", tools/skins), named and
+     * linked as the drawn skin's (ndsFlatSpecs); [wroteNdsLayouts] says whether it did.
      */
     fun render(
         skinFile: File, console: Console, width: Int, height: Int, outDir: File,
         cutout: Int = 0, tablet: Boolean = false, hardcore: Boolean = false, first: String? = null,
+        ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null,
     ): File {
         this.console = console
         this.hardcore = hardcore
@@ -84,19 +89,26 @@ class ImportedSkinRenderer {
             val info = JSONObject(text.replace(Regex(",(\\s*[}\\]])"), "$1"))
             Log.i(TAG, "importing ${info.optString("name")} (${info.optString("identifier")})")
             val reps = info.getJSONObject("representations")
+            val own = mapOf("portrait" to representation(reps, "portrait", tablet), "landscape" to representation(reps, "landscape", tablet))
+            val nds = ndsLayouts?.takeIf { console == Console.NDS && own.values.all(::hasNdsLayouts) }
+            wroteNdsLayouts = nds != null
+            val pages = packagePages(nds, tablet, first)
 
-            val cfg = StringBuilder("overlays = 2\n")
-            val orients = listOf("portrait" to "landscape", "landscape" to "portrait")
-            (if (first == "landscape") orients.reversed() else orients).forEachIndexed { i, (orient, other) ->
-                val rep = representation(reps, orient, tablet)
-                val portrait = orient == "portrait"
-                val w = if (portrait) portraitW else portraitH
-                val h = if (portrait) portraitH else portraitW
-                val image = "$orient.png"
-                val drawn = drawOverlay(zip, rep, portrait, w, h, outDir, image)
+            val cfg = StringBuilder("overlays = ${pages.size}\n")
+            pages.forEachIndexed { i, page ->
+                val base = own.getValue(if (page.portrait) "portrait" else "landscape")
+                val rep = page.layout?.let { l -> base.optJSONObject("layouts")?.optJSONObject(l) } ?: base
+                val w = if (page.portrait) portraitW else portraitH
+                val h = if (page.portrait) portraitH else portraitW
+                // Pages with the same art (top only and bottom only) name the same image: the engine loads it once.
+                // A file name of its own: an asset in a folder of the zip ("art/portrait.pdf") would name a folder outDir lacks.
+                val art = assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
+                val image = "${if (page.portrait) "portrait" else "landscape"}-$art.png"
+                val drawn = drawOverlay(zip, rep, page.portrait, w, h, outDir, image, page.screensNext, page.name.replace('@', '-'))
                 // The skin's own extended edges already widen the touch areas.
                 OverlayWriter.write(
-                    cfg, i, orient, other, image, drawn.descs, w, h, drawn.viewport, grow = 1f, clear = drawn.clear, gap = drawn.gap,
+                    cfg, i, page.name, page.rotate, image, drawn.descs, w, h, drawn.viewport, grow = 1f, clear = drawn.clear, gap = drawn.gap,
+                    prefix = page.name.replace('@', '-'),
                 )
             }
             return File(outDir, "skin.cfg").apply { writeText(cfg.toString()) }
@@ -106,14 +118,27 @@ class ImportedSkinRenderer {
     private var console: Console = Console.GBA
     private var hardcore = false
 
+    /** Whether the last [render] drew one page per NDS layout. */
+    var wroteNdsLayouts = false
+        private set
+
+    /** Whether a representation has the art of every NDS layout but its own (one over the other): tools/skins'. */
+    private fun hasNdsLayouts(rep: JSONObject) =
+        rep.optJSONObject("layouts")?.let { l -> NDS_ART_LAYOUTS.all { l.optJSONObject(it) != null } } == true
+
     /** The device's own art first (iPad on a tablet, iPhone on a phone), edge-to-edge before the classic one. */
     private fun representation(reps: JSONObject, orient: String, tablet: Boolean): JSONObject =
         (if (tablet) listOf("ipad", "iphone") else listOf("iphone", "ipad")).firstNotNullOfOrNull { family ->
             listOf("edgeToEdge", "standard").firstNotNullOfOrNull { reps.optJSONObject(family)?.optJSONObject(it)?.optJSONObject(orient) }
         } ?: error("no $orient representation")
 
+    /**
+     * [screensNext] is the page the NDS screens key steps to (none: the key is left out); [prefix] names the page's
+     * own images.
+     */
     private fun drawOverlay(
         zip: ZipFile, rep: JSONObject, portrait: Boolean, w: Int, h: Int, outDir: File, image: String,
+        screensNext: String? = null, prefix: String = image.removeSuffix(".png"),
     ): Drawn {
         val size = rep.getJSONObject("mappingSize")
         val mw = size.getDouble("width").toFloat()
@@ -206,6 +231,11 @@ class ImportedSkinRenderer {
                     directional(inputs, frame, touch, item.has("thumbstick"), stick, circle, descs)
                 }
                 is JSONArray -> {
+                    // The app's own NDS screens key (tools/skins): a step to the next layout's page.
+                    if (inputs.length() == 1 && inputs.getString(0) == SCREENS_INPUT) {
+                        screensNext?.let { descs += OverlayDesc("overlay_next", touch, next = it) }
+                        continue
+                    }
                     val binds = (0 until inputs.length()).mapNotNull { bind(inputs.getString(it)) }
                     if (binds.isNotEmpty()) descs += OverlayDesc(binds.joinToString("|"), touch)
                     OverlayWriter.LIT_BY[binds.singleOrNull()]?.let { state ->
@@ -214,7 +244,7 @@ class ImportedSkinRenderer {
                 }
             }
         }
-        OverlayWriter.saveImages(outDir, image, bitmap, descs)
+        OverlayWriter.saveImages(outDir, image, bitmap, descs, prefix)
         // A whole-device skin keeps the game's picture clear of the sticks' zones; one over the game cannot.
         return Drawn(descs, viewport, listOfNotNull(viewport.takeIf { screen != null }), 2f * place.s)
     }
@@ -501,6 +531,12 @@ class ImportedSkinRenderer {
          * The skin for [console]: one the user put in files/skins/<console> (the first .deltaskin or
          * .manicskin), else the one the app ships in assets/skins, copied out so it can be read as a zip.
          */
+        /** The NDS screens key's input: the app's own name (tools/skins), which other emulators ignore. */
+        const val SCREENS_INPUT = "screens"
+
+        /** The NDS layouts a package draws apart from its representations' own art, one over the other. */
+        private val NDS_ART_LAYOUTS = listOf("top", "bottom", "side")
+
         fun find(context: Context, base: File, console: Console): File? {
             File(base, "skins/${console.id}").listFiles()
                 ?.filter { it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true) }

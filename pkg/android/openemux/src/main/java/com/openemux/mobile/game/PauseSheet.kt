@@ -2,12 +2,14 @@ package com.openemux.mobile.game
 
 import android.content.Intent
 import android.graphics.BitmapFactory
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +46,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,20 +59,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
+import com.openemux.mobile.data.NdsLayouts
+import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.SHADERS
+import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.ui.DISABLED_ALPHA
 import com.openemux.mobile.ui.FocusOutset
 import com.openemux.mobile.ui.HintBar
@@ -160,15 +173,26 @@ private object SessionToggles {
     var shader: String? = null
 }
 
-private enum class Page { Main, States, Shader }
+private enum class Page { Main, States, Shader, Screens }
+
+/**
+ * The NDS screens as the sheet shows them: the layout in use for its orientation ([shown]), kept by the activity
+ * whatever changed it; [cycles], bumped when R3 steps the layout with the sheet open; [pick] puts the screens on a
+ * layout of the orientation shown.
+ */
+class NdsScreens(
+    val shown: State<NdsShown>,
+    val cycles: State<Int>,
+    val pick: (ScreenLayout) -> Unit,
+)
 
 @Composable
 fun PauseSheet(
     session: PauseSession,
     onResume: () -> Unit,
     onQuit: () -> Unit,
-    /** NDS: switches to the next screen layout and names it; null for other consoles. */
-    onScreens: (() -> String)? = null,
+    /** NDS: the screen layouts, the one in use and how to change it; null for other consoles. */
+    screens: NdsScreens? = null,
     /**
      * The speed the fast-forward and slow-motion tiles now show. Sent by the activity after the sheet closes: the
      * engine refuses either while paused.
@@ -218,6 +242,15 @@ fun PauseSheet(
 
         LaunchedEffect(toast) {
             if (toast != null) { delay(1800); toast = null }
+        }
+        // R3 stepped the layout with this sheet open: name the one it landed on. The count outlives the sheet (it is
+        // the activity's), so only a step since this sheet opened names anything.
+        val cycles = screens?.cycles?.value ?: 0
+        val cyclesAtOpen = remember { cycles }
+        LaunchedEffect(cycles) {
+            if (cycles != cyclesAtOpen && screens != null) {
+                screenLayout(screens.shown.value)?.let { toast = context.getString(R.string.game_toast_screens_layout, context.getString(it.label)) }
+            }
         }
         // B on a gamepad arrives as BACK: out of a sub-page first, then back to the game.
         BackHandler { if (page != Page.Main) page = Page.Main else onResume() }
@@ -291,7 +324,12 @@ fun PauseSheet(
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
-                            when (page) { Page.Main -> session.title; Page.States -> stringResource(R.string.game_save_states); Page.Shader -> stringResource(R.string.game_shader) },
+                            when (page) {
+                                Page.Main -> session.title
+                                Page.States -> stringResource(R.string.game_save_states)
+                                Page.Shader -> stringResource(R.string.game_shader)
+                                Page.Screens -> stringResource(R.string.game_screens)
+                            },
                             style = Type.Title.copy(fontSize = 17.sp, lineHeight = 21.sp),
                             maxLines = 2,
                         )
@@ -301,6 +339,7 @@ fun PauseSheet(
                                     Page.Main -> playingFor(session)
                                     Page.States -> stringResource(R.string.game_tap_to_load)
                                     Page.Shader -> stringResource(R.string.game_shader_this_session)
+                                    Page.Screens -> stringResource(rememberedFor(screens?.shown?.value?.orientation))
                                 },
                                 style = Type.Small, modifier = Modifier.weight(1f, fill = false),
                             )
@@ -354,7 +393,8 @@ fun PauseSheet(
                                 )
                             },
                             onScreenshot = { command("SCREENSHOT", context.getString(R.string.game_toast_screenshot)) },
-                            onScreens = onScreens?.let { next -> { toast = next() } },
+                            screens = screens?.let { screenLayout(it.shown.value) },
+                            onScreens = { page = Page.Screens },
                             onShader = { page = Page.Shader },
                             onAudio = {
                                 SessionToggles.muted = !SessionToggles.muted
@@ -365,6 +405,11 @@ fun PauseSheet(
                             onQuit = onQuit.takeUnless { panel },
                         )
                         Page.States -> StatesPage(states, ::load)
+                        Page.Screens -> if (screens != null) ScreensPage(screens.shown.value) { layout ->
+                            screens.pick(layout)
+                            page = Page.Main
+                            toast = context.getString(R.string.game_toast_screens_layout, context.getString(layout.label))
+                        }
                         Page.Shader -> ShaderPage(SessionToggles.shader ?: session.shader) { id ->
                             SessionToggles.shader = id
                             val preset = SHADERS.first { it.id == id }.preset
@@ -375,7 +420,15 @@ fun PauseSheet(
                 }
                 } }
                 if (panel && page == Page.Main) QuitButton(Modifier.padding(top = 12.dp), onQuit)
-                HintBar(listOf("A" to stringResource(R.string.game_choose), "B" to stringResource(R.string.game_back), "START" to stringResource(R.string.game_back_to_game)), Modifier.padding(top = 12.dp))
+                HintBar(
+                    listOfNotNull(
+                        "A" to stringResource(R.string.game_choose),
+                        "B" to stringResource(R.string.game_back),
+                        ("R3" to stringResource(R.string.game_hint_next_layout)).takeIf { screens != null && page == Page.Main },
+                        "START" to stringResource(R.string.game_back_to_game),
+                    ),
+                    Modifier.padding(top = 12.dp),
+                )
             }
         }
     }
@@ -407,7 +460,9 @@ private fun MainPage(
     onScreenshot: () -> Unit,
     onShader: () -> Unit,
     onAudio: () -> Unit,
-    onScreens: (() -> Unit)?,
+    /** NDS: the layout in use, which the Screens tile names; null for other consoles (no tile). */
+    screens: ScreenLayout?,
+    onScreens: () -> Unit,
     onReset: () -> Unit,
     onRetroArchMenu: () -> Unit,
     /** Null on the tablet panel, which pins Quit at its foot. */
@@ -436,7 +491,7 @@ private fun MainPage(
             { ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) } },
             { ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot) },
             { ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader) },
-            onScreens?.let { { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, onClick = it) } },
+            screens?.let { layout -> { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = stringResource(layout.label), onClick = onScreens) } },
             { ActionTile(stringResource(if (SessionToggles.muted) R.string.game_muted else R.string.game_audio), if (SessionToggles.muted) Icons.Mute else Icons.Audio, SessionToggles.muted, onClick = onAudio) },
         )
         BoxWithConstraints(modifier.fillMaxWidth()) {
@@ -603,7 +658,7 @@ private fun BigButton(text: String, icon: String, bg: Color, fg: Color, modifier
 }
 
 @Composable
-private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, onClick: () -> Unit) {
     Column(
         Modifier.let { if (enabled) it.gamepadFocus(corner = 12.dp) else it.alpha(DISABLED_ALPHA) }
             .clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(4.dp),
@@ -616,6 +671,15 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
             contentAlignment = Alignment.Center,
         ) { Icon(icon, if (on) Oe.AccentOnSoft else Oe.Text, 22.dp, filled = filled) }
         Text(label, style = Type.Caption.copy(color = Oe.Text, fontWeight = FontWeight.Medium))
+        // What the tile is set to now (the NDS layout), under its name: as narrow as the tile, two lines at most.
+        if (detail != null) {
+            Text(
+                detail,
+                style = Type.Caption.copy(color = Oe.Muted, fontSize = 10.sp, lineHeight = 12.sp, textAlign = TextAlign.Center),
+                maxLines = 2,
+                modifier = Modifier.widthIn(max = 76.dp),
+            )
+        }
     }
 }
 
@@ -651,6 +715,66 @@ private fun StateCard(st: PauseSession.State, modifier: Modifier, ago: Color? = 
             }
         }
         Text(formatAgo(st.modified), style = if (ago != null) Type.Caption.copy(color = ago) else Type.Caption, modifier = Modifier.padding(top = 5.dp, start = 2.dp))
+    }
+}
+
+/** The layout [shown] names, or null when its orientation has no such layout. */
+private fun screenLayout(shown: NdsShown): ScreenLayout? = NdsLayouts.find(shown.orientation, shown.layout)
+
+/** The Screens page's subtitle: the orientation the choice is remembered for. */
+@StringRes
+private fun rememberedFor(orientation: String?): Int = when (orientation) {
+    "landscape" -> R.string.game_screens_remembered_landscape
+    TABLETOP -> R.string.game_screens_remembered_tabletop
+    else -> R.string.game_screens_remembered_portrait
+}
+
+/** The NDS layouts of the orientation [shown] is in, the one in use checked and focused first; [onPick] applies one. */
+@Composable
+private fun ScreensPage(shown: NdsShown, onPick: (ScreenLayout) -> Unit) {
+    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val focused = remember { mutableStateOf<String?>(null) }
+        NdsLayouts.of(shown.orientation).forEach { layout ->
+            val current = layout.id == shown.layout
+            Box(Modifier.restorableFocus(layout.id, focused, initial = current)) {
+                RadioCard(
+                    current, stringResource(layout.label), "", onClick = { onPick(layout) }, background = Oe.Raised,
+                    badge = if (current) stringResource(R.string.game_screens_current) else null,
+                    leading = { LayoutGlyph(layout.id, landscape = shown.orientation == "landscape", on = current) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A layout drawn small: the screens it shows filled, a hidden one dashed; one over the other, or side by side for
+ * "side". Decorative: the card's name says it.
+ */
+@Composable
+private fun LayoutGlyph(id: String, landscape: Boolean, on: Boolean) {
+    val fill = if (on) Oe.AccentOnSoft else Oe.Text
+    val hidden = Oe.Chevron
+    Canvas(Modifier.size(if (landscape) 32.dp else 28.dp, if (landscape) 24.dp else 32.dp)) {
+        val gap = 2.dp.toPx()
+        val corner = CornerRadius(2.dp.toPx())
+        val stroke = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())))
+        if (id == "side") {
+            val w = (size.width - gap) / 2f
+            val h = w * 0.75f
+            val top = (size.height - h) / 2f
+            drawRoundRect(fill, Offset(0f, top), Size(w, h), corner)
+            drawRoundRect(fill, Offset(w + gap, top), Size(w, h), corner)
+            return@Canvas
+        }
+        val h = (size.height - gap) / 2f
+        val w = minOf(size.width, h / 0.75f)
+        val left = (size.width - w) / 2f
+        listOf(id != "bottom", id != "top").forEachIndexed { i, shownScreen ->
+            val origin = Offset(left, i * (h + gap))
+            if (shownScreen) drawRoundRect(fill, origin, Size(w, h), corner)
+            else drawRoundRect(hidden, origin + Offset(0.75.dp.toPx(), 0.75.dp.toPx()), Size(w - 1.5.dp.toPx(), h - 1.5.dp.toPx()), corner, style = stroke)
+        }
     }
 }
 

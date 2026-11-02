@@ -368,7 +368,8 @@ object SkinGeometry {
         val below = Box(0f, end, w, (if (collapsed) h else rowTop) - end)
         var gap = 0
         val picture = when (ndsLayout) {
-            null, "top" -> fitIn(top, aspect, 14f)
+            // Side by side: both screens in the top half.
+            null, "top", "side" -> fitIn(top, aspect, 14f)
             "bottom" -> fitIn(below, aspect, 8f)
             else -> ndsHalvesFit(start, end, below, gaps)?.also { gap = it.gap }?.viewport
                 // No gap covers the band: both screens in the top half rather than one on the fold.

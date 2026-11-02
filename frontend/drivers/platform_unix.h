@@ -175,6 +175,7 @@ struct android_app
    /* OpenEmux: lets the Java frontend show its own in-game menu. */
    jmethodID onExternalMenuRequested;
    jmethodID onExternalMenuInput;
+   jmethodID onPadShortcut;
    jmethodID onOverlayChanged;
    jmethodID onToggleStates;
    jmethodID autoSaveOnPause;
@@ -415,6 +416,10 @@ bool android_app_external_menu(void);
  * while the content is paused. True when the activity used it. */
 bool android_app_external_menu_input(int type, int keycode, int action,
       float x, float y);
+
+/* OpenEmux: offers a gamepad shortcut key (R3) to the activity while the
+ * content plays. True when the activity took it. */
+bool android_app_pad_shortcut(int keycode, int action);
 
 /* OpenEmux: tells the activity which overlay is now shown, so it can
  * match the core to it (the NDS screen layout of each overlay). */

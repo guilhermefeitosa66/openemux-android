@@ -36,6 +36,9 @@ TYPES = {
 REPS = [("phone", "iphone", "edgeToEdge", 3), ("tablet", "ipad", "standard", 2)]
 # The D-pad's circle: one image per console, stretched by the app over each D-pad's travel square.
 KNOB_UNITS, KNOB_SCALE = 100, 4
+# Consoles with two screens get one art per screen layout. The base representation is the two one over the other
+# (what Delta draws); the others go under its "layouts", a key of the app's own that other emulators ignore.
+SCREEN_LAYOUTS = {"NDS": ["top", "bottom", "side"]}
 
 
 def sync_engine():
@@ -44,13 +47,13 @@ def sync_engine():
     (HERE / "engine.js").write_text(engine + "\nwindow.OE = OE;\n")
 
 
-def engine_layout(console, device, orient):
+def engine_layout(console, device, orient, screens=None):
     script = (
         "global.window={};require(process.argv[1]);"
-        "const L=window.OE.layout(process.argv[2],process.argv[3],process.argv[4],{export:true});"
+        "const L=window.OE.layout(process.argv[2],process.argv[3],process.argv[4],{export:true,screens:process.argv[5]||undefined});"
         "console.log(JSON.stringify({W:L.W,H:L.H,items:L.items,screens:L.screens,knobs:L.knobs.map(k=>({name:k.name,size:k.size})),name:L.name}))"
     )
-    out = subprocess.run(["node", "-e", script, str(HERE / "engine.js"), console, device, orient],
+    out = subprocess.run(["node", "-e", script, str(HERE / "engine.js"), console, device, orient, screens or ""],
                          capture_output=True, text=True, check=True).stdout
     return json.loads(out)
 
@@ -72,6 +75,61 @@ def cut_screens(png, screens, scale):
     subprocess.run(args + [str(png)], check=True)
 
 
+def check_fit(L, where):
+    """The screens inside the art and clear of every item, or the build stops: a layout's art must never hide a key."""
+    def overlap(a, b):
+        return a["x"] < b["x"] + b["width"] and b["x"] < a["x"] + a["width"] and a["y"] < b["y"] + b["height"] and b["y"] < a["y"] + a["height"]
+    for sc in L["screens"]:
+        if sc["x"] < 0 or sc["y"] < 0 or sc["x"] + sc["width"] > L["W"] or sc["y"] + sc["height"] > L["H"]:
+            raise SystemExit(f"{where}: a screen leaves the art")
+        for it in L["items"]:
+            if overlap(sc, it["frame"]):
+                raise SystemExit(f"{where}: a screen covers {it['inputs']}")
+
+
+def representation(console, device, orient, scale, folder, profile, files, screens=None):
+    """One representation's entry in info.json, its art rendered and cut; [screens] one of the console's layouts."""
+    L = engine_layout(console, device, orient, screens)
+    check_fit(L, f"{console} {device} {orient} {screens or ''}")
+    suffix = f"_{screens}" if screens else ""
+    image = f"{device}_{orient}{suffix}.png"
+    query = f"&screens={screens}" if screens else ""
+    screenshot(console, device, orient, L["W"], L["H"], scale, folder / image, profile, query)
+    cut_screens(folder / image, L["screens"], scale)
+    files.append(image)
+    # Each stick's knob, an image of its own the app moves with the thumb.
+    knobs = {}
+    for i, k in enumerate(L["knobs"]):
+        file = f"{device}_{orient}{suffix}_{k['name']}"
+        px = round(k["size"] * scale)
+        screenshot(console, device, orient, px // scale + 1, px // scale + 1, scale, folder / file, profile, f"&knob={i}{query}")
+        subprocess.run(["convert", str(folder / file), "-crop", f"{px}x{px}+0+0", "+repage", str(folder / file)], check=True)
+        knobs[k["name"]] = file
+    files.extend(knobs.values())
+    items = []
+    knob = None
+    for it in L["items"]:
+        entry = {"inputs": it["inputs"], "frame": it["frame"]}
+        if it.get("extendedEdges"):
+            entry["extendedEdges"] = it["extendedEdges"]
+        if it.get("thumbstick"):
+            entry["thumbstick"] = dict(it["thumbstick"], name=knobs[it["thumbstick"]["name"]])
+        if it.get("knob"):
+            # Not in Delta's format: the app's own key for the D-pad's moving circle.
+            entry["knob"] = it["knob"]
+            knob = it["knob"]
+        items.append(entry)
+    rep = {
+        "assets": {"large": image},
+        "mappingSize": {"width": L["W"], "height": L["H"]},
+        "extendedEdges": {"top": 6, "bottom": 6, "left": 6, "right": 6},
+        "translucent": False,
+        "screens": [{"outputFrame": s} for s in L["screens"]],
+        "items": items,
+    }
+    return rep, L["name"], knob
+
+
 def build(console, profile):
     folder = WORK / console
     folder.mkdir(parents=True, exist_ok=True)
@@ -81,40 +139,20 @@ def build(console, profile):
     knob = None
     for device, family, variant, scale in REPS:
         for orient in ("portrait", "landscape"):
-            L = engine_layout(console, device, orient)
-            name = L["name"]
-            image = f"{device}_{orient}.png"
-            screenshot(console, device, orient, L["W"], L["H"], scale, folder / image, profile)
-            cut_screens(folder / image, L["screens"], scale)
-            # Each stick's knob, an image of its own the app moves with the thumb.
-            knobs = {}
-            for i, k in enumerate(L["knobs"]):
-                file = f"{device}_{orient}_{k['name']}"
-                px = round(k["size"] * scale)
-                screenshot(console, device, orient, px // scale + 1, px // scale + 1, scale, folder / file, profile, f"&knob={i}")
-                subprocess.run(["convert", str(folder / file), "-crop", f"{px}x{px}+0+0", "+repage", str(folder / file)], check=True)
-                knobs[k["name"]] = file
-            files.extend(knobs.values())
-            items = []
-            for it in L["items"]:
-                entry = {"inputs": it["inputs"], "frame": it["frame"]}
-                if it.get("extendedEdges"):
-                    entry["extendedEdges"] = it["extendedEdges"]
-                if it.get("thumbstick"):
-                    entry["thumbstick"] = dict(it["thumbstick"], name=knobs[it["thumbstick"]["name"]])
-                if it.get("knob"):
-                    # Not in Delta's format: the app's own key for the D-pad's moving circle.
-                    entry["knob"] = it["knob"]
-                    knob = it["knob"]
-                items.append(entry)
-            reps.setdefault(family, {}).setdefault(variant, {})[orient] = {
-                "assets": {"large": image},
-                "mappingSize": {"width": L["W"], "height": L["H"]},
-                "extendedEdges": {"top": 6, "bottom": 6, "left": 6, "right": 6},
-                "translucent": False,
-                "screens": [{"outputFrame": s} for s in L["screens"]],
-                "items": items,
-            }
+            rep, name, k = representation(console, device, orient, scale, folder, profile, files)
+            knob = knob or k
+            layouts = SCREEN_LAYOUTS.get(console, [])
+            if layouts:
+                rep["layouts"] = {}
+                for layout in layouts:
+                    v = representation(console, device, orient, scale, folder, profile, files, layout)[0]
+                    # Top only and bottom only draw the same art: one image serves both.
+                    same = next((o for o in rep["layouts"].values() if dict(o, assets=None) == dict(v, assets=None)), None)
+                    if same:
+                        files.remove(v["assets"]["large"])
+                        v["assets"] = same["assets"]
+                    rep["layouts"][layout] = v
+            reps.setdefault(family, {}).setdefault(variant, {})[orient] = rep
     info = {
         "name": f"OpenEmux {name}",
         "identifier": f"openemux.skin.{console.lower()}",
@@ -130,9 +168,6 @@ def build(console, profile):
     pkg = ASSETS / f"{console}{ext}"
     with zipfile.ZipFile(pkg, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(folder / "info.json", "info.json")
-        for device, *_ in REPS:
-            for orient in ("portrait", "landscape"):
-                z.write(folder / f"{device}_{orient}.png", f"{device}_{orient}.png")
         for file in files:
             z.write(folder / file, file)
         if knob:
