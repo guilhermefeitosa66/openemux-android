@@ -212,6 +212,9 @@ class Library(
 
     fun consoleSettings(console: Console): ConsoleSettings = _meta.value.settingsFor(console)
 
+    /** The bundled skin every game of [console] plays with: the one picked in its settings (issue 718). */
+    fun skinVariant(console: Console): SkinVariant = SkinVariant.byId(consoleSettings(console).skin)
+
     private fun Meta.settingsFor(console: Console): ConsoleSettings =
         consoles[console.id] ?: ConsoleSettings(core = console.cores[0].id, shader = console.defaultShader)
 

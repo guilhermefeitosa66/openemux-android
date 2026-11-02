@@ -24,7 +24,6 @@ import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Labels
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.Rom
-import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
@@ -171,7 +170,7 @@ class GameLauncher(
             val metrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).maximumWindowMetrics
             val size = SkinSize.of(metrics)
             val core = library.effectiveCore(rom)
-            val skinVariant = SkinVariant.byId(library.consoleSettings(rom.console).skin)
+            val skinVariant = library.skinVariant(rom.console)
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
