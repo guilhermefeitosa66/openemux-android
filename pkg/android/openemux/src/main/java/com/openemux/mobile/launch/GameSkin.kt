@@ -29,7 +29,7 @@ object GameSkin {
      * for (a package's iPad art, the drawn tablet shape); [first] is the overlay RetroArch opens on.
      * [fold], the one the window has now, adds the drawn tabletop overlays when it runs across the long side.
      * [gamepad]: a gamepad is connected, the drawn skin opens on its gamepad layout.
-     * [variant]: which of the app's packages the console plays with (its own colors or Dark).
+     * [variant]: which of the app's packages the console plays with (its own colors, Dark or one of its official colors).
      */
     fun render(
         context: Context, base: File, console: Console, size: SkinSize, outDir: File,

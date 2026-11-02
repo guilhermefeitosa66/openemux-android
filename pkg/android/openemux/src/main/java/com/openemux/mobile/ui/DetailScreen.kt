@@ -127,7 +127,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val core = lib.effectiveCore(rom)
     val shader = lib.effectiveShader(rom)
     val color = lib.effectiveColor(rom)
-    // The skin is the console's (issue 718): the row shows it and opens the same choice as the console's settings.
+    // The skin is the console's (issues 718, 720): the row shows it and opens the same choice as the console's settings.
     val skinChoice = rememberSkinChoice(lib, rom.console)
     val skin = lib.consoleSettings(rom.console).skin
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
@@ -279,7 +279,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Setting(
             stringResource(R.string.detail_controller_skin),
             skinValueLabel(skinChoice, skin)?.let { stringResource(it) } ?: "OpenEmux ${rom.console.short}", false,
-            if (skinChoice?.dark == true) ({ sheet = Sheet.Skin }) else null,
+            if (skinChoice?.pickable == true) ({ sheet = Sheet.Skin }) else null,
         ),
         Setting(stringResource(R.string.detail_cheats), stringResource(R.string.detail_coming_soon), false, null),
     )
@@ -494,7 +494,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.Core -> CoreSheet(rom) { sheet = Sheet.None }
         Sheet.Shader -> ShaderSheet(rom) { sheet = Sheet.None }
         Sheet.States -> StatesSheet(states, ::playState) { sheet = Sheet.None }
-        Sheet.Skin -> SkinSheet(lib, rom.console, skin, skinChoice?.imported == true) { sheet = Sheet.None }
+        Sheet.Skin -> skinChoice?.let { SkinSheet(lib, rom.console, skin, it) { sheet = Sheet.None } }
         Sheet.None -> {}
     }
 

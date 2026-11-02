@@ -1,9 +1,13 @@
 """Builds the bundled controller skins (src/main/assets/skins) from the design.
 
-  python3 tools/skins/build.py [--variant console|dark] [CONSOLE ...]
+  python3 tools/skins/build.py [--variant <id>] [CONSOLE ...]
 
-Every console is built twice: in its own colours (src/main/assets/skins/<console>.<ext>) and in the Dark
-variant (src/main/assets/skins/dark/<console>.<ext>), the same layout in a black and dark grey palette.
+Every console is built in each of its variants: its own colours (src/main/assets/skins/<console>.<ext>), the
+Dark variant (src/main/assets/skins/dark/<console>.<ext>), the same layout in a black and dark grey palette,
+and each official colour it was sold in (issue 720: src/main/assets/skins/<colour>/<console>.<ext>). The
+colour variants' art is lossy WebP, a tenth of the PNG's size; the console's own and Dark stay PNG. The
+picker's list (src/main/assets/skins/variants.json: per console, its variants in order with the colours of
+their swatch) is written on every run.
 
 The layout and the art have one source: the engine of the design canvas's
 Skin component (Skin.dc.html, between ENGINE START and ENGINE END). Each
@@ -42,14 +46,61 @@ KNOB_UNITS, KNOB_SCALE = 100, 4
 # Consoles with two screens get one art per screen layout. The base representation is the two one over the other
 # (what Delta draws); the others go under its "layouts", a key of the app's own that other emulators ignore.
 SCREEN_LAYOUTS = {"NDS": ["top", "bottom", "side"]}
-# The engine's palettes: the console's own colours, and Dark (issue 718). Each one's packages go in its folder.
-VARIANTS = {"console": ASSETS, "dark": ASSETS / "dark"}
+# The palettes whose art stays PNG: the console's own colours and Dark (issue 718). Every other variant is one
+# of the console's official colours (issue 720), its art in lossy WebP: quality 90 and the alpha lossless, so the
+# screens' cut-outs keep their exact edges.
+PNG_VARIANTS = ("console", "dark")
+WEBP = ["-quality", "90", "-define", "webp:alpha-quality=100", "-define", "webp:method=6"]
+
+
+def variant_dir(variant):
+    """The assets folder [variant]'s packages go in: the console's own in skins/, each other in its own folder."""
+    return ASSETS if variant == "console" else ASSETS / variant
 
 
 def sync_engine():
     src = (HERE / "Skin.dc.html").read_text()
     engine = src.split("// ENGINE START")[1].split("// ENGINE END")[0]
     (HERE / "engine.js").write_text(engine + "\nwindow.OE = OE;\n")
+
+
+def engine(expr, *args):
+    """[expr], evaluated in the engine with argv[2...] = [args], as JSON."""
+    script = f"global.window={{}};require(process.argv[1]);const OE=window.OE;console.log(JSON.stringify({expr}))"
+    out = subprocess.run(["node", "-e", script, str(HERE / "engine.js"), *args], capture_output=True, text=True, check=True).stdout
+    return json.loads(out)
+
+
+def catalog():
+    """Per console, its variants in the picker's order: id, the name of its colour (none for console and Dark), swatch."""
+    return engine("Object.fromEntries(Object.keys(OE.C).map((c)=>[c,OE.variants(c).map((v)=>Object.assign("
+                  "{id:v,label:(OE.COLORS[c]||{})[v]?OE.COLORS[c][v].label:null},OE.swatch(c,v)))]))")
+
+
+def write_catalog(cat):
+    """skins/variants.json, what the app's picker lists: per console, each variant's id and its swatch's colours."""
+    out = {c: [{"id": v["id"], "body": v["body"], "key": v["key"]} for v in vs] for c, vs in cat.items() if c in TYPES}
+    (ASSETS / "variants.json").write_text(json.dumps(out, indent=1) + "\n")
+
+
+def to_webp(folder, files):
+    """Each of [files] (PNGs in [folder]) as WebP; the new names by the old."""
+    names = {}
+    for f in files:
+        webp = f.removesuffix(".png") + ".webp"
+        subprocess.run(["convert", str(folder / f), *WEBP, str(folder / webp)], check=True)
+        (folder / f).unlink()
+        names[f] = webp
+    return names
+
+
+def renamed(value, names):
+    """[value] (info.json, or a piece of it) with every file name in [names] replaced by its new one."""
+    if isinstance(value, dict):
+        return {k: renamed(v, names) for k, v in value.items()}
+    if isinstance(value, list):
+        return [renamed(v, names) for v in value]
+    return names.get(value, value) if isinstance(value, str) else value
 
 
 def engine_layout(console, device, orient, screens=None, variant="console"):
@@ -140,8 +191,8 @@ def representation(console, device, orient, scale, folder, profile, files, scree
     return rep, L["name"], knob
 
 
-def build(console, profile, variant="console"):
-    """[console]'s package in [variant]."""
+def build(console, profile, variant="console", label=None):
+    """[console]'s package in [variant]; [label] the name of a colour variant's colour."""
     folder = WORK / variant / console
     folder.mkdir(parents=True, exist_ok=True)
     reps = {}
@@ -164,21 +215,26 @@ def build(console, profile, variant="console"):
                         v["assets"] = same["assets"]
                     rep["layouts"][layout] = v
             reps.setdefault(family, {}).setdefault(kind, {})[orient] = rep
-    dark = variant == "dark"
+    suffix = {"console": ""}.get(variant, f" {label or variant.capitalize()}")
     info = {
-        "name": f"OpenEmux {name}" + (" Dark" if dark else ""),
-        "identifier": f"openemux.skin.{console.lower()}" + (".dark" if dark else ""),
+        "name": f"OpenEmux {name}{suffix}",
+        "identifier": f"openemux.skin.{console.lower()}" + ("" if variant == "console" else f".{variant}"),
         "gameTypeIdentifier": TYPES[console],
         "debug": False,
         "representations": reps,
     }
-    (folder / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False))
     if knob:
         screenshot(console, "phone", "portrait", KNOB_UNITS, KNOB_UNITS, KNOB_SCALE, folder / knob, profile,
                    f"&dpadKnob={KNOB_UNITS}", variant)
+    if variant not in PNG_VARIANTS:
+        names = to_webp(folder, files + ([knob] if knob else []))
+        files = [names[f] for f in files]
+        knob = knob and names[knob]
+        info = renamed(info, names)
+    (folder / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False))
     ext = ".manicskin" if TYPES[console].startswith("public.aoshuang") else ".deltaskin"
-    VARIANTS[variant].mkdir(parents=True, exist_ok=True)
-    pkg = VARIANTS[variant] / f"{console}{ext}"
+    variant_dir(variant).mkdir(parents=True, exist_ok=True)
+    pkg = variant_dir(variant) / f"{console}{ext}"
     with zipfile.ZipFile(pkg, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(folder / "info.json", "info.json")
         for file in files:
@@ -190,23 +246,33 @@ def build(console, profile, variant="console"):
 
 def main():
     args = sys.argv[1:]
-    variants = list(VARIANTS)
+    only = None
     if "--variant" in args:
         i = args.index("--variant")
-        variants = args[i + 1:i + 2]
+        only = args[i + 1] if i + 1 < len(args) else None
         del args[i:i + 2]
-        if not variants or variants[0] not in VARIANTS:
-            raise SystemExit(f"--variant takes one of {', '.join(VARIANTS)}")
+        if not only:
+            raise SystemExit("--variant takes a variant id (console, dark or a colour)")
     consoles = args or list(TYPES)
     unknown = [c for c in consoles if c not in TYPES]
     if unknown:
         raise SystemExit(f"unknown console: {', '.join(unknown)} (one of {', '.join(TYPES)})")
     sync_engine()
     ASSETS.mkdir(parents=True, exist_ok=True)
+    cat = catalog()
+    known = {v["id"] for vs in cat.values() for v in vs}
+    if only and only not in known:
+        raise SystemExit(f"unknown variant: {only} (one of {', '.join(sorted(known))})")
+    write_catalog(cat)
+    # Consoles named on the command line that do not come in the variant asked for would build nothing, silently.
+    lacking = [c for c in args if only and only not in {v["id"] for v in cat[c]}]
+    if lacking:
+        raise SystemExit(f"{', '.join(lacking)} not sold in {only}")
     with tempfile.TemporaryDirectory() as profile:
         for c in consoles:
-            for v in variants:
-                build(c, profile, v)
+            for v in cat[c]:
+                if only in (None, v["id"]):
+                    build(c, profile, v["id"], v["label"])
 
 
 main()

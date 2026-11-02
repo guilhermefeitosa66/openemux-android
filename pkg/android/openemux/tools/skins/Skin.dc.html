@@ -27,7 +27,7 @@ body{margin:0}
 </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"console":{"editor":"enum","options":["FC","SFC","N64","GC","GB","GBC","GBA","NDS","MD","SMS","PS","PSP"],"default":"GBA"},"device":{"editor":"enum","options":["phone","tablet"],"default":"phone"},"orient":{"editor":"enum","options":["portrait","landscape"],"default":"portrait"},"variant":{"editor":"enum","options":["console","dark"],"default":"console"},"showTouch":{"editor":"boolean","default":false},"$preview":{"width":360,"height":746}}'>
+<script type="text/x-dc" data-dc-script data-props='{"console":{"editor":"enum","options":["FC","SFC","N64","GC","GB","GBC","GBA","NDS","MD","SMS","PS","PSP"],"default":"GBA"},"device":{"editor":"enum","options":["phone","tablet"],"default":"phone"},"orient":{"editor":"enum","options":["portrait","landscape"],"default":"portrait"},"variant":{"editor":"enum","options":["console","dark","red","purple","grey","black","blue","green","yellow","gold","white","clear","teal","clear-blue","clear-pink","silver","orange","turquoise","pink"],"default":"console"},"showTouch":{"editor":"boolean","default":false},"$preview":{"width":360,"height":746}}'>
 // ENGINE START
 const OE = (() => {
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -164,10 +164,143 @@ const OE = (() => {
     });
   }
 
-  /** The console's palette in [variant] ('console', the default, or 'dark'). */
+  // The official colour variants (issue 720): per console, the retail colours the console (or, for the home
+  // consoles, the controller the skin depicts) was sold in, in the order the app lists them. Each one changes
+  // colours only: the layout reads the same palette keys, so frames, screens and knobs match the console's own
+  // skin. [label] is the plain colour word the package is named after (the app shows its own translation);
+  // [body] the shell, [controls] (when the shell's colour also moulds the D-pad, stick and shoulders, as on
+  // the N64 and GameCube controllers) those parts; anything else overrides the console's palette key of that
+  // name, [face] merged into the console's face cluster. The hexes are approximations of the plastics as they
+  // look on photos; sources in tools/skins/README.md.
+  const COLORS = {
+    // The Famicom's controller: deep red, a gold faceplate behind the buttons; SELECT and START's words sit on the red, under it.
+    FC: {
+      red: { label: 'Red', body: '#8C1C24', panel: '#C8A84A', dpad: '#1A1A1A', pill: '#5A1218', brandInk: '#F1E3C0', labelInk: '#7A1A1E', centerInk: '#F1E3C0' },
+    },
+    // The North American SNES: purple A and B, lavender X and Y.
+    SFC: {
+      purple: { label: 'Purple', body: '#C4C4CC', ink: '#4A4A54', face: { map: {
+        top: { color: '#A9A2D6', ink: '#3B2F78' }, left: { color: '#A9A2D6', ink: '#3B2F78' },
+        right: { color: '#4B3C8C', ink: '#FFFFFF' }, bottom: { color: '#4B3C8C', ink: '#FFFFFF' } } } },
+    },
+    // The controller in the launch solids and the Gold one (an iconic edition, kept on purpose).
+    N64: {
+      grey: { label: 'Grey', body: '#B4B4B6', controls: '#9E9EA2' },
+      black: { label: 'Black', body: '#2A2A2C', controls: '#3A3A3E' },
+      red: { label: 'Red', body: '#C21E28', controls: '#A8161F' },
+      blue: { label: 'Blue', body: '#2050B0', controls: '#1A4396' },
+      green: { label: 'Green', body: '#2E8B3E', controls: '#257533' },
+      yellow: { label: 'Yellow', body: '#F2C81F', controls: '#D8B015', face: { colors: { a: '#2D5DB5', b: '#1F8E50', c: '#B88A0A' }, inks: { c: '#FFF4CC' } } },
+      gold: { label: 'Gold', body: '#C9A43A', controls: '#B08E2C' },
+    },
+    // The 1995 Play It Loud! line.
+    GB: {
+      red: { label: 'Red', body: '#C8202A' },
+      yellow: { label: 'Yellow', body: '#F2D41F' },
+      green: { label: 'Green', body: '#2E8B3E' },
+      blue: { label: 'Blue', body: '#2050A8' },
+      black: { label: 'Black', body: '#202022' },
+      white: { label: 'White', body: '#EEEEEC' },
+      clear: { label: 'Clear', body: '#C8C8C8', translucent: true },
+    },
+    // Berry, Grape, Kiwi, Dandelion and Teal; the skin's own colours are Atomic Purple.
+    GBC: {
+      red: { label: 'Red', body: '#D6245A' },
+      purple: { label: 'Purple', body: '#5A3E9E' },
+      green: { label: 'Green', body: '#9CC43A' },
+      yellow: { label: 'Yellow', body: '#F5D21C' },
+      teal: { label: 'Teal', body: '#1E8FB0' },
+    },
+    // Arctic, Black, Glacier, Fuchsia, Platinum and Orange; the skin's own colours are Indigo.
+    GBA: {
+      white: { label: 'White', body: '#E9E9E6' },
+      black: { label: 'Black', body: '#2A2A2E' },
+      'clear-blue': { label: 'Clear blue', body: '#7FA9D4', translucent: true },
+      'clear-pink': { label: 'Clear pink', body: '#D9649C', translucent: true },
+      silver: { label: 'Silver', body: '#B9BCC2' },
+      orange: { label: 'Orange', body: '#EE8424' },
+    },
+    // Electric Blue, Graphite Black, Pure White, Turquoise Blue and Candy Pink; the skin's own is Titanium.
+    NDS: {
+      blue: { label: 'Blue', body: '#2C5CC8' },
+      black: { label: 'Black', body: '#2A2A2E' },
+      white: { label: 'White', body: '#EEEEEE' },
+      turquoise: { label: 'Turquoise', body: '#4FB0C0' },
+      pink: { label: 'Pink', body: '#EE9DBE' },
+    },
+    // Jet Black, Platinum and Spice; the skin's own colours are Indigo.
+    GC: {
+      black: { label: 'Black', body: '#1E1E22', controls: '#3A3A40', pill: '#55555C' },
+      silver: { label: 'Silver', body: '#B8BAC0', controls: '#9C9EA6', pill: '#8A8C94' },
+      orange: { label: 'Orange', body: '#EE8A22', controls: '#D97A18', pill: '#F2C08A' },
+    },
+    // Ceramic White, Silver and Metallic Blue; the skin's own colours are Piano Black.
+    PSP: {
+      white: { label: 'White', body: '#F0F0EE', controls: '#E2E2E0', face: { color: '#E6E6E4', symColor: '#7A7C82' } },
+      silver: { label: 'Silver', body: '#BFC3C8', controls: '#AEB2B8', face: { color: '#B4B8BE', symColor: '#4E5056' } },
+      blue: { label: 'Blue', body: '#34548F', controls: '#2C4A80', face: { color: '#2E4C84', symColor: '#C4D0E6' } },
+    },
+  };
+
+  /** How light [c] is, 0 to 1 (relative luminance). */
+  function luma(c) {
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const x = hex(c).map(lin);
+    return 0.2126 * x[0] + 0.7152 * x[1] + 0.0722 * x[2];
+  }
+
+  /** The console's palette [S] in the colour variant [v]: the shell, the inks that read on it, and [v]'s keys. */
+  function colorPalette(S, v) {
+    const light = luma(v.body) > 0.3;
+    const ink = v.ink || (light ? darken(v.body, 0.62) : lighten(v.body, 0.75));
+    const own = Object.assign({}, v);
+    ['label', 'body', 'controls', 'ink', 'face'].forEach((k) => delete own[k]);
+    const out = Object.assign({}, S, {
+      body: v.body, translucent: !!v.translucent, gloss: S.gloss,
+      bar: darken(v.body, 0.16), barIcon: ink, labelInk: ink, brandInk: ink,
+      shoulder: S.shoulder && darken(v.body, 0.12), shoulderInk: S.shoulderInk && ink,
+    });
+    if (v.controls) {
+      const mark = luma(v.controls) > 0.3 ? darken(v.controls, 0.4) : lighten(v.controls, 0.35);
+      Object.assign(out, {
+        dpad: v.controls, dpadMark: mark, shoulder: S.shoulder && v.controls, shoulderInk: S.shoulderInk && mark,
+        stick: S.stick && Object.assign({}, S.stick, { knob: lighten(v.controls, 0.12) }),
+      });
+      // The N64's Z is moulded in the controller's plastic.
+      if (S.face.kind === 'n64') out.face = Object.assign({}, S.face, { colors: Object.assign({}, S.face.colors, { z: v.controls }), inks: Object.assign({}, S.face.inks, { z: mark }) });
+    }
+    Object.assign(out, own);
+    if (v.face) {
+      const f = out.face || S.face;
+      const map = f.map && v.face.map && Object.fromEntries(Object.entries(f.map).map(([k, b]) => [k, Object.assign({}, b, v.face.map[k])]));
+      out.face = Object.assign({}, f, v.face, {
+        colors: (f.colors || v.face.colors) && Object.assign({}, f.colors, v.face.colors),
+        inks: (f.inks || v.face.inks) && Object.assign({}, f.inks, v.face.inks),
+        map: map || f.map,
+      });
+    }
+    return out;
+  }
+
+  /** The variants [id] comes in, in the order the app lists them: its own colours, Dark, then its official colours. */
+  function variants(id) {
+    return VARIANTS.concat(Object.keys(COLORS[id] || {}));
+  }
+
+  /** The console's palette in [variant] ('console', the default, 'dark' or one of its COLORS). */
   function palette(id, variant) {
-    if (variant && !VARIANTS.includes(variant)) throw new Error(`unknown variant: ${variant}`);
-    return variant === 'dark' ? darkPalette(C[id]) : C[id];
+    if (!variant || variant === 'console') return C[id];
+    if (variant === 'dark') return darkPalette(C[id]);
+    const v = COLORS[id] && COLORS[id][variant];
+    if (!v) throw new Error(`unknown variant: ${variant}`);
+    return colorPalette(C[id], v);
+  }
+
+  /** The two colours the app's picker shows for [variant]: the shell and its main buttons. */
+  function swatch(id, variant) {
+    const S = palette(id, variant), f = S.face;
+    const key = f.color || (f.colors && f.colors.a) || (f.map && f.map.right && f.map.right.color) || S.dpad;
+    return { body: S.body, key };
   }
 
   // Face clusters: offsets from the cluster's centre, in units at scale 1.
@@ -346,8 +479,9 @@ const OE = (() => {
       const f = S.face;
       const key = b.c ? 'c' : b.input;
       // The Dark variant paints every button in its own grey, the ones the cluster colours itself (N64's Z) too.
-      const c = (!S.dark && b.color) || (f.colors && f.colors[key]) || f.color;
-      const ink = (!S.dark && b.ink) || (f.inks && f.inks[key]) || f.ink || '#FFFFFF';
+      // A colour variant's cluster colours win over the button's own (the N64's Z in a coloured controller's plastic).
+      const c = (f.colors && f.colors[key]) || (!S.dark && b.color) || f.color;
+      const ink = (f.inks && f.inks[key]) || (!S.dark && b.ink) || f.ink || '#FFFFFF';
       const w = b.w * k, h = (b.h || b.w) * k, x = cx + b.dx * k - w / 2, y = cy + b.dy * k - h / 2;
       const radius = b.shape === 'square' ? `${Math.min(w, h) * 0.24}px` : (b.shape === 'pill' ? `${Math.min(w, h) / 2}px` : '50%');
       let style = box(x, y, w, h) + center + (b.rot ? `transform:rotate(${b.rot}deg);` : '') +
@@ -385,7 +519,7 @@ const OE = (() => {
     function centerKey(c, cx, cy) {
       const w = tab ? 66 : 54, h = tab ? 22 : 18;
       add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
-      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.labelInk, tab ? 12 : 10, '.14em'));
+      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, tab ? 12 : 10, '.14em'));
       item([c.input], cx - w / 2, cy - h / 2, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
     }
 
@@ -434,7 +568,7 @@ const OE = (() => {
     return { W, H, parts, items, screens, knobs, name: S.name, aspect: S.aspect };
   }
 
-  return { layout, dpadKnob, palette, DPAD_KNOB, C, DARK, VARIANTS };
+  return { layout, dpadKnob, palette, variants, swatch, DPAD_KNOB, C, DARK, VARIANTS, COLORS };
 })();
 // ENGINE END
 
@@ -443,7 +577,9 @@ class Component extends DCLogic {
     const id = this.props.console ?? 'GBA';
     const device = this.props.device ?? 'phone';
     const orient = this.props.orient ?? 'portrait';
-    const L = OE.layout(id, device, orient, { screens: this.props.screens, variant: this.props.variant });
+    // A colour the console was not sold in shows its own colours.
+    const variant = OE.variants(id).includes(this.props.variant) ? this.props.variant : 'console';
+    const L = OE.layout(id, device, orient, { screens: this.props.screens, variant });
     let parts = L.parts;
     if (this.props.showTouch) {
       const touch = L.items.map((it) => {

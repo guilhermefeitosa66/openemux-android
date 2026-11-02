@@ -1,0 +1,336 @@
+{
+ "FC": [
+  {
+   "id": "console",
+   "body": "#C9C9C7",
+   "key": "#C1171B"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "red",
+   "body": "#8C1C24",
+   "key": "#C1171B"
+  }
+ ],
+ "SFC": [
+  {
+   "id": "console",
+   "body": "#CDCDCD",
+   "key": "#D12425"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "purple",
+   "body": "#C4C4CC",
+   "key": "#4B3C8C"
+  }
+ ],
+ "N64": [
+  {
+   "id": "console",
+   "body": "#3C3C3F",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "grey",
+   "body": "#B4B4B6",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "black",
+   "body": "#2A2A2C",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "red",
+   "body": "#C21E28",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "blue",
+   "body": "#2050B0",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "green",
+   "body": "#2E8B3E",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "yellow",
+   "body": "#F2C81F",
+   "key": "#2D5DB5"
+  },
+  {
+   "id": "gold",
+   "body": "#C9A43A",
+   "key": "#2D5DB5"
+  }
+ ],
+ "GC": [
+  {
+   "id": "console",
+   "body": "#514988",
+   "key": "#12B378"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "black",
+   "body": "#1E1E22",
+   "key": "#12B378"
+  },
+  {
+   "id": "silver",
+   "body": "#B8BAC0",
+   "key": "#12B378"
+  },
+  {
+   "id": "orange",
+   "body": "#EE8A22",
+   "key": "#12B378"
+  }
+ ],
+ "GB": [
+  {
+   "id": "console",
+   "body": "#C3C0BB",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "red",
+   "body": "#C8202A",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "yellow",
+   "body": "#F2D41F",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "green",
+   "body": "#2E8B3E",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "blue",
+   "body": "#2050A8",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "black",
+   "body": "#202022",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "white",
+   "body": "#EEEEEC",
+   "key": "#8A2A5C"
+  },
+  {
+   "id": "clear",
+   "body": "#C8C8C8",
+   "key": "#8A2A5C"
+  }
+ ],
+ "GBC": [
+  {
+   "id": "console",
+   "body": "#9686B4",
+   "key": "#34323A"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "red",
+   "body": "#D6245A",
+   "key": "#34323A"
+  },
+  {
+   "id": "purple",
+   "body": "#5A3E9E",
+   "key": "#34323A"
+  },
+  {
+   "id": "green",
+   "body": "#9CC43A",
+   "key": "#34323A"
+  },
+  {
+   "id": "yellow",
+   "body": "#F5D21C",
+   "key": "#34323A"
+  },
+  {
+   "id": "teal",
+   "body": "#1E8FB0",
+   "key": "#34323A"
+  }
+ ],
+ "GBA": [
+  {
+   "id": "console",
+   "body": "#5B5293",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "white",
+   "body": "#E9E9E6",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "black",
+   "body": "#2A2A2E",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "clear-blue",
+   "body": "#7FA9D4",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "clear-pink",
+   "body": "#D9649C",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "silver",
+   "body": "#B9BCC2",
+   "key": "#C9C9CB"
+  },
+  {
+   "id": "orange",
+   "body": "#EE8424",
+   "key": "#C9C9CB"
+  }
+ ],
+ "NDS": [
+  {
+   "id": "console",
+   "body": "#B8BBC0",
+   "key": "#44444B"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "blue",
+   "body": "#2C5CC8",
+   "key": "#44444B"
+  },
+  {
+   "id": "black",
+   "body": "#2A2A2E",
+   "key": "#44444B"
+  },
+  {
+   "id": "white",
+   "body": "#EEEEEE",
+   "key": "#44444B"
+  },
+  {
+   "id": "turquoise",
+   "body": "#4FB0C0",
+   "key": "#44444B"
+  },
+  {
+   "id": "pink",
+   "body": "#EE9DBE",
+   "key": "#44444B"
+  }
+ ],
+ "MD": [
+  {
+   "id": "console",
+   "body": "#26262A",
+   "key": "#1C1C20"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  }
+ ],
+ "SMS": [
+  {
+   "id": "console",
+   "body": "#1F1F22",
+   "key": "#3B3C41"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  }
+ ],
+ "PS": [
+  {
+   "id": "console",
+   "body": "#C2C0BD",
+   "key": "#5A585B"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  }
+ ],
+ "PSP": [
+  {
+   "id": "console",
+   "body": "#151517",
+   "key": "#1C1C1F"
+  },
+  {
+   "id": "dark",
+   "body": "#050506",
+   "key": "#232327"
+  },
+  {
+   "id": "white",
+   "body": "#F0F0EE",
+   "key": "#E6E6E4"
+  },
+  {
+   "id": "silver",
+   "body": "#BFC3C8",
+   "key": "#B4B8BE"
+  },
+  {
+   "id": "blue",
+   "body": "#34548F",
+   "key": "#2E4C84"
+  }
+ ]
+}

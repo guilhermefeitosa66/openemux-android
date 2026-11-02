@@ -544,7 +544,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
     val count = roms.count { it.console == console }
     var colorSheet by remember { mutableStateOf(false) }
     var ownSheet by remember { mutableStateOf(false) }
-    // Whether the app ships a Dark package for this console and whether an imported skin replaces both.
+    // The variants the app ships for this console (Dark, its official colors) and whether an imported skin replaces them.
     val skinChoice = rememberSkinChoice(lib, console)
     val sample = roms.firstOrNull { it.console == console }
 
@@ -588,13 +588,13 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
         }
 
         // Inline, like the core: the choice is in plain sight on the console's screen (issue 718).
-        if (skinChoice?.dark == true) {
+        if (skinChoice?.pickable == true) {
             Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
                 Text(stringResource(R.string.settings_default_skin), style = Type.Section, modifier = Modifier.weight(1f))
                 skinValueLabel(skinChoice, settings.skin)?.let { Text(stringResource(it), style = Type.Small) }
             }
             Text(stringResource(R.string.settings_skin_sheet_desc, console.short), style = Type.Small, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
-            SkinCards(lib, console, settings.skin, skinChoice.imported, Modifier.padding(horizontal = 20.dp))
+            SkinCards(lib, console, settings.skin, skinChoice, Modifier.padding(horizontal = 20.dp))
         }
 
         Card(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
@@ -615,8 +615,8 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
             } else {
                 ListRow("BIOS", subtitle = stringResource(R.string.settings_bios_not_needed), value = "—")
             }
-            // A console the app draws its own skin for has no Dark package: nothing to pick, the row says which skin it is.
-            if (skinChoice != null && !skinChoice.dark) ListRow(
+            // A console the app draws its own skin for has no other package: nothing to pick, the row says which skin it is.
+            if (skinChoice != null && !skinChoice.pickable) ListRow(
                 stringResource(R.string.settings_default_skin),
                 value = if (skinChoice.imported) stringResource(R.string.settings_skin_imported_value) else "OpenEmux ${console.short}", divider = true,
             )
