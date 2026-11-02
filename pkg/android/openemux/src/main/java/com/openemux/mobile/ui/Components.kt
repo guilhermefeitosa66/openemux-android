@@ -277,11 +277,15 @@ private fun BlankLabel(title: String) {
 }
 
 @Composable
-fun RoundIconButton(path: String, label: String, onClick: () -> Unit, tint: Color = Oe.Text, background: Color = Oe.Control, filled: Boolean = false) {
+fun RoundIconButton(
+    path: String, label: String, onClick: () -> Unit, tint: Color = Oe.Text, background: Color = Oe.Control, filled: Boolean = false,
+    // False for a screen's back arrow: B already goes back, so the pad never stops on it (issue 701).
+    padFocus: Boolean = true,
+) {
     Box(
         Modifier
             .size(44.dp)
-            .gamepadFocus(corner = 22.dp)
+            .then(if (padFocus) Modifier.gamepadFocus(corner = 22.dp) else Modifier.touchOnly())
             .clip(CircleShape)
             .background(background)
             .clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
@@ -289,10 +293,11 @@ fun RoundIconButton(path: String, label: String, onClick: () -> Unit, tint: Colo
     ) { Icon(path, tint, 20.dp, filled = filled) }
 }
 
+/** A screen's back link: for the finger only, the pad goes back with B and never stops here (issue 701). */
 @Composable
 fun BackLink(label: String, onClick: () -> Unit) {
     Row(
-        Modifier.heightIn(min = 44.dp).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button, onClick = onClick).padding(end = 8.dp),
+        Modifier.heightIn(min = 44.dp).touchOnly().clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button, onClick = onClick).padding(end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

@@ -195,7 +195,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     }
     val header: @Composable () -> Unit = {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIconButton(Icons.Back, stringResource(R.string.detail_back), { a.nav.popBackStack() }, background = Oe.Control.copy(alpha = 0.8f))
+            RoundIconButton(Icons.Back, stringResource(R.string.detail_back), { a.nav.popBackStack() }, background = Oe.Control.copy(alpha = 0.8f), padFocus = false)
             Spacer(Modifier.weight(1f))
             favoriteButton()
             Spacer(Modifier.width(8.dp))

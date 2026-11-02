@@ -770,6 +770,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         onToggle = { key -> selection = selection.toggle(key) },
     )
     val scope = rememberCoroutineScope()
+    // The game whose options Y opened, and the one waiting for its removal to be confirmed.
+    var optionsFor by remember { mutableStateOf<String?>(null) }
+    var removeKey by remember { mutableStateOf<String?>(null) }
     GamepadButtons(
         hints = listOf(
             "A" to stringResource(R.string.library_hint_detail), "X" to stringResource(R.string.library_hint_favorite),
@@ -781,7 +784,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         l1 = { chip(-1) },
         r1 = { chip(1) },
         x = { focusedRom.value?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
-        y = { focusedRom.value?.let { openFull(it) } },
+        // Y is the focused game's options, never a second A (issue 701).
+        y = { focusedRom.value?.takeIf { it in visibleKeys }?.let { optionsFor = it } },
         select = { searching = !searching; if (!searching) query = "" },
         start = { focusedRom.value?.takeIf { it in visibleKeys }?.let { selection = selection.start(it) } },
     )
@@ -825,6 +829,37 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 confirmRemove = false
                 selection = selection.clear()
                 scope.launch(Dispatchers.IO) { lib.deleteAll(doomed) }
+            },
+            stringResource(R.string.detail_cancel),
+        )
+    }
+    // Y's options for one game, the detail's three-dot menu without leaving the list.
+    roms.firstOrNull { it.key == optionsFor }?.let { rom ->
+        GameOptionsSheet(
+            rom,
+            onDismiss = { optionsFor = null },
+            onShare = {
+                optionsFor = null
+                a.app.shareCoordinator.startSend(listOf(rom))
+                a.nav.navigate(Routes.SHARE)
+            },
+            onRemove = { optionsFor = null; removeKey = rom.key },
+        )
+    }
+    roms.firstOrNull { it.key == removeKey }?.let { rom ->
+        // Modal for the gamepad too, as the bulk remove: the buttons behind it would act on the list.
+        val swallow = {}
+        GamepadButtons(
+            hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
+            l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
+        )
+        OeConfirmDialog(
+            { removeKey = null },
+            stringResource(R.string.detail_remove_title, rom.title), stringResource(R.string.detail_remove_message),
+            stringResource(R.string.detail_remove),
+            {
+                removeKey = null
+                scope.launch(Dispatchers.IO) { lib.delete(rom) }
             },
             stringResource(R.string.detail_cancel),
         )
@@ -1347,7 +1382,7 @@ private fun LandscapeLibrary(
         BoxWithConstraints(Modifier.padding(start = 20.dp, end = 20.dp, top = FocusOutset).fillMaxWidth()) {
             val band = headerBand(maxWidth.value, InputMode.padLayout)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RoundIconButton(Icons.Back, stringResource(R.string.library_shelf_title), { a.nav.popBackStack(Routes.SHELF, false) })
+                RoundIconButton(Icons.Back, stringResource(R.string.library_shelf_title), { a.nav.popBackStack(Routes.SHELF, false) }, padFocus = false)
                 Box(Modifier.weight(1f)) {
                     if (searching) {
                         val placeholder = if (current == "ALL") stringResource(R.string.library_search_all)
@@ -1731,5 +1766,22 @@ private fun PoweredByRetroArch() {
             painterResource(R.drawable.ic_retroarch), contentDescription = null, modifier = Modifier.size(14.dp),
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Oe.Faint),
         )
+    }
+}
+
+/** A game's options from the list (Y): what the detail's three-dot menu offers, for the focused game. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GameOptionsSheet(rom: Rom, onDismiss: () -> Unit, onShare: () -> Unit, onRemove: () -> Unit) {
+    OeSheet(onDismiss) {
+        SheetBarIcons()
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+            Text(rom.title, style = Type.Title.copy(fontSize = 22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(rom.console.displayName, style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+            Card {
+                ListRow(stringResource(R.string.detail_share), leading = { Icon(Icons.Share, Oe.AccentText, 20.dp) }, onClick = onShare)
+                ListRow(stringResource(R.string.detail_remove_from_library), divider = true, onClick = onRemove)
+            }
+        }
     }
 }
