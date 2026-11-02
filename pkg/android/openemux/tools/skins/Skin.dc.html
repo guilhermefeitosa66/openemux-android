@@ -27,7 +27,7 @@ body{margin:0}
 </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"console":{"editor":"enum","options":["FC","SFC","N64","GC","GB","GBC","GBA","NDS","MD","SMS","PS","PSP"],"default":"GBA"},"device":{"editor":"enum","options":["phone","tablet"],"default":"phone"},"orient":{"editor":"enum","options":["portrait","landscape"],"default":"portrait"},"showTouch":{"editor":"boolean","default":false},"$preview":{"width":360,"height":746}}'>
+<script type="text/x-dc" data-dc-script data-props='{"console":{"editor":"enum","options":["FC","SFC","N64","GC","GB","GBC","GBA","NDS","MD","SMS","PS","PSP"],"default":"GBA"},"device":{"editor":"enum","options":["phone","tablet"],"default":"phone"},"orient":{"editor":"enum","options":["portrait","landscape"],"default":"portrait"},"variant":{"editor":"enum","options":["console","dark"],"default":"console"},"showTouch":{"editor":"boolean","default":false},"$preview":{"width":360,"height":746}}'>
 // ENGINE START
 const OE = (() => {
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -143,6 +143,33 @@ const OE = (() => {
     },
   };
 
+  // The Dark variant: every console's layout in one palette, for playing in a dark room. A black body, the
+  // controls in a dark grey that stands out from it just enough to be found by eye, labels and glyphs in a
+  // muted grey, so the game's picture is the brightest thing on the screen. Only colours change: the layout
+  // reads the same palette keys, so every frame, screen and knob matches the console's own skin.
+  const DARK = { body: '#050506', bezel: '#0D0D0F', key: '#232327', knob: '#2E2E33', well: '#2A2A2F', ink: '#6C6C74', mark: '#4C4C54' };
+  const VARIANTS = ['console', 'dark'];
+
+  function darkPalette(S) {
+    const D = DARK;
+    const map = S.face.map && Object.fromEntries(Object.entries(S.face.map).map(([k, v]) => [k, Object.assign({}, v, { color: undefined, ink: undefined })]));
+    return Object.assign({}, S, {
+      dark: true, body: D.body, translucent: false, gloss: false, panel: undefined, well: D.well,
+      bezel: D.bezel, bar: D.key, barIcon: D.ink, chinIcon: D.ink, stripe: S.stripe && D.key,
+      dpad: D.key, dpadMark: D.mark, shoulder: D.key, shoulderInk: D.ink, pill: D.key,
+      faceWell: S.faceWell && D.bezel, labelInk: D.ink, brandInk: D.ink,
+      stick: S.stick && Object.assign({}, S.stick, { knob: D.knob }),
+      secondary: S.secondary && S.secondary.map((x) => Object.assign({}, x, x.knob ? { knob: D.knob } : {}, x.ink ? { ink: D.ink } : {})),
+      face: Object.assign({}, S.face, { color: D.key, ink: D.ink, colors: undefined, inks: undefined, symColor: D.ink, map }),
+    });
+  }
+
+  /** The console's palette in [variant] ('console', the default, or 'dark'). */
+  function palette(id, variant) {
+    if (variant && !VARIANTS.includes(variant)) throw new Error(`unknown variant: ${variant}`);
+    return variant === 'dark' ? darkPalette(C[id]) : C[id];
+  }
+
   // Face clusters: offsets from the cluster's centre, in units at scale 1.
   const FACE = {
     ab: () => [{ input: 'b', label: 'B', dx: -36, dy: 18, w: 62 }, { input: 'a', label: 'A', dx: 36, dy: -18, w: 62 }],
@@ -179,16 +206,16 @@ const OE = (() => {
   }
 
   /** The circle alone, its travel square [side] units wide, for the package's knob image. */
-  function dpadKnob(id, side) {
+  function dpadKnob(id, side, variant) {
     const size = side / (2 * DPAD_KNOB.travel);
-    const parts = knobParts(C[id], size * DPAD_KNOB.radius * 2, size).map((k) => Object.assign({ hasLabel: false, hasIcon: false },
+    const parts = knobParts(palette(id, variant), size * DPAD_KNOB.radius * 2, size).map((k) => Object.assign({ hasLabel: false, hasIcon: false },
       { style: `position:absolute;left:0;top:0;width:${side}px;height:${side}px;box-sizing:border-box;` + k.style }));
     return { W: side, H: side, parts };
   }
 
   function layout(id, device, orient, opts) {
     opts = opts || {};
-    const S = C[id];
+    const S = palette(id, opts.variant);
     const tab = device === 'tablet', port = orient === 'portrait';
     const W = tab ? (port ? 800 : 1280) : (port ? 360 : 746);
     const H = tab ? (port ? 1280 : 800) : (port ? 746 : 360);
@@ -203,6 +230,7 @@ const OE = (() => {
     // Body: matte plastic, lit from above; translucent and glossy shells get their own sheen.
     let bg = `radial-gradient(120% 70% at 50% 0%, ${lighten(S.body, 0.1)} 0%, ${S.body} 55%, ${darken(S.body, 0.1)} 100%)`;
     if (S.translucent) bg = `repeating-linear-gradient(45deg, ${alpha('#ffffff', 0.05)} 0 2px, transparent 2px 9px), linear-gradient(160deg, ${lighten(S.body, 0.2)} 0%, ${S.body} 45%, ${darken(S.body, 0.14)} 100%)`;
+    if (S.dark) bg = `radial-gradient(120% 70% at 50% 0%, ${lighten(S.body, 0.03)} 0%, ${S.body} 60%)`;
     if (S.gloss) bg = `linear-gradient(165deg, ${lighten(S.body, 0.16)} 0%, ${S.body} 30%, ${S.body} 70%, ${lighten(S.body, 0.06)} 100%)`;
     add(box(0, 0, W, H) + `background:repeating-linear-gradient(0deg, ${alpha('#ffffff', 0.012)} 0 1px, transparent 1px 3px), ${bg};`);
 
@@ -232,7 +260,7 @@ const OE = (() => {
     const bw = cols * sw + 2 * pad, bh = rows * sh + pad + chin;
     const bx = (W - bw) / 2;
     const by = port ? m : (H - bh) / 2;
-    add(box(bx, by, bw, bh) + `border-radius:${tab ? 16 : 10}px;background:${S.bezel};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.06)}, 0 1px 0 ${alpha('#ffffff', 0.2)};`);
+    add(box(bx, by, bw, bh) + `border-radius:${tab ? 16 : 10}px;background:${S.bezel};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.06)}, 0 1px 0 ${alpha('#ffffff', S.dark ? 0.05 : 0.2)};`);
     for (let i = 0; i < rows * cols; i++) {
       const sx = bx + pad + (i % cols) * sw, sy = by + pad + Math.floor(i / cols) * sh;
       screens.push({ x: r1(sx), y: r1(sy), width: r1(sw), height: r1(sh) });
@@ -302,7 +330,7 @@ const OE = (() => {
     const TRAVEL = 0.65;
     function stick(cx, cy, size, st, right) {
       const x = cx - size / 2, y = cy - size / 2;
-      add(box(x, y, size, size) + `border-radius:50%;background:radial-gradient(circle at 50% 40%, ${darken(S.body, 0.34)}, ${darken(S.body, 0.2)} 72%);box-shadow:inset 0 3px 7px rgba(0,0,0,.45), 0 1px 0 ${alpha('#ffffff', 0.18)};`);
+      add(box(x, y, size, size) + `border-radius:50%;background:radial-gradient(circle at 50% 40%, ${darken(S.well || S.body, 0.34)}, ${darken(S.well || S.body, 0.2)} 72%);box-shadow:inset 0 3px 7px rgba(0,0,0,.45), 0 1px 0 ${alpha('#ffffff', S.dark ? 0.04 : 0.18)};`);
       // Half the well wide, its shadow inside the margin the travel leaves around it.
       const r = size / 2, ks = r, kc = st.knob, side = r1(2 * r * TRAVEL);
       const knob = (ox, oy) => box(ox + (side - ks) / 2, oy + (side - ks) / 2, ks, ks) + center + `border-radius:50%;background:radial-gradient(circle at 40% 35%, ${lighten(kc, 0.25)}, ${kc} 60%, ${darken(kc, 0.2)});box-shadow:0 ${r1(r * 0.05)}px ${r1(r * 0.09)}px rgba(0,0,0,.4), inset 0 0 0 ${ks * 0.08}px ${alpha(darken(kc, 0.25), 0.35)};`;
@@ -317,8 +345,9 @@ const OE = (() => {
     function button(b, cx, cy, k) {
       const f = S.face;
       const key = b.c ? 'c' : b.input;
-      const c = b.color || (f.colors && f.colors[key]) || f.color;
-      const ink = b.ink || (f.inks && f.inks[key]) || f.ink || '#FFFFFF';
+      // The Dark variant paints every button in its own grey, the ones the cluster colours itself (N64's Z) too.
+      const c = (!S.dark && b.color) || (f.colors && f.colors[key]) || f.color;
+      const ink = (!S.dark && b.ink) || (f.inks && f.inks[key]) || f.ink || '#FFFFFF';
       const w = b.w * k, h = (b.h || b.w) * k, x = cx + b.dx * k - w / 2, y = cy + b.dy * k - h / 2;
       const radius = b.shape === 'square' ? `${Math.min(w, h) * 0.24}px` : (b.shape === 'pill' ? `${Math.min(w, h) / 2}px` : '50%');
       let style = box(x, y, w, h) + center + (b.rot ? `transform:rotate(${b.rot}deg);` : '') +
@@ -405,7 +434,7 @@ const OE = (() => {
     return { W, H, parts, items, screens, knobs, name: S.name, aspect: S.aspect };
   }
 
-  return { layout, dpadKnob, DPAD_KNOB, C };
+  return { layout, dpadKnob, palette, DPAD_KNOB, C, DARK, VARIANTS };
 })();
 // ENGINE END
 
@@ -414,7 +443,7 @@ class Component extends DCLogic {
     const id = this.props.console ?? 'GBA';
     const device = this.props.device ?? 'phone';
     const orient = this.props.orient ?? 'portrait';
-    const L = OE.layout(id, device, orient, { screens: this.props.screens });
+    const L = OE.layout(id, device, orient, { screens: this.props.screens, variant: this.props.variant });
     let parts = L.parts;
     if (this.props.showTouch) {
       const touch = L.items.map((it) => {
