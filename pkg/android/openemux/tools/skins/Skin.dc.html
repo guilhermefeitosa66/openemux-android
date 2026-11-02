@@ -173,9 +173,9 @@ const OE = (() => {
   // name, [face] merged into the console's face cluster. The hexes are approximations of the plastics as they
   // look on photos; sources in tools/skins/README.md.
   const COLORS = {
-    // The Famicom's controller: deep red, a gold faceplate behind the buttons.
+    // The Famicom's controller: deep red, a gold faceplate behind the buttons; SELECT and START's words sit on the red, under it.
     FC: {
-      red: { label: 'Red', body: '#8C1C24', panel: '#C8A84A', dpad: '#1A1A1A', pill: '#5A1218', brandInk: '#F1E3C0', labelInk: '#7A1A1E' },
+      red: { label: 'Red', body: '#8C1C24', panel: '#C8A84A', dpad: '#1A1A1A', pill: '#5A1218', brandInk: '#F1E3C0', labelInk: '#7A1A1E', centerInk: '#F1E3C0' },
     },
     // The North American SNES: purple A and B, lavender X and Y.
     SFC: {
@@ -519,7 +519,7 @@ const OE = (() => {
     function centerKey(c, cx, cy) {
       const w = tab ? 66 : 54, h = tab ? 22 : 18;
       add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
-      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.labelInk, tab ? 12 : 10, '.14em'));
+      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, tab ? 12 : 10, '.14em'));
       item([c.input], cx - w / 2, cy - h / 2, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
     }
 
