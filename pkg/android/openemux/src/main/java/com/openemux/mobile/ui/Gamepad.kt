@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import android.os.SystemClock
 import android.content.Intent
 import android.hardware.input.InputManager
 import android.view.InputDevice
@@ -111,9 +112,6 @@ object InputMode {
     /** Pad presses so far, so a screen can tell focus the player moved from focus the platform put somewhere. */
     var presses = 0L
 
-    /** Times a highlighted item took focus, and that count at the last press: a gain since then is the platform's doing. */
-    var focusGains = 0L
-    var gainsAtPress = 0L
 
     /** How many highlighted items hold focus now (0 or 1 in practice). */
     var focused = 0
@@ -207,7 +205,8 @@ class GamepadActions(
     val y: (() -> Unit)? = null,
     val select: (() -> Unit)? = null,
     val start: (() -> Unit)? = null,
-    val hints: List<Pair<String, String>> = emptyList(),
+    /** Read when the bar shows, so a hint can follow the focus. */
+    val hints: () -> List<Pair<String, String>> = { emptyList() },
     /** False while the screen part these buttons belong to does not hold focus: the ones below answer. */
     val enabled: () -> Boolean = { true },
 )
@@ -224,7 +223,7 @@ object GamepadBus {
     fun pop(actions: GamepadActions) { stack.remove(actions); refresh() }
 
     /** Shows the hints of the top entry that answers now; called again when one turns on or off. */
-    fun refresh() { hints = stack.lastOrNull { it.enabled() }?.hints.orEmpty() }
+    fun refresh() { hints = stack.lastOrNull { it.enabled() }?.hints?.invoke().orEmpty() }
 
     /** Runs the top screen's handler for [pick], falling back to the ones below it. */
     fun dispatch(pick: (GamepadActions) -> (() -> Unit)?): Boolean {
@@ -250,14 +249,15 @@ fun GamepadButtons(
 ) {
     val latest = rememberUpdatedState(listOf(l1, r1, x, y, select, start))
     val on = rememberUpdatedState(enabled)
-    LaunchedEffect(enabled) { GamepadBus.refresh() }
+    val shown = rememberUpdatedState(hints)
+    LaunchedEffect(enabled, hints) { GamepadBus.refresh() }
     DisposableEffect(Unit) {
         // Which buttons a screen uses is fixed; what they do follows recomposition.
         fun slot(i: Int, used: Boolean): (() -> Unit)? = if (used) ({ latest.value[i]?.invoke() }) else null
         val actions = GamepadActions(
             l1 = slot(0, l1 != null), r1 = slot(1, r1 != null), x = slot(2, x != null),
             y = slot(3, y != null), select = slot(4, select != null), start = slot(5, start != null),
-            hints = hints, enabled = { on.value },
+            hints = { shown.value }, enabled = { on.value },
         )
         GamepadBus.push(actions)
         onDispose { GamepadBus.pop(actions) }
@@ -363,7 +363,6 @@ fun Modifier.gamepadFocus(
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
             if (now != focused) InputMode.focused += if (now) 1 else -1
-            if (now && !focused) InputMode.focusGains++
             focused = now
         }
         .graphicsLayer { scaleX = grow; scaleY = grow }
@@ -570,19 +569,32 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     val wasPad = remember { booleanArrayOf(InputMode.gamepad) }
     // Also when the gamepad wakes up with nothing focused, or when the screen forgets
     // its focused item (it was removed), so focus is never missing.
+    // Whether this item holds focus now, for the hold below.
+    val mine = remember { booleanArrayOf(false) }
     LaunchedEffect(InputMode.gamepad, initial && forgotten.value) {
         val woke = !wasPad[0]
         wasPad[0] = InputMode.gamepad
         if (!InputMode.gamepad) return@LaunchedEffect
+        val presses = InputMode.presses
         if (saved.value == key) {
             withFrameNanos { }
             runCatching { requester.requestFocus() }
         } else if (saved.value == null && initial) {
             // Let a screen or page transition hand its focus over first.
-            val presses = InputMode.presses
             delay(150)
-            val byPlatform = focusByPlatform(woke, InputMode.presses != presses, InputMode.focusGains, InputMode.gainsAtPress)
-            if (takesInitialFocus(InputMode.focused, screens?.held, byPlatform)) runCatching { requester.requestFocus() }
+            val pressed = InputMode.presses != presses
+            if (!takesInitialFocus(InputMode.focused, screens?.held, pressed, woke)) return@LaunchedEffect
+            runCatching { requester.requestFocus() }
+        } else {
+            return@LaunchedEffect
+        }
+        // Hold it while the screen settles: the platform may still move focus (the old screen's item leaving,
+        // a slower device, another layout), and nothing but the player may (issue 701). The first press ends it.
+        if (woke || screens == null) return@LaunchedEffect
+        val start = SystemClock.uptimeMillis()
+        while (holdsFocus(SystemClock.uptimeMillis() - start, InputMode.presses != presses)) {
+            withFrameNanos { }
+            if (!mine[0] && (InputMode.focused == 0 || screens.held)) runCatching { requester.requestFocus() }
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
@@ -590,6 +602,7 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     val target = remember(requester) { PadFocusTarget(initial, requester) }
     target.initial = initial
     this.focusRequester(requester).padTarget(target, attach = false).onFocusChanged {
+        mine[0] = it.isFocused || it.hasFocus
         if (it.isFocused || it.hasFocus) {
             saved.value = key
             InputMode.last = requester
@@ -609,21 +622,22 @@ fun Modifier.tracksFocus(flag: FocusFlag): Modifier = onFocusChanged { flag.held
  */
 val LocalNavFocus = compositionLocalOf<FocusFlag?> { null }
 
-/** Whether the platform moved focus: it changed hands since the last press, with no press since, and not on waking the pad. */
-fun focusByPlatform(woke: Boolean, pressedSince: Boolean, gains: Long, gainsAtPress: Long): Boolean =
-    !woke && !pressedSince && gains != gainsAtPress
-
 /**
  * Whether a screen's initial item takes the gamepad's focus as it comes in (the screen opens, or its
- * filter changes): when nothing holds focus, and also when the focus in the screens was put there by
- * the platform ([byPlatform]: it moved since the last press, with no press since, and not by the press
- * that woke the pad). When A opens a screen or L1/R1 changes the filter, the focused game leaves,
- * Compose clears focus and the platform enters the window again on the first item at the top left:
- * the back arrow or search, against the hint bar (issue 701). Focus on the tabs or the rail, focus the
- * player moved and focus a press kept (A on a filter chip) stay where they are.
+ * page or filter changes): when nothing holds focus, and also when focus is elsewhere in the NavHost's
+ * screens with no press since and not on the press that woke the pad. When A opens a screen or L1/R1
+ * changes the filter, the focused game leaves, Compose clears focus and the platform enters the window
+ * again on the first item at the top left, against the hint bar (issue 701). Focus on the tabs or the
+ * rail ([inScreens] false), focus the player moved and focus the waking press landed stay where they are.
  */
-fun takesInitialFocus(focused: Int, inScreens: Boolean?, byPlatform: Boolean): Boolean =
-    focused == 0 || (inScreens == true && byPlatform)
+fun takesInitialFocus(focused: Int, inScreens: Boolean?, pressed: Boolean, woke: Boolean): Boolean =
+    focused == 0 || (inScreens == true && !pressed && !woke)
+
+/** How long a screen's first item keeps the focus the platform may still move as the screen settles. */
+const val FocusHoldMs = 1000L
+
+/** Whether the hold goes on: until [FocusHoldMs] or the player's first press. */
+fun holdsFocus(elapsedMs: Long, pressed: Boolean): Boolean = !pressed && elapsedMs < FocusHoldMs
 
 /** Where the rows of a screen remember the one that held focus; null outside such a screen. */
 val LocalRowFocus = compositionLocalOf<MutableState<String?>?> { null }
