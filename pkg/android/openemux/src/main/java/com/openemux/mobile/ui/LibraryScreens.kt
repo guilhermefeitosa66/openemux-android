@@ -79,6 +79,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.navigation.NavBackStackEntry
@@ -770,9 +771,18 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         onToggle = { key -> selection = selection.toggle(key) },
     )
     val scope = rememberCoroutineScope()
+    // The game whose options Y opened, and the one waiting for its removal to be confirmed.
+    var optionsFor by remember { mutableStateOf<String?>(null) }
+    var removeKey by remember { mutableStateOf<String?>(null) }
+    // The game holding the pad's focus: A opens it; null when another stop has it, where A just chooses.
+    // Empty until focus first moves, so the bar opens on "Details" (the screen's first game is about to take it).
+    val heldGame = remember { mutableStateOf<String?>("") }
+    // A focused tile that leaves (a filter change, a remove) may not report losing focus: drop it with the list.
+    LaunchedEffect(visibleKeys) { if (heldGame.value?.let { it.isNotEmpty() && it !in visibleKeys } == true) heldGame.value = "" }
     GamepadButtons(
         hints = listOf(
-            "A" to stringResource(R.string.library_hint_detail), "X" to stringResource(R.string.library_hint_favorite),
+            "A" to stringResource(if (heldGame.value != null) R.string.library_hint_detail else R.string.settings_hint_choose),
+            "X" to stringResource(R.string.library_hint_favorite),
             "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
             "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
         )
@@ -780,10 +790,12 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         .filter { !landscapeRow || searching || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
-        x = { focusedRom.value?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
-        y = { focusedRom.value?.let { openFull(it) } },
+        // X, Y and START act on the game holding focus now, never on one remembered while focus is on
+        // Sort or the view toggle. Y is that game's options, never a second A (issue 701).
+        x = { heldGame.value?.takeIf { it in visibleKeys }?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
+        y = { heldGame.value?.takeIf { it in visibleKeys }?.let { optionsFor = it } },
         select = { searching = !searching; if (!searching) query = "" },
-        start = { focusedRom.value?.takeIf { it in visibleKeys }?.let { selection = selection.start(it) } },
+        start = { heldGame.value?.takeIf { it in visibleKeys }?.let { selection = selection.start(it) } },
     )
     // Share nearby (#591): the selected games, as the list shows them.
     fun shareSelection() {
@@ -810,11 +822,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     if (confirmRemove) {
         // The dialog is modal for the gamepad too: X, Start, L1/R1 and Select would otherwise
         // reach the selection (or the filter) behind it and change which games get removed.
-        val swallow = {}
-        GamepadButtons(
-            hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
-            l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
-        )
+        ModalPadButtons()
         val doomed = list.filter { it.key in selection }
         val n = doomed.size
         OeConfirmDialog(
@@ -825,6 +833,35 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 confirmRemove = false
                 selection = selection.clear()
                 scope.launch(Dispatchers.IO) { lib.deleteAll(doomed) }
+            },
+            stringResource(R.string.detail_cancel),
+        )
+    }
+    // Y's options for one game, the detail's three-dot menu without leaving the list.
+    optionsFor?.let { k -> roms.firstOrNull { it.key == k } }?.let { rom ->
+        // Modal for the gamepad: X, L1/R1, Select and Start would act on the list behind the sheet.
+        ModalPadButtons()
+        GameOptionsSheet(
+            rom,
+            onDismiss = { optionsFor = null },
+            onShare = {
+                optionsFor = null
+                a.app.shareCoordinator.startSend(listOf(rom))
+                a.nav.navigate(Routes.SHARE)
+            },
+            onRemove = { optionsFor = null; removeKey = rom.key },
+        )
+    }
+    removeKey?.let { k -> roms.firstOrNull { it.key == k } }?.let { rom ->
+        // Modal for the gamepad too, as the bulk remove: the buttons behind it would act on the list.
+        ModalPadButtons()
+        OeConfirmDialog(
+            { removeKey = null },
+            stringResource(R.string.detail_remove_title, rom.title), stringResource(R.string.detail_remove_message),
+            stringResource(R.string.detail_remove),
+            {
+                removeKey = null
+                scope.launch(Dispatchers.IO) { lib.delete(rom) }
             },
             stringResource(R.string.detail_cancel),
         )
@@ -862,7 +899,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             searching = searching, query = query, onQuery = { query = it },
             onSearch = { searching = !searching; if (!searching) query = "" },
             sort = sort, onSort = { sort = if (sort == SortMode.Az) SortMode.Recent else SortMode.Az },
-            focusedRom = focusedRom, known = known, pick = pick,
+            focusedRom = focusedRom, known = known, pick = pick, heldGame = heldGame,
         )
         bar()
         return
@@ -870,9 +907,10 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
 
     val searchAndSort: @Composable () -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Select opens and closes the search: for the pad it is not a stop (issue 701).
             RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), {
                 searching = !searching; if (!searching) query = ""
-            })
+            }, padFocus = false)
             RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), {
                 sort = if (sort == SortMode.Az) SortMode.Recent else SortMode.Az
             })
@@ -906,7 +944,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 if (!pane || isPicked) openFull(rom.key)
                 else picked = rom.key
             }
-            val focus = Modifier.restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey).pickedRing(isPicked, outset = m != ViewMode.List).paneOpener(isPicked)
+            val focus = Modifier.holdsGame(rom.key, heldGame).restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey).pickedRing(isPicked, outset = m != ViewMode.List).paneOpener(isPicked)
             val chosen = rom.key in selection
             when (m) {
                 ViewMode.Carts -> CappedCell(GridSpec.Carts) {
@@ -1337,6 +1375,7 @@ private fun LandscapeLibrary(
     focusedRom: MutableState<String?>,
     known: Boolean,
     pick: TilePick,
+    heldGame: MutableState<String?>,
 ) {
     val a = LocalActions.current
     val lib = a.app.library
@@ -1347,7 +1386,7 @@ private fun LandscapeLibrary(
         BoxWithConstraints(Modifier.padding(start = 20.dp, end = 20.dp, top = FocusOutset).fillMaxWidth()) {
             val band = headerBand(maxWidth.value, InputMode.padLayout)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RoundIconButton(Icons.Back, stringResource(R.string.library_shelf_title), { a.nav.popBackStack(Routes.SHELF, false) })
+                RoundIconButton(Icons.Back, stringResource(R.string.library_shelf_title), { a.nav.popBackStack(Routes.SHELF, false) }, padFocus = false)
                 Box(Modifier.weight(1f)) {
                     if (searching) {
                         val placeholder = if (current == "ALL") stringResource(R.string.library_search_all)
@@ -1358,7 +1397,7 @@ private fun LandscapeLibrary(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), onSearch)
+                    RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), onSearch, padFocus = false)
                     RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), onSort)
                     Box(Modifier.padding(start = 4.dp)) { ViewToggle(mode, onMode) }
                 }
@@ -1404,6 +1443,7 @@ private fun LandscapeLibrary(
                         var lit by remember { mutableStateOf(false) }
                         Column(
                             Modifier.width(maxOf(third, w ?: third)).gamepadFocus(corner = 10.dp, scale = 1.05f) { lit = it }
+                                .holdsGame(rom.key, heldGame)
                                 .restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey)
                                 .pickable(pick, rom.key, open),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1451,7 +1491,8 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
         chips.forEach { (id, label) ->
             val active = id == current
             Box(
-                Modifier.height(padSize(ChipHeight, ChipHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
+                // L1/R1 step through these: for the pad they are not a stop (issue 701).
+                Modifier.height(padSize(ChipHeight, ChipHeightPad)).touchOnly().clip(RoundedCornerShape(18.dp))
                     .background(if (active) Oe.Text else Oe.Surface)
                     .let { if (active) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
                     .clickable(role = Role.Tab) { onPick(id) }
@@ -1514,8 +1555,7 @@ private fun FilterPager(
 
 /**
  * One step of the pager: a chevron for touch, the shoulder that does the same in the gamepad layout.
- * At an end it dims and does nothing, but keeps its place in the focus order, so a ring on it never
- * vanishes when it becomes the last filter.
+ * At an end it dims and does nothing. L1/R1 are the pad's way to it, so it is not a focus stop (issue 701).
  */
 @Composable
 private fun FilterStep(step: Int, filters: List<String>, current: String, onStep: (Int) -> Unit) {
@@ -1525,7 +1565,7 @@ private fun FilterStep(step: Int, filters: List<String>, current: String, onStep
         filterName(stepFilter(filters, current, step)),
     )
     Box(
-        Modifier.size(padSize(StepSize, StepSizePad)).gamepadFocus(corner = 22.dp).clip(CircleShape)
+        Modifier.size(padSize(StepSize, StepSizePad)).touchOnly().clip(CircleShape)
             .clickable(onClickLabel = label, role = Role.Button) { if (enabled) onStep(step) }
             .semantics { contentDescription = label; if (!enabled) disabled() }
             .alpha(if (enabled) 1f else 0.38f),
@@ -1732,4 +1772,36 @@ private fun PoweredByRetroArch() {
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Oe.Faint),
         )
     }
+}
+
+/** Makes a sheet or dialog over the list modal for the screen buttons: they would act on the list behind it. */
+@Composable
+private fun ModalPadButtons() {
+    val swallow = {}
+    GamepadButtons(
+        hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
+        l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
+    )
+}
+
+/** A game's options from the list (Y): what the detail's three-dot menu offers, for the focused game. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GameOptionsSheet(rom: Rom, onDismiss: () -> Unit, onShare: () -> Unit, onRemove: () -> Unit) {
+    OeSheet(onDismiss) {
+        SheetBarIcons()
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+            Text(rom.title, style = Type.Title.copy(fontSize = 22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(rom.console.displayName, style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+            Card {
+                ListRow(stringResource(R.string.detail_share), leading = { Icon(Icons.Share, Oe.AccentText, 20.dp) }, onClick = onShare)
+                ListRow(stringResource(R.string.detail_remove_from_library), divider = true, onClick = onRemove)
+            }
+        }
+    }
+}
+
+/** Keeps [held] on this game while it holds focus, for the A hint. */
+private fun Modifier.holdsGame(key: String, held: MutableState<String?>): Modifier = onFocusChanged {
+    if (it.hasFocus || it.isFocused) held.value = key else if (held.value == key) held.value = null
 }

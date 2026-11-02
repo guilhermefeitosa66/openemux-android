@@ -49,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.text.style.TextOverflow
@@ -137,9 +138,13 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         a.nav.navigate(Routes.rom(next.key)) { popUpTo(Routes.ROM) { inclusive = true } }
     }
     val walk = style != DetailStyle.Pane
+    // A names what it does on the focused stop: Play (or Continue) on that button, else it just chooses (issue 701).
+    // True until Play loses focus once, so the bar opens on "Play" while Play is about to take it.
+    var playHeld by remember { mutableStateOf(true) }
+    val playWasFocused = remember { booleanArrayOf(false) }
     GamepadButtons(
         hints = listOf(
-            "A" to stringResource(if (auto != null) R.string.detail_continue else R.string.detail_play),
+            "A" to stringResource(if (!playHeld) R.string.settings_hint_choose else if (auto != null) R.string.detail_continue else R.string.detail_play),
             "X" to stringResource(R.string.detail_favorite),
             "Y" to stringResource(R.string.detail_menu),
             "B" to stringResource(if (walk) R.string.detail_back else R.string.library_hint_list),
@@ -152,7 +157,12 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     )
     val playFocus = rememberSaveable { mutableStateOf<String?>(null) }
     // In the pane the split brings focus back to its side; restoring "play" when the gamepad wakes would pull it off the list.
-    val playFocusModifier = if (style == DetailStyle.Pane) Modifier else Modifier.restorableFocus("play", playFocus, initial = true)
+    val playFocusModifier = Modifier.onFocusChanged {
+        val now = it.hasFocus || it.isFocused
+        if (now) playHeld = true else if (playWasFocused[0]) playHeld = false
+        playWasFocused[0] = now
+    }
+        .then(if (style == DetailStyle.Pane) Modifier else Modifier.restorableFocus("play", playFocus, initial = true))
     val tabletop = LocalTabletop.current
     val compact = LocalWindowLayout.current.width == SizeClass.Compact
 
@@ -163,11 +173,13 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             { lib.updateRom(key) { it.copy(favorite = !it.favorite) } },
             tint = if (romMeta?.favorite == true) Oe.Star else Oe.Muted, background = Oe.Control.copy(alpha = 0.8f),
             filled = romMeta?.favorite == true,
+            // X is the pad's favorite: not a stop, or A on it would contradict "A: Play" (issue 701).
+            padFocus = false,
         )
     }
     val menuButton: @Composable () -> Unit = {
         Box {
-            RoundIconButton(Icons.Dots, stringResource(R.string.detail_more_options), { menu = true }, background = Oe.Control.copy(alpha = 0.8f), filled = true)
+            RoundIconButton(Icons.Dots, stringResource(R.string.detail_more_options), { menu = true }, background = Oe.Control.copy(alpha = 0.8f), filled = true, padFocus = false)
             // A popup is a window of its own: it takes the pad's keys itself (padPopup), with its own items.
             val opener = LocalPadScope.current
             // Not keyed on [menu]: a new scope while the menu animates out would land focus in the closing popup.
@@ -195,7 +207,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     }
     val header: @Composable () -> Unit = {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIconButton(Icons.Back, stringResource(R.string.detail_back), { a.nav.popBackStack() }, background = Oe.Control.copy(alpha = 0.8f))
+            RoundIconButton(Icons.Back, stringResource(R.string.detail_back), { a.nav.popBackStack() }, background = Oe.Control.copy(alpha = 0.8f), padFocus = false)
             Spacer(Modifier.weight(1f))
             favoriteButton()
             Spacer(Modifier.width(8.dp))

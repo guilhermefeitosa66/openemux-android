@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import android.os.SystemClock
 import android.content.Intent
 import android.hardware.input.InputManager
 import android.view.InputDevice
@@ -108,6 +109,16 @@ object InputMode {
     /** The gamepad layout: a controller connected, or the setting says always. Larger targets and the L1/R1 pills follow it. */
     val padLayout: Boolean get() = padLayoutOn(ControllerLayoutPref.value, padConnected)
 
+    /** Pad presses so far, so a screen can tell focus the player moved from focus the platform put somewhere. */
+    var presses = 0L
+
+    /** True while the router handles a pad key: focus that moves then is the player's doing. */
+    var dispatching = false
+
+    /** Whether the highlighted item holding focus was put there by the player's press, not by the platform. */
+    var placedByPlayer = false
+
+
     /** How many highlighted items hold focus now (0 or 1 in practice). */
     var focused = 0
 
@@ -200,7 +211,8 @@ class GamepadActions(
     val y: (() -> Unit)? = null,
     val select: (() -> Unit)? = null,
     val start: (() -> Unit)? = null,
-    val hints: List<Pair<String, String>> = emptyList(),
+    /** Read when the bar shows, so a hint can follow the focus. */
+    val hints: () -> List<Pair<String, String>> = { emptyList() },
     /** False while the screen part these buttons belong to does not hold focus: the ones below answer. */
     val enabled: () -> Boolean = { true },
 )
@@ -217,7 +229,7 @@ object GamepadBus {
     fun pop(actions: GamepadActions) { stack.remove(actions); refresh() }
 
     /** Shows the hints of the top entry that answers now; called again when one turns on or off. */
-    fun refresh() { hints = stack.lastOrNull { it.enabled() }?.hints.orEmpty() }
+    fun refresh() { hints = stack.lastOrNull { it.enabled() }?.hints?.invoke().orEmpty() }
 
     /** Runs the top screen's handler for [pick], falling back to the ones below it. */
     fun dispatch(pick: (GamepadActions) -> (() -> Unit)?): Boolean {
@@ -243,14 +255,15 @@ fun GamepadButtons(
 ) {
     val latest = rememberUpdatedState(listOf(l1, r1, x, y, select, start))
     val on = rememberUpdatedState(enabled)
-    LaunchedEffect(enabled) { GamepadBus.refresh() }
+    val shown = rememberUpdatedState(hints)
+    LaunchedEffect(enabled, hints) { GamepadBus.refresh() }
     DisposableEffect(Unit) {
         // Which buttons a screen uses is fixed; what they do follows recomposition.
         fun slot(i: Int, used: Boolean): (() -> Unit)? = if (used) ({ latest.value[i]?.invoke() }) else null
         val actions = GamepadActions(
             l1 = slot(0, l1 != null), r1 = slot(1, r1 != null), x = slot(2, x != null),
             y = slot(3, y != null), select = slot(4, select != null), start = slot(5, start != null),
-            hints = hints, enabled = { on.value },
+            hints = { shown.value }, enabled = { on.value },
         )
         GamepadBus.push(actions)
         onDispose { GamepadBus.pop(actions) }
@@ -356,6 +369,7 @@ fun Modifier.gamepadFocus(
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
             if (now != focused) InputMode.focused += if (now) 1 else -1
+            if (now && !focused) InputMode.placedByPlayer = InputMode.dispatching
             focused = now
         }
         .graphicsLayer { scaleX = grow; scaleY = grow }
@@ -389,6 +403,12 @@ fun Modifier.gamepadFocus(
             }
         }
 }
+
+/**
+ * A control for the finger only: never a focus stop for the D-pad, nor where a pad press lands. For the
+ * on-screen back arrows, which B already does: focused, they turned A into "back" against the hint bar.
+ */
+fun Modifier.touchOnly(): Modifier = focusProperties { canFocus = false }
 
 /** Focus scrolling that answers with [pick] in gamepad mode and leaves touch to the platform's [fallback]. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -551,17 +571,35 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     // Derived, so a focus move (non-null to non-null) recomposes nothing, and read only by
     // the initial item, so the others do not recompose when it flips.
     val forgotten = remember(saved) { derivedStateOf { saved.value == null } }
+    val screens = LocalNavFocus.current
+    // Whether the pad was on when this ran last: the press that wakes it lands focus where it chose.
+    val wasPad = remember { booleanArrayOf(InputMode.gamepad) }
     // Also when the gamepad wakes up with nothing focused, or when the screen forgets
     // its focused item (it was removed), so focus is never missing.
+    // Whether this item holds focus now, for the hold below.
+    val mine = remember { booleanArrayOf(false) }
     LaunchedEffect(InputMode.gamepad, initial && forgotten.value) {
+        val woke = !wasPad[0]
+        wasPad[0] = InputMode.gamepad
         if (!InputMode.gamepad) return@LaunchedEffect
+        val presses = InputMode.presses
         if (saved.value == key) {
             withFrameNanos { }
             runCatching { requester.requestFocus() }
         } else if (saved.value == null && initial) {
             // Let a screen or page transition hand its focus over first.
             delay(150)
-            if (InputMode.focused == 0) runCatching { requester.requestFocus() }
+        } else {
+            return@LaunchedEffect
+        }
+        // Then, while the screen settles, take (and keep) the focus the platform moves: the old screen's item
+        // leaving on a slower device, a filter's games replacing the last ones. Focus a press put somewhere stays,
+        // and the player's first press ends it (issue 701).
+        val start = SystemClock.uptimeMillis()
+        while (holdsFocus(SystemClock.uptimeMillis() - start, InputMode.presses != presses)) {
+            val byPlatform = !InputMode.placedByPlayer
+            if (!mine[0] && takesInitialFocus(InputMode.focused, screens?.held, byPlatform, woke)) runCatching { requester.requestFocus() }
+            withFrameNanos { }
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
@@ -569,12 +607,44 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
     val target = remember(requester) { PadFocusTarget(initial, requester) }
     target.initial = initial
     this.focusRequester(requester).padTarget(target, attach = false).onFocusChanged {
+        mine[0] = it.isFocused || it.hasFocus
         if (it.isFocused || it.hasFocus) {
             saved.value = key
             InputMode.last = requester
         }
     }
 }
+
+/** Whether focus is somewhere inside one part of the tree, written by [tracksFocus]. */
+class FocusFlag { var held = false }
+
+/** Keeps [flag] up to date with whether anything below holds focus. */
+fun Modifier.tracksFocus(flag: FocusFlag): Modifier = onFocusChanged { flag.held = it.hasFocus }
+
+/**
+ * Whether focus is in the NavHost's screens (not the tabs, the rail or the deck); null outside the NavHost's
+ * composition (the deck). A sheet or dialog opened from a screen inherits it, so there it reads the screens' focus.
+ */
+val LocalNavFocus = compositionLocalOf<FocusFlag?> { null }
+
+/**
+ * Whether a screen's initial item takes the gamepad's focus as it comes in (the screen opens, or its
+ * page or filter changes): when nothing holds focus, and also when focus is elsewhere in the NavHost's
+ * screens and the platform put it there ([byPlatform]: no press of the player moved it there), not on
+ * the press that woke the pad. When A opens a screen or L1/R1 changes the filter, the focused game
+ * leaves, Compose clears focus and the platform enters the window again on the first item at the top
+ * left, against the hint bar (issue 701). Focus on the tabs or the rail ([inScreens] false), focus a
+ * press put somewhere (Sort, while a rescan drops the remembered game) and focus the waking press
+ * landed stay where they are.
+ */
+fun takesInitialFocus(focused: Int, inScreens: Boolean?, byPlatform: Boolean, woke: Boolean): Boolean =
+    focused == 0 || (inScreens == true && byPlatform && !woke)
+
+/** How long a screen's first item keeps the focus the platform may still move as the screen settles. */
+const val FocusHoldMs = 1000L
+
+/** Whether the hold goes on: until [FocusHoldMs] or the player's first press. */
+fun holdsFocus(elapsedMs: Long, pressed: Boolean): Boolean = !pressed && elapsedMs < FocusHoldMs
 
 /** Where the rows of a screen remember the one that held focus; null outside such a screen. */
 val LocalRowFocus = compositionLocalOf<MutableState<String?>?> { null }

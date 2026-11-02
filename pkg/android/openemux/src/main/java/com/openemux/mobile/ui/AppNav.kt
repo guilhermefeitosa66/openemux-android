@@ -200,6 +200,7 @@ fun OpenEmuxRoot() {
                 val railWidth = RailWidth
                 val deck = remember { DeckSlot<@Composable () -> Unit>() }
                 val topFocus = remember { FocusRequester() }
+                val navFocus = remember { FocusFlag() }
                 val density = LocalDensity.current.density
                 Box(Modifier.fillMaxSize().background(Oe.Bg)) {
                 // The NavHost keeps its place in the tree whatever the posture, so its screens keep their state.
@@ -211,12 +212,13 @@ fun OpenEmuxRoot() {
                     (if (halves != null) Modifier.fillMaxWidth().height(halves.first.dp) else Modifier.fillMaxWidth().weight(1f))
                         .focusRequester(topFocus).focusRestorer().focusGroup(),
                 ) {
-                CompositionLocalProvider(LocalRail provides rail, LocalTabletop provides tabletop, LocalDeckSlot provides deck) {
+                CompositionLocalProvider(LocalRail provides rail, LocalTabletop provides tabletop, LocalDeckSlot provides deck, LocalNavFocus provides navFocus) {
                     NavHost(
                         nav,
                         startDestination = Routes.SHELF,
                         // Right from the rail comes back to the item the screen had focused.
                         modifier = Modifier.fillMaxSize().padding(start = if (rail) railWidth else 0.dp)
+                            .tracksFocus(navFocus)
                             .focusProperties { onEnter = { if (requestedFocusDirection == FocusDirection.Right) InputMode.last?.requestFocus() } }
                             .focusGroup(),
                         enterTransition = { fadeIn() },
