@@ -141,7 +141,7 @@ class Artwork(
      */
     suspend fun remove(rom: Rom, kind: ArtKind): ArtOutcome = act {
         val file = describe(rom, kind).file ?: return@act ArtOutcome.NOT_FOUND
-        file.delete()
+        if (kind == ArtKind.COVER) deleteLocalCovers(rom) else file.delete()
         sources(rom.console, kind).forget(rom.baseName)
         if (kind == ArtKind.COVER) covers.forgetMatch(rom) else labels.changed(rom, null)
         ArtOutcome.DONE
@@ -156,7 +156,7 @@ class Artwork(
                 val url = covers.mirrorUrl(rom) ?: return@act ArtOutcome.NOT_FOUND
                 when (covers.fetch(url)) {
                     Fetch.FOUND -> {
-                        covers.localCover(rom)?.delete()
+                        deleteLocalCovers(rom)
                         // The URL entry replaces the file's: recordUrl writes over it.
                         sources(rom.console, kind).recordUrl(rom.baseName, url)
                         ArtOutcome.DONE
@@ -188,6 +188,17 @@ class Artwork(
                     tmp.delete()
                 }
             }
+        }
+    }
+
+    /**
+     * Deletes every cover kept for [rom]: one per suffix may exist, and deleting only the first
+     * would leave the next one showing as a local file.
+     */
+    private fun deleteLocalCovers(rom: Rom) {
+        repeat(Covers.COVER_SUFFIXES.size) {
+            val file = covers.localCover(rom) ?: return
+            if (!file.delete()) return
         }
     }
 

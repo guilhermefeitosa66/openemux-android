@@ -6,6 +6,7 @@ import coil.imageLoader
 import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.text.Normalizer
@@ -104,7 +106,7 @@ class Covers(private val context: Context, private val paths: Paths) : CoverOps 
      * Notes where the covers now in the image cache came from, one write per console (issue 746).
      * Only mirror covers: a cover kept on the device has a record of its own, which this never touches.
      */
-    private fun record(served: List<Pair<Rom, String>>) {
+    private suspend fun record(served: List<Pair<Rom, String>>) = withContext(Dispatchers.IO) {
         served.filter { (rom, _) -> localCover(rom) == null }.groupBy { it.first.console }.forEach { (console, list) ->
             val sources = ArtSources(paths.covers(console))
             val known = sources.entries()

@@ -114,7 +114,8 @@ fun ArtworkScreen(key: String) {
             }
             message = when (outcome) {
                 ArtOutcome.DONE -> null
-                ArtOutcome.NOT_FOUND -> ArtMessage(notFound)
+                // Remove has no "not found" text: the art was already gone, nothing to say.
+                ArtOutcome.NOT_FOUND -> notFound.takeIf { it.isNotEmpty() }?.let { ArtMessage(it) }
                 ArtOutcome.UNAVAILABLE -> ArtMessage(unavailable)
                 ArtOutcome.BUSY -> ArtMessage(busy)
             }

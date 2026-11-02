@@ -197,6 +197,19 @@ class ArtworkTest {
     }
 
     @Test
+    fun `removing and resetting a cover delete every suffix kept for it`() = runBlocking {
+        val png = localCover(gb)
+        val jpg = File(paths.covers(gb.console), "${gb.baseName}.jpg").apply { writeBytes(ByteArray(3)) }
+        assertEquals(ArtOutcome.DONE, artwork.remove(gb, ArtKind.COVER))
+        assertFalse(png.exists())
+        assertFalse(jpg.exists())
+        localCover(gb)
+        jpg.writeBytes(ByteArray(3))
+        assertEquals(ArtOutcome.DONE, artwork.reset(gb, ArtKind.COVER))
+        assertNull(covers.localCover(gb))
+    }
+
+    @Test
     fun `there is nothing to remove from a mirror cover`() = runBlocking {
         assertEquals(ArtOutcome.NOT_FOUND, artwork.remove(ps, ArtKind.COVER))
     }
