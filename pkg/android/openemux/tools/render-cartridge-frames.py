@@ -150,7 +150,8 @@ def fillet(pts, radii):
         if half > np.deg2rad(89.5):
             out.append(tuple(p))
             continue
-        d = min(r / np.tan(half), la / 2, lb / 2)
+        # A neighbour that is filleted too gets half the shared edge; a sharp one leaves it whole.
+        d = min(r / np.tan(half), la / (2 if radii[i - 1] > 0 else 1), lb / (2 if radii[(i + 1) % len(pts)] > 0 else 1))
         r = d * np.tan(half)
         ua, ub = a / la, b / lb
         centre = p + (ua + ub) / np.hypot(*(ua + ub)) * (r / np.sin(half))
@@ -625,8 +626,8 @@ def game_boy_advance():
         lettering = cv.text([("GAME BOY", "NotoSansDisplay-SemiCondensedBlackItalic.ttf", 16.5, 3.5),
                              ("ADVANCE", "NotoSans-Black.ttf", 14, 0)], 200, 43.2)
         layers = [
-            (cv.rpoly([(10, 9), (390, 9), (390, 230), (10, 230)], 4) * cv.rrect((19, 9, 381, 240, 3)) +
-             cv.rrect((10, 9, 390, 47, 4)) * (1 - cv.rrect((-10, 47, 410, 240, 0))), -0.30, 0.55),  # bevel down from the rim
+            (np.maximum(cv.rpoly([(10, 9), (390, 9), (390, 230), (10, 230)], 4) * cv.rrect((19, 9, 381, 240, 3)),
+                        cv.rrect((10, 9, 390, 47, 4)) * (1 - cv.rrect((-10, 47, 410, 240, 0)))), -0.30, 0.55),  # bevel down from the rim
             (plate, -0.45, 0.30),
             (lettering, 0.45, 0.08),
             (cv.rrect((49, 47.5, 351, 206.5, 4)), -0.45, 0.35),                      # label recess
