@@ -173,13 +173,14 @@ class GameLauncher(
             val density = context.resources.displayMetrics.density
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
+            val landscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            // A package skin opens on its page for the orientation the game starts in (the NDS's saved layout there).
             val drawn = GameSkin.render(
-                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id, fold = upright,
-                gamepad = Gamepads.connected(),
+                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id,
+                first = "landscape".takeIf { landscape }, fold = upright, gamepad = Gamepads.connected(),
             )
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
-            val landscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
             val shader = library.effectiveShader(rom)
             shader.preset?.let { preset ->

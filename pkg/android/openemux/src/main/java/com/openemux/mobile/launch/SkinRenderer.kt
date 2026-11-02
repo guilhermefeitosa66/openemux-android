@@ -116,7 +116,8 @@ class SkinRenderer(private val context: Context) {
         val packaged = base != null
         val specs = if (!packaged) {
             withAppModes(overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop, tablet)).let { all ->
-                val opening = first?.takeIf { f -> all.any { it.name == f } }
+                // With a gamepad, the named page's gamepad twin.
+                val opening = first?.takeIf { f -> all.any { it.name == f } }?.let { f -> if (gamepad) OverlayName.map(f) { it.withGamepad(true) } else f }
                     ?: if (gamepad) OverlayName.map(all.first().name) { it.withGamepad(true) } else null
                 if (opening != null) all.sortedBy { if (it.name == opening) 0 else 1 } else all
             }

@@ -101,7 +101,8 @@ class ImportedSkinRenderer {
                 val w = if (page.portrait) portraitW else portraitH
                 val h = if (page.portrait) portraitH else portraitW
                 // Pages with the same art (top only and bottom only) name the same image: the engine loads it once.
-                val art = assetName(rep.getJSONObject("assets")).substringBeforeLast('.')
+                // A file name of its own: an asset in a folder of the zip ("art/portrait.pdf") would name a folder outDir lacks.
+                val art = assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
                 val image = "${if (page.portrait) "portrait" else "landscape"}-$art.png"
                 val drawn = drawOverlay(zip, rep, page.portrait, w, h, outDir, image, page.screensNext, page.name.replace('@', '-'))
                 // The skin's own extended edges already widen the touch areas.
