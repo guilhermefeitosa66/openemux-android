@@ -21,6 +21,10 @@ object GameExtras {
     const val SKIN_SIZE = "OE_SKIN_SIZE"
     const val SKINS_BASE = "OE_SKINS_BASE"
     const val CORE_ID = "OE_CORE_ID"
+    /** The library key of the ROM running, which a shader picked in game is saved for. */
+    const val ROM_KEY = "OE_ROM_KEY"
+    /** The folder a shader picked in game is dropped into for the library (ShaderPicks). */
+    const val SHADER_PICKS = "OE_SHADER_PICKS"
 }
 
 /**
