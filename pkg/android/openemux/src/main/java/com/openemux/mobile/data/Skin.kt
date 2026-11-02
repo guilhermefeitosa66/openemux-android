@@ -517,6 +517,13 @@ object NdsLayouts {
      */
     fun announce(sameOrientation: Boolean, previous: String?, shown: String): Boolean =
         sameOrientation && previous != null && previous != shown
+
+    /**
+     * Whether an overlay switch that reached the engine is one the app has since superseded: it [asked] for a newer
+     * layout of the same orientation, which lands next. Such a switch changes nothing and names nothing.
+     */
+    fun superseded(asked: NdsShown?, orientation: String, shown: String): Boolean =
+        asked != null && asked.orientation == orientation && asked.layout != shown
 }
 
 /** The NDS screens the activity shows: the [orientation] in use and its [layout]'s id. */

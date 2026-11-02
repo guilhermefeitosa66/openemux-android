@@ -96,6 +96,11 @@ class GameActivity : RetroActivityFuture() {
     /** Bumped when R3 steps the layout while the sheet is open, so the sheet names it (main thread). */
     private val ndsCycles = mutableIntStateOf(0)
     private var layoutToast: android.widget.Toast? = null
+    /** The overlay switch the app asked for last and the engine has not shown yet (under ndsLayouts' lock). */
+    private var ndsAsked: NdsShown? = null
+    /** The app's overlay switches, one at a time and in order, so a quick second R3 never lands first. */
+    private val ndsSwitches = Executors.newSingleThreadExecutor()
+    private val r3 = PadShortcut.Press()
 
     // The window the skin in use was drawn for, and the one a redraw is under way for (skin thread writes).
     @Volatile private var skinSize: SkinSize? = null
@@ -169,6 +174,7 @@ class GameActivity : RetroActivityFuture() {
         debugReceiver = null
         handler.removeCallbacks(skinCheck)
         skinThread.shutdownNow()
+        ndsSwitches.shutdown()
         scope.cancel()
         super.onDestroy()
     }
@@ -557,6 +563,9 @@ class GameActivity : RetroActivityFuture() {
             return
         }
         ndsRestoring = null
+        // R3 pressed again before the engine showed the first switch: the newer one lands next.
+        if (NdsLayouts.superseded(ndsAsked, orientation, layout.id)) return
+        if (ndsAsked?.orientation == orientation) ndsAsked = null
         // The skin's screens key steps the overlay: name the layout it landed on, as R3 does.
         if (NdsLayouts.announce(sameOrientation, ndsLayouts[orientation], layout.id)) runOnUiThread { showLayoutToast(layout) }
         ndsLayouts[orientation] = layout.id
@@ -615,14 +624,18 @@ class GameActivity : RetroActivityFuture() {
         ++postureSeq
         val name = shown?.takeIf { it.layout != null && it.orientation == orientation }?.copy(layout = layout.id)?.toString()
         val gap = if (orientation == TABLETOP) tabletopSkin?.gaps?.get(name ?: "$TABLETOP@${layout.id}") ?: 0 else null
-        Thread {
+        val asked = NdsShown(orientation, layout.id).takeIf { name != null }
+        ndsAsked = asked
+        ndsSwitches.execute {
             val reply = name?.let { RaCommand.ask("OVERLAY_SELECT $it", 300) }
             if (reply == null || "no overlay is loaded" in reply) {
+                // No overlay switch is coming: nothing to wait for.
+                synchronized(ndsLayouts) { if (ndsAsked == asked) ndsAsked = null }
                 NdsLayouts.save(filesDir, orientation, layout)
                 gap?.let { RaCommand.send("SET_CORE_OPTION desmume_screens_gap $it") }
                 RaCommand.send("SET_CORE_OPTION desmume_screens_layout ${layout.value}")
             }
-        }.start()
+        }
         layout
     }
 
@@ -648,7 +661,7 @@ class GameActivity : RetroActivityFuture() {
      */
     override fun onPadShortcut(keycode: Int, action: Int): Boolean {
         if (!PadShortcut.claims(keycode, ndsScreens)) return false
-        if (PadShortcut.acts(action)) runOnUiThread { showLayoutToast(nextNdsLayout()) }
+        if (r3.act(PadShortcut.Place.GAME, action)) runOnUiThread { showLayoutToast(nextNdsLayout()) }
         return true
     }
 
@@ -699,7 +712,7 @@ class GameActivity : RetroActivityFuture() {
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK ->
                     if (action == KeyEvent.ACTION_UP) d.onBackPressedDispatcher.onBackPressed()
                 KeyEvent.KEYCODE_BUTTON_START -> if (action == KeyEvent.ACTION_UP) d.dismiss()
-                KeyEvent.KEYCODE_BUTTON_THUMBR -> if (ndsScreens && PadShortcut.acts(action)) {
+                KeyEvent.KEYCODE_BUTTON_THUMBR -> if (ndsScreens && r3.act(PadShortcut.Place.SHEET, action)) {
                     nextNdsLayout()
                     ndsCycles.intValue++
                 }

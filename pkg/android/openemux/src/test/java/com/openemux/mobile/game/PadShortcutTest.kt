@@ -17,4 +17,22 @@ class PadShortcutTest {
         assertTrue(PadShortcut.acts(KeyEvent.ACTION_UP))
         assertFalse(PadShortcut.acts(KeyEvent.ACTION_DOWN))
     }
+
+    @Test fun aReleaseActsOnlyWhereItsPressWentDown() {
+        val press = PadShortcut.Press()
+        val game = PadShortcut.Place.GAME
+        val sheet = PadShortcut.Place.SHEET
+        assertFalse(press.act(game, KeyEvent.ACTION_DOWN))
+        assertTrue(press.act(game, KeyEvent.ACTION_UP))
+        // Down in game, the sheet opens, up on the sheet: nothing.
+        press.act(game, KeyEvent.ACTION_DOWN)
+        assertFalse(press.act(sheet, KeyEvent.ACTION_UP))
+        // A release with no press before it, and one already used: nothing.
+        assertFalse(press.act(sheet, KeyEvent.ACTION_UP))
+        press.act(sheet, KeyEvent.ACTION_DOWN)
+        assertTrue(press.act(sheet, KeyEvent.ACTION_UP))
+        assertFalse(press.act(sheet, KeyEvent.ACTION_UP))
+        // Any other action (a long-press repeat is a DOWN; MULTIPLE is neither): nothing.
+        assertFalse(press.act(game, KeyEvent.ACTION_MULTIPLE))
+    }
 }

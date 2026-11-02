@@ -75,4 +75,12 @@ class NdsLayoutsTest {
         assertEquals(false, NdsLayouts.announce(sameOrientation = true, previous = "top", shown = "top"))
         assertEquals(false, NdsLayouts.announce(sameOrientation = true, previous = null, shown = "top"))
     }
+
+    @Test fun aSwitchTheAppHasSinceSupersededIsSkipped() {
+        val asked = NdsShown("portrait", "stacked")
+        assertEquals(true, NdsLayouts.superseded(asked, "portrait", "bottom"))
+        assertEquals(false, NdsLayouts.superseded(asked, "portrait", "stacked"))
+        assertEquals(false, NdsLayouts.superseded(asked, "landscape", "bottom"))
+        assertEquals(false, NdsLayouts.superseded(null, "portrait", "bottom"))
+    }
 }
