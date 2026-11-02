@@ -774,10 +774,11 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // The game whose options Y opened, and the one waiting for its removal to be confirmed.
     var optionsFor by remember { mutableStateOf<String?>(null) }
     var removeKey by remember { mutableStateOf<String?>(null) }
-    // The game holding the pad's focus, if any: A opens it; on any other stop A just chooses it.
-    val heldGame = remember { mutableStateOf<String?>(null) }
+    // The game holding the pad's focus: A opens it; null when another stop has it, where A just chooses.
+    // Empty until focus first moves, so the bar opens on "Details" (the screen's first game is about to take it).
+    val heldGame = remember { mutableStateOf<String?>("") }
     // A focused tile that leaves (a filter change, a remove) may not report losing focus: drop it with the list.
-    LaunchedEffect(visibleKeys) { if (heldGame.value?.let { it !in visibleKeys } == true) heldGame.value = null }
+    LaunchedEffect(visibleKeys) { if (heldGame.value?.let { it.isNotEmpty() && it !in visibleKeys } == true) heldGame.value = "" }
     GamepadButtons(
         hints = listOf(
             "A" to stringResource(if (heldGame.value != null) R.string.library_hint_detail else R.string.settings_hint_choose),
@@ -789,12 +790,12 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         .filter { !landscapeRow || searching || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
-        x = { focusedRom.value?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
-        // Y is the focused game's options, never a second A (issue 701).
-        // The game holding focus now, not the remembered one: on Sort or the view toggle Y has no game (issue 701).
+        // X, Y and START act on the game holding focus now, never on one remembered while focus is on
+        // Sort or the view toggle. Y is that game's options, never a second A (issue 701).
+        x = { heldGame.value?.takeIf { it in visibleKeys }?.let { key -> lib.updateRom(key) { it.copy(favorite = !it.favorite) } } },
         y = { heldGame.value?.takeIf { it in visibleKeys }?.let { optionsFor = it } },
         select = { searching = !searching; if (!searching) query = "" },
-        start = { focusedRom.value?.takeIf { it in visibleKeys }?.let { selection = selection.start(it) } },
+        start = { heldGame.value?.takeIf { it in visibleKeys }?.let { selection = selection.start(it) } },
     )
     // Share nearby (#591): the selected games, as the list shows them.
     fun shareSelection() {

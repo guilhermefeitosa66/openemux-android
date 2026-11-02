@@ -9,34 +9,35 @@ class InitialFocusTest {
 
     @Test
     fun nothingFocusedTakesIt() {
-        assertTrue(takesInitialFocus(0, inScreens = false, pressed = true, woke = true))
-        assertTrue(takesInitialFocus(0, inScreens = null, pressed = false, woke = false))
+        assertTrue(takesInitialFocus(0, inScreens = false, byPlatform = false, woke = true))
+        assertTrue(takesInitialFocus(0, inScreens = null, byPlatform = false, woke = false))
     }
 
     @Test
-    fun focusThePlatformLeftInTheScreensIsTaken() {
-        // A opened the screen (or L1/R1 changed the filter): the old game left, or still holds focus on its way out.
-        assertTrue(takesInitialFocus(1, inScreens = true, pressed = false, woke = false))
+    fun focusThePlatformMovedInTheScreensIsTaken() {
+        // A opened the screen (or L1/R1 changed the filter): the old game left and the platform entered top left.
+        assertTrue(takesInitialFocus(1, inScreens = true, byPlatform = true, woke = false))
     }
 
     @Test
-    fun focusThePlayerMovedStays() {
-        assertFalse(takesInitialFocus(1, inScreens = true, pressed = true, woke = false))
+    fun focusAPressPutSomewhereStays() {
+        // On Sort when a rescan drops the remembered game: no gain since the press that moved there.
+        assertFalse(takesInitialFocus(1, inScreens = true, byPlatform = false, woke = false))
     }
 
     @Test
     fun theWakingPressKeepsWhereItLanded() {
-        assertFalse(takesInitialFocus(1, inScreens = true, pressed = false, woke = true))
+        assertFalse(takesInitialFocus(1, inScreens = true, byPlatform = true, woke = true))
     }
 
     @Test
     fun focusOnTheTabsOrTheRailStays() {
-        assertFalse(takesInitialFocus(1, inScreens = false, pressed = false, woke = false))
+        assertFalse(takesInitialFocus(1, inScreens = false, byPlatform = true, woke = false))
     }
 
     @Test
     fun outsideTheScreensKeepsTheOldRule() {
-        assertFalse(takesInitialFocus(1, inScreens = null, pressed = false, woke = false))
+        assertFalse(takesInitialFocus(1, inScreens = null, byPlatform = true, woke = false))
     }
 
     @Test

@@ -298,6 +298,17 @@ class PadRouter(
     }
 
     fun key(event: KeyEvent, dispatch: (KeyEvent) -> Boolean): Boolean {
+        // Focus the press moves itself (a D-pad step, a landing) is the player's; focus that moves later, after
+        // a screen or a filter changed under it, is the platform's (issue 701).
+        InputMode.dispatching = true
+        try {
+            return route(event, dispatch)
+        } finally {
+            InputMode.dispatching = false
+        }
+    }
+
+    private fun route(event: KeyEvent, dispatch: (KeyEvent) -> Boolean): Boolean {
         val code = event.keyCode
         val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
         val s = scope()

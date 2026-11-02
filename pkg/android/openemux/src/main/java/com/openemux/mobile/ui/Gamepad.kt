@@ -112,6 +112,12 @@ object InputMode {
     /** Pad presses so far, so a screen can tell focus the player moved from focus the platform put somewhere. */
     var presses = 0L
 
+    /** True while the router handles a pad key: focus that moves then is the player's doing. */
+    var dispatching = false
+
+    /** Whether the highlighted item holding focus was put there by the player's press, not by the platform. */
+    var placedByPlayer = false
+
 
     /** How many highlighted items hold focus now (0 or 1 in practice). */
     var focused = 0
@@ -363,6 +369,7 @@ fun Modifier.gamepadFocus(
         .onFocusChanged {
             val now = it.hasFocus || it.isFocused
             if (now != focused) InputMode.focused += if (now) 1 else -1
+            if (now && !focused) InputMode.placedByPlayer = InputMode.dispatching
             focused = now
         }
         .graphicsLayer { scaleX = grow; scaleY = grow }
@@ -582,19 +589,17 @@ fun Modifier.restorableFocus(key: String, saved: MutableState<String?>, initial:
         } else if (saved.value == null && initial) {
             // Let a screen or page transition hand its focus over first.
             delay(150)
-            val pressed = InputMode.presses != presses
-            if (!takesInitialFocus(InputMode.focused, screens?.held, pressed, woke)) return@LaunchedEffect
-            runCatching { requester.requestFocus() }
         } else {
             return@LaunchedEffect
         }
-        // Hold it while the screen settles: the platform may still move focus (the old screen's item leaving,
-        // a slower device, another layout), and nothing but the player may (issue 701). The first press ends it.
-        if (woke || screens == null) return@LaunchedEffect
+        // Then, while the screen settles, take (and keep) the focus the platform moves: the old screen's item
+        // leaving on a slower device, a filter's games replacing the last ones. Focus a press put somewhere stays,
+        // and the player's first press ends it (issue 701).
         val start = SystemClock.uptimeMillis()
         while (holdsFocus(SystemClock.uptimeMillis() - start, InputMode.presses != presses)) {
+            val byPlatform = !InputMode.placedByPlayer
+            if (!mine[0] && takesInitialFocus(InputMode.focused, screens?.held, byPlatform, woke)) runCatching { requester.requestFocus() }
             withFrameNanos { }
-            if (!mine[0] && (InputMode.focused == 0 || screens.held)) runCatching { requester.requestFocus() }
         }
     }
     DisposableEffect(requester) { onDispose { if (InputMode.last === requester) InputMode.last = null } }
@@ -625,13 +630,15 @@ val LocalNavFocus = compositionLocalOf<FocusFlag?> { null }
 /**
  * Whether a screen's initial item takes the gamepad's focus as it comes in (the screen opens, or its
  * page or filter changes): when nothing holds focus, and also when focus is elsewhere in the NavHost's
- * screens with no press since and not on the press that woke the pad. When A opens a screen or L1/R1
- * changes the filter, the focused game leaves, Compose clears focus and the platform enters the window
- * again on the first item at the top left, against the hint bar (issue 701). Focus on the tabs or the
- * rail ([inScreens] false), focus the player moved and focus the waking press landed stay where they are.
+ * screens and the platform put it there ([byPlatform]: no press of the player moved it there), not on
+ * the press that woke the pad. When A opens a screen or L1/R1 changes the filter, the focused game
+ * leaves, Compose clears focus and the platform enters the window again on the first item at the top
+ * left, against the hint bar (issue 701). Focus on the tabs or the rail ([inScreens] false), focus a
+ * press put somewhere (Sort, while a rescan drops the remembered game) and focus the waking press
+ * landed stay where they are.
  */
-fun takesInitialFocus(focused: Int, inScreens: Boolean?, pressed: Boolean, woke: Boolean): Boolean =
-    focused == 0 || (inScreens == true && !pressed && !woke)
+fun takesInitialFocus(focused: Int, inScreens: Boolean?, byPlatform: Boolean, woke: Boolean): Boolean =
+    focused == 0 || (inScreens == true && byPlatform && !woke)
 
 /** How long a screen's first item keeps the focus the platform may still move as the screen settles. */
 const val FocusHoldMs = 1000L

@@ -139,7 +139,9 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     }
     val walk = style != DetailStyle.Pane
     // A names what it does on the focused stop: Play (or Continue) on that button, else it just chooses (issue 701).
-    var playHeld by remember { mutableStateOf(false) }
+    // True until Play loses focus once, so the bar opens on "Play" while Play is about to take it.
+    var playHeld by remember { mutableStateOf(true) }
+    val playWasFocused = remember { booleanArrayOf(false) }
     GamepadButtons(
         hints = listOf(
             "A" to stringResource(if (!playHeld) R.string.settings_hint_choose else if (auto != null) R.string.detail_continue else R.string.detail_play),
@@ -155,7 +157,11 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     )
     val playFocus = rememberSaveable { mutableStateOf<String?>(null) }
     // In the pane the split brings focus back to its side; restoring "play" when the gamepad wakes would pull it off the list.
-    val playFocusModifier = Modifier.onFocusChanged { playHeld = it.hasFocus || it.isFocused }
+    val playFocusModifier = Modifier.onFocusChanged {
+        val now = it.hasFocus || it.isFocused
+        if (now) playHeld = true else if (playWasFocused[0]) playHeld = false
+        playWasFocused[0] = now
+    }
         .then(if (style == DetailStyle.Pane) Modifier else Modifier.restorableFocus("play", playFocus, initial = true))
     val tabletop = LocalTabletop.current
     val compact = LocalWindowLayout.current.width == SizeClass.Compact
