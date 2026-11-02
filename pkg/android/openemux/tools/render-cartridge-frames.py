@@ -106,6 +106,10 @@ class Canvas:
             d.polygon([(self.p(x), self.p(y)) for x, y in pts], fill=255)
         return self._arr(im)
 
+    def rpoly(self, pts, radii):
+        """A polygon with each vertex filleted by its radius (frame units); 0 keeps it sharp."""
+        return self.poly(fillet(pts, radii))
+
     def line(self, width, *paths):
         """Union of strokes of the given width (frame units) through each path's points, round joints and ends."""
         im, d = self._new()
@@ -129,6 +133,32 @@ class Canvas:
             d.text((x, self.p(baseline)), t, font=fo, fill=255, anchor="ls")
             x += d.textlength(t, font=fo) + g
         return self._arr(im)
+
+
+def fillet(pts, radii):
+    """The polygon's points with each corner replaced by a circular arc of the given radius."""
+    pts = np.asarray(pts, np.float64)
+    radii = np.broadcast_to(np.asarray(radii, np.float64), (len(pts),))
+    out = []
+    for i, (p, r) in enumerate(zip(pts, radii)):
+        a, b = pts[i - 1] - p, pts[(i + 1) % len(pts)] - p
+        la, lb = np.hypot(*a), np.hypot(*b)
+        if r <= 0 or la == 0 or lb == 0:      # sharp, or a repeated point with no corner to round
+            out.append(tuple(p))
+            continue
+        half = np.arccos(np.clip(a @ b / (la * lb), -1, 1)) / 2
+        if half > np.deg2rad(89.5):
+            out.append(tuple(p))
+            continue
+        # A neighbour that is filleted too gets half the shared edge; a sharp one leaves it whole.
+        d = min(r / np.tan(half), la / (2 if radii[i - 1] > 0 else 1), lb / (2 if radii[(i + 1) % len(pts)] > 0 else 1))
+        r = d * np.tan(half)
+        ua, ub = a / la, b / lb
+        centre = p + (ua + ub) / np.hypot(*(ua + ub)) * (r / np.sin(half))
+        t0, t1 = (np.arctan2(*(q - centre)[::-1]) for q in (p + ua * d, p + ub * d))
+        sweep = (t1 - t0 + np.pi) % (2 * np.pi) - np.pi
+        out += [tuple(centre + r * np.array([np.cos(t), np.sin(t)])) for t in t0 + sweep * np.linspace(0, 1, 12)]
+    return out
 
 
 def font(name, size):
@@ -558,6 +588,72 @@ def wonderswan():
     return build
 
 
+def nintendo_64():
+    def build():
+        cv = Canvas(311, 200)
+        # The arched top, both shoulders split off the centre panel by a groove, and each
+        # shoulder's lower corner stepped in under a curved edge, as in the current frame.
+        arch = [(x, 6 + 30 * ((x - 155.25) / 149.25) ** 2) for x in np.linspace(6, 304.5, 41)]
+        body = cv.rpoly([(6, 195.5), *arch, (304.5, 195.5)], [2.5, 9] + [0] * (len(arch) - 2) + [9, 2.5])
+        win_arch = [(x, 25 + 5 * ((x - 155) / 66) ** 2) for x in np.linspace(89, 221, 25)]
+        window = cv.rpoly([(89, 176.4), *win_arch, (221, 176.4)], [3, 3] + [0] * (len(win_arch) - 2) + [3, 3])
+        rec_arch = [(x, 21.5 + 5.6 * ((x - 155) / 70) ** 2) for x in np.linspace(85, 225, 25)]
+        recess = cv.rpoly([(85, 180), *rec_arch, (225, 180)], [4, 4] + [0] * (len(rec_arch) - 2) + [4, 4])
+        steps = [[(-10, 137.5), (21, 137.5), (27.5, 140.5), (30.5, 147), (30.5, 210)],
+                 [(321, 137.5), (290, 137.5), (283.5, 140.5), (280.5, 147), (280.5, 210)]]
+        corners = cv.poly(steps[0] + [(-10, 210)], steps[1] + [(321, 210)])
+        layers = [
+            (cv.rrect((-10, -10, 31, 137.5, 0), (280, -10, 321, 137.5, 0)), 0.40, 1.60),   # rounded shoulder edges
+            (corners, -0.25, 0.30),                                                  # stepped lower corners
+            (cv.line(1.4, *steps), -0.45, 0.12),
+            (cv.rrect((68.3, -10, 70.5, 210, 0.6), (240.5, -10, 242.7, 210, 0.6)), -0.55, 0.14),  # grooves
+            (recess, -0.45, 0.35),                                                   # label recess
+            (cv.rrect((-10, 184, 321, 210, 0)), -0.15, 0.80),                        # bottom edge rolls off
+        ]
+        return Frame(cv, body, window, layers, (0.52, 0.52, 0.53))
+    return build
+
+
+def game_boy_advance():
+    def build():
+        cv = Canvas(400, 230)
+        # Wide top with rounded corners, a small shoulder step, then the narrower body.
+        body = cv.rpoly([(0, 0), (400, 0), (400, 44), (389, 50), (389, 230), (11, 230), (11, 50), (0, 44)],
+                        [12, 12, 3, 2, 3, 3, 2, 3])
+        # The recessed logo plate under an arch across the top, lettering embossed in it.
+        plate_top = [(x, 13 + 22 * ((x - 200) / 145) ** 4) for x in np.linspace(55, 345, 31)]
+        plate = cv.rpoly([(48, 45), *plate_top, (352, 45)], [2, 3] + [0] * (len(plate_top) - 2) + [3, 2])
+        lettering = cv.text([("GAME BOY", "NotoSansDisplay-SemiCondensedBlackItalic.ttf", 16.5, 3.5),
+                             ("ADVANCE", "NotoSans-Black.ttf", 14, 0)], 200, 43.2)
+        layers = [
+            (np.maximum(cv.rpoly([(10, 9), (390, 9), (390, 230), (10, 230)], 4) * cv.rrect((19, 9, 381, 240, 3)),
+                        cv.rrect((10, 9, 390, 47, 4)) * (1 - cv.rrect((-10, 47, 410, 240, 0)))), -0.30, 0.55),  # bevel down from the rim
+            (plate, -0.45, 0.30),
+            (lettering, 0.45, 0.08),
+            (cv.rrect((49, 47.5, 351, 206.5, 4)), -0.45, 0.35),                      # label recess
+            (cv.poly([(163, 211), (237, 211), (200, 225.5)]), -0.50, 0.12),          # arrow
+        ]
+        window = cv.rrect((53.4, 51.8, 347.2, 202.9, 3))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
+def mega_drive():
+    def build():
+        cv = Canvas(295, 200)
+        # Two big rounded grip columns at the sides; the label runs up to the top edge.
+        body = cv.rpoly([(3, 3), (291.5, 3), (291.5, 196.5), (3, 196.5)], [11, 11, 5, 5])
+        layers = [
+            (cv.rrect((5, 3, 39, 196.5, 9), (255.5, 3, 289.5, 196.5, 9)), 1.80, 2.60),  # grip columns
+            (cv.rrect((40.5, -10, 42.5, 210, 0.8), (252, -10, 254, 210, 0.8)), -0.40, 0.14),  # column seams
+            (cv.rrect((44, -10, 250.5, 173.5, 3)), -0.45, 0.35),                    # label recess
+            (cv.rrect((41, 186.5, 253.5, 210, 0)), -0.15, 0.60),                    # bottom edge rolls off
+        ]
+        window = cv.rrect((47.4, 4.6, 247.4, 170.4, 2))
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
 CONSOLES = {
     "GBC": game_boy((0.80, 0.80, 0.815)),
     "GB": game_boy((0.90, 0.90, 0.905)),
@@ -578,6 +674,9 @@ CONSOLES = {
     "O2": odyssey2(),
     "VECTREX": vectrex(),
     "WS": wonderswan(),
+    "N64": nintendo_64(),
+    "GBA": game_boy_advance(),
+    "MD": mega_drive(),
 }
 
 
