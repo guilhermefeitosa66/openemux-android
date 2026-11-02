@@ -221,6 +221,7 @@ private fun gameSummary(game: OfferGame): String {
         if (game.states > 0) countString(R.plurals.share_offer_part_states, game.states, game.states) else null,
         if (game.cover) stringResource(R.string.share_offer_part_cover) else null,
         if (game.label) stringResource(R.string.share_offer_part_label) else null,
+        if (game.bios.isNotEmpty()) stringResource(R.string.share_offer_part_bios, game.bios.joinToString(", ")) else null,
     )
     return parts.joinToString(", ") + " · " + sizeText(game.bytes)
 }
@@ -267,7 +268,7 @@ private fun ConflictsPage(model: OfferModel, share: ShareCoordinator, onBack: ()
         model.conflicts().forEachIndexed { index, c ->
             Card {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${c.title} · ${kindName(c.kind)}", style = Type.BodyMedium)
+                    Text("${c.title} · ${itemName(c.kind, c.name)}", style = Type.BodyMedium)
                     DateLine(R.string.share_conflicts_yours, format.format(Date(c.yours)), c.yoursNewer)
                     DateLine(R.string.share_conflicts_incoming, format.format(Date(c.incoming)), c.incomingNewer)
                     FlowRow(
@@ -290,7 +291,7 @@ private fun ConflictsPage(model: OfferModel, share: ShareCoordinator, onBack: ()
             Text(stringResource(R.string.share_conflicts_skipped).uppercase(), style = Type.SectionCaps, modifier = Modifier.padding(top = 10.dp))
             Card {
                 model.skipped.forEachIndexed { i, s ->
-                    ListRow("${s.title} · ${kindName(s.kind)}", subtitle = skipText(s.reason), divider = i > 0, subtitleLines = 2)
+                    ListRow("${s.title} · ${itemName(s.kind, s.name)}", subtitle = skipText(s.reason), divider = i > 0, subtitleLines = 2)
                 }
             }
         }

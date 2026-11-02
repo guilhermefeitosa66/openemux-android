@@ -152,6 +152,27 @@ class ShareTransferLoopbackTest {
     }
 
     @Test
+    fun `a console's BIOS goes from one system folder to the other, once`() {
+        val bios = File(senderLib.paths.system, "SCPH5501.BIN").put(ByteArray(4096) { 3 }, mtime = 1_700_000_020)
+        File(senderLib.paths.system, "notes.txt").put("not a BIOS")
+        val first = senderLib.rom(Console.PS, "First.chd", ByteArray(100) { 1 })
+        val second = senderLib.rom(Console.PS, "Second.chd", ByteArray(100) { 2 })
+
+        val run = transfer(sender.buildManifest(senderLib, listOf(first, second)))
+        assertEquals(TransferStatus.DONE, run.received.status)
+        val placed = File(receiverLib.paths.system, "scph5501.bin")
+        assertArrayEquals(bios.readBytes(), placed.readBytes())
+        assertFalse(File(receiverLib.paths.system, "notes.txt").exists())
+        assertEquals(1, receiverLib.paths.system.list()!!.size)
+        assertEquals(placed, run.received.placed.last())
+
+        // The same BIOS is not sent again.
+        val again = transfer(sender.buildManifest(senderLib, listOf(first)))
+        assertTrue(again.sent.sent.isEmpty())
+        assertTrue(again.sent.skipped.all { it.second == "exists_skip" })
+    }
+
+    @Test
     fun `accepting without room refuses before anything is answered`() {
         val rom = senderLib.rom(Console.SFC, "Big.sfc", ByteArray(10))
         val built = sender.buildManifest(senderLib, listOf(rom))

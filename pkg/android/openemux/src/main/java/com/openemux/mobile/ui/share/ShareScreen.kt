@@ -61,6 +61,7 @@ import com.openemux.mobile.share.ShareAvailability
 import com.openemux.mobile.share.ShareFormat
 import com.openemux.mobile.share.ShareProtocol
 import com.openemux.mobile.share.TransferState
+import com.openemux.mobile.share.Tri
 import com.openemux.mobile.ui.BackLink
 import com.openemux.mobile.ui.Card
 import com.openemux.mobile.ui.EmptyState
@@ -208,7 +209,8 @@ private fun PrepLine(prep: SendPrep) {
 /** "Super Metroid, Zelda and 3 more · 14 files". */
 @Composable
 private fun whatSummary(selection: SendSelection): String {
-    val titles = selection.games.filter { it.parts.any { p -> selection.isChecked(it.id, p.part) } }.map { it.title }
+    // A game's own checkbox (state) leaves out the console's BIOS check: a game with nothing of its own going is not named.
+    val titles = selection.games.filter { selection.state(it.id) != Tri.UNCHECKED }.map { it.title }
     val names = when (titles.size) {
         0 -> stringResource(R.string.share_items_none)
         1 -> titles[0]

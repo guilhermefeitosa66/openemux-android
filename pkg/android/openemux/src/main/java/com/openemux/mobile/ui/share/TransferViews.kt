@@ -186,6 +186,15 @@ fun ResultView(result: ShareResult, onClose: () -> Unit, onShow: (() -> Unit)?) 
         if (result.kind == ResultKind.RECEIVED && result.keptNewer > 0) {
             Text(countString(R.plurals.share_result_kept, result.keptNewer, result.keptNewer), style = Type.Small, textAlign = TextAlign.Center)
         }
+        if (ok && result.bios.isNotEmpty()) {
+            Text(
+                stringResource(
+                    if (result.outgoing) R.string.share_result_bios_sent else R.string.share_result_bios_received,
+                    result.bios.joinToString(", "),
+                ),
+                style = Type.Small, textAlign = TextAlign.Center,
+            )
+        }
         if (short) {
             Text(
                 stringResource(if (result.outgoing) R.string.share_result_not_sent else R.string.share_result_not_received).uppercase(),

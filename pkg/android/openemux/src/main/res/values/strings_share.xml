@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">Only the ones the other device’s core can load</string>
     <string name="share_items_cover">Cover</string>
     <string name="share_items_label">Cartridge Label</string>
+    <string name="share_items_bios">BIOS Files</string>
     <string name="share_items_details">Library Details</string>
     <string name="share_items_details_hint">Favorite, cartridge color, core, shader, play time</string>
     <string name="share_items_expand">Show items</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">save state</string>
     <string name="share_kind_cover">cover</string>
     <string name="share_kind_label">cartridge label</string>
+    <string name="share_kind_bios">BIOS file</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">Connect by Address</string>
     <string name="share_address_other">Another device</string>
     <string name="share_address_qr">QR code with this device’s address</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">Game</string>
     <string name="share_offer_part_cover">cover</string>
     <string name="share_offer_part_label">label</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: this device doesn’t support %2$s.</string>
     <string name="share_offer_expires">Expires in %1$s</string>
     <string name="share_offer_decline">Decline</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d Game Sent</item>
         <item quantity="other">%1$d Games Sent</item>
     </plurals>
+    <string name="share_result_bios_received">BIOS files added: %1$s</string>
+    <string name="share_result_bios_sent">BIOS files sent: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d save kept (yours was newer)</item>
         <item quantity="other">%1$d saves kept (yours was newer)</item>

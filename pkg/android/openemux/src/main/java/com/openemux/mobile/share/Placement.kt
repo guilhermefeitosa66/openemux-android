@@ -3,6 +3,7 @@ package com.openemux.mobile.share
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Paths
+import com.openemux.mobile.data.biosNamesFor
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -25,7 +26,7 @@ enum class Policy {
 /**
  * The defaults, the desktop app's (#588): a ROM with other content is kept
  * beside the local one, saves and states keep the newest, and the user's own
- * art wins.
+ * art and BIOS win.
  */
 val DEFAULT_POLICIES = mapOf(
     Item.ROM to Policy.KEEP_BOTH,
@@ -33,10 +34,11 @@ val DEFAULT_POLICIES = mapOf(
     Item.STATE to Policy.NEWEST,
     Item.COVER to Policy.SKIP,
     Item.LABEL to Policy.SKIP,
+    Item.BIOS to Policy.SKIP,
 )
 
 /** The order a commit places things in: a game's files after its ROM. */
-val COMMIT_ORDER = listOf(Item.ROM, Item.BATTERY_SAVE, Item.STATE, Item.COVER, Item.LABEL)
+val COMMIT_ORDER = listOf(Item.ROM, Item.BATTERY_SAVE, Item.STATE, Item.COVER, Item.LABEL, Item.BIOS)
 
 /** One item's fate. [target] is computed here, never taken from the wire; [replaces] is moved aside on commit. */
 data class Decision(
@@ -142,7 +144,8 @@ class ReceivePlan(val games: List<GamePlan>, private val probe: SpaceProbe = Nio
 /**
  * The receiver's decisions for [manifest], before a byte is written: each item
  * mapped to a target in Android's layout (ROMs flat in `roms/<console>`,
- * `saves/`, `states/`, `covers/` and `labels/` per console), checked against
+ * `saves/`, `states/`, `covers/` and `labels/` per console, BIOS flat in
+ * RetroArch's `system/`), checked against
  * what the library has under the policy for its kind. [policies] replaces the
  * default of a kind, [overrides] one item's; [unchecked] holds the game and
  * item ids the user deselected. Nothing here writes.
@@ -223,6 +226,8 @@ private class Planner(
             when {
                 item.kind == Item.ROM -> Unit
                 item.id in unchecked -> skip(plan, item, SkipReason.USER_UNCHECKED)
+                // A console's BIOS is no part of the game: it goes whatever became of the ROM.
+                item.kind == Item.BIOS -> planBios(plan, console, item)
                 plan.romStatus == RomStatus.ABSENT -> skip(plan, item, plan.absentReason)
                 item.kind == Item.BATTERY_SAVE -> planSave(plan, console, item, stem)
                 item.kind == Item.STATE -> planState(plan, console, item)
@@ -405,6 +410,18 @@ private class Planner(
         val existing = if (cover) Covers.localCover(paths, console, plan.finalStem) else target.takeIf { it.exists() }
         // Keeping both copies of a cover means nothing: the library shows one.
         resolve(plan, item, target, dir, existing) { null }
+    }
+
+    private fun planBios(plan: GamePlan, console: Console, item: Item) {
+        val canonical = biosNamesFor(console)[item.name.lowercase()] ?: return skip(plan, item, SkipReason.INVALID_ITEM)
+        val dir = paths.system
+        val target = File(dir, canonical)
+        // The same BIOS already there (or already coming): nothing to ask, nothing to upload. Only a hash
+        // says so: a console's dumps share a size (every PS one is 512 KiB), so one without is a conflict.
+        if (isTaken(target) || item.sha256 != null && sameContent(target, item)) return skip(plan, item, SkipReason.EXISTS_SKIP)
+        if ((target.exists() || Files.isSymbolicLink(target.toPath())) && !target.isFile) return skip(plan, item, SkipReason.INVALID_ITEM)
+        // A core opens its BIOS by name: a second copy beside it is useless.
+        resolve(plan, item, target, dir, target.takeIf { it.exists() }) { null }
     }
 
     private fun fits(name: String) = name.toByteArray(Charsets.UTF_8).size + NAME_HEADROOM <= ShareProtocol.MAX_FILE_NAME_BYTES

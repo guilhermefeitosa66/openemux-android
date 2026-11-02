@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">Seulement ceux que le cœur de l’autre appareil peut charger</string>
     <string name="share_items_cover">Jaquette</string>
     <string name="share_items_label">Étiquette de la cartouche</string>
+    <string name="share_items_bios">Fichiers BIOS</string>
     <string name="share_items_details">Détails de la bibliothèque</string>
     <string name="share_items_details_hint">Favori, couleur de la cartouche, cœur, shader, temps de jeu</string>
     <string name="share_items_expand">Afficher les éléments</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">état sauvegardé</string>
     <string name="share_kind_cover">jaquette</string>
     <string name="share_kind_label">étiquette de la cartouche</string>
+    <string name="share_kind_bios">fichier BIOS</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">Se connecter par adresse</string>
     <string name="share_address_other">Un autre appareil</string>
     <string name="share_address_qr">Code QR avec l’adresse de cet appareil</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">Jeu</string>
     <string name="share_offer_part_cover">jaquette</string>
     <string name="share_offer_part_label">étiquette</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s : cet appareil ne prend pas en charge %2$s.</string>
     <string name="share_offer_expires">Expire dans %1$s</string>
     <string name="share_offer_decline">Refuser</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d jeu envoyé</item>
         <item quantity="other">%1$d jeux envoyés</item>
     </plurals>
+    <string name="share_result_bios_received">Fichiers BIOS ajoutés : %1$s</string>
+    <string name="share_result_bios_sent">Fichiers BIOS envoyés : %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d sauvegarde gardée (la vôtre était plus récente)</item>
         <item quantity="other">%1$d sauvegardes gardées (les vôtres étaient plus récentes)</item>

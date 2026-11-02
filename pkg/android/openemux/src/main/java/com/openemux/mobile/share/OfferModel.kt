@@ -11,6 +11,8 @@ data class OfferGame(
     val cover: Boolean,
     val label: Boolean,
     val bytes: Long,
+    /** The names of the console's BIOS files this game carries (#678). */
+    val bios: List<String> = emptyList(),
 )
 
 /** An incoming item that meets a file the library already has. */
@@ -25,13 +27,15 @@ data class Conflict(
     val allowed: List<Policy>,
     /** A multi-file game (cue, m3u): its parts follow this row, and it cannot be kept twice. */
     val unit: Boolean = false,
+    /** The incoming file's name, which is what tells one BIOS row from another. */
+    val name: String = "",
 ) {
     val incomingNewer: Boolean get() = incoming > yours
     val yoursNewer: Boolean get() = yours > incoming
 }
 
 /** An item the plan does not ask for, with the game it belongs to. */
-data class SkippedItem(val itemId: String, val kind: String, val title: String, val reason: String)
+data class SkippedItem(val itemId: String, val kind: String, val title: String, val reason: String, val name: String = "")
 
 /**
  * The receive side's view of an offer (spec 05/06): what comes, what meets a
@@ -58,6 +62,7 @@ class OfferModel(
         OfferGame(
             game.id, game.title, game.console, Item.ROM in kinds, kinds[Item.BATTERY_SAVE] ?: 0, kinds[Item.STATE] ?: 0,
             Item.COVER in kinds, Item.LABEL in kinds, game.items.sumOf { it.size },
+            game.items.filter { it.kind == Item.BIOS }.map { it.name },
         )
     }
 
@@ -73,7 +78,8 @@ class OfferModel(
     private val probeById: Map<String, Decision> = probe.decisions.associateBy { it.itemId }
 
     private val conflictsList: List<Conflict> = probe.decisions.filter { it.replaces != null }.mapNotNull { probed ->
-        val art = probed.kind == Item.COVER || probed.kind == Item.LABEL
+        // Art and BIOS have no second copy that means anything: skipped or replaced.
+        val art = probed.kind == Item.COVER || probed.kind == Item.LABEL || probed.kind == Item.BIOS
         if (probed.kind == Item.ROM && items[probed.itemId]?.partRole != null) {
             // Every part that exists here is probed; the unit is replaced or skipped whole, so one row stands for it.
             if (!unitConflicts.add(probed.gameId)) return@mapNotNull null
@@ -91,6 +97,7 @@ class OfferModel(
             probed.replaces!!.lastModified(), (probed.mtime * 1000).toLong(),
             overrides[probed.itemId] ?: DEFAULT_POLICIES.getValue(probed.kind),
             if (art) ART_POLICIES else ALL_POLICIES,
+            name = probed.name,
         )
     }
 
@@ -102,7 +109,7 @@ class OfferModel(
         !d.send && d.reason != SkipReason.USER_UNCHECKED && conflictsList.none { it.itemId == d.itemId } &&
             // Only the skip the conflict row stands for: a unit kept out for another reason is still listed.
             !(d.kind == Item.ROM && d.gameId in unitConflicts && d.reason == SkipReason.EXISTS_SKIP)
-    }.map { SkippedItem(it.itemId, it.kind, titles[it.gameId].orEmpty(), it.reason!!) }
+    }.map { SkippedItem(it.itemId, it.kind, titles[it.gameId].orEmpty(), it.reason!!, it.name) }
 
     /** States that no installed core can load. */
     val incompatibleStates: Int get() = skipped.count { it.reason == SkipReason.INCOMPATIBLE_STATE }

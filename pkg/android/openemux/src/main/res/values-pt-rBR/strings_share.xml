@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">Só os que o núcleo do outro aparelho consegue carregar</string>
     <string name="share_items_cover">Capa</string>
     <string name="share_items_label">Rótulo do cartucho</string>
+    <string name="share_items_bios">Arquivos de BIOS</string>
     <string name="share_items_details">Detalhes da biblioteca</string>
     <string name="share_items_details_hint">Favorito, cor do cartucho, núcleo, shader, tempo de jogo</string>
     <string name="share_items_expand">Mostrar itens</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">estado salvo</string>
     <string name="share_kind_cover">capa</string>
     <string name="share_kind_label">rótulo do cartucho</string>
+    <string name="share_kind_bios">arquivo de BIOS</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">Conectar por endereço</string>
     <string name="share_address_other">Outro aparelho</string>
     <string name="share_address_qr">Código QR com o endereço deste aparelho</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">Jogo</string>
     <string name="share_offer_part_cover">capa</string>
     <string name="share_offer_part_label">rótulo</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: este aparelho não suporta %2$s.</string>
     <string name="share_offer_expires">Expira em %1$s</string>
     <string name="share_offer_decline">Recusar</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d jogo enviado</item>
         <item quantity="other">%1$d jogos enviados</item>
     </plurals>
+    <string name="share_result_bios_received">Arquivos de BIOS adicionados: %1$s</string>
+    <string name="share_result_bios_sent">Arquivos de BIOS enviados: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d salvamento mantido (o seu era mais novo)</item>
         <item quantity="other">%1$d salvamentos mantidos (os seus eram mais novos)</item>

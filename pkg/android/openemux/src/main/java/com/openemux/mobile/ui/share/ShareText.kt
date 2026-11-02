@@ -71,6 +71,7 @@ fun partName(part: SendPart): String = stringResource(
         SendPart.STATES -> R.string.share_items_states
         SendPart.COVER -> R.string.share_items_cover
         SendPart.LABEL -> R.string.share_items_label
+        SendPart.BIOS -> R.string.share_items_bios
         SendPart.DETAILS -> R.string.share_items_details
     },
 )
@@ -82,9 +83,15 @@ fun kindName(kind: String): String = stringResource(
         Item.BATTERY_SAVE -> R.string.share_kind_save
         Item.STATE -> R.string.share_kind_state
         Item.COVER -> R.string.share_kind_cover
+        Item.BIOS -> R.string.share_kind_bios
         else -> R.string.share_kind_label
     },
 )
+
+/** An item as a conflict or skipped row names it: its kind, and for a BIOS the file too (a console can send several). */
+@Composable
+fun itemName(kind: String, name: String): String =
+    if (kind == Item.BIOS && name.isNotEmpty()) stringResource(R.string.share_kind_bios_file, name) else kindName(kind)
 
 @Composable
 fun policyName(policy: Policy): String = stringResource(

@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">仅限对方设备的核心能读取的</string>
     <string name="share_items_cover">封面</string>
     <string name="share_items_label">卡带标签</string>
+    <string name="share_items_bios">BIOS 文件</string>
     <string name="share_items_details">游戏库详情</string>
     <string name="share_items_details_hint">收藏、卡带颜色、核心、着色器、游戏时长</string>
     <string name="share_items_expand">显示项目</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">即时存档</string>
     <string name="share_kind_cover">封面</string>
     <string name="share_kind_label">卡带标签</string>
+    <string name="share_kind_bios">BIOS 文件</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">通过地址连接</string>
     <string name="share_address_other">其他设备</string>
     <string name="share_address_qr">包含本机地址的二维码</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">游戏</string>
     <string name="share_offer_part_cover">封面</string>
     <string name="share_offer_part_label">标签</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s：本机不支持 %2$s。</string>
     <string name="share_offer_expires">%1$s 后过期</string>
     <string name="share_offer_decline">拒绝</string>
@@ -206,6 +210,8 @@
     <plurals name="share_result_sent_title">
         <item quantity="other">已发送 %1$d 个游戏</item>
     </plurals>
+    <string name="share_result_bios_received">已添加的 BIOS 文件：%1$s</string>
+    <string name="share_result_bios_sent">已发送的 BIOS 文件：%1$s</string>
     <plurals name="share_result_kept">
         <item quantity="other">保留了 %1$d 个存档（本机的较新）</item>
     </plurals>

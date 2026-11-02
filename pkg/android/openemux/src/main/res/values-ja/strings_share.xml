@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">相手の端末のコアで読み込めるものだけ</string>
     <string name="share_items_cover">カバー</string>
     <string name="share_items_label">カートリッジラベル</string>
+    <string name="share_items_bios">BIOSファイル</string>
     <string name="share_items_details">ライブラリの詳細</string>
     <string name="share_items_details_hint">お気に入り、カートリッジの色、コア、シェーダー、プレイ時間</string>
     <string name="share_items_expand">項目を表示</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">ステート</string>
     <string name="share_kind_cover">カバー</string>
     <string name="share_kind_label">カートリッジラベル</string>
+    <string name="share_kind_bios">BIOSファイル</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">アドレスで接続</string>
     <string name="share_address_other">ほかの端末</string>
     <string name="share_address_qr">この端末のアドレスを含む QR コード</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">ゲーム</string>
     <string name="share_offer_part_cover">カバー</string>
     <string name="share_offer_part_label">ラベル</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: この端末は %2$s に対応していません。</string>
     <string name="share_offer_expires">残り %1$s</string>
     <string name="share_offer_decline">拒否</string>
@@ -206,6 +210,8 @@
     <plurals name="share_result_sent_title">
         <item quantity="other">%1$d 本を送りました</item>
     </plurals>
+    <string name="share_result_bios_received">追加したBIOSファイル: %1$s</string>
+    <string name="share_result_bios_sent">送信したBIOSファイル: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="other">%1$d 個のセーブを保持 (こちらが新しい)</item>
     </plurals>

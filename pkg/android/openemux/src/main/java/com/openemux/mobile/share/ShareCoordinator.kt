@@ -40,6 +40,8 @@ data class ShareResult(
     /** The games the transfer was about; [missing] are the ones of them that did not arrive. */
     val total: Int = games,
     val missing: List<MissingGame> = emptyList(),
+    /** The BIOS files that went through (#678), by name. */
+    val bios: List<String> = emptyList(),
 )
 
 /** The one transfer this device runs at a time. */
@@ -267,7 +269,7 @@ class ShareCoordinator(
         }
         if (kind != ResultKind.SENT) return ShareResult(kind, true, peer, error = errorOf(kind, result.error))
         val report = sendReport(built, excluded, result)
-        return ShareResult(kind, true, peer, report.delivered, total = report.total, missing = report.missing)
+        return ShareResult(kind, true, peer, report.delivered, total = report.total, missing = report.missing, bios = report.bios)
     }
 
     // -- receiving -------------------------------------------------------------
@@ -390,7 +392,7 @@ class ShareCoordinator(
         val first = model.plan.games.firstOrNull { it.romStatus.placed || it.romStatus == RomStatus.REPLACED }?.console?.id
         if (kind != ResultKind.RECEIVED) return ShareResult(kind, false, model.sender, keptNewer = keptNewer, error = errorOf(kind, result.error), firstConsole = first)
         val report = receiveReport(model.plan, result)
-        return ShareResult(kind, false, model.sender, report.delivered, keptNewer, null, first, report.total, report.missing)
+        return ShareResult(kind, false, model.sender, report.delivered, keptNewer, null, first, report.total, report.missing, report.bios)
     }
 
     fun decline() {

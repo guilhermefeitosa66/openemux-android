@@ -6,9 +6,10 @@ data class MissingGame(val title: String, val console: String, val reason: Strin
 /**
  * How many of the games a transfer was about actually arrived (#615), and
  * which did not, with why. The desktop's `report.py` counts the same way, so
- * both ends of a transfer show the same numbers.
+ * both ends of a transfer show the same numbers. BIOS files (#678) belong to a
+ * console: they never make a game count as delivered, and are listed apart, by name.
  */
-data class DeliveryReport(val delivered: Int, val total: Int, val missing: List<MissingGame>) {
+data class DeliveryReport(val delivered: Int, val total: Int, val missing: List<MissingGame>, val bios: List<String> = emptyList()) {
     val complete: Boolean get() = missing.isEmpty()
 }
 
@@ -23,15 +24,17 @@ fun receiveReport(plan: ReceivePlan, result: ReceiveResult): DeliveryReport {
     var delivered = 0
     var total = 0
     val missing = mutableListOf<MissingGame>()
+    val bios = mutableListOf<String>()
     for (game in plan.games) {
+        bios += game.decisions.filter { it.kind == Item.BIOS && it.send && it.itemId !in notWritten }.map { it.target!!.name }
         if (game.userUnchecked) continue
         total++
-        val written = game.decisions.filter { it.send && it.itemId !in notWritten }
+        val written = game.decisions.filter { it.send && it.itemId !in notWritten && it.kind != Item.BIOS }
         if (written.any { it.kind == Item.ROM } || game.romStatus == RomStatus.EXISTING && written.isNotEmpty()) {
             delivered++
             continue
         }
-        val left = game.decisions.filter { !it.send || it.itemId in notWritten }
+        val left = game.decisions.filter { (!it.send || it.itemId in notWritten) && it.kind != Item.BIOS }
         val first = left.firstOrNull { it.kind == Item.ROM } ?: left.firstOrNull()
         val reason = when {
             game.romStatus == RomStatus.EXISTING -> SkipReason.EXISTS_SKIP
@@ -41,7 +44,7 @@ fun receiveReport(plan: ReceivePlan, result: ReceiveResult): DeliveryReport {
         }
         missing += MissingGame(game.title, game.consoleId, reason)
     }
-    return DeliveryReport(delivered, total, missing)
+    return DeliveryReport(delivered, total, missing, bios)
 }
 
 /**
@@ -55,11 +58,13 @@ fun sendReport(built: BuiltManifest, excluded: List<ExcludedGame>, result: SendR
     val skipped = result.skipped.toMap()
     var delivered = 0
     val missing = mutableListOf<MissingGame>()
+    val bios = mutableListOf<String>()
     val games = built.json.getJSONArray("games")
     for (g in 0 until games.length()) {
         val game = games.getJSONObject(g)
         val list = game.getJSONArray("items")
-        val items = (0 until list.length()).map { list.getJSONObject(it) }
+        val (biosItems, items) = (0 until list.length()).map { list.getJSONObject(it) }.partition { it.getString("kind") == Item.BIOS }
+        bios += biosItems.filter { it.getString("id") in sent }.map { it.getString("name") }
         // The main file first, so its answer is the reason shown.
         val (roms, others) = items.partition { it.getString("kind") == Item.ROM }
         val romIds = roms.sortedByDescending { Item.isMainRom(Item.ROM, it) }.map { it.getString("id") }
@@ -74,5 +79,5 @@ fun sendReport(built: BuiltManifest, excluded: List<ExcludedGame>, result: SendR
         missing += MissingGame(game.getString("title"), game.getString("console"), reason)
     }
     excluded.forEach { missing += MissingGame(it.title, it.console, it.reason) }
-    return DeliveryReport(delivered, games.length() + excluded.size, missing)
+    return DeliveryReport(delivered, games.length() + excluded.size, missing, bios)
 }

@@ -526,7 +526,7 @@ class PlacementTest {
             listOf(
                 File(ps, "Example Quest.cue"), File(ps, "Example Quest (Track 1).bin"), File(ps, "Example Quest (Track 2).bin"),
                 File(paths.saves(Console.PS), "Example Quest.srm"), File(paths.states(Console.PS), "Example Quest.state1"),
-                File(paths.covers(Console.PS), "Example Quest.png"),
+                File(paths.covers(Console.PS), "Example Quest.png"), File(paths.system, "scph5501.bin"),
             ),
             plan.toSend().map { it.target },
         )

@@ -34,6 +34,7 @@
     <string name="share_items_states_hint">Nur die, die der Core des anderen Geräts laden kann</string>
     <string name="share_items_cover">Cover</string>
     <string name="share_items_label">Modul-Etikett</string>
+    <string name="share_items_bios">BIOS-Dateien</string>
     <string name="share_items_details">Bibliotheksdetails</string>
     <string name="share_items_details_hint">Favorit, Modulfarbe, Core, Shader, Spielzeit</string>
     <string name="share_items_expand">Elemente zeigen</string>
@@ -52,6 +53,8 @@
     <string name="share_kind_state">Savestate</string>
     <string name="share_kind_cover">Cover</string>
     <string name="share_kind_label">Modul-Etikett</string>
+    <string name="share_kind_bios">BIOS-Datei</string>
+    <string name="share_kind_bios_file">BIOS %1$s</string>
     <string name="share_address_title">Über Adresse verbinden</string>
     <string name="share_address_other">Anderes Gerät</string>
     <string name="share_address_qr">QR-Code mit der Adresse dieses Geräts</string>
@@ -97,6 +100,7 @@
     <string name="share_offer_part_game">Spiel</string>
     <string name="share_offer_part_cover">Cover</string>
     <string name="share_offer_part_label">Etikett</string>
+    <string name="share_offer_part_bios">BIOS %1$s</string>
     <string name="share_offer_note_unsupported">%1$s: Dieses Gerät unterstützt %2$s nicht.</string>
     <string name="share_offer_expires">Läuft ab in %1$s</string>
     <string name="share_offer_decline">Ablehnen</string>
@@ -219,6 +223,8 @@
         <item quantity="one">%1$d Spiel gesendet</item>
         <item quantity="other">%1$d Spiele gesendet</item>
     </plurals>
+    <string name="share_result_bios_received">BIOS-Dateien hinzugefügt: %1$s</string>
+    <string name="share_result_bios_sent">BIOS-Dateien gesendet: %1$s</string>
     <plurals name="share_result_kept">
         <item quantity="one">%1$d Spielstand behalten (deiner war neuer)</item>
         <item quantity="other">%1$d Spielstände behalten (deine waren neuer)</item>
