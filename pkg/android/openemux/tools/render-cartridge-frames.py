@@ -104,13 +104,14 @@ class Canvas:
             d.polygon([(self.p(x), self.p(y)) for x, y in pts], fill=255)
         return self._arr(im)
 
-    def line(self, pts, width):
-        """A stroke of the given width (frame units) through the points, round joints."""
+    def line(self, width, *paths):
+        """Union of strokes of the given width (frame units) through each path's points, round joints and ends."""
         im, d = self._new()
-        d.line([(self.p(x), self.p(y)) for x, y in pts], fill=255, width=max(1, round(self.p(width))), joint="curve")
         r = self.p(width) / 2
-        for x, y in (pts[0], pts[-1]):
-            d.ellipse([self.p(x) - r, self.p(y) - r, self.p(x) + r, self.p(y) + r], fill=255)
+        for pts in paths:
+            d.line([(self.p(x), self.p(y)) for x, y in pts], fill=255, width=max(1, round(self.p(width))), joint="curve")
+            for x, y in (pts[0], pts[-1]):
+                d.ellipse([self.p(x) - r, self.p(y) - r, self.p(x) + r, self.p(y) + r], fill=255)
         return self._arr(im)
 
     def outline_triangle(self, outer, inner):
@@ -304,12 +305,12 @@ def sega_32x():
         # Raised bezel round the window: slanted sides and a lower edge that dips in the middle.
         curve = [(62 + (333 - 62) * t, 195 + 19 * 4 * t * (1 - t)) for t in np.linspace(0, 1, 33)]
         bezel = cv.poly([(40, -10), (355, -10), *curve[::-1]])
-        sweeps = cv.line([(14, 40), (24, 120), (34, 190), (56, 238)], 1.6) + \
-            cv.line([(381, 40), (371, 120), (361, 190), (339, 238)], 1.6)
+        sweeps = cv.line(1.6, [(14, 40), (24, 120), (34, 190), (56, 238)],
+                         [(381, 40), (371, 120), (361, 190), (339, 238)])
         slots = cv.rrect(*[(x - 2.2, 229, x + 2.2, 249, 2.2) for x in (197.5 + 37.5 * (k - 2.5) for k in range(6))])
         layers = [
             (bezel, 0.45, 0.40),
-            (np.clip(sweeps, 0, 1), -0.45, 0.14),
+            (sweeps, -0.45, 0.14),
             (slots, -0.70, 0.14),
             (cv.rrect((66, 30.5, 328.7, 189.5, 4)), -0.50, 0.35),                   # label recess
         ]
@@ -489,7 +490,7 @@ def bake(console):
     save(img, base)
     for color_id, _name, base_hex in colors.PALETTE:
         save(colorize(img, window, base_hex, r), f"{base}_{color_id}")
-    print(f"{console:4} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
+    print(f"{console:6} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
     return console, img
 
 
