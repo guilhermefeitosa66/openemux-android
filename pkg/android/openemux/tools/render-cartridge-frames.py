@@ -31,6 +31,7 @@ import argparse
 import importlib.util
 import re
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -289,24 +290,34 @@ def shade(frame, h):
     inside = win > 0.5
     alpha = np.where(inside, lip * win, alpha)
     rgb = np.where(inside[..., None], 0.05, rgb)
-    return rgb, alpha, inside
+    return rgb, alpha
 
 
 def render(name):
+    """The neutral frame at export size, plus its window and dark-plastic coverage (0..1)."""
     frame = CONSOLES[name]()
-    rgb, alpha, inside = shade(frame, height(frame))
+    rgb, alpha = shade(frame, height(frame))
     img = Image.fromarray((np.dstack([rgb, alpha]) * 255 + 0.5).astype(np.uint8), "RGBA")
     cv = frame.cv
     size = (round(cv.w * OUT_LONG / max(cv.w, cv.h)), round(cv.h * OUT_LONG / max(cv.w, cv.h)))
-    lip = Image.fromarray((inside * 255).astype(np.uint8)).resize(size, Image.BILINEAR)
-    return img.resize(size, Image.LANCZOS), np.asarray(lip) > 127
+
+    def coverage(mask):
+        if mask is None:
+            return np.zeros(size[::-1], np.float32)
+        im = Image.fromarray((np.clip(mask, 0, 1) * 255 + 0.5).astype(np.uint8)).resize(size, Image.BOX)
+        return np.asarray(im, dtype=np.float32) / 255.0
+
+    return img.resize(size, Image.LANCZOS), coverage(frame.window), coverage(frame.dark)
 
 
 # ---------------------------------------------------------------- colors
-def ramp(img, colors):
-    """The colorize filter's luminance ramp, measured as gen-cartridge-colors.py does."""
+def ramp(img, dark, colors):
+    """The colorize filter's luminance ramp, measured as gen-cartridge-colors.py does.
+
+    Dark-plastic zones (the Virtual Boy's lower band) are left out of the measure, so
+    they do not flatten the shell's relief in every color."""
     a = np.asarray(img, dtype=np.int32)
-    opaque = a[..., 3] >= 200
+    opaque = (a[..., 3] >= 200) & (dark < 0.5)
     lum = (a[..., 0] * 299 + a[..., 1] * 587 + a[..., 2] * 114) // 1000
     p5, p50, p95 = (np.percentile(lum[opaque], q, method="inverted_cdf") / 255.0 for q in (5, 50, 95))
     lo, hi = colors.SLOPE_LIMITS
@@ -314,10 +325,11 @@ def ramp(img, colors):
     return slope, colors.TARGET_MID - slope * p50
 
 
-def colorize(img, inside, base_hex, ramp_):
+def colorize(img, window, base_hex, ramp_):
     """bake-frames.py's colorize (desaturate, linear ramp, multiply the flood, keep alpha).
 
-    The lip's shadow inside the label window stays a neutral shadow."""
+    The lip's shadow inside the label window stays a neutral shadow, blended by the
+    window's coverage so its edge has no colored halo."""
     slope, intercept = ramp_
     a = np.asarray(img, dtype=np.float32) / 255.0
     lum = 0.2126 * a[..., 0] + 0.7152 * a[..., 1] + 0.0722 * a[..., 2]
@@ -325,7 +337,8 @@ def colorize(img, inside, base_hex, ramp_):
     k = a[..., 3:4]
     flood = np.array([int(base_hex[i:i + 2], 16) / 255 for i in (1, 3, 5)], np.float32)
     rgb = flood * (1 - k + k * p)
-    rgb = np.where(inside[..., None], a[..., :3], rgb)
+    w = window[..., None]
+    rgb = rgb * (1 - w) + a[..., :3] * w
     out = np.dstack([rgb, a[..., 3]])
     out[a[..., 3] == 0] = 0
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8), "RGBA")
@@ -377,25 +390,31 @@ def label_composite(rect, frame_img, label):
     return canvas
 
 
+def bake(console):
+    """Render one console and write its neutral and colored drawables."""
+    colors = _load_tool("gen-cartridge-colors")
+    img, window, dark = render(console)
+    r = ramp(img, dark, colors)
+    base = f"cart_{console.lower()}"
+    save(img, base)
+    for color_id, _name, base_hex in colors.PALETTE:
+        save(colorize(img, window, base_hex, r), f"{base}_{color_id}")
+    print(f"{console:4} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
+    return console, img
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("consoles", nargs="*", metavar="CONSOLE", help=f"subset of {' '.join(CONSOLES)}")
     ap.add_argument("--preview", metavar="DIR", help="also write a contact sheet with sample labels")
+    ap.add_argument("--jobs", type=int, default=2, help="consoles rendered at once (each takes ~1 GB; default 2)")
     args = ap.parse_args(argv)
     unknown = [c for c in args.consoles if c.upper() not in CONSOLES]
     if unknown:
         ap.error(f"unknown console(s): {' '.join(unknown)}; known: {' '.join(CONSOLES)}")
-    colors = _load_tool("gen-cartridge-colors")
-    sheet = []
-    for console in [c.upper() for c in args.consoles] or list(CONSOLES):
-        img, inside = render(console)
-        r = ramp(img, colors)
-        base = f"cart_{console.lower()}"
-        save(img, base)
-        for color_id, _name, base_hex in colors.PALETTE:
-            save(colorize(img, inside, base_hex, r), f"{base}_{color_id}")
-        print(f"{console:4} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}")
-        sheet.append((console, img))
+    consoles = [c.upper() for c in args.consoles] or list(CONSOLES)
+    with ProcessPoolExecutor(max_workers=max(1, min(args.jobs, len(consoles)))) as pool:
+        sheet = list(pool.map(bake, consoles))
     if args.preview:
         out = Path(args.preview)
         out.mkdir(parents=True, exist_ok=True)
