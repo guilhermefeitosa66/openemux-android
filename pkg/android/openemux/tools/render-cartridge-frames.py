@@ -320,6 +320,78 @@ def sega_32x():
     return build
 
 
+ATARI_BLACK = (0.30, 0.30, 0.31)  # the Atari shells are black today
+
+
+def atari_vcs():
+    """The 2600 and the 7800 share one cartridge front today: a bevelled rim round a tall label."""
+    def build():
+        cv = Canvas(400, 476)
+        body = cv.rrect((12, 12, 388, 465, 6))
+        layers = [
+            (cv.rrect((24, 24, 376, 453, 5)), -0.30, 0.70),                        # bevel down from the rim
+            (cv.rrect((35, 35.5, 365, 446, 3.5)), -0.45, 0.30),                    # label recess
+        ]
+        window = cv.rrect((42, 42.6, 358, 438.6, 2.5))
+        return Frame(cv, body, window, layers, ATARI_BLACK)
+    return build
+
+
+def _fuji(cv, cx, top, bottom):
+    """The Atari symbol: a straight centre bar and two prongs that flare outwards to the base."""
+    t = np.linspace(0, 1, 25)
+    y = top + (bottom - top) * t
+    prongs = []
+    for side in (-1, 1):
+        mid = cx + side * (9 + 15 * t ** 2.2)     # prong centreline, bending out near the base
+        half = 3.4 + 2.6 * t
+        prongs.append([*zip(mid - half, y), *zip((mid + half)[::-1], y[::-1])])
+    bar = (cx - 3.6, top, cx + 3.6, bottom, 0)
+    return np.maximum(cv.poly(*prongs), cv.rrect(bar))
+
+
+def atari_5200():
+    def build():
+        cv = Canvas(400, 368)
+        # Sixteen grip teeth stand out of each side, between chamfered full-width blocks at the
+        # top and the bottom, as in the current frame.
+        teeth = cv.rrect(*[(x0, y, x1, y + 11, 1) for y in (37 + 18.75 * k for k in range(16))
+                           for x0, x1 in ((9, 15), (385, 391))])
+        blocks = cv.poly([(20, 9), (379, 9), (390, 18), (390, 29), (9, 29), (9, 18)],
+                         [(9, 337), (390, 337), (390, 351), (382, 358), (17, 358), (9, 351)])
+        body = np.maximum.reduce([cv.rrect((14, 9, 385, 358, 2)), blocks, teeth])
+        sides = cv.rrect((-10, 31, 14.5, 335, 0), (384.5, 31, 410, 335, 0))
+        logo = _fuji(cv, 200, 288, 327)
+        lettering = cv.text([("ATARI", "NotoSans-Black.ttf", 17, 0)], 200, 344.5)
+        layers = [
+            (sides * teeth, -0.35, 0.14),                                           # teeth step down
+            (cv.rrect((45, 31, 354, 286, 4)), -0.50, 0.35),                         # label recess
+            (logo, 0.55, 0.10),
+            (lettering, 0.55, 0.10),
+        ]
+        window = cv.rrect((56.7, 44.7, 340, 272, 2))
+        return Frame(cv, body, window, layers, ATARI_BLACK)
+    return build
+
+
+def lynx():
+    def build():
+        cv = Canvas(400, 417)
+        body = cv.rrect((6, 5, 395, 411, 17))
+        # The contact slot along the bottom: 32 raised metal contacts, lighter than the shell
+        # (a second albedo zone, left out of the colour ramp like the Virtual Boy's band).
+        contacts = cv.rrect(*[(x, 358, x + 9.6, 392, 0.8) for x in (18.5 + 11.44 * k for k in range(32))])
+        layers = [
+            (cv.rrect((14, 10, 387, 20, 5)), 0.35, 0.30),                           # grip ridge
+            (cv.rrect((9, 87.5, 392, 353, 2.5)), -0.45, 0.25),                      # label recess
+            (cv.rrect((15, 355, 386, 395, 2)), -0.60, 0.20),                        # contact slot
+            (contacts, 0.30, 0.10),
+        ]
+        window = cv.rrect((12.4, 92.3, 388.3, 348.7, 2))
+        return Frame(cv, body, window, layers, ATARI_BLACK, dark=contacts, dark_albedo=0.62)
+    return build
+
+
 CONSOLES = {
     "GBC": game_boy((0.80, 0.80, 0.815)),
     "GB": game_boy((0.90, 0.90, 0.905)),
@@ -329,6 +401,10 @@ CONSOLES = {
     "GG": game_gear(),
     "SG1000": sg1000(),
     "S32X": sega_32x(),
+    "A2600": atari_vcs(),
+    "A5200": atari_5200(),
+    "A7800": atari_vcs(),
+    "LYNX": lynx(),
 }
 
 
