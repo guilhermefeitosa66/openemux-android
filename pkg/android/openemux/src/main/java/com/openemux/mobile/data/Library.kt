@@ -224,11 +224,18 @@ class Library(
     // Synchronized: a resume scan and a launch can drain at once, and two drains applied out of order would let an older pick win.
     @Synchronized
     fun absorbShaderPicks() {
-        ShaderPicks.drain(paths.shaderPicks).forEach { pick ->
-            val console = Console.byId(pick.romKey.substringBefore('/', "")) ?: return@forEach
-            if (SHADERS.none { it.id == pick.shader }) return@forEach
-            updateRom(pick.romKey) { it.copy(shader = pick.shader.takeIf { id -> id != consoleSettings(console).shader }) }
+        val picks = ShaderPicks.drain(paths.shaderPicks)
+        if (picks.isEmpty()) return
+        // One update and one save for the whole batch.
+        _meta.update { meta ->
+            picks.fold(meta) { m, pick ->
+                val console = Console.byId(pick.romKey.substringBefore('/', "")) ?: return@fold m
+                if (SHADERS.none { it.id == pick.shader }) return@fold m
+                val shader = pick.shader.takeIf { it != m.settingsFor(console).shader }
+                m.copy(roms = m.roms + (pick.romKey to (m.roms[pick.romKey] ?: RomMeta()).copy(shader = shader)))
+            }
         }
+        saveMeta()
     }
 
     @Synchronized

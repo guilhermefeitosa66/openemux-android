@@ -16,6 +16,7 @@ object ShaderPicks {
     data class Pick(val romKey: String, val shader: String, val at: Long)
 
     private const val EXT = "pick"
+    private const val STALE_TMP_MS = 60_000L
 
     /** Saves [shader] as the pick for [romKey]; false when it could not be written (the game goes on regardless). */
     fun record(dir: File, romKey: String, shader: String, at: Long = System.currentTimeMillis()): Boolean = runCatching {
@@ -31,9 +32,12 @@ object ShaderPicks {
 
     /**
      * Takes every complete pick out of [dir], oldest first, so applying them in order leaves the newest one per ROM.
-     * A file that does not read as a pick is dropped too, so nothing piles up; a write still in flight is left alone.
+     * A file that does not read as a pick is dropped too, and so is a .tmp abandoned by a killed write, so nothing piles
+     * up; a write still in flight is left alone.
      */
-    fun drain(dir: File): List<Pick> {
+    fun drain(dir: File, now: Long = System.currentTimeMillis()): List<Pick> {
+        // A write is a few milliseconds: a .tmp this old was left by a game process killed mid-write.
+        dir.listFiles { f -> f.isFile && f.extension == "tmp" && now - f.lastModified() > STALE_TMP_MS }.orEmpty().forEach { it.delete() }
         val files = dir.listFiles { f -> f.isFile && f.extension == EXT }.orEmpty()
         return files.mapNotNull { f ->
             val pick = runCatching {

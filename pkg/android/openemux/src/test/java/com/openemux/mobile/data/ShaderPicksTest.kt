@@ -71,6 +71,16 @@ class ShaderPicksTest {
     }
 
     @Test
+    fun aTmpLeftByAKilledWriteIsDroppedOnceStale() {
+        dir.mkdirs()
+        val orphan = File(dir, "1-1.tmp").apply { writeText("{") }
+        ShaderPicks.drain(dir, now = orphan.lastModified() + 1_000)
+        assertTrue(orphan.exists())
+        ShaderPicks.drain(dir, now = orphan.lastModified() + 120_000)
+        assertFalse(orphan.exists())
+    }
+
+    @Test
     fun aPickThatCannotBeWrittenReportsItAndThrowsNothing() {
         val blocked = File(root, "file").apply { writeText("") }
         assertFalse(ShaderPicks.record(blocked, gba, "dot"))

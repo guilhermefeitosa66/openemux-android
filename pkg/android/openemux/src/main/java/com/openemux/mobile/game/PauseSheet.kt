@@ -108,6 +108,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.concurrent.thread
 
 data class PauseSession(
     val title: String,
@@ -422,7 +423,8 @@ fun PauseSheet(
                             // Saved for this game: the library folds it into the ROM's shader on its next resume or launch.
                             val picks = session.shaderPicks
                             if (picks != null && session.romKey.isNotEmpty()) {
-                                scope.launch(Dispatchers.IO) { ShaderPicks.record(picks, session.romKey, id) }
+                                // Off the sheet's scope: closing the sheet right after the pick must not cancel the write.
+                                thread(name = "shader-pick") { ShaderPicks.record(picks, session.romKey, id) }
                             }
                             val preset = SHADERS.first { it.id == id }.preset
                             val arg = preset?.let { " " + File(session.shadersDir, it).absolutePath } ?: ""
