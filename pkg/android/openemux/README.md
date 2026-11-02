@@ -237,7 +237,7 @@ screen until it finishes. `tools/bake-frames.py` turns the desktop's cartridge
 SVGs into the PNGs in `res/drawable-nodpi`, except for the consoles
 `tools/render-cartridge-frames.py` renders procedurally (GB, GBC, FC, VB, SMS, GG,
 SG1000, S32X, A2600, A5200, A7800, LYNX, PCE, CV, INTV, NGP, O2, VECTREX, WS,
-N64, GBA, MD),
+N64, GBA, MD, NDS),
 whose WebP frames come from that generator.
 
 Data lives in `Android/data/com.openemux.mobile/files/` (`roms/<console>`,

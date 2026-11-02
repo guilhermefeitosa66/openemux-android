@@ -654,6 +654,28 @@ def mega_drive():
     return build
 
 
+def nintendo_ds():
+    def build():
+        cv = Canvas(190, 200)
+        # The card with its two side notches (the left edge steps out low down, the right one
+        # near the bottom) and the large rounded bottom-left corner, as in the current frame.
+        body = cv.rpoly([(10, 7), (179.5, 7), (179.5, 178.8), (180.6, 179.6),
+                         (180.6, 194.5), (9, 194.5), (9, 167.4), (10, 166.4)],
+                        [3, 3, 0.4, 0.4, 2.5, 15, 0.4, 0.4])
+        # The label window's notched corner: a 45-degree chamfer at the bottom left.
+        window = cv.rpoly([(24.2, 15.0), (165.8, 15.0), (165.8, 171.8), (36.2, 171.8), (24.2, 159.8)],
+                          [2.5, 2.5, 2.5, 0, 0])
+        recess = cv.rpoly([(21.8, 12.6), (168.2, 12.6), (168.2, 174.2), (35.2, 174.2), (21.8, 160.8)],
+                          [3.2, 3.2, 3.2, 0.6, 0.6])
+        layers = [
+            (cv.rrect((-10, -10, 200, 10.2, 0)), -0.15, 0.70),                      # top edge rolls off
+            (recess, -0.45, 0.35),                                                   # label recess
+            (cv.rrect((-10, 186, 200, 210, 0)), -0.15, 0.80),                        # bottom edge rolls off
+        ]
+        return Frame(cv, body, window, layers, DARK_PLASTIC)
+    return build
+
+
 CONSOLES = {
     "GBC": game_boy((0.80, 0.80, 0.815)),
     "GB": game_boy((0.90, 0.90, 0.905)),
@@ -677,6 +699,7 @@ CONSOLES = {
     "N64": nintendo_64(),
     "GBA": game_boy_advance(),
     "MD": mega_drive(),
+    "NDS": nintendo_ds(),
 }
 
 
