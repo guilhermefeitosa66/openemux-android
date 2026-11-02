@@ -62,6 +62,7 @@ LIP_ALPHA_GAIN, LIP_ALPHA_MAX = 1.25, 0.75
 RIM_SOFTNESS = 0.85
 GRAIN = 0.0035
 METAL_SPEC = 2.5     # extra specular on metal contacts
+METAL_EDGE = 0.08    # softness of the metal's edge
 
 
 def _load_tool(name):
@@ -181,7 +182,8 @@ class Frame:
     def metal_mask(self):
         if not self.metal:
             return None
-        return np.clip(sum(mask for mask, _rgb in self.metal), 0, 1)
+        # Blurred as shade() blends the metal albedo, so colorize keeps the whole blended edge.
+        return np.clip(sum(blur(mask, METAL_EDGE) for mask, _rgb in self.metal), 0, 1)
 
 
 def game_boy(albedo):
@@ -623,7 +625,7 @@ def shade(frame, h):
     if frame.metal:
         shine = np.zeros_like(h)
         for mask, metal_rgb in frame.metal:
-            m = blur(mask, 0.08)
+            m = blur(mask, METAL_EDGE)
             albedo = albedo * (1 - m[..., None]) + np.array(metal_rgb, np.float32) * m[..., None]
             shine = np.maximum(shine, m)
         spec = spec * (1 + METAL_SPEC * shine)
@@ -743,11 +745,11 @@ def bake(console):
     colors = _load_tool("gen-cartridge-colors")
     img, window, dark, metal = render(console)
     r = ramp(img, np.maximum(dark, metal), colors)
-    window = np.maximum(window, metal)
+    keep = np.maximum(window, metal)     # pixels colorize leaves as rendered
     base = f"cart_{console.lower()}"
     save(img, base)
     for color_id, _name, base_hex in colors.PALETTE:
-        save(colorize(img, window, base_hex, r), f"{base}_{color_id}")
+        save(colorize(img, keep, base_hex, r), f"{base}_{color_id}")
     print(f"{console:6} {img.size[0]}x{img.size[1]}  ramp slope={r[0]:.3f} intercept={r[1]:+.3f}", flush=True)
     return console, img
 
