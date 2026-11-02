@@ -315,11 +315,16 @@ private fun Facts(state: ArtState) {
             val file = state.file ?: state.url?.let { url ->
                 context.imageLoader.diskCache?.openSnapshot(url)?.use { it.data.toFile() }
             }
-            file?.let { imageInfo(it) } ?: ImageInfo.UNREADABLE
+            when {
+                file != null -> imageInfo(file) ?: ImageInfo.UNREADABLE
+                // A mirror cover not in the image cache yet: nothing is wrong with it, there is just no file to read.
+                else -> ImageInfo.UNKNOWN
+            }
         }
     }.value
     when {
         info == null -> Text("…", style = Type.Small)
+        info === ImageInfo.UNKNOWN -> Unit
         info === ImageInfo.UNREADABLE -> Text(stringResource(R.string.artwork_unreadable), style = Type.Small)
         else -> Text(stringResource(R.string.artwork_details, info.format, info.width, info.height), style = Type.Small)
     }
@@ -341,6 +346,7 @@ private fun providerName(id: String) = when (id) {
 private class ImageInfo(val format: String, val width: Int, val height: Int) {
     companion object {
         val UNREADABLE = ImageInfo("", 0, 0)
+        val UNKNOWN = ImageInfo("", 0, 0)
     }
 }
 
