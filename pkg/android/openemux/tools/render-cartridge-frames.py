@@ -253,7 +253,7 @@ def master_system():
         notches = cv.rrect(*[(x0, y0, x1, y1, 0) for y0, y1 in grooves for x0, x1 in ((-10, 5), (288, 305))])
         body = np.minimum(cv.rrect((3, 6, 290, 190, 3.5)), 1 - notches)
         layers = [
-            (cv.rrect((6.8, 7.2, 288.2, 50.2, 3)), -0.40, 0.30),                    # label recess
+            (cv.rrect((5.8, 7.2, 287.2, 50.2, 3)), -0.40, 0.30),                    # label recess
             (cv.rrect(*[(-10, y0, 305, y1, 0.6) for y0, y1 in grooves]), -0.55, 0.16),
         ]
         window = cv.rrect((10.7, 8.7, 283.4, 46.6, 2.5))
@@ -265,16 +265,17 @@ def game_gear():
     def build():
         cv = Canvas(400, 403)
         body = cv.rrect((9, 8, 392, 397, 6))
-        vents = cv.rrect(*[(x - 1.6, 9.6, x + 1.6, 12.8, 1.6) for x in (153 + 11 * k for k in range(10))])
+        # Details share the shell's axis (x 200.5); the vents sit clear of the rounded rim.
+        vents = cv.rrect(*[(x - 1.6, 12.4, x + 1.6, 15.6, 1.6) for x in (200.5 + 11 * (k - 4.5) for k in range(10))])
         # The arch over the window: thick across the top, narrow down the sides.
         arch = np.clip(cv.rrect((22, 40, 379, 165, 36)) - cv.rrect((36, 72, 365, 220, 22)), 0, 1)
-        sega = cv.text([(ch, "NotoSans-Black.ttf", 24, 1.6) for ch in "SEGA"], 202, 362)
+        sega = cv.text([(ch, "NotoSans-Black.ttf", 24, 1.6) for ch in "SEGA"], 200.5, 362)
         layers = [
             (vents, -0.50, 0.10),
             (arch, 0.55, 0.35),
-            (cv.rrect((108, 49.4, 292, 51.2, 0.9), (108, 61, 292, 62.8, 0.9)), -0.50, 0.12),  # arch grooves
+            (cv.rrect((108.5, 49.4, 292.5, 51.2, 0.9), (108.5, 61, 292.5, 62.8, 0.9)), -0.50, 0.12),  # arch grooves
             (cv.rrect((40.5, 76.5, 362.8, 312.8, 4)), -0.50, 0.35),                 # label recess
-            (cv.rrect((128, 333, 276, 374, 20.5)), -0.55, 0.30),                    # SEGA plate
+            (cv.rrect((126.5, 333, 274.5, 374, 20.5)), -0.55, 0.30),                    # SEGA plate
             (sega, 0.60, 0.10),
         ]
         window = cv.rrect((47.3, 83.3, 356, 306, 2))
@@ -287,10 +288,10 @@ def sg1000():
         cv = Canvas(400, 461)
         # Ten grip tabs stand out of each side, as in the current frame.
         tabs = cv.rrect(*[(x0, y, x1, y + 12, 1.5) for y in (35 + 17.4 * k for k in range(10))
-                          for x0, x1 in ((3, 11), (388.5, 396.5))])
+                          for x0, x1 in ((3, 11), (388, 396))])
         body = np.maximum(cv.rrect((5, 3, 394, 455, 4)), tabs)
         layers = [
-            (tabs * cv.rrect((-10, -10, 9, 470, 0), (390.5, -10, 410, 470, 0)), 0.35, 0.15),
+            (tabs * cv.rrect((-10, -10, 9, 470, 0), (390, -10, 410, 470, 0)), 0.35, 0.15),
             (cv.rrect((35, 4.5, 367, 271.5, 3)), -0.45, 0.35),                      # label recess
         ]
         window = cv.rrect((40.7, 8.7, 361.3, 266, 2))
