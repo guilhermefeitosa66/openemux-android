@@ -629,7 +629,9 @@ class GameActivity : RetroActivityFuture() {
 
     /** Tells the pause sheet which layout is in use, from whichever thread changed it. */
     private fun publishNdsShown(orientation: String, layout: String) {
-        handler.post { ndsShown.value = NdsShown(orientation, layout) }
+        val shown = NdsShown(orientation, layout)
+        // At once on the main thread: R3 on the sheet names the layout right after setting it.
+        if (Looper.myLooper() == Looper.getMainLooper()) ndsShown.value = shown else handler.post { ndsShown.value = shown }
     }
 
     /** Names the layout just switched to, over the game: the sheet, when open, names it itself. */
