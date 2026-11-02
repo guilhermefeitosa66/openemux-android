@@ -182,6 +182,8 @@ class GameLauncher(
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
 
+            // A shader picked in game since the library last resumed is this ROM's now.
+            library.absorbShaderPicks()
             val shader = library.effectiveShader(rom)
             shader.preset?.let { preset ->
                 File(dir, "global.glslp").writeText("#reference \"${File(paths.shaders, preset).absolutePath}\"\n")
@@ -218,6 +220,8 @@ class GameLauncher(
                 putExtra(GameExtras.PLAYTIME, library.playtimeFile(rom).absolutePath)
                 putExtra(GameExtras.SHADERS_DIR, paths.shaders.absolutePath)
                 putExtra(GameExtras.SHADER, shader.id)
+                putExtra(GameExtras.ROM_KEY, rom.key)
+                putExtra(GameExtras.SHADER_PICKS, paths.shaderPicks.absolutePath)
                 putExtra(GameExtras.CORE_NAME, core.name)
                 putExtra(GameExtras.HARDCORE, hardcore)
                 putExtra(GameExtras.LAUNCH_DIR, dir.absolutePath)

@@ -35,6 +35,8 @@ class Paths(val base: File, val internal: File) {
     val index = File(internal, "library.index")
     val carts = File(internal, "carts")
     val labels = File(internal, "labels")
+    /** Shaders picked in game, waiting for the library to fold them in (ShaderPicks). */
+    val shaderPicks = File(internal, "shader-picks")
 
     fun labels(console: Console) = File(labels, console.id)
 
@@ -139,6 +141,8 @@ class Library(
      * shelf nor the index the next cold start opens on.
      */
     suspend fun scan() = withContext(Dispatchers.IO) {
+        // Internal storage: ready even while the ROM folders are not.
+        absorbShaderPicks()
         if (!awaitRoms()) {
             Log.w(TAG, "ROM storage not ready, scan skipped: ${paths.base}")
             return@withContext
@@ -208,6 +212,29 @@ class Library(
     @Synchronized
     fun updateRom(key: String, change: (RomMeta) -> RomMeta) {
         _meta.update { it.copy(roms = it.roms + (key to change(it.roms[key] ?: RomMeta()))) }
+        saveMeta()
+    }
+
+    /**
+     * Folds the shaders picked in game into each ROM's override, oldest first: the newest pick wins, and a pick of the
+     * console's own shader clears the override so the game follows the console again. Picks naming a console or a
+     * shader this build does not know are dropped. Runs on every resume of the library and before every launch, so a
+     * pick is always in before the detail screen can change the same setting.
+     */
+    // Synchronized: a resume scan and a launch can drain at once, and two drains applied out of order would let an older pick win.
+    @Synchronized
+    fun absorbShaderPicks() {
+        val picks = ShaderPicks.drain(paths.shaderPicks)
+        if (picks.isEmpty()) return
+        // One update and one save for the whole batch.
+        _meta.update { meta ->
+            picks.fold(meta) { m, pick ->
+                val console = Console.byId(pick.romKey.substringBefore('/', "")) ?: return@fold m
+                if (SHADERS.none { it.id == pick.shader }) return@fold m
+                val shader = pick.shader.takeIf { it != m.settingsFor(console).shader }
+                m.copy(roms = m.roms + (pick.romKey to (m.roms[pick.romKey] ?: RomMeta()).copy(shader = shader)))
+            }
+        }
         saveMeta()
     }
 

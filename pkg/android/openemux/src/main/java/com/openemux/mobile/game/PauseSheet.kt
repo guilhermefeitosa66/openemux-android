@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.SHADERS
+import com.openemux.mobile.data.ShaderPicks
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.ui.DISABLED_ALPHA
@@ -107,6 +108,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.concurrent.thread
 
 data class PauseSession(
     val title: String,
@@ -115,6 +117,9 @@ data class PauseSession(
     val romBase: String,
     val shadersDir: File,
     val shader: String,
+    /** The ROM's library key and the folder a shader picked here is saved through (ShaderPicks); empty/null: not saved. */
+    val romKey: String = "",
+    val shaderPicks: File? = null,
     val coreName: String,
     val startedAt: Long,
     /** RetroAchievements hardcore: the engine refuses loading states and slow motion; the app leaves fast forward out too. */
@@ -156,6 +161,8 @@ data class PauseSession(
             romBase = intent.getStringExtra(GameExtras.ROM_BASE) ?: "",
             shadersDir = File(intent.getStringExtra(GameExtras.SHADERS_DIR) ?: "/"),
             shader = intent.getStringExtra(GameExtras.SHADER) ?: "none",
+            romKey = intent.getStringExtra(GameExtras.ROM_KEY) ?: "",
+            shaderPicks = intent.getStringExtra(GameExtras.SHADER_PICKS)?.let(::File),
             coreName = intent.getStringExtra(GameExtras.CORE_NAME) ?: "",
             startedAt = startedAt,
             hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
@@ -170,7 +177,8 @@ data class PauseSession(
  */
 private object SessionToggles {
     var muted = false
-    var shader: String? = null
+    /** The shader picked in this process, with the ROM it was picked for: a process reused for another game shows that game's own. */
+    var shader: Pair<String, String>? = null
 }
 
 private enum class Page { Main, States, Shader, Screens }
@@ -338,7 +346,7 @@ fun PauseSheet(
                                 when (page) {
                                     Page.Main -> playingFor(session)
                                     Page.States -> stringResource(R.string.game_tap_to_load)
-                                    Page.Shader -> stringResource(R.string.game_shader_this_session)
+                                    Page.Shader -> stringResource(R.string.game_shader_this_game)
                                     Page.Screens -> stringResource(rememberedFor(screens?.shown?.value?.orientation))
                                 },
                                 style = Type.Small, modifier = Modifier.weight(1f, fill = false),
@@ -410,8 +418,14 @@ fun PauseSheet(
                             page = Page.Main
                             toast = context.getString(R.string.game_toast_screens_layout, context.getString(layout.label))
                         }
-                        Page.Shader -> ShaderPage(SessionToggles.shader ?: session.shader) { id ->
-                            SessionToggles.shader = id
+                        Page.Shader -> ShaderPage(SessionToggles.shader?.takeIf { it.first == session.romKey }?.second ?: session.shader) { id ->
+                            SessionToggles.shader = session.romKey to id
+                            // Saved for this game: the library folds it into the ROM's shader on its next resume or launch.
+                            val picks = session.shaderPicks
+                            if (picks != null && session.romKey.isNotEmpty()) {
+                                // Off the sheet's scope: closing the sheet right after the pick must not cancel the write.
+                                thread(name = "shader-pick") { ShaderPicks.record(picks, session.romKey, id) }
+                            }
                             val preset = SHADERS.first { it.id == id }.preset
                             val arg = preset?.let { " " + File(session.shadersDir, it).absolutePath } ?: ""
                             command("SET_SHADER$arg", context.getString(R.string.game_toast_shader, SHADERS.first { it.id == id }.name(context)))
