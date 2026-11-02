@@ -1,6 +1,7 @@
 package com.openemux.mobile.data
 
 import androidx.annotation.StringRes
+import com.openemux.mobile.launch.TABLETOP
 import com.retroarch.R
 
 /**
@@ -495,4 +496,28 @@ object NdsLayouts {
         val list = NDS_LAYOUTS.getValue(orientation)
         return list[(list.indexOfFirst { it.id == current } + 1) % list.size]
     }
+
+    /** The layouts [orientation] offers, in cycle order; none for an orientation the DS has no layouts for. */
+    fun of(orientation: String): List<ScreenLayout> = NDS_LAYOUTS[orientation].orEmpty()
+
+    /** [orientation]'s layout called [id], or null when it has none by that id. */
+    fun find(orientation: String, id: String?): ScreenLayout? = of(orientation).firstOrNull { it.id == id }
+
+    /** The orientation whose layouts apply: the tabletop overlay when it is shown, else the window's. */
+    fun orientation(tabletopShown: Boolean, landscape: Boolean): String = when {
+        tabletopShown -> TABLETOP
+        landscape -> "landscape"
+        else -> "portrait"
+    }
+
+    /**
+     * Whether an overlay switch is the player's (the skin's screens key) and its layout worth naming: the
+     * orientation did not change ([sameOrientation]) and the layout did. Turning the device, which lands on the
+     * remembered layout, a posture or gamepad switch and the hide key keep the layout and name nothing.
+     */
+    fun announce(sameOrientation: Boolean, previous: String?, shown: String): Boolean =
+        sameOrientation && previous != null && previous != shown
 }
+
+/** The NDS screens the activity shows: the [orientation] in use and its [layout]'s id. */
+data class NdsShown(val orientation: String, val layout: String)

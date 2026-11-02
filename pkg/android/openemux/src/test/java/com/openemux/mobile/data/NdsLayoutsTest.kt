@@ -46,4 +46,33 @@ class NdsLayoutsTest {
         assertEquals("bottom", NdsLayouts.next("portrait-tabletop", "top").id)
         assertEquals("halves", NdsLayouts.next("portrait-tabletop", "bottom").id)
     }
+
+    @Test fun eachOrientationListsItsLayoutsInCycleOrder() {
+        assertEquals(listOf("top", "bottom", "stacked"), NdsLayouts.of("portrait").map { it.id })
+        assertEquals(listOf("top", "bottom", "side"), NdsLayouts.of("landscape").map { it.id })
+        assertEquals(listOf("top", "bottom", "halves"), NdsLayouts.of("portrait-tabletop").map { it.id })
+        assertEquals(emptyList<ScreenLayout>(), NdsLayouts.of("sideways"))
+    }
+
+    @Test fun aLayoutIsFoundOnlyInItsOwnOrientation() {
+        assertEquals("side", NdsLayouts.find("landscape", "side")?.id)
+        assertEquals(null, NdsLayouts.find("portrait", "side"))
+        assertEquals(null, NdsLayouts.find("portrait", null))
+        assertEquals(null, NdsLayouts.find("sideways", "top"))
+    }
+
+    @Test fun theTabletopOverlayWinsOverTheWindowsOrientation() {
+        assertEquals("portrait-tabletop", NdsLayouts.orientation(tabletopShown = true, landscape = true))
+        assertEquals("portrait-tabletop", NdsLayouts.orientation(tabletopShown = true, landscape = false))
+        assertEquals("landscape", NdsLayouts.orientation(tabletopShown = false, landscape = true))
+        assertEquals("portrait", NdsLayouts.orientation(tabletopShown = false, landscape = false))
+    }
+
+    @Test fun onlyALayoutChangeInTheSameOrientationIsNamed() {
+        assertEquals(true, NdsLayouts.announce(sameOrientation = true, previous = "stacked", shown = "top"))
+        // Turning lands on the remembered layout; a mode switch keeps it; nothing known yet names nothing.
+        assertEquals(false, NdsLayouts.announce(sameOrientation = false, previous = "stacked", shown = "top"))
+        assertEquals(false, NdsLayouts.announce(sameOrientation = true, previous = "top", shown = "top"))
+        assertEquals(false, NdsLayouts.announce(sameOrientation = true, previous = null, shown = "top"))
+    }
 }

@@ -87,6 +87,12 @@
     <string name="game_screens_stacked">ஒன்றன் மேல் ஒன்று</string>
     <string name="game_screens_halves">ஒவ்வொரு பாதியிலும் ஒன்று</string>
     <string name="game_screens_side">அருகருகே</string>
+    <string name="game_screens_current">தற்போதையது</string>
+    <string name="game_hint_next_layout">அடுத்த அமைப்பு</string>
+    <string name="game_toast_screens_layout">திரைகள்: %1$s</string>
+    <string name="game_screens_remembered_portrait">நிலைக்குத்து நிலைக்கு நினைவில் வைக்கப்படும்</string>
+    <string name="game_screens_remembered_landscape">கிடைமட்ட நிலைக்கு நினைவில் வைக்கப்படும்</string>
+    <string name="game_screens_remembered_tabletop">மேசை நிலைக்கு நினைவில் வைக்கப்படும்</string>
 
     <!-- RetroAchievements hardcore -->
     <string name="game_hardcore_tag">ஹார்ட்கோர்</string>

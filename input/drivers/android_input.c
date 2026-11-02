@@ -2739,6 +2739,35 @@ static bool android_input_to_external_menu(AInputEvent *event,
    return android_app_external_menu_input(type_event, keycode, action, x, y);
 }
 
+/* OpenEmux: while the content plays, R3 (the right stick click) is
+ * offered to the activity first: on the NDS it steps the screen layout,
+ * standing in for the core's own "Quick Screen Switch". Only R3 reaches
+ * Java; the activity says whether it took it, and a taken press never
+ * reaches the core. */
+static bool android_input_to_pad_shortcut(AInputEvent *event,
+      int type_event, int source)
+{
+   runloop_state_t *runloop_st = runloop_state_get_ptr();
+   int keycode;
+
+   if (     type_event != AINPUT_EVENT_TYPE_KEY
+         || !(source & (AINPUT_SOURCE_GAMEPAD | AINPUT_SOURCE_DPAD
+               | AINPUT_SOURCE_JOYSTICK)))
+      return false;
+   keycode = AKeyEvent_getKeyCode(event);
+   if (keycode != AKEYCODE_BUTTON_THUMBR)
+      return false;
+   if (     (runloop_st->flags & RUNLOOP_FLAG_PAUSED)
+         || !(runloop_st->flags & RUNLOOP_FLAG_CORE_RUNNING))
+      return false;
+#ifdef HAVE_MENU
+   if (menu_state_get_ptr()->flags & MENU_ST_FLAG_ALIVE)
+      return false;
+#endif
+
+   return android_app_pad_shortcut(keycode, AKeyEvent_getAction(event));
+}
+
 static void android_input_poll_input_gingerbread(
       android_input_t *android)
 {
@@ -2764,7 +2793,8 @@ static void android_input_poll_input_gingerbread(
       source            = AInputEvent_getSource(event);
       type_event        = AInputEvent_getType(event);
       if (     android_input_back_to_menu(event, type_event)
-            || android_input_to_external_menu(event, type_event, source))
+            || android_input_to_external_menu(event, type_event, source)
+            || android_input_to_pad_shortcut(event, type_event, source))
       {
          AInputQueue_finishEvent(android_app->inputQueue, event, 1);
          return;
@@ -2856,7 +2886,8 @@ static void android_input_poll_input_default(android_input_t *android)
          source     = AInputEvent_getSource(event);
          type_event = AInputEvent_getType(event);
          if (     android_input_back_to_menu(event, type_event)
-               || android_input_to_external_menu(event, type_event, source))
+               || android_input_to_external_menu(event, type_event, source)
+               || android_input_to_pad_shortcut(event, type_event, source))
          {
             AInputQueue_finishEvent(android_app->inputQueue, event, 1);
             continue;

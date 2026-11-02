@@ -86,6 +86,12 @@
     <string name="game_screens_stacked">上下排列</string>
     <string name="game_screens_halves">每半屏一个</string>
     <string name="game_screens_side">左右排列</string>
+    <string name="game_screens_current">当前</string>
+    <string name="game_hint_next_layout">下一个布局</string>
+    <string name="game_toast_screens_layout">屏幕：%1$s</string>
+    <string name="game_screens_remembered_portrait">竖屏时记住此设置</string>
+    <string name="game_screens_remembered_landscape">横屏时记住此设置</string>
+    <string name="game_screens_remembered_tabletop">桌面模式时记住此设置</string>
 
     <!-- RetroAchievements hardcore -->
     <string name="game_hardcore_tag">硬核</string>
