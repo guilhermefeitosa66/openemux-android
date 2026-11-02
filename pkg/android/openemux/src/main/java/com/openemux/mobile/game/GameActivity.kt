@@ -23,7 +23,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.AppLocale
 import com.openemux.mobile.data.Console
-import com.openemux.mobile.data.NDS_LAYOUTS
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.ScreenLayout
@@ -544,7 +543,7 @@ class GameActivity : RetroActivityFuture() {
             return
         }
         val orientation = page?.orientation ?: return
-        val layout = NDS_LAYOUTS[orientation]?.firstOrNull { it.id == page.layout } ?: return
+        val layout = NdsLayouts.find(orientation, page.layout) ?: return
         loadNdsLayouts()
         val sameOrientation = orientation == ndsOrientation
         if (!sameOrientation) ndsRestoring = ndsLayouts[orientation]

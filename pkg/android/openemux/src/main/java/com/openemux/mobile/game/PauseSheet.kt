@@ -243,10 +243,12 @@ fun PauseSheet(
         LaunchedEffect(toast) {
             if (toast != null) { delay(1800); toast = null }
         }
-        // R3 stepped the layout with the sheet open: name the one it landed on.
+        // R3 stepped the layout with this sheet open: name the one it landed on. The count outlives the sheet (it is
+        // the activity's), so only a step since this sheet opened names anything.
         val cycles = screens?.cycles?.value ?: 0
+        val cyclesAtOpen = remember { cycles }
         LaunchedEffect(cycles) {
-            if (cycles > 0 && screens != null) {
+            if (cycles != cyclesAtOpen && screens != null) {
                 screenLayout(screens.shown.value)?.let { toast = context.getString(R.string.game_toast_screens_layout, context.getString(it.label)) }
             }
         }

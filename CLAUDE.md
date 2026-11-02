@@ -58,7 +58,10 @@ for the Android frontend; it has only been exercised on an x86_64 emulator.
   opening RetroArch's menu, and `android_input_back_to_menu()`
   (`input/drivers/android_input.c`) turns system BACK into a menu request;
   `android_app_overlay_changed()` tells the activity's `onOverlayChanged()` which skin
-  overlay is shown (the NDS screen layouts follow it). The base
+  overlay is shown (the NDS screen layouts follow it), and `android_app_pad_shortcut()`
+  (offered by `android_input_to_pad_shortcut()` in `input/drivers/android_input.c`) hands
+  R3 to the activity's `onPadShortcut()` while the content plays (on the NDS it steps the
+  screen layout). The base
   `RetroActivityCommon` returns false, so stock RetroArch behaviour is preserved; keep
   it that way, and keep these hooks under the C89/AGENTS.md rules.
 - `data/` holds the library model (`Console`, `Library`, `Importer`), cover matching
