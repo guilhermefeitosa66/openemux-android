@@ -236,7 +236,8 @@ RetroArch buildbot every core `data/Console.kt` names (for the device's ABI),
 screen until it finishes. `tools/bake-frames.py` turns the desktop's cartridge
 SVGs into the PNGs in `res/drawable-nodpi`, except for the consoles
 `tools/render-cartridge-frames.py` renders procedurally (GB, GBC, FC, VB, SMS, GG,
-SG1000, S32X, PCE, CV, INTV, NGP, O2, VECTREX, WS), whose WebP frames come from that generator.
+SG1000, S32X, A2600, A5200, A7800, LYNX, PCE, CV, INTV, NGP, O2, VECTREX, WS),
+whose WebP frames come from that generator.
 
 Data lives in `Android/data/com.openemux.mobile/files/` (`roms/<console>`,
 `states`, `saves`, `system` for BIOS, `screenshots`).
