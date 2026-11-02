@@ -234,7 +234,9 @@ The APK ships no cores. On first open, `data/Setup.kt` downloads from the
 RetroArch buildbot every core `data/Console.kt` names (for the device's ABI),
 `info.zip` and the PPSSPP and Dolphin system files, and the app stays on that
 screen until it finishes. `tools/bake-frames.py` turns the desktop's cartridge
-SVGs into the PNGs in `res/drawable-nodpi`.
+SVGs into the PNGs in `res/drawable-nodpi`, except for the consoles
+`tools/render-cartridge-frames.py` renders procedurally (GB, GBC, FC, VB),
+whose WebP frames come from that generator.
 
 Data lives in `Android/data/com.openemux.mobile/files/` (`roms/<console>`,
 `states`, `saves`, `system` for BIOS, `screenshots`).

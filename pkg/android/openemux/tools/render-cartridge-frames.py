@@ -29,6 +29,7 @@ Needs Pillow and numpy, and the Noto fonts for embossed lettering
 """
 import argparse
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -38,6 +39,7 @@ from PIL import Image, ImageDraw, ImageFont
 TOOLS = Path(__file__).resolve().parent
 OUT_DIR = TOOLS.parent / "src/main/res/drawable-nodpi"
 FONT_DIR = Path("/usr/share/fonts/truetype/noto")
+CONSOLE_KT = TOOLS.parent / "src/main/java/com/openemux/mobile/data/Console.kt"
 
 REF = 200.0          # reference units on the frame's longest side
 S = 12               # render pixels per reference unit (supersampled)
@@ -338,10 +340,9 @@ def save(img, name):
 
 def preview(sheet, path):
     """A sample label under each neutral frame, the way the app composes them."""
-    tiles = []
-    for console, img in sheet:
-        label = _sample_label(console)
-        tiles.append(label_composite(console, img, label))
+    rects = label_rects()
+    label = _sample_label()
+    tiles = [label_composite(rects[console], img, label) for console, img in sheet]
     hgt = max(t.height for t in tiles) + 40
     out = Image.new("RGB", (sum(t.width + 20 for t in tiles) + 20, hgt), (36, 36, 40))
     x = 20
@@ -351,15 +352,14 @@ def preview(sheet, path):
     out.save(path)
 
 
-LABEL_RECTS = {   # CartFrame in data/Console.kt: frame w, h, then label x, y, w, h
-    "GBC": (177, 200, 24.137932, 59.874607, 128, 110),
-    "GB": (177, 200, 24.137932, 59.874607, 128, 110),
-    "FC": (400, 449, 161.68942, 0, 186.61885, 306.46255),
-    "VB": (400, 383, 61.333, 38.667, 274.667, 218.667),
-}
+def label_rects():
+    """Each console's CartFrame in data/Console.kt: frame w, h, then label x, y, w, h."""
+    num = r"([\d.]+)f"
+    pattern = re.compile(r'frame\("cart_(\w+)",\s*' + r",\s*".join([num] * 6) + r"\)")
+    return {name.upper(): tuple(float(v) for v in vals) for name, *vals in pattern.findall(CONSOLE_KT.read_text())}
 
 
-def _sample_label(console):
+def _sample_label():
     w, h = 400, 400
     y, x = np.mgrid[0:h, 0:w] / np.array([h, w], np.float32)[:, None, None]
     rgb = np.dstack([0.2 + 0.7 * x, 0.3 + 0.5 * y, 0.8 - 0.5 * x * y])
@@ -368,8 +368,8 @@ def _sample_label(console):
     return im
 
 
-def label_composite(console, frame_img, label):
-    fw, fh, lx, ly, lw, lh = LABEL_RECTS[console]
+def label_composite(rect, frame_img, label):
+    fw, fh, lx, ly, lw, lh = rect
     sx, sy = frame_img.width / fw, frame_img.height / fh
     canvas = Image.new("RGBA", frame_img.size, (0, 0, 0, 0))
     canvas.paste(label.resize((round(lw * sx), round(lh * sy)), Image.LANCZOS), (round(lx * sx), round(ly * sy)))

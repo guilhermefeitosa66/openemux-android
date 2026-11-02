@@ -10,8 +10,8 @@ is their source now, and a .png next to its .webp would not build.
 
     tools/bake-frames.py ~/projetos/pessoal/OpenEmux/src/openemux/ui/assets/images/cartridges
 """
+import ast
 import base64
-import importlib.util
 import io
 import pathlib
 import re
@@ -24,10 +24,12 @@ OUT = TOOLS.parent / "src/main/res/drawable-nodpi"
 
 
 def rendered_consoles():
-    spec = importlib.util.spec_from_file_location("render_cartridge_frames", TOOLS / "render-cartridge-frames.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return set(module.CONSOLES)
+    """The keys of CONSOLES in render-cartridge-frames.py, read without importing it (it needs numpy)."""
+    tree = ast.parse((TOOLS / "render-cartridge-frames.py").read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "CONSOLES" for t in node.targets):
+            return {key.value for key in node.value.keys}
+    sys.exit("bake-frames: no CONSOLES in render-cartridge-frames.py")
 
 
 def embedded_png(svg):
