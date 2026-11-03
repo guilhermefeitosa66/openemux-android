@@ -524,19 +524,13 @@ private fun showsNoArt(rom: Rom): Boolean =
 
 /**
  * Where the art the game shows came from (the label on a cartridge console, the cover on the
- * others), as the string naming it; null until it is read, off the main thread, again after every
- * artwork change.
+ * others), as the string naming it; null until it is read (see [rememberArtStates]).
  */
 @Composable
 private fun rememberArtSource(rom: Rom): Int? {
-    val app = LocalActions.current.app
-    val changes by app.artwork.changes.collectAsState()
-    val labelsFound by app.labels.found.collectAsState()
-    val coverProgress by app.covers.progress.collectAsState()
-    val kind = app.artwork.primaryKind(rom.console)
-    return produceState<Int?>(null, rom, changes, labelsFound, coverProgress.running) {
-        value = artworkSourceLabel(withContext(Dispatchers.IO) { app.artwork.describe(rom, kind).source })
-    }.value
+    val artwork = LocalActions.current.app.artwork
+    val kinds = remember(rom.console) { listOf(artwork.primaryKind(rom.console)) }
+    return rememberArtStates(rom, kinds)[kinds.single()]?.let { artworkSourceLabel(it.source) }
 }
 
 /** The violet glow behind the cartridge. */
