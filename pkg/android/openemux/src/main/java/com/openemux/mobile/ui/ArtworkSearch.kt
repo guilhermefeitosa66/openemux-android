@@ -188,6 +188,9 @@ class SearchState(val kind: ArtKind, title: String) {
     }
 }
 
+/** The search fields' share of their row, next to their button. */
+private const val FIELD_WEIGHT = 1.25f
+
 @Composable
 fun SearchTab(
     rom: Rom,
@@ -214,13 +217,17 @@ fun SearchTab(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).then(side).padding(top = 14.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OeTextField(
-                    stringResource(R.string.artwork_name), state.name, { state.name = it },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
-                    keyboardActions = KeyboardActions(onSearch = { go(false) }),
-                )
+                // Each field with its own search button on the same row (QA of issue 753).
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                    Column(Modifier.weight(1f)) {
+                    OeTextField(
+                        stringResource(R.string.artwork_name), state.name, { state.name = it }, Modifier.weight(FIELD_WEIGHT),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search, autoCorrectEnabled = false),
+                        keyboardActions = KeyboardActions(onSearch = { go(false) }),
+                    )
+                    PrimaryButton(stringResource(R.string.artwork_search_by_name), { go(false) }, Modifier.weight(1f), icon = Icons.Search, height = 52.dp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(FIELD_WEIGHT)) {
                         Text(stringResource(R.string.artwork_hash), style = Type.Caption.copy(color = Oe.Muted), modifier = Modifier.padding(bottom = 6.dp))
                         Box(
                             Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp)).background(Oe.Surface)
@@ -239,10 +246,9 @@ fun SearchTab(
                     }
                     SecondaryButton(
                         stringResource(R.string.artwork_search_by_hash), { go(true) }, Modifier.weight(1f), height = 52.dp,
-                        busy = hash !is HashState.Known,
+                        icon = Icons.Search, busy = hash == HashState.Computing, enabled = hash is HashState.Known,
                     )
                 }
-                PrimaryButton(stringResource(R.string.artwork_search_by_name), { go(false) }, Modifier.fillMaxWidth(), icon = Icons.Search, height = 52.dp)
                 Status(state)
                 ResultGrid(state, wide)
                 if (cover) Suggestions(state, wide) { state.suggest(scope, a.app.artSearch, rom) }

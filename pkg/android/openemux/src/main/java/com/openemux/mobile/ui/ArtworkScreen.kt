@@ -30,6 +30,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.alpha
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -86,20 +91,24 @@ import java.util.Date
 /** What the manager says after an action: the message's text and how loud it is. */
 internal data class ArtMessage(val text: String, val danger: Boolean = false)
 
-/** The manager's tabs (issue 753); [id] is the route's `tab` argument. */
+/**
+ * The manager's tabs (issue 753, reworked in its QA): [id] is the route's `tab` argument. The
+ * older ids "cover" and "label" still open Search on that art kind.
+ */
 enum class ArtTab(val id: String) {
-    CURRENT("current"), COVER("cover"), LABEL("label"), IMPORT("import");
+    CURRENT("current"), SEARCH("search"), EDIT("edit"), IMPORT("import");
 
     companion object {
-        fun of(id: String?) = entries.firstOrNull { it.id == id }
-        fun of(kind: ArtKind) = if (kind == ArtKind.COVER) COVER else LABEL
+        fun of(id: String?) = entries.firstOrNull { it.id == id } ?: if (id == TAB_COVER || id == TAB_LABEL) SEARCH else null
+        const val TAB_COVER = "cover"
+        const val TAB_LABEL = "label"
     }
 }
 
 /**
- * The per-game artwork manager: Current (issue 746) shows where each art came from, with Sync now,
- * Remove and Reset; Cover and Label search the providers, and Import edits a picked image or the
- * current art (issue 753).
+ * The per-game artwork manager: Current (issue 746) shows where each art came from, with Search,
+ * Adjust and Remove; Search, Edit and Import each work on the cover or the label, picked in a row
+ * of sub-tabs that only cartridge consoles have (issue 753).
  */
 @Composable
 fun ArtworkScreen(key: String, startTab: String? = null) {
@@ -116,19 +125,27 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
     val artwork = a.app.artwork
     val scope = rememberCoroutineScope()
     val kinds = remember(rom.console) { artwork.kinds(rom.console) }
-    val tabs = remember(kinds) { listOf(ArtTab.CURRENT, ArtTab.COVER) + (if (ArtKind.LABEL in kinds) listOf(ArtTab.LABEL) else emptyList()) + ArtTab.IMPORT }
-    var tabId by rememberSaveable { mutableStateOf(ArtTab.of(startTab)?.takeIf { it in tabs }?.id ?: ArtTab.CURRENT.id) }
+    val tabs = ArtTab.entries
+    var tabId by rememberSaveable { mutableStateOf(ArtTab.of(startTab)?.id ?: ArtTab.CURRENT.id) }
     val tab = ArtTab.of(tabId) ?: ArtTab.CURRENT
+    // Each of Search, Edit and Import remembers which art kind it is on.
+    val startKind = if (startTab == ArtTab.TAB_LABEL && ArtKind.LABEL in kinds) ArtKind.LABEL else ArtKind.COVER
+    var kindIds by rememberSaveable { mutableStateOf(ArtTab.entries.associate { it.id to startKind.name }) }
+    fun kindOf(t: ArtTab) = ArtKind.entries.firstOrNull { it.name == kindIds[t.id] }?.takeIf { it in kinds } ?: ArtKind.COVER
+    val kind = kindOf(tab)
     var running by remember { mutableStateOf<Pair<ArtKind, String>?>(null) }
     var message by remember { mutableStateOf<ArtMessage?>(null) }
-    var confirmReset by rememberSaveable { mutableStateOf<ArtKind?>(null) }
+    var savedAt by remember { mutableStateOf(0L) }
     val searches = remember(rom.key) { kinds.associateWith { SearchState(it, rom.title) } }
-    val editor = remember(rom.key) { EditorState() }
-    DisposableEffect(editor) { onDispose { editor.clear() } }
+    val editors = remember(rom.key) { kinds.associateWith { EditorState(it) } }
+    val importers = remember(rom.key) { kinds.associateWith { EditorState(it) } }
+    DisposableEffect(editors, importers) { onDispose { (editors.values + importers.values).forEach { it.clear() } } }
+    // The Edit tab copies the current art in once per visit; null until it tried, then why it could not.
+    val editTried = remember(rom.key) { mutableStateMapOf<ArtKind, Int?>() }
     val states = rememberArtStates(rom, kinds)
-    // The hash only when a search tab is opened: hashing a large disc image takes a while.
+    // The hash only when the Search tab is opened: hashing a large disc image takes a while.
     var hashWanted by remember { mutableStateOf(false) }
-    if (tab == ArtTab.COVER || tab == ArtTab.LABEL) hashWanted = true
+    if (tab == ArtTab.SEARCH) hashWanted = true
     val identity = produceState<HashState>(HashState.Computing, hashWanted, rom) {
         if (!hashWanted) return@produceState
         value = withContext(Dispatchers.IO) {
@@ -144,73 +161,93 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
         }
     }.value
 
-    val notFoundCover = stringResource(R.string.artwork_msg_sync_not_found_cover, rom.title)
-    val notFoundLabel = stringResource(R.string.artwork_msg_sync_not_found_label, rom.title)
-    val resetNotFoundCover = stringResource(R.string.artwork_msg_reset_not_found_cover, rom.title)
-    val resetNotFoundLabel = stringResource(R.string.artwork_msg_reset_not_found_label, rom.title)
-    val busy = stringResource(R.string.artwork_msg_busy)
     val unavailable = stringResource(R.string.artwork_msg_unavailable)
-    fun run(kind: ArtKind, action: String, notFound: String, block: suspend () -> ArtOutcome) {
+    val busy = stringResource(R.string.artwork_msg_busy)
+    fun remove(kind: ArtKind) {
         if (running != null) return
-        running = kind to action
+        running = kind to ACTION_REMOVE
         message = null
         scope.launch {
             val outcome = try {
-                block()
+                artwork.remove(rom, kind)
             } finally {
                 running = null
             }
             message = when (outcome) {
-                ArtOutcome.DONE -> null
-                // Remove has no "not found" text: the art was already gone, nothing to say.
-                ArtOutcome.NOT_FOUND -> notFound.takeIf { it.isNotEmpty() }?.let { ArtMessage(it) }
+                // Already gone: nothing to say.
+                ArtOutcome.DONE, ArtOutcome.NOT_FOUND -> null
                 ArtOutcome.UNAVAILABLE -> ArtMessage(unavailable)
                 ArtOutcome.BUSY -> ArtMessage(busy)
             }
         }
     }
 
-    fun select(next: ArtTab) {
+    fun select(next: ArtTab, nextKind: ArtKind? = null) {
+        // Leaving Edit with nothing in it lets the next visit copy the current art in again.
+        if (next != ArtTab.EDIT) editors.forEach { (k, e) -> if (!e.active) editTried.remove(k) }
+        if (nextKind != null && nextKind in kinds) kindIds = kindIds + (next.id to nextKind.name)
         tabId = next.id
         message = null
     }
 
     fun search(kind: ArtKind) {
-        select(ArtTab.of(kind))
-        searches[kind]?.start(scope, a.app.artSearch, rom, null)
+        select(ArtTab.SEARCH, kind)
+        val state = searches[kind] ?: return
+        if (!state.started) state.start(scope, a.app.artSearch, rom, null)
     }
 
-    // "Search artwork…" and the other ways in that name a search tab start its search at once.
+    // "Search artwork…" and the other ways in that name an art kind start its search at once.
     // Once per visit: a recreated screen keeps the tab the user moved to instead of searching again.
     var autoSearched by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(rom.key) {
         if (autoSearched) return@LaunchedEffect
         autoSearched = true
-        ArtTab.of(startTab)?.let { if (it == ArtTab.COVER) search(ArtKind.COVER) else if (it == ArtTab.LABEL && ArtKind.LABEL in kinds) search(ArtKind.LABEL) }
+        if (startTab == ArtTab.TAB_COVER || startTab == ArtTab.TAB_LABEL) search(startKind)
+    }
+
+    // The Edit tab starts on a copy of the current art.
+    LaunchedEffect(tab, kind, states[kind]) {
+        if (tab != ArtTab.EDIT) return@LaunchedEffect
+        val editor = editors[kind] ?: return@LaunchedEffect
+        val state = states[kind] ?: return@LaunchedEffect
+        if (editor.active || editor.loading || editTried.containsKey(kind)) return@LaunchedEffect
+        if (state.missing) {
+            editTried[kind] = null
+            return@LaunchedEffect
+        }
+        editor.loading = true
+        try {
+            val copy = withContext(Dispatchers.IO) {
+                state.file?.let { ArtImages.copyOf(context, it) }
+                    ?: state.url?.let { url -> context.imageLoader.diskCache?.openSnapshot(url)?.use { ArtImages.copyOf(context, it.data.toFile()) } }
+            }
+            editTried[kind] = when (copy) {
+                null -> R.string.artwork_msg_nothing_to_adjust
+                is PickedArt.Copy -> if (editor.load(copy.file, rom.title, ArtCandidate.ORIGIN_ADJUSTED)) null else R.string.artwork_msg_unreadable
+                else -> R.string.artwork_msg_unreadable
+            }
+        } finally {
+            editor.loading = false
+        }
+    }
+    fun restore(kind: ArtKind) {
+        editors[kind]?.clear()
+        editTried.remove(kind)
     }
 
     // The image picker, and the art kind it was opened for (kept across a process death while the picker is up).
     var pickFor by rememberSaveable { mutableStateOf<ArtKind?>(null) }
-    fun load(result: PickedArt, name: String, kind: ArtKind, origin: String) {
-        when (result) {
-            is PickedArt.Copy -> scope.launch {
-                if (editor.load(result.file, name, kind, origin)) {
-                    select(ArtTab.IMPORT)
-                } else {
-                    message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
-                }
-            }
-            PickedArt.NotImage -> message = ArtMessage(context.getString(R.string.artwork_msg_not_image), danger = true)
-            PickedArt.Unreadable -> message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
-        }
-    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        val kind = pickFor ?: ArtKind.COVER
+        val target = importers[pickFor ?: ArtKind.COVER]
         pickFor = null
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null || target == null) return@rememberLauncherForActivityResult
         scope.launch {
             val (result, name) = withContext(Dispatchers.IO) { ArtImages.importUri(context, uri) to displayName(context, uri) }
-            load(result, name, kind, ArtCandidate.ORIGIN_FILE)
+            message = when (result) {
+                is PickedArt.Copy -> if (target.load(result.file, name, ArtCandidate.ORIGIN_FILE)) null else ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
+                PickedArt.NotImage -> ArtMessage(context.getString(R.string.artwork_msg_not_image), danger = true)
+                PickedArt.Unreadable -> ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
+            }
         }
     }
     fun pick(kind: ArtKind) {
@@ -219,25 +256,14 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
         runCatching { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) }
             .onFailure { message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true) }
     }
-    fun adjust(kind: ArtKind) {
-        val state = states[kind] ?: return
-        message = null
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                state.file?.let { ArtImages.copyOf(context, it) }
-                    ?: state.url?.let { url -> context.imageLoader.diskCache?.openSnapshot(url)?.use { ArtImages.copyOf(context, it.data.toFile()) } }
-            }
-            if (result == null) message = ArtMessage(context.getString(R.string.artwork_msg_nothing_to_adjust))
-            else load(result, rom.title, kind, ArtCandidate.ORIGIN_ADJUSTED)
-        }
-    }
 
     val saveFailed = stringResource(R.string.artwork_msg_save_failed)
     fun saved(outcome: ArtOutcome) {
         if (outcome == ArtOutcome.DONE) {
             select(ArtTab.CURRENT)
+            savedAt = System.currentTimeMillis()
         } else {
-            message = ArtMessage(saveFailed, danger = true)
+            message = ArtMessage(if (outcome == ArtOutcome.BUSY) busy else saveFailed, danger = true)
         }
     }
 
@@ -255,59 +281,103 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
         val side = if (wide) Modifier.padding(horizontal = 32.dp) else Modifier.readingWidth().padding(horizontal = 16.dp)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Column(Modifier.fillMaxWidth().then(side).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Header(rom, if (wide) ({ ArtTabs(tabs, tab, ::select, Modifier.width(440.dp)) }) else null)
-                if (!wide) ArtTabs(tabs, tab, ::select, Modifier.fillMaxWidth())
+                Header(rom, if (wide) ({ ArtTabs(tabs, tab, { select(it) }, Modifier.width(480.dp)) }) else null)
+                if (!wide) ArtTabs(tabs, tab, { select(it) }, Modifier.fillMaxWidth())
+                // Cover and Label inside Search, Edit and Import; a console with only box art has no row.
+                if (tab != ArtTab.CURRENT && kinds.size > 1) KindTabs(kinds, kind, { select(tab, it) })
                 message?.let { Banner(it) { message = null } }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
                     ArtTab.CURRENT -> CurrentTab(
                         rom, kinds, states, wide, side, running,
-                        onSync = { kind -> run(kind, ACTION_SYNC, if (kind == ArtKind.COVER) notFoundCover else notFoundLabel) { artwork.syncNow(rom, kind) } },
-                        onRemove = { kind -> run(kind, ACTION_REMOVE, "") { artwork.remove(rom, kind) } },
-                        onReset = { kind -> confirmReset = kind },
                         onSearch = ::search,
-                        onPick = ::pick,
-                        onAdjust = ::adjust,
+                        onAdjust = { select(ArtTab.EDIT, it) },
+                        onRemove = ::remove,
                     )
-                    ArtTab.COVER, ArtTab.LABEL -> {
-                        val kind = if (tab == ArtTab.COVER) ArtKind.COVER else ArtKind.LABEL
-                        val state = searches[kind]
-                        if (state != null) {
-                            SearchTab(
-                                rom, state, identity, wide, side,
-                                onIssue = { message = it?.let { issue -> issueMessage(context, issue) } },
-                                onCancel = { select(ArtTab.CURRENT) },
-                                onSave = { candidate -> scope.launch { saved(state.save(context, artwork, rom, candidate)) } },
-                            )
-                        }
+                    ArtTab.SEARCH -> searches[kind]?.let { state ->
+                        SearchTab(
+                            rom, state, identity, wide, side,
+                            onIssue = { message = it?.let { issue -> issueMessage(context, issue) } },
+                            onCancel = { select(ArtTab.CURRENT) },
+                            onSave = { candidate -> scope.launch { saved(state.save(context, artwork, rom, candidate)) } },
+                        )
                     }
-                    ArtTab.IMPORT -> ImportTab(
-                        editor, kinds, wide, side,
-                        onPick = { pick(editor.saveAs) },
-                        onCancel = { editor.clear(); select(ArtTab.CURRENT) },
-                        onSave = { scope.launch { saved(editor.save(artwork, rom)) } },
-                    )
+                    ArtTab.EDIT -> editors[kind]?.let { editor ->
+                        val state = states[kind]
+                        EditTab(
+                            editor, wide, side,
+                            canRemove = state?.removable == true,
+                            empty = {
+                                EditEmpty(
+                                    kind, state, editTried[kind],
+                                    onSearch = { search(kind) }, onImport = { select(ArtTab.IMPORT, kind) }, onRetry = { restore(kind) },
+                                )
+                            },
+                            onRestore = { restore(kind) },
+                            onCancel = { restore(kind); select(ArtTab.CURRENT) },
+                            onSave = { scope.launch { saved(editor.save(artwork, rom)) } },
+                        )
+                    }
+                    ArtTab.IMPORT -> importers[kind]?.let { editor ->
+                        ImportTab(
+                            editor, wide, side,
+                            onPick = { pick(kind) },
+                            onCancel = { editor.clear(); select(ArtTab.CURRENT) },
+                            onSave = { scope.launch { saved(editor.save(artwork, rom)) } },
+                        )
+                    }
                 }
+                SavedToast(savedAt, Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp + hintBarInset))
             }
         }
     }
+}
 
-    confirmReset?.let { kind ->
-        val cover = kind == ArtKind.COVER
-        OeConfirmDialog(
-            { confirmReset = null },
-            stringResource(if (cover) R.string.artwork_reset_title_cover else R.string.artwork_reset_title_label),
-            stringResource(if (cover) R.string.artwork_reset_body_cover else R.string.artwork_reset_body_label),
-            stringResource(R.string.artwork_reset_confirm),
-            {
-                confirmReset = null
-                run(kind, ACTION_RESET, if (cover) resetNotFoundCover else resetNotFoundLabel) { artwork.reset(rom, kind) }
-            },
-            stringResource(R.string.detail_cancel),
-        )
+/** What the Edit tab shows with nothing to edit: why, and the ways to get an image. */
+@Composable
+private fun EditEmpty(kind: ArtKind, state: ArtState?, why: Int?, onSearch: () -> Unit, onImport: () -> Unit, onRetry: () -> Unit) {
+    val cover = kind == ArtKind.COVER
+    Icon(Icons.Image, Oe.Faint, 36.dp, stroke = 1.6f)
+    if (state == null || state.missing) {
+        Text(stringResource(if (cover) R.string.artwork_missing_cover else R.string.artwork_missing_label), style = Type.BodyMedium.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
+        Text(stringResource(R.string.artwork_missing_hint), style = Type.Small, textAlign = TextAlign.Center)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(stringResource(R.string.artwork_tab_search), onSearch, height = 44.dp, compact = true, icon = Icons.Search)
+            SecondaryButton(stringResource(R.string.artwork_tab_import), onImport, height = 44.dp, compact = true, icon = Icons.Folder)
+        }
+    } else {
+        Text(stringResource(why ?: R.string.artwork_msg_unreadable), style = Type.Small, textAlign = TextAlign.Center)
+        SecondaryButton(stringResource(R.string.artwork_try_again), onRetry, height = 44.dp, compact = true, icon = Icons.Reset)
     }
 }
+
+/** The green "Saved" that confirms a save for a moment, over the bottom of the manager. */
+@Composable
+private fun SavedToast(at: Long, modifier: Modifier) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(at) {
+        if (at == 0L) return@LaunchedEffect
+        shown = true
+        kotlinx.coroutines.delay(SAVED_TOAST_MS)
+        shown = false
+    }
+    if (!shown) return
+    Row(
+        modifier.clip(RoundedCornerShape(999.dp)).background(SavedGreen)
+            .semantics { liveRegion = LiveRegionMode.Polite }
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Check, Color.White, 18.dp, stroke = 2.4f)
+        Text(stringResource(R.string.artwork_saved), style = Type.Button.copy(color = Color.White, fontSize = 15.sp))
+    }
+}
+
+/** White on it reads at 4.9:1, in both themes. */
+private val SavedGreen = Color(0xFF17804A)
+private const val SAVED_TOAST_MS = 2500L
 
 /** The ROM's hash, for the Hash field and Search by hash. */
 sealed interface HashState {
@@ -331,8 +401,6 @@ private fun displayName(context: Context, uri: Uri): String = runCatching {
     }
 }.getOrNull() ?: uri.lastPathSegment ?: "image"
 
-private const val ACTION_SYNC = "sync"
-private const val ACTION_RESET = "reset"
 private const val ACTION_REMOVE = "remove"
 
 @Composable
@@ -351,7 +419,7 @@ private fun Header(rom: Rom, trailing: (@Composable () -> Unit)?) {
     }
 }
 
-/** The segmented tab row of the design: Current · Cover · Label · Import. */
+/** The segmented tab row: Current · Search · Edit · Import. */
 @Composable
 private fun ArtTabs(tabs: List<ArtTab>, selected: ArtTab, onSelect: (ArtTab) -> Unit, modifier: Modifier) {
     Row(
@@ -371,13 +439,37 @@ private fun ArtTabs(tabs: List<ArtTab>, selected: ArtTab, onSelect: (ArtTab) -> 
                     stringResource(
                         when (t) {
                             ArtTab.CURRENT -> R.string.artwork_tab_current
-                            ArtTab.COVER -> R.string.artwork_cover
-                            ArtTab.LABEL -> R.string.artwork_label
+                            ArtTab.SEARCH -> R.string.artwork_tab_search
+                            ArtTab.EDIT -> R.string.artwork_tab_edit
                             ArtTab.IMPORT -> R.string.artwork_tab_import
                         },
                     ),
                     style = Type.Button.copy(fontSize = 14.sp, color = if (on) Oe.AccentOnSoft else Oe.Muted),
                     maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+/** The Cover · Label row inside Search, Edit and Import, smaller than the tabs above it. */
+@Composable
+private fun KindTabs(kinds: List<ArtKind>, selected: ArtKind, onSelect: (ArtKind) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        kinds.forEach { k ->
+            val on = k == selected
+            Box(
+                Modifier.height(padSize(34.dp, 40.dp)).gamepadFocus(corner = 999.dp).clip(RoundedCornerShape(999.dp))
+                    .background(if (on) Oe.AccentSoft else Oe.Surface)
+                    .border(1.dp, if (on) Oe.AccentSoft else Oe.Border, RoundedCornerShape(999.dp))
+                    .semantics { this.selected = on }
+                    .clickable(role = Role.Tab) { onSelect(k) }
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(if (k == ArtKind.COVER) R.string.artwork_cover else R.string.artwork_label),
+                    style = Type.Button.copy(fontSize = 14.sp, color = if (on) Oe.AccentOnSoft else Oe.Muted),
                 )
             }
         }
@@ -415,12 +507,9 @@ private fun CurrentTab(
     wide: Boolean,
     side: Modifier,
     running: Pair<ArtKind, String>?,
-    onSync: (ArtKind) -> Unit,
-    onRemove: (ArtKind) -> Unit,
-    onReset: (ArtKind) -> Unit,
     onSearch: (ArtKind) -> Unit,
-    onPick: (ArtKind) -> Unit,
     onAdjust: (ArtKind) -> Unit,
+    onRemove: (ArtKind) -> Unit,
 ) {
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) {
         Column(
@@ -432,10 +521,9 @@ private fun CurrentTab(
                 if (state != null) {
                     ArtCard(
                         rom, state, wide, modifier,
-                        running = running?.takeIf { it.first == kind }?.second,
+                        removing = running?.first == kind,
                         busy = running != null,
-                        onSync = { onSync(kind) }, onRemove = { onRemove(kind) }, onReset = { onReset(kind) },
-                        onSearch = { onSearch(kind) }, onPick = { onPick(kind) }, onAdjust = { onAdjust(kind) },
+                        onSearch = { onSearch(kind) }, onAdjust = { onAdjust(kind) }, onRemove = { onRemove(kind) },
                     )
                 }
             }
@@ -451,20 +539,18 @@ private fun CurrentTab(
     }
 }
 
+/** One art kind in Current: its preview and facts, then Search, Adjust and Remove (QA of issue 753). */
 @Composable
 private fun ArtCard(
     rom: Rom,
     state: ArtState,
     wide: Boolean,
     modifier: Modifier,
-    running: String?,
+    removing: Boolean,
     busy: Boolean,
-    onSync: () -> Unit,
-    onRemove: () -> Unit,
-    onReset: () -> Unit,
     onSearch: () -> Unit,
-    onPick: () -> Unit,
     onAdjust: () -> Unit,
+    onRemove: () -> Unit,
 ) {
     val cover = state.kind == ArtKind.COVER
     Column(
@@ -482,63 +568,35 @@ private fun ArtCard(
                 Facts(state)
             }
         }
-        if (state.missing) {
-            PrimaryButton(
-                stringResource(if (running == ACTION_SYNC) R.string.artwork_syncing else R.string.artwork_sync_now),
-                { if (running == null) onSync() }, Modifier.fillMaxWidth(), icon = Icons.Reset, height = 48.dp,
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(stringResource(R.string.artwork_tab_search), onSearch, Modifier.weight(1f), height = 48.dp, icon = Icons.Search, enabled = !busy)
+            SecondaryButton(stringResource(R.string.artwork_adjust), onAdjust, Modifier.weight(1f), height = 48.dp, icon = Icons.Crop, enabled = !busy && !state.missing)
+            DangerButton(
+                stringResource(R.string.artwork_remove), stringResource(if (cover) R.string.artwork_remove_cover else R.string.artwork_remove_label),
+                onRemove, Modifier.weight(1f), busy = removing, enabled = !busy && state.removable,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton(stringResource(if (cover) R.string.artwork_search_covers else R.string.artwork_search_labels), onSearch, Modifier.weight(1f), height = 48.dp, busy = busy)
-                SecondaryButton(stringResource(R.string.artwork_import_file), onPick, Modifier.weight(1f), height = 48.dp, busy = busy)
-            }
-        } else {
-            val pickAnother = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_pick_another), onSearch, m, height = 48.dp, busy = busy) }
-            val replace = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_replace_file), onPick, m, height = 48.dp, busy = busy) }
-            val adjust = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_adjust), onAdjust, m, height = 48.dp, busy = busy) }
-            if (wide) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pickAnother(Modifier.weight(1f)); replace(Modifier.weight(1f)); adjust(Modifier.weight(1f))
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pickAnother(Modifier.weight(1f)); replace(Modifier.weight(1f))
-                }
-                adjust(Modifier.fillMaxWidth())
-            }
-        }
-        if (state.resettable || state.removable) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Oe.Divider))
-            if (state.resettable) {
-                SecondaryButton(
-                    stringResource(
-                        when {
-                            running == ACTION_RESET -> R.string.artwork_syncing
-                            cover -> R.string.artwork_reset_cover
-                            else -> R.string.artwork_reset_label
-                        },
-                    ),
-                    onReset, Modifier.fillMaxWidth(), height = 48.dp, icon = Icons.Load, busy = busy,
-                )
-            }
-            if (state.removable) {
-                DangerButton(stringResource(if (cover) R.string.artwork_remove_cover else R.string.artwork_remove_label), onRemove, busy)
-            }
         }
     }
 }
 
 @Composable
-private fun DangerButton(text: String, onClick: () -> Unit, busy: Boolean) {
+private fun DangerButton(text: String, description: String, onClick: () -> Unit, modifier: Modifier, busy: Boolean, enabled: Boolean) {
+    val inert = busy || !enabled
     Row(
-        Modifier.fillMaxWidth().height(48.dp).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
+        modifier.height(48.dp).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
             .border(1.dp, Oe.Border, RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button) { if (!busy) onClick() }
-            .padding(horizontal = 14.dp),
+            .clickable(role = Role.Button) { if (!inert) onClick() }
+            .semantics {
+                contentDescription = description
+                if (inert) disabled()
+            }
+            .alpha(if (inert) DISABLED_ALPHA else 1f),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Trash, Oe.Danger, 20.dp)
-        Text(text, style = Type.Button.copy(color = Oe.Danger, fontSize = 15.sp))
+        if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = Oe.Danger, strokeWidth = 2.dp) else Icon(Icons.Trash, Oe.Danger, 18.dp)
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = Type.Button.copy(color = Oe.Danger, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -594,7 +652,7 @@ private fun Facts(state: ArtState) {
     when (state.source) {
         null -> {
             Text(stringResource(if (cover) R.string.artwork_missing_cover else R.string.artwork_missing_label), style = Type.BodyMedium.copy(fontSize = 14.sp))
-            Text(stringResource(if (cover) R.string.artwork_missing_cover_hint else R.string.artwork_missing_label_hint), style = Type.Small)
+            Text(stringResource(if (cover) R.string.artwork_missing_hint else R.string.artwork_missing_label_hint), style = Type.Small)
             return
         }
         ArtSource.SYNCED -> Text(date?.let { stringResource(R.string.artwork_synced_on, it) } ?: stringResource(R.string.artwork_synced_unknown), style = primary)
@@ -683,11 +741,11 @@ private fun Preview(rom: Rom, state: ArtState, width: Dp, height: Dp) {
 @Composable
 fun SearchArtworkButton(rom: Rom, modifier: Modifier = Modifier) {
     val a = LocalActions.current
-    val tab = if (rom.console.frame != null) ArtTab.LABEL else ArtTab.COVER
+    val tab = if (rom.console.frame != null) ArtTab.TAB_LABEL else ArtTab.TAB_COVER
     Row(
         modifier.height(40.dp).widthIn(min = 44.dp).gamepadFocus(corner = 20.dp).clip(RoundedCornerShape(20.dp))
             .background(Oe.AccentTint).border(1.dp, Oe.AccentSoft, RoundedCornerShape(20.dp))
-            .clickable(role = Role.Button) { a.nav.navigate(Routes.artwork(rom.key, tab.id)) }
+            .clickable(role = Role.Button) { a.nav.navigate(Routes.artwork(rom.key, tab)) }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

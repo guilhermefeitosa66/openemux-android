@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,9 +45,11 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -72,10 +75,11 @@ import kotlin.math.hypot
 import kotlin.math.min
 
 /**
- * The Import tab's state (issue 753): the working copy in the app cache, the steps applied to it,
- * and what it will be saved as. The picked file itself is never opened again after the copy.
+ * The state of one editor (issue 753), the Edit or the Import tab's for one art kind: the working
+ * copy in the app cache, the steps applied to it, and whether the image was removed. The picked
+ * file, or the art being adjusted, is never opened again after the copy.
  */
-class EditorState {
+class EditorState(val kind: ArtKind) {
     var file by mutableStateOf<File?>(null)
         private set
     var name by mutableStateOf("")
@@ -83,16 +87,23 @@ class EditorState {
     var original by mutableStateOf<Bitmap?>(null)
         private set
     var session by mutableStateOf(EditSession())
-    var saveAs by mutableStateOf(ArtKind.COVER)
     var origin by mutableStateOf(ArtCandidate.ORIGIN_FILE)
         private set
     var saving by mutableStateOf(false)
         private set
+    /** "Remove" pressed in the Edit tab: saving removes this art kind from the game. */
+    var removed by mutableStateOf(false)
+        private set
+    /** The current art is being copied in, for the Edit tab. */
+    var loading by mutableStateOf(false)
     /** What the D-pad moves on the crop box; null while it moves focus as usual. */
     var target by mutableStateOf<CropTarget?>(null)
 
+    /** There is something to save: an image, or its removal. */
+    val active: Boolean get() = original != null || removed
+
     /** Takes [copy] (already in the cache) as the image to edit; false when it cannot be decoded. */
-    suspend fun load(copy: File, name: String, kind: ArtKind, origin: String): Boolean {
+    suspend fun load(copy: File, name: String, origin: String): Boolean {
         val bitmap = withContext(Dispatchers.IO) { ArtImages.decode(copy) }
         if (bitmap == null) {
             copy.delete()
@@ -102,27 +113,44 @@ class EditorState {
         file = copy
         this.name = name
         original = bitmap
-        saveAs = kind
         this.origin = origin
         return true
     }
 
-    /** "Remove this image": the working copy goes, nothing on the device is touched. */
+    /** Remove in the Edit tab: the working copy goes, and Save then removes the art. */
+    fun remove() {
+        clear()
+        removed = true
+    }
+
+    /** Cancel, or "Remove this image" in Import: the working copy goes, nothing on the device is touched. */
     fun clear() {
         file?.delete()
         file = null
         original = null
         session = EditSession()
         target = null
+        removed = false
     }
 
     suspend fun save(artwork: Artwork, rom: Rom): ArtOutcome {
-        val bitmap = original ?: return ArtOutcome.NOT_FOUND
         if (saving) return ArtOutcome.BUSY
+        if (removed) {
+            saving = true
+            try {
+                // Already gone (removed elsewhere meanwhile) is what was asked for.
+                val outcome = artwork.remove(rom, kind).let { if (it == ArtOutcome.NOT_FOUND) ArtOutcome.DONE else it }
+                if (outcome == ArtOutcome.DONE) clear()
+                return outcome
+            } finally {
+                saving = false
+            }
+        }
+        val bitmap = original ?: return ArtOutcome.NOT_FOUND
         saving = true
         try {
             val bytes = withContext(Dispatchers.Default) { ArtImages.png(ArtImages.render(bitmap, session.ops)) }
-            val outcome = artwork.saveManual(rom, saveAs, bytes, "png", null, origin)
+            val outcome = artwork.saveManual(rom, kind, bytes, "png", null, origin)
             if (outcome == ArtOutcome.DONE) clear()
             return outcome
         } finally {
@@ -139,56 +167,116 @@ enum class CropTarget(val corner: Corner?) {
     fun next(): CropTarget? = entries.getOrNull(ordinal + 1)
 }
 
+/**
+ * The Edit tab for one art kind: the current art in the editor, with Remove, then Save or Cancel.
+ * [empty] is what shows while there is nothing to edit.
+ */
+@Composable
+fun EditTab(
+    editor: EditorState,
+    wide: Boolean,
+    side: Modifier,
+    canRemove: Boolean,
+    empty: @Composable () -> Unit,
+    onRestore: () -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val cover = editor.kind == ArtKind.COVER
+    EditorPane(editor, side, onCancel, onSave) {
+        val original = editor.original
+        when {
+            editor.loading -> Placeholder(wide) { CircularProgressIndicator(Modifier.size(28.dp), color = Oe.AccentText, strokeWidth = 3.dp) }
+            editor.removed -> Placeholder(wide) {
+                Icon(Icons.Trash, Oe.Faint, 36.dp, stroke = 1.6f)
+                Text(
+                    stringResource(if (cover) R.string.artwork_edit_removed_cover else R.string.artwork_edit_removed_label),
+                    style = Type.Small, textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                SecondaryButton(stringResource(R.string.artwork_undo_remove), onRestore, icon = Icons.Undo, height = 48.dp, compact = true)
+            }
+            original == null -> Placeholder(wide) { empty() }
+            else -> {
+                Editing(editor, original, wide)
+                SecondaryButton(
+                    stringResource(R.string.artwork_remove_image), { editor.remove() }, Modifier.fillMaxWidth(), height = 44.dp,
+                    icon = Icons.Trash, enabled = canRemove,
+                )
+            }
+        }
+    }
+}
+
+/** The Import tab for one art kind: pick an image, edit it, then Save or Cancel. */
 @Composable
 fun ImportTab(
     editor: EditorState,
-    kinds: List<ArtKind>,
     wide: Boolean,
     side: Modifier,
     onPick: () -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
+    EditorPane(editor, side, onCancel, onSave) {
+        val original = editor.original
+        if (original == null) {
+            Placeholder(wide) {
+                Icon(Icons.Image, Oe.Faint, 36.dp, stroke = 1.6f)
+                Text(stringResource(R.string.artwork_import_hint), style = Type.Small, textAlign = TextAlign.Center)
+                PrimaryButton(stringResource(R.string.artwork_choose_image), onPick, sidePadding = 20.dp, icon = Icons.Folder, height = 48.dp)
+            }
+        } else {
+            Editing(editor, original, wide)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton(stringResource(R.string.artwork_choose_another), onPick, Modifier.weight(1f), height = 44.dp, icon = Icons.Folder)
+                SecondaryButton(stringResource(R.string.artwork_remove_image), { editor.clear() }, Modifier.weight(1f), height = 44.dp, icon = Icons.Trash)
+            }
+        }
+    }
+}
+
+/** The scrolling content of an editor tab over its Cancel · Save bar. */
+@Composable
+private fun EditorPane(editor: EditorState, side: Modifier, onCancel: () -> Unit, onSave: () -> Unit, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         MarginFocusScroll(trailing = FocusMargin) {
             Column(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).then(side).padding(top = 14.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                val original = editor.original
-                if (original == null) {
-                    Column(
-                        Modifier.fillMaxWidth().height(if (wide) 420.dp else 300.dp).clip(RoundedCornerShape(16.dp))
-                            .border(2.dp, Oe.Border, RoundedCornerShape(16.dp)).padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Icon(Icons.Image, Oe.Faint, 36.dp, stroke = 1.6f)
-                        Text(stringResource(R.string.artwork_import_hint), style = Type.Small, textAlign = TextAlign.Center)
-                        PrimaryButton(stringResource(R.string.artwork_choose_image), onPick, sidePadding = 20.dp, icon = Icons.Folder, height = 48.dp)
-                    }
-                } else {
-                    CropStage(editor, original, if (wide) 460.dp else 360.dp)
-                    Tools(editor)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SecondaryButton(
-                            stringResource(R.string.artwork_apply_crop), { editor.session = editor.session.applyCrop(); editor.target = null },
-                            Modifier.weight(1f), height = 44.dp, busy = editor.session.crop == null,
-                        )
-                        SecondaryButton(stringResource(R.string.artwork_remove_image), { editor.clear() }, Modifier.weight(1f), height = 44.dp)
-                    }
-                    if (ArtKind.LABEL in kinds) SaveAs(editor)
-                }
-            }
+            ) { content() }
         }
         BottomBar(side) {
             SecondaryButton(stringResource(R.string.artwork_cancel), onCancel, Modifier.weight(1f), height = 50.dp)
             PrimaryButton(
                 stringResource(if (editor.saving) R.string.artwork_saving else R.string.artwork_save),
-                { if (!editor.saving) onSave() }, Modifier.weight(1f), height = 50.dp, enabled = editor.original != null,
+                { if (!editor.saving) onSave() }, Modifier.weight(1f), height = 50.dp, enabled = editor.active,
             )
         }
     }
+}
+
+/** The dashed frame an editor tab shows when there is no image in it. */
+@Composable
+private fun Placeholder(wide: Boolean, content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().height(if (wide) 420.dp else 300.dp).clip(RoundedCornerShape(16.dp))
+            .border(2.dp, Oe.Border, RoundedCornerShape(16.dp)).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) { content() }
+}
+
+/** The image with its crop box, the tools, and Apply crop. */
+@Composable
+private fun Editing(editor: EditorState, original: Bitmap, wide: Boolean) {
+    CropStage(editor, original, if (wide) 460.dp else 360.dp)
+    Tools(editor)
+    // Nothing runs here: off until crop mode is on, never a spinner (QA of issue 753).
+    SecondaryButton(
+        stringResource(R.string.artwork_apply_crop), { editor.session = editor.session.applyCrop(); editor.target = null },
+        Modifier.fillMaxWidth(), height = 44.dp, icon = Icons.Check, enabled = editor.session.crop != null,
+    )
 }
 
 @Composable
@@ -200,7 +288,7 @@ private fun Tools(editor: EditorState) {
         Tool(Icons.RotateRight, stringResource(R.string.artwork_rotate_right)) { editor.session = s.rotateRight(); editor.target = null }
         Tool(Icons.FlipH, stringResource(R.string.artwork_flip_horizontal)) { editor.session = s.flipHorizontal(); editor.target = null }
         Tool(Icons.FlipV, stringResource(R.string.artwork_flip_vertical)) { editor.session = s.flipVertical(); editor.target = null }
-        Tool(Icons.Load, stringResource(R.string.artwork_reset_edits)) { editor.session = s.reset(); editor.target = null }
+        Tool(Icons.Undo, stringResource(R.string.artwork_reset_edits)) { editor.session = s.reset(); editor.target = null }
     }
 }
 
@@ -216,28 +304,6 @@ private fun Tool(icon: String, label: String, on: Boolean = false, onClick: () -
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, if (on) Oe.AccentOnSoft else Oe.Text, 22.dp) }
-}
-
-@Composable
-private fun SaveAs(editor: EditorState) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.artwork_save_as), style = Type.Caption.copy(color = Oe.Muted))
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Oe.Surface).border(1.dp, Oe.Border, RoundedCornerShape(14.dp)).padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            listOf(ArtKind.COVER to R.string.artwork_cover, ArtKind.LABEL to R.string.artwork_label).forEach { (kind, text) ->
-                val on = editor.saveAs == kind
-                Box(
-                    Modifier.weight(1f).height(padSize(40.dp, 44.dp)).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
-                        .background(if (on) Oe.AccentSoft else Color.Transparent)
-                        .semantics { selected = on }
-                        .clickable(role = Role.RadioButton) { editor.saveAs = kind },
-                    contentAlignment = Alignment.Center,
-                ) { Text(stringResource(text), style = Type.Button.copy(fontSize = 14.sp, color = if (on) Oe.AccentOnSoft else Oe.Muted)) }
-            }
-        }
-    }
 }
 
 /**
