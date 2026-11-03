@@ -120,7 +120,16 @@ object ArtImages {
             BitmapFactory.decodeFile(file.path, bounds)
             var sample = 1
             while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
-            BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+            // inSampleSize only halves: what is still over MAX_SIDE is scaled down to it.
+            BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })?.let { b ->
+                val side = maxOf(b.width, b.height)
+                if (side <= MAX_SIDE) b
+                else {
+                    val scale = MAX_SIDE.toFloat() / side
+                    Bitmap.createScaledBitmap(b, (b.width * scale).toInt().coerceAtLeast(1), (b.height * scale).toInt().coerceAtLeast(1), true)
+                        .also { if (it !== b) b.recycle() }
+                }
+            }
         }
     } catch (e: IOException) {
         Log.w(TAG, "image not decoded: ${e.javaClass.simpleName}")

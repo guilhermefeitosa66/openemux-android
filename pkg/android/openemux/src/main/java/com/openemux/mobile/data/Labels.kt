@@ -117,6 +117,9 @@ class Labels(
                             _progress.value = _progress.value.copy(running = false, current = null, paused = SyncPause.Offline)
                             return@withContext
                         }
+                        // Wrong or missing credentials: one request per ROM would all be refused. Saving
+                        // an account runs the sync again (OpenEmuxApp).
+                        Result.Refused -> { _progress.value = _progress.value.copy(running = false, current = null); return@withContext }
                         Result.Skip -> Unit
                     }
                     if (result !is Result.Offline) failures = 0
@@ -136,6 +139,7 @@ class Labels(
         class Found(val file: File, val wrote: Boolean = true) : Result
         data object Missing : Result
         data object Skip : Result
+        data object Refused : Result
         data object Offline : Result
         data object Quota : Result
     }
@@ -151,7 +155,8 @@ class Labels(
             SsReply.NotFound -> return Result.Missing
             SsReply.Quota -> return Result.Quota
             is SsReply.Unreachable -> return if (reply.network) Result.Offline else Result.Skip
-            SsReply.Refused, SsReply.NoCredentials -> return Result.Skip
+            // Every other ROM would be refused the same way: the run stops (see sync).
+            SsReply.Refused, SsReply.NoCredentials -> return Result.Refused
         }
         val url = ScreenScraper.mediaUrls(game, ArtKind.LABEL, ScreenScraper.regionPriority(rom.file.name), 1).firstOrNull()
             ?: return Result.Missing

@@ -198,14 +198,16 @@ fun SearchTab(
     hash: HashState,
     wide: Boolean,
     side: Modifier,
+    /** The manager's scope: a search goes on while another tab is shown, as its state does. */
+    scope: CoroutineScope,
     onIssue: (SearchIssue?) -> Unit,
     onCancel: () -> Unit,
     onSave: (ArtCandidate) -> Unit,
 ) {
     val a = LocalActions.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val cover = state.kind == ArtKind.COVER
-    LaunchedEffect(state.issue) { onIssue(state.issue) }
+    // Keyed on the state too: the other art kind's search may have the same issue to tell.
+    LaunchedEffect(state, state.issue) { onIssue(state.issue) }
     fun go(byHash: Boolean) {
         val identity = (hash as? HashState.Known)?.identity
         if (byHash && identity == null) return

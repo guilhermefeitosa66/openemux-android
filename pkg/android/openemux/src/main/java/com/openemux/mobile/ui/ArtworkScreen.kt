@@ -300,7 +300,7 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
                     )
                     ArtTab.SEARCH -> searches[kind]?.let { state ->
                         SearchTab(
-                            rom, state, identity, wide, side,
+                            rom, state, identity, wide, side, scope,
                             onIssue = { message = it?.let { issue -> issueMessage(context, issue) } },
                             onCancel = { select(ArtTab.CURRENT) },
                             onSave = { candidate -> scope.launch { saved(state.save(context, artwork, rom, candidate)) } },

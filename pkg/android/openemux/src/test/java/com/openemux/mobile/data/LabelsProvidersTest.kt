@@ -37,6 +37,18 @@ class LabelsProvidersTest {
     }
 
     @Test
+    fun `refused credentials stop the run instead of asking once per game`() = runBlocking {
+        val other = File(paths.roms(Console.GB), "Dr. Mario (World).gb").apply { writeBytes(ByteArray(16) { (it + 1).toByte() }) }
+            .let { Rom("GB/${it.name}", Console.GB, it, "Dr. Mario") }
+        http.on("jeuInfos.php", HttpReply(403, null))
+        val l = labels(ProviderSettings())
+        l.sync(listOf(rom, other))
+        assertEquals(1, http.asked.size)
+        assertFalse(l.progress.value.running)
+        assertFalse(File(paths.labels(Console.GB), "Tetris (World).none").exists())
+    }
+
+    @Test
     fun `an answer that is no image is not kept, a missing game is remembered`() = runBlocking {
         http.on("jeuInfos.php", FakeHttp.game(Triple("support-texture", "wor", "https://ss/l?1"))).on("https://ss/l?1", FakeHttp.ok("<html>" + "x".repeat(80)))
         labels(ProviderSettings()).sync(listOf(rom))

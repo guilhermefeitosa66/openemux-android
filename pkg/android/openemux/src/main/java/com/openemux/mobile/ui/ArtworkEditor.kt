@@ -149,7 +149,9 @@ class EditorState(val kind: ArtKind) {
         val bitmap = original ?: return ArtOutcome.NOT_FOUND
         saving = true
         try {
-            val bytes = withContext(Dispatchers.Default) { ArtImages.png(ArtImages.render(bitmap, session.ops)) }
+            // A crop box still on screen is what the user sees as the result: it is saved applied.
+            val ops = session.applyCrop().ops
+            val bytes = withContext(Dispatchers.Default) { ArtImages.png(ArtImages.render(bitmap, ops)) }
             val outcome = artwork.saveManual(rom, kind, bytes, "png", null, origin)
             if (outcome == ArtOutcome.DONE) clear()
             return outcome
