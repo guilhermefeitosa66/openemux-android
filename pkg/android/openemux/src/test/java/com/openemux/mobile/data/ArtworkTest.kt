@@ -263,7 +263,7 @@ class ArtworkTest {
     @Test
     fun `the label sync vouches for labels from before records, once`() = runBlocking {
         val existing = label(gb)
-        val sync = Labels(paths)
+        val sync = Labels(paths, ScreenScraper(FakeHttp(), { ScreenScraperAccount() }, "", ""))
         sync.sync(listOf(gb, ps))
         val state = artwork.describe(gb, ArtKind.LABEL)
         assertEquals(ArtSource.SYNCED, state.source)
@@ -281,8 +281,71 @@ class ArtworkTest {
     fun `the label sync leaves manual art alone`() = runBlocking {
         val file = label(gb)
         artwork.sources(Console.GB, ArtKind.LABEL).record(gb.baseName, file, ArtSource.MANUAL)
-        Labels(paths).sync(listOf(gb))
+        Labels(paths, ScreenScraper(FakeHttp(), { ScreenScraperAccount() }, "", "")).sync(listOf(gb))
         assertEquals(ArtSource.MANUAL, artwork.describe(gb, ArtKind.LABEL).source)
         assertEquals(5L, file.length())
+    }
+
+    @Test
+    fun `a chosen cover is saved as manual, in its format, and the other suffixes go`() = runBlocking {
+        File(paths.covers(ps.console), "${ps.baseName}.png").apply { parentFile!!.mkdirs(); writeBytes(ByteArray(3)) }
+        val before = artwork.changes.value
+        val outcome = artwork.saveManual(ps, ArtKind.COVER, ByteArray(9) { 1 }, "JPG", "libretro", ArtCandidate.ORIGIN_SEARCH)
+        assertEquals(ArtOutcome.DONE, outcome)
+        val saved = File(paths.covers(ps.console), "${ps.baseName}.jpg")
+        assertTrue(saved.isFile)
+        assertFalse(File(paths.covers(ps.console), "${ps.baseName}.png").exists())
+        assertFalse(File(paths.covers(ps.console), "${ps.baseName}.jpg.tmp").exists())
+        assertEquals(1, covers.forgotten)
+        assertEquals(before + 1, artwork.changes.value)
+        val state = artwork.describe(ps, ArtKind.COVER)
+        assertEquals(ArtSource.MANUAL, state.source)
+        assertEquals("libretro", state.provider)
+        assertEquals(clock, state.updated)
+        assertEquals("search", artwork.sources(ps.console, ArtKind.COVER).entry(ps.baseName)!!.origin)
+    }
+
+    @Test
+    fun `a chosen label replaces the none marker and tells the library`() = runBlocking {
+        labels.noneMarker(gb).apply { parentFile!!.mkdirs(); createNewFile() }
+        assertEquals(ArtOutcome.DONE, artwork.saveManual(gb, ArtKind.LABEL, ByteArray(6), "png", null, ArtCandidate.ORIGIN_FILE))
+        assertFalse(labels.noneMarker(gb).exists())
+        assertEquals(listOf<File?>(labels.labelFile(gb)), labels.changes)
+        val state = artwork.describe(gb, ArtKind.LABEL)
+        assertEquals(ArtSource.MANUAL, state.source)
+        assertNull(state.provider)
+        assertEquals("file", artwork.sources(gb.console, ArtKind.LABEL).entry(gb.baseName)!!.origin)
+    }
+
+    @Test
+    fun `a manual save survives a later sync batch`() = runBlocking {
+        val sources = artwork.sources(gb.console, ArtKind.LABEL)
+        sources.batch { b ->
+            // The sync buffered the old label, then the user chose another one before the batch was written.
+            val old = label(gb, 4)
+            b.record(gb.baseName, old, ArtSource.SYNCED)
+            Thread.sleep(5)
+            kotlinx.coroutines.runBlocking { artwork.saveManual(gb, ArtKind.LABEL, ByteArray(11), "png", "screenscraper", ArtCandidate.ORIGIN_SEARCH) }
+        }
+        assertEquals(ArtSource.MANUAL, artwork.describe(gb, ArtKind.LABEL).source)
+    }
+
+    @Test
+    fun `a save that cannot be written changes nothing`() = runBlocking {
+        // A directory where the file should go: the rename cannot replace it.
+        File(paths.covers(ps.console), "${ps.baseName}.png").mkdirs()
+        File(paths.covers(ps.console), "${ps.baseName}.png/keep").writeBytes(ByteArray(1))
+        val before = artwork.changes.value
+        assertEquals(ArtOutcome.UNAVAILABLE, artwork.saveManual(ps, ArtKind.COVER, ByteArray(4), "png", null, ArtCandidate.ORIGIN_FILE))
+        assertEquals(before, artwork.changes.value)
+        assertNull(artwork.sources(ps.console, ArtKind.COVER).entry(ps.baseName))
+    }
+
+    @Test
+    fun `a synced cover says which provider served it`() {
+        covers.match = Covers.urlOf(ArtProvider.LIBRETRO, Console.PS, "Wipeout (Europe)")
+        assertEquals("libretro", artwork.describe(ps, ArtKind.COVER).provider)
+        covers.match = Covers.urlOf(ArtProvider.MIRROR, Console.PS, "Wipeout (Europe)")
+        assertEquals("openemux", artwork.describe(ps, ArtKind.COVER).provider)
     }
 }

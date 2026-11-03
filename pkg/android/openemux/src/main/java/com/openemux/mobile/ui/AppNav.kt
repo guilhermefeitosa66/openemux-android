@@ -94,7 +94,8 @@ object Routes {
     const val SHELF = "shelf"
     const val LIBRARY = "library/{filter}"
     const val ROM = "rom/{key}"
-    const val ARTWORK = "artwork/{key}"
+    const val ARTWORK = "artwork/{key}?tab={tab}"
+    const val ARTWORK_PROVIDERS = "artwork-providers"
     const val RECENT = "recent"
     const val IMPORT = "import"
     const val SETTINGS = "settings"
@@ -112,7 +113,7 @@ object Routes {
 
     fun library(filter: String) = "library/$filter"
     fun rom(key: String) = "rom/${Uri.encode(key)}"
-    fun artwork(key: String) = "artwork/${Uri.encode(key)}"
+    fun artwork(key: String, tab: String? = null) = "artwork/${Uri.encode(key)}" + (tab?.let { "?tab=$it" } ?: "")
     fun console(id: String) = "settings/$id"
     fun license(id: String) = "about/license/$id"
     fun shareAddress(address: String) = "share/address?addr=${Uri.encode(address)}"
@@ -229,7 +230,10 @@ fun OpenEmuxRoot() {
                         composable(Routes.SHELF) { ShelfScreen() }
                         composable(Routes.LIBRARY) { LibraryScreen(it.arguments?.getString("filter") ?: "ALL", it) }
                         composable(Routes.ROM) { DetailScreen(Uri.decode(it.arguments?.getString("key") ?: "")) }
-                        composable(Routes.ARTWORK) { RememberRowFocus { ArtworkScreen(Uri.decode(it.arguments?.getString("key") ?: "")) } }
+                        composable(Routes.ARTWORK, listOf(navArgument("tab") { defaultValue = "" })) {
+                            RememberRowFocus { ArtworkScreen(Uri.decode(it.arguments?.getString("key") ?: ""), it.arguments?.getString("tab")) }
+                        }
+                        composable(Routes.ARTWORK_PROVIDERS) { RememberRowFocus { ArtworkProvidersScreen() } }
                         composable(Routes.RECENT) { RecentScreen() }
                         // Rows (ListRow, SwitchRow, SettingTile) get their focus back on these when they come back.
                         composable(Routes.IMPORT) { RememberRowFocus { ImportScreen() } }

@@ -1,23 +1,13 @@
 package com.openemux.mobile.data
 
-import android.util.Log
-import com.retroarch.BuildConfig
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.io.File
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
-import java.security.MessageDigest
-import java.util.zip.CRC32
 
 enum class SyncPause { Offline, Quota }
 
@@ -37,7 +27,11 @@ data class SyncProgress(
  * hash like the desktop app does. Box art is a different asset ([Covers]).
  * Labels are kept on disk; a ".none" file remembers a ROM that has none.
  */
-class Labels(private val paths: Paths) : LabelOps {
+class Labels(
+    private val paths: Paths,
+    private val ss: ScreenScraper,
+    private val settings: () -> ProviderSettings = { ProviderSettings() },
+) : LabelOps {
     private val _found = MutableStateFlow<Map<String, File>>(emptyMap())
     val found: StateFlow<Map<String, File>> = _found.asStateFlow()
 
@@ -49,13 +43,11 @@ class Labels(private val paths: Paths) : LabelOps {
     val pending: StateFlow<Set<String>> = _pending.asStateFlow()
 
     private val mutex = Mutex()
-    /** One ScreenScraper request at a time, the sync's and the manager's alike: the pacing below needs it. */
-    private val requests = Mutex()
-    private var lastRequest = 0L
 
     override val syncing: Boolean get() = _progress.value.running
 
-    private val usable get() = BuildConfig.SS_DEVID.isNotEmpty() && BuildConfig.SS_DEVPASSWORD.isNotEmpty()
+    /** ScreenScraper has credentials, and the provider settings let it serve labels (issue 753). */
+    private val usable get() = ss.usable && settings().serves(ArtProvider.SCREENSCRAPER, ArtKind.LABEL)
 
     private fun dir(console: Console) = paths.labels(console)
     private fun file(rom: Rom) = File(dir(rom.console), "${rom.baseName}.png")
@@ -125,6 +117,9 @@ class Labels(private val paths: Paths) : LabelOps {
                             _progress.value = _progress.value.copy(running = false, current = null, paused = SyncPause.Offline)
                             return@withContext
                         }
+                        // Wrong or missing credentials: one request per ROM would all be refused. Saving
+                        // an account runs the sync again (OpenEmuxApp).
+                        Result.Refused -> { _progress.value = _progress.value.copy(running = false, current = null); return@withContext }
                         Result.Skip -> Unit
                     }
                     if (result !is Result.Offline) failures = 0
@@ -144,6 +139,7 @@ class Labels(private val paths: Paths) : LabelOps {
         class Found(val file: File, val wrote: Boolean = true) : Result
         data object Missing : Result
         data object Skip : Result
+        data object Refused : Result
         data object Offline : Result
         data object Quota : Result
     }
@@ -152,41 +148,21 @@ class Labels(private val paths: Paths) : LabelOps {
      * Looks [rom] up and writes its label to [target]. Without [replace] a file that appeared at
      * [target] meanwhile (art the user chose while the sync ran) is kept, never written over.
      */
-    private suspend fun fetch(rom: Rom, target: File, replace: Boolean): Result = requests.withLock {
-        val (crc, md5) = runCatching { digests(rom.file) }.getOrElse { return Result.Skip }
-        val params = listOf(
-            "devid" to BuildConfig.SS_DEVID,
-            "devpassword" to BuildConfig.SS_DEVPASSWORD,
-            "softname" to "OpenEmux",
-            "output" to "json",
-            "systemeid" to rom.console.screenScraperId.toString(),
-            "romtype" to "rom",
-            "romnom" to rom.file.name,
-            "crc" to crc,
-            "md5" to md5,
-            "romtaille" to rom.file.length().toString(),
-        )
-        val query = params.joinToString("&") { (k, v) -> "$k=${URLEncoder.encode(v, "UTF-8")}" }
-        val response = get("https://api.screenscraper.fr/api2/jeuInfos.php?$query")
-        val body = when (response.code) {
-            200 -> response.body?.toString(Charsets.UTF_8) ?: return Result.Skip
-            404 -> return Result.Missing
-            429, 430 -> { Log.w(TAG, "screenscraper quota: ${response.code}"); return Result.Quota }
-            -1 -> return Result.Offline
-            else -> return Result.Skip
+    private suspend fun fetch(rom: Rom, target: File, replace: Boolean): Result {
+        val identity = runCatching { RomIdentity.of(rom.file, rom.console.extensions) }.getOrElse { return Result.Skip }
+        val game = when (val reply = ss.game(rom.console.screenScraperId, rom.file.name, identity)) {
+            is SsReply.Ok -> reply.game
+            SsReply.NotFound -> return Result.Missing
+            SsReply.Quota -> return Result.Quota
+            is SsReply.Unreachable -> return if (reply.network) Result.Offline else Result.Skip
+            // Every other ROM would be refused the same way: the run stops (see sync).
+            SsReply.Refused, SsReply.NoCredentials -> return Result.Refused
         }
-        val medias = runCatching {
-            JSONObject(body).getJSONObject("response").getJSONObject("jeu").getJSONArray("medias")
-        }.getOrElse { return Result.Skip }
-        val regions = regionPriority(rom.file.name)
-        val url = (0 until medias.length()).map { medias.getJSONObject(it) }
-            .filter { it.optString("type") == "support-texture" }
-            .minByOrNull { regions.indexOf(it.optString("region")).let { i -> if (i < 0) regions.size else i } }
-            ?.optString("url")
+        val url = ScreenScraper.mediaUrls(game, ArtKind.LABEL, ScreenScraper.regionPriority(rom.file.name), 1).firstOrNull()
             ?: return Result.Missing
-        val image = get("$url&maxwidth=640")
+        val image = ss.media(url)
         if (image.code == -1) return Result.Offline
-        if (image.code != 200 || image.body == null) return Result.Skip
+        if (image.code != 200 || image.body == null || ArtImageCheck.format(image.body) == null) return Result.Skip
         if (!replace && target.exists()) return Result.Found(target, wrote = false)
         target.parentFile?.mkdirs()
         val tmp = File(target.path + ".tmp")
@@ -196,57 +172,5 @@ class Labels(private val paths: Paths) : LabelOps {
             return Result.Skip
         }
         return Result.Found(target)
-    }
-
-    private class Response(val code: Int, val body: ByteArray?)
-
-    /** The API punishes bursts: one request per second, media included. */
-    private suspend fun get(url: String): Response {
-        val wait = lastRequest + 1000 - System.currentTimeMillis()
-        if (wait > 0) delay(wait)
-        lastRequest = System.currentTimeMillis()
-        return try {
-            val conn = URL(url).openConnection() as HttpURLConnection
-            conn.connectTimeout = 15000
-            conn.readTimeout = 15000
-            try {
-                val code = conn.responseCode
-                Response(code, if (code == 200) conn.inputStream.use { it.readBytes() } else null)
-            } finally {
-                conn.disconnect()
-            }
-        } catch (e: IOException) {
-            Log.w(TAG, "screenscraper unreachable: ${e.javaClass.simpleName}")
-            Response(-1, null)
-        }
-    }
-
-    private fun digests(file: File): Pair<String, String> {
-        val crc = CRC32()
-        val md5 = MessageDigest.getInstance("MD5")
-        file.inputStream().buffered().use { input ->
-            val buf = ByteArray(64 * 1024)
-            while (true) {
-                val n = input.read(buf)
-                if (n < 0) break
-                crc.update(buf, 0, n)
-                md5.update(buf, 0, n)
-            }
-        }
-        return "%08X".format(crc.value) to md5.digest().joinToString("") { "%02X".format(it) }
-    }
-
-    private fun regionPriority(fileName: String): List<String> {
-        val tagged = listOfNotNull(
-            "us".takeIf { "(USA" in fileName },
-            "eu".takeIf { "Europe" in fileName },
-            "jp".takeIf { "Japan" in fileName },
-            "br".takeIf { "Brazil" in fileName },
-        )
-        return (tagged + listOf("wor", "us", "eu", "jp", "ss")).distinct()
-    }
-
-    private companion object {
-        const val TAG = "OpenEmuxLabels"
     }
 }

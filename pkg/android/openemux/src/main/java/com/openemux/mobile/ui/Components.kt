@@ -146,6 +146,14 @@ object Icons {
     const val Reset = "M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"
     const val Trash = "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
     /** A picture: the artwork manager (issue 746). */
+    // The artwork editor's tools (issue 753), from its design.
+    const val Crop = "M6 2v16h16M2 6h16v16"
+    const val RotateLeft = "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"
+    const val RotateRight = "M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"
+    /** Undo: back to the original image. Not a circle, so it cannot be read as a rotation. */
+    const val Undo = "M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"
+    const val FlipH = "M12 3v18M8 7l-5 5 5 5M16 7l5 5-5 5"
+    const val FlipV = "M3 12h18M7 8l5-5 5 5M7 16l5 5 5-5"
     const val Image = "M4 4h16v16H4zM9 7.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3M20 15l-5-5-11 10"
     const val Expand = "M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"
     const val Dots = "M5 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M19 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2"
@@ -341,6 +349,7 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
 /**
  * The quiet button. [compact] is the small one that sits at the end of a row
  * (40 dp, the label at 14 sp); [busy] swaps its icon for a spinner and stops it taking taps.
+ * [enabled] false dims it and stops it taking taps too, with no spinner: nothing is running.
  */
 @Composable
 fun SecondaryButton(
@@ -351,8 +360,10 @@ fun SecondaryButton(
     icon: String? = null,
     compact: Boolean = false,
     busy: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val corner = if (compact) 14.dp else 16.dp
+    val inert = busy || !enabled
     Row(
         modifier
             .height(if (compact) 40.dp else height)
@@ -361,9 +372,9 @@ fun SecondaryButton(
             .background(Oe.Surface2)
             // Busy, it stays focusable and only ignores the press: a disabled clickable drops the pad's focus,
             // which then lands on another item, and the sheet that follows gives focus back there (issue 668).
-            .clickable(role = Role.Button) { if (!busy) onClick() }
-            .semantics { if (busy) disabled() }
-            .alpha(if (busy) DISABLED_ALPHA else 1f)
+            .clickable(role = Role.Button) { if (!inert) onClick() }
+            .semantics { if (inert) disabled() }
+            .alpha(if (inert) DISABLED_ALPHA else 1f)
             .padding(horizontal = if (compact) 14.dp else 0.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,

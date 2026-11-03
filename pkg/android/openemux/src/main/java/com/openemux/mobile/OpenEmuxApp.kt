@@ -4,7 +4,16 @@ import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
 import com.openemux.mobile.data.AchievementsStore
+import com.openemux.mobile.data.AccountStore
+import com.openemux.mobile.data.ArtImages
+import com.openemux.mobile.data.ArtKind
+import com.openemux.mobile.data.ArtProvider
+import com.openemux.mobile.data.ArtSearch
 import com.openemux.mobile.data.Artwork
+import com.openemux.mobile.data.PrefsAccountStore
+import com.openemux.mobile.data.ProviderSettingsStore
+import com.openemux.mobile.data.ScreenScraper
+import com.openemux.mobile.data.UrlHttp
 import com.openemux.mobile.data.BackupManager
 import com.openemux.mobile.data.BackupRoots
 import com.openemux.mobile.data.Covers
@@ -31,6 +40,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -43,6 +54,15 @@ class OpenEmuxApp : Application() {
         private set
     /** The per-game artwork manager's model (issue 746). */
     lateinit var artwork: Artwork
+        private set
+    /** Artwork providers, their order and the ScreenScraper accounts (issue 753). */
+    lateinit var providers: ProviderSettingsStore
+        private set
+    lateinit var accounts: AccountStore
+        private set
+    lateinit var screenScraper: ScreenScraper
+        private set
+    lateinit var artSearch: ArtSearch
         private set
     lateinit var launcher: GameLauncher
         private set
@@ -99,9 +119,15 @@ class OpenEmuxApp : Application() {
         // A restore the process died in is finished or undone before anything reads the data.
         Paths(this).let { BackupRoots(it.base, it.internal).recover() }
         library = Library(this)
-        covers = Covers(this, library.paths)
-        labels = Labels(library.paths)
-        artwork = Artwork(library.paths, covers, labels, java.io.File(cacheDir, "artwork"))
+        providers = ProviderSettingsStore(this)
+        accounts = PrefsAccountStore(this)
+        screenScraper = ScreenScraper(UrlHttp("OpenEmuxScreenScraper"), { accounts.account.value })
+        covers = Covers(this, library.paths) { providers.settings.value }
+        labels = Labels(library.paths, screenScraper) { providers.settings.value }
+        artwork = Artwork(library.paths, covers, labels, File(cacheDir, "artwork"))
+        artSearch = ArtSearch(UrlHttp("OpenEmuxArtSearch", 12_000), screenScraper, covers, { providers.settings.value }, ArtImages::decodable)
+        // Working copies the editor left behind when the process died with it open.
+        ArtImages.clearScratch(this)
         achievements = AchievementsStore(this, File(library.paths.launch, "current/retroarch.cfg"))
         launcher = GameLauncher(this, library, covers, labels, achievements)
         importer = Importer(this, library)
@@ -111,7 +137,14 @@ class OpenEmuxApp : Application() {
         updates = UpdateStore.create(this)
         updates.checkOnce(appScope)
         appScope.launch {
-            combine(library.roms, artworkRetry) { roms, _ -> roms }.collectLatest { roms ->
+            // A provider switched or an account added runs the sync again with them (issue 753). Only
+            // what the sync reads counts: reordering or a search-only change must not restart it.
+            val syncSettings = providers.settings.map {
+                // The cover sync goes by name: ScreenScraper box art is search-only (Covers.mirrorUrl).
+                it.serving(ArtKind.COVER).firstOrNull { p -> p != ArtProvider.SCREENSCRAPER } to
+                    it.serves(ArtProvider.SCREENSCRAPER, ArtKind.LABEL)
+            }.distinctUntilChanged()
+            combine(library.roms, artworkRetry, syncSettings, accounts.account) { roms, _, _, _ -> roms }.collectLatest { roms ->
                 coroutineScope {
                     launch { covers.prefetch(roms) }
                     launch { labels.sync(roms) }

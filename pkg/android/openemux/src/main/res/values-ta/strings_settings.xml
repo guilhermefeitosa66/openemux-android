@@ -254,4 +254,30 @@
     <string name="settings_button_labels_nintendo_desc">B கீழே, A வலதுபுறம்.</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">குறுக்கு கீழே, வட்டம் வலதுபுறம்.</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">கலைப்படம்</string>
+    <string name="providers_title">கலைப்பட வழங்குநர்கள்</string>
+    <string name="providers_desc">தேடல் வரிசை, மூலங்கள் மற்றும் ScreenScraper கணக்கு</string>
+    <string name="providers_lead">கலைப்படத் தேடலும் தானியங்கி ஒத்திசைவும் இந்த வரிசையில் இந்த இடங்களில் தேடும். ஒத்திசைவு அட்டைகளுக்கு OpenEmux பிரதியையும் libretro வையும், லேபிள்களுக்கு ScreenScraper ஐயும் பயன்படுத்துகிறது.</string>
+    <string name="providers_order">தேடல் வரிசை</string>
+    <string name="providers_move_up">%1$s ஐ மேலே நகர்த்து</string>
+    <string name="providers_move_down">%1$s ஐக் கீழே நகர்த்து</string>
+    <string name="providers_kind_covers">அட்டைகள்</string>
+    <string name="providers_kind_labels">லேபிள்கள்</string>
+    <string name="providers_account">ScreenScraper கணக்கு</string>
+    <string name="providers_account_intro">விருப்பத்தேர்வு. உங்கள் சொந்தக் கணக்கு உங்களுக்கென்று தனி தினசரி ஒதுக்கீட்டைத் தரும். கணக்கு இல்லையெனில், OpenEmux அதன் பகிரப்பட்ட செயலிக் கணக்கைப் பயன்படுத்தும்.</string>
+    <string name="providers_account_intro_none">விருப்பத்தேர்வு. உங்கள் சொந்தக் கணக்கு உங்களுக்கென்று தனி தினசரி ஒதுக்கீட்டைத் தரும். இந்த உருவாக்கத்தில் பகிரப்பட்ட செயலிக் கணக்கு இல்லை: ScreenScraper க்குக் கீழே உள்ள டெவலப்பர் கணக்கும் தேவை.</string>
+    <string name="providers_user">பயனர்பெயர்</string>
+    <string name="providers_password">கடவுச்சொல்</string>
+    <string name="providers_save_check">சேமித்துச் சரிபார்</string>
+    <string name="providers_checking">சரிபார்க்கிறது…</string>
+    <string name="providers_remove_account">கணக்கை அகற்று</string>
+    <string name="providers_signed_in_quota">உள்நுழைந்துள்ளீர்கள். இன்று %2$s இல் %1$s கோரிக்கைகள் பயன்படுத்தப்பட்டன.</string>
+    <string name="providers_signed_in">%1$s ஆக உள்நுழைந்துள்ளீர்கள்.</string>
+    <string name="providers_developer_ok">டெவலப்பர் கணக்கு ஏற்கப்பட்டது.</string>
+    <string name="providers_developer">டெவலப்பர் கணக்கு (மேம்பட்டது)</string>
+    <string name="providers_developer_intro">உங்கள் சொந்த ScreenScraper டெவலப்பர் கணக்குக்கு மட்டும். இரண்டு புலங்களும் தேவை; இல்லையெனில் பகிரப்பட்டது பயன்படுத்தப்படும்.</string>
+    <string name="providers_dev_id">டெவலப்பர் ID</string>
+    <string name="providers_dev_password">டெவலப்பர் கடவுச்சொல்</string>
+    <string name="providers_remove_developer">டெவலப்பர் கணக்கை அகற்று</string>
 </resources>

@@ -3,12 +3,14 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="cheevos.xml" />
+        <exclude domain="sharedpref" path="screenscraper.xml" />
         <exclude domain="file" path="launch" />
         <exclude domain="file" path="share" />
         <exclude domain="file" path=".restore-staging" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="cheevos.xml" />
+        <exclude domain="sharedpref" path="screenscraper.xml" />
         <exclude domain="file" path="launch" />
         <exclude domain="file" path="share" />
         <exclude domain="file" path=".restore-staging" />

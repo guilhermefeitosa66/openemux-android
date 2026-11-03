@@ -254,4 +254,30 @@
     <string name="settings_button_labels_nintendo_desc">B unten, A rechts.</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">Kreuz unten, Kreis rechts.</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">Artwork</string>
+    <string name="providers_title">Artwork-Anbieter</string>
+    <string name="providers_desc">Suchreihenfolge, Quellen und das ScreenScraper-Konto</string>
+    <string name="providers_lead">Wo die Artwork-Suche und die automatische Synchronisierung suchen, in dieser Reihenfolge. Die Synchronisierung nutzt den OpenEmux-Spiegel und libretro für Cover und ScreenScraper für Etiketten.</string>
+    <string name="providers_order">Suchreihenfolge</string>
+    <string name="providers_move_up">%1$s nach oben verschieben</string>
+    <string name="providers_move_down">%1$s nach unten verschieben</string>
+    <string name="providers_kind_covers">Cover</string>
+    <string name="providers_kind_labels">Etiketten</string>
+    <string name="providers_account">ScreenScraper-Konto</string>
+    <string name="providers_account_intro">Optional. Mit einem eigenen Konto bekommst du ein eigenes Tageskontingent. Ohne Konto nutzt OpenEmux sein gemeinsames App-Konto.</string>
+    <string name="providers_account_intro_none">Optional. Mit einem eigenen Konto bekommst du ein eigenes Tageskontingent. Dieser Build hat kein gemeinsames App-Konto: ScreenScraper braucht außerdem ein Entwicklerkonto, siehe unten.</string>
+    <string name="providers_user">Benutzername</string>
+    <string name="providers_password">Passwort</string>
+    <string name="providers_save_check">Speichern und prüfen</string>
+    <string name="providers_checking">Prüfe…</string>
+    <string name="providers_remove_account">Konto entfernen</string>
+    <string name="providers_signed_in_quota">Angemeldet. %1$s von %2$s Anfragen heute genutzt.</string>
+    <string name="providers_signed_in">Angemeldet als %1$s.</string>
+    <string name="providers_developer_ok">Entwicklerkonto akzeptiert.</string>
+    <string name="providers_developer">Entwicklerkonto (erweitert)</string>
+    <string name="providers_developer_intro">Nur für ein eigenes ScreenScraper-Entwicklerkonto. Beide Felder sind nötig, sonst wird das gemeinsame verwendet.</string>
+    <string name="providers_dev_id">Entwickler-ID</string>
+    <string name="providers_dev_password">Entwicklerpasswort</string>
+    <string name="providers_remove_developer">Entwicklerkonto entfernen</string>
 </resources>

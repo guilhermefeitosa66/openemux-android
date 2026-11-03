@@ -1,7 +1,6 @@
 package com.openemux.mobile.data
 
 import android.content.Context
-import android.net.Uri
 import coil.imageLoader
 import coil.request.ErrorResult
 import coil.request.ImageRequest
@@ -28,9 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * the device ([Paths.covers], one received through Share nearby) wins over
  * the mirror; it is looked for on every call, so one that arrives later shows.
  */
-class Covers(private val context: Context, private val paths: Paths) : CoverOps {
+class Covers(
+    private val context: Context,
+    private val paths: Paths,
+    private val settings: () -> ProviderSettings = { ProviderSettings() },
+) : CoverOps, TitleSource {
     private val indexes = ConcurrentHashMap<Console, Index>()
-    /** "" marks a ROM with no match: ConcurrentHashMap takes no nulls. */
+    /** The matched title per ROM; "" marks a ROM with no match: ConcurrentHashMap takes no nulls. */
     private val cache = ConcurrentHashMap<String, String>()
 
     private val _progress = MutableStateFlow(SyncProgress())
@@ -72,7 +75,7 @@ class Covers(private val context: Context, private val paths: Paths) : CoverOps 
         )
     }
 
-    private class Index(val exact: Map<String, List<String>>, val tokens: List<Pair<Set<String>, String>>)
+    private class Index(val names: List<String>, val exact: Map<String, List<String>>, val tokens: List<Pair<Set<String>, String>>)
 
     /**
      * What to draw for [rom]. A cover kept on the device carries its mtime, so one replaced in place
@@ -104,28 +107,47 @@ class Covers(private val context: Context, private val paths: Paths) : CoverOps 
 
     /**
      * Notes where the covers now in the image cache came from, one write per console (issue 746).
-     * Only mirror covers: a cover kept on the device has a record of its own, which this never touches.
+     * Only served covers: a cover kept on the device has a record of its own, which this never touches.
      */
     private suspend fun record(served: List<Pair<Rom, String>>) = withContext(Dispatchers.IO) {
         served.filter { (rom, _) -> localCover(rom) == null }.groupBy { it.first.console }.forEach { (console, list) ->
             val sources = ArtSources(paths.covers(console))
             val known = sources.entries()
             val fresh = list.filter { (rom, url) -> known[rom.baseName]?.url != url }
-            if (fresh.isNotEmpty()) sources.batch { b -> fresh.forEach { (rom, url) -> b.recordUrl(rom.baseName, url) } }
+            if (fresh.isNotEmpty()) sources.batch { b -> fresh.forEach { (rom, url) -> b.recordUrl(rom.baseName, url, providerOf(url)) } }
         }
     }
 
-    override fun mirrorUrl(rom: Rom): String? = cache.getOrPut(rom.key) {
-        match(rom.console, rom.file.nameWithoutExtension)?.let { name ->
-            "https://raw.githubusercontent.com/guilhermefeitosa66/openemux-artwork/main/" +
-                "${rom.console.artworkDir}/${Uri.encode(name)}.webp"
-        }.orEmpty()
+    /** The title the bundled list matched [rom] to, if any. */
+    fun matchedTitle(rom: Rom): String? = cache.getOrPut(rom.key) {
+        match(rom.console, rom.file.nameWithoutExtension).orEmpty()
     }.ifEmpty { null }
+
+    /**
+     * The synced cover of [rom]: the matched title from the first provider the settings let serve
+     * box art by name (the mirror or libretro, issue 753). ScreenScraper box art is search-only:
+     * the sync never spends the shared quota on covers.
+     */
+    override fun mirrorUrl(rom: Rom): String? {
+        val title = matchedTitle(rom) ?: return null
+        return settings().serving(ArtKind.COVER).firstNotNullOfOrNull { urlOf(it, rom.console, title) }
+    }
+
+    /** Every title in the bundled list of [console] (the suggestions' game-name database). */
+    override fun titles(console: Console): List<String> = index(console).names
+
+    /** The titles whose normalised form is [typed]'s, best region first, else the best close match. */
+    override fun titlesFor(console: Console, typed: String): List<String> {
+        val idx = index(console)
+        idx.exact[normalize(typed)]?.let { return it.sortedBy(::regionRank) }
+        return listOfNotNull(match(console, typed))
+    }
 
     private fun index(console: Console): Index = indexes.getOrPut(console) {
         val names = context.assets.open("covers/covers_${console.id.lowercase()}.txt")
             .bufferedReader().readLines().filter { it.isNotBlank() }
         Index(
+            names = names,
             exact = names.groupBy { normalize(it) },
             tokens = names.map { tokens(it) to it },
         )
@@ -162,6 +184,38 @@ class Covers(private val context: Context, private val paths: Paths) : CoverOps 
     } + (if ("Beta" in name || "Proto" in name || "Demo" in name) 10 else 0)
 
     companion object {
+        private const val MIRROR = "https://raw.githubusercontent.com/guilhermefeitosa66/openemux-artwork/main/"
+        private const val LIBRETRO = "https://thumbnails.libretro.com/"
+
+        /**
+         * Where [provider] serves the box art of [title] (a name from the bundled lists); null for
+         * ScreenScraper, which is looked up by its API, not by name.
+         */
+        fun urlOf(provider: ArtProvider, console: Console, title: String): String? = when (provider) {
+            // The mirror's file names are the lists' names as they are: no sanitising.
+            ArtProvider.MIRROR -> MIRROR + "${console.artworkDir}/${encode(title)}.webp"
+            ArtProvider.LIBRETRO -> LIBRETRO + "${encode(console.artworkDir.replace('_', ' '))}/Named_Boxarts/${encode(libretroName(title))}.png"
+            ArtProvider.SCREENSCRAPER -> null
+        }
+
+        /** Which provider a synced cover URL is from. */
+        fun providerOf(url: String): String = if (url.startsWith(LIBRETRO)) ArtProvider.LIBRETRO.id else ArtProvider.MIRROR.id
+
+        /** libretro-thumbnails replaces the characters a file name cannot hold (desktop `cover_sync.py`). */
+        fun libretroName(title: String): String = title.replace(Regex("[&*/:`<>?\\\\|\"]"), "_")
+
+        /**
+         * Percent-encodes like android.net.Uri.encode (letters, digits and `_-!.~'()*` kept), so the
+         * mirror URLs stay the ones already in the image cache and the source records.
+         */
+        fun encode(text: String): String = buildString {
+            for (b in text.toByteArray(Charsets.UTF_8)) {
+                val c = b.toInt() and 0xFF
+                if (c < 0x80 && (c.toChar().isLetterOrDigit() || c.toChar() in "_-!.~'()*")) append(c.toChar())
+                else append('%').append("%02X".format(c))
+            }
+        }
+
         /** The suffixes a local cover may have, in the order they are looked for. */
         val COVER_SUFFIXES = listOf("png", "jpg", "jpeg", "webp")
 
