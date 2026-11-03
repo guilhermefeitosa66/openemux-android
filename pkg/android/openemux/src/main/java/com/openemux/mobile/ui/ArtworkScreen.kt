@@ -1,6 +1,7 @@
 package com.openemux.mobile.ui
 
 import android.graphics.BitmapFactory
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -279,13 +280,23 @@ private fun DangerButton(text: String, onClick: () -> Unit, busy: Boolean) {
     }
 }
 
+/** The name of where an art came from, as its pill and the detail screen's Artwork row say it. */
+@StringRes
+fun artworkSourceLabel(source: ArtSource?): Int = when (source) {
+    ArtSource.SYNCED -> R.string.artwork_pill_automatic
+    ArtSource.MANUAL -> R.string.artwork_pill_manual
+    ArtSource.LOCAL -> R.string.artwork_pill_local
+    null -> R.string.artwork_pill_missing
+}
+
 @Composable
 private fun SourcePill(source: ArtSource?) {
-    val (text, bg, fg) = when (source) {
-        ArtSource.SYNCED -> Triple(R.string.artwork_pill_automatic, Oe.OkBg, Oe.OkText)
-        ArtSource.MANUAL -> Triple(R.string.artwork_pill_manual, Oe.AccentSoft, Oe.AccentOnSoft)
-        ArtSource.LOCAL -> Triple(R.string.artwork_pill_local, Oe.WarnBg, Oe.WarnText)
-        null -> Triple(R.string.artwork_pill_missing, Oe.Surface2, Oe.Muted)
+    val text = artworkSourceLabel(source)
+    val (bg, fg) = when (source) {
+        ArtSource.SYNCED -> Oe.OkBg to Oe.OkText
+        ArtSource.MANUAL -> Oe.AccentSoft to Oe.AccentOnSoft
+        ArtSource.LOCAL -> Oe.WarnBg to Oe.WarnText
+        null -> Oe.Surface2 to Oe.Muted
     }
     Box(Modifier.clip(RoundedCornerShape(999.dp)).background(bg).padding(horizontal = 10.dp, vertical = 3.dp)) {
         Text(stringResource(text), style = Type.Caption.copy(color = fg, fontSize = 12.sp))

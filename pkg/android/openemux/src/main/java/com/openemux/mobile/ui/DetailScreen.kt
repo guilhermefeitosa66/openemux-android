@@ -130,6 +130,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     // The skin is the console's (issues 718, 720): the row shows it and opens the same choice as the console's settings.
     val skinChoice = rememberSkinChoice(lib, rom.console)
     val skin = lib.consoleSettings(rom.console).skin
+    val artSource = rememberArtSource(rom)
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -198,15 +199,6 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                         menu = false
                         a.app.shareCoordinator.startSend(listOf(rom))
                         a.nav.navigate(Routes.SHARE)
-                    },
-                )
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.detail_artwork), style = Type.Body) },
-                    leadingIcon = { Icon(Icons.Image, Oe.Text, 20.dp) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
-                    onClick = {
-                        menu = false
-                        a.nav.navigate(Routes.artwork(rom.key))
                     },
                 )
                 androidx.compose.material3.DropdownMenuItem(
@@ -286,6 +278,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val settings = listOf(
         Setting(stringResource(R.string.detail_core), core.name, romMeta?.core == null) { sheet = Sheet.Core },
         Setting(stringResource(R.string.detail_shader), shader.name(), romMeta?.shader == null) { sheet = Sheet.Shader },
+        // The way into the artwork manager (issue 746): the art the game shows, and where it came from.
+        Setting(stringResource(R.string.artwork_title), artSource?.let { stringResource(it) } ?: "", false) { a.nav.navigate(Routes.artwork(rom.key)) },
         Setting(
             stringResource(R.string.detail_controller_skin),
             skinValueLabel(skinChoice, skin)?.let { stringResource(it) } ?: "OpenEmux ${rom.console.short}", false,
@@ -527,6 +521,23 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
 @Composable
 private fun showsNoArt(rom: Rom): Boolean =
     if (rom.console.frame != null) labelFor(rom) == null && !labelPending(rom) else coverFor(rom) == null
+
+/**
+ * Where the art the game shows came from (the label on a cartridge console, the cover on the
+ * others), as the string naming it; null until it is read, off the main thread, again after every
+ * artwork change.
+ */
+@Composable
+private fun rememberArtSource(rom: Rom): Int? {
+    val app = LocalActions.current.app
+    val changes by app.artwork.changes.collectAsState()
+    val labelsFound by app.labels.found.collectAsState()
+    val coverProgress by app.covers.progress.collectAsState()
+    val kind = app.artwork.primaryKind(rom.console)
+    return produceState<Int?>(null, rom, changes, labelsFound, coverProgress.running) {
+        value = artworkSourceLabel(withContext(Dispatchers.IO) { app.artwork.describe(rom, kind).source })
+    }.value
+}
 
 /** The violet glow behind the cartridge. */
 @Composable

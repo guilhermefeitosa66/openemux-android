@@ -62,6 +62,9 @@ class ArtworkTest {
     fun `the label exists only where a cartridge frame has a window for it`() {
         assertEquals(listOf(ArtKind.COVER, ArtKind.LABEL), artwork.kinds(Console.GB))
         assertEquals(listOf(ArtKind.COVER), artwork.kinds(Console.PS))
+        // The detail screen's Artwork row speaks for the art the library shows.
+        assertEquals(ArtKind.LABEL, artwork.primaryKind(Console.GB))
+        assertEquals(ArtKind.COVER, artwork.primaryKind(Console.PS))
     }
 
     @Test

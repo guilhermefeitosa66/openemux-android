@@ -84,6 +84,9 @@ class Artwork(
     /** The art kinds [console] shows: the label only where a cartridge frame has a window for it. */
     fun kinds(console: Console): List<ArtKind> = if (console.frame != null) listOf(ArtKind.COVER, ArtKind.LABEL) else listOf(ArtKind.COVER)
 
+    /** The art the game shows in the library: the label on a cartridge console, the cover on the others. */
+    fun primaryKind(console: Console): ArtKind = if (console.frame != null) ArtKind.LABEL else ArtKind.COVER
+
     fun describe(rom: Rom, kind: ArtKind): ArtState {
         val sources = sources(rom.console, kind)
         val file = if (kind == ArtKind.COVER) covers.localCover(rom) else labels.labelFile(rom).takeIf { it.isFile }

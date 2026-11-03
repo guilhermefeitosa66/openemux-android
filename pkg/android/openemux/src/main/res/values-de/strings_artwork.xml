@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The per-game artwork manager (issue 746). -->
 <resources>
-    <string name="detail_artwork">Artwork…</string>
     <string name="detail_search_artwork">Artwork suchen…</string>
     <string name="artwork_title">Artwork</string>
     <string name="artwork_subtitle">%1$s · %2$s</string>
