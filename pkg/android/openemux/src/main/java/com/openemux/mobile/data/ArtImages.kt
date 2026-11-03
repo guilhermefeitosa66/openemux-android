@@ -34,6 +34,9 @@ object ArtImages {
     /** The editor works on at most this many pixels a side: plenty for art, and a photo stays small in memory. */
     const val MAX_SIDE = 2048
 
+    /** The largest file the editor imports: far above any cover or label, well below what a phone can hold twice. */
+    const val MAX_IMPORT_BYTES = 40 * 1024 * 1024
+
     fun scratch(context: Context) = File(context.cacheDir, "artwork/edit")
 
     fun clearScratch(context: Context) {
@@ -50,7 +53,7 @@ object ArtImages {
     /** Copies the picked [uri] into the cache, when it is an image the editor takes. */
     fun importUri(context: Context, uri: Uri): PickedArt {
         val bytes = try {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return PickedArt.Unreadable
+            context.contentResolver.openInputStream(uri)?.use { readCapped(it) } ?: return PickedArt.Unreadable
         } catch (e: IOException) {
             Log.w(TAG, "picked file unreadable: ${e.javaClass.simpleName}")
             return PickedArt.Unreadable
@@ -62,6 +65,24 @@ object ArtImages {
         if (format == null || format !in ArtImageCheck.IMPORTABLE) return PickedArt.NotImage
         if (!decodable(bytes)) return PickedArt.Unreadable
         return copy(context, bytes, format)
+    }
+
+    /**
+     * The whole stream, or null past [MAX_IMPORT_BYTES]: a huge file picked by mistake must not
+     * take the app down with an OutOfMemoryError while it is read.
+     */
+    private fun readCapped(input: java.io.InputStream): ByteArray? {
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(64 * 1024)
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) return out.toByteArray()
+            if (out.size() + n > MAX_IMPORT_BYTES) {
+                Log.w(TAG, "picked file too large")
+                return null
+            }
+            out.write(buf, 0, n)
+        }
     }
 
     /** A working copy of art already on the device (Adjust). */

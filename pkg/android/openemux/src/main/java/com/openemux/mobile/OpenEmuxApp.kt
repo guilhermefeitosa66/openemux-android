@@ -6,6 +6,8 @@ import android.net.Network
 import com.openemux.mobile.data.AchievementsStore
 import com.openemux.mobile.data.AccountStore
 import com.openemux.mobile.data.ArtImages
+import com.openemux.mobile.data.ArtKind
+import com.openemux.mobile.data.ArtProvider
 import com.openemux.mobile.data.ArtSearch
 import com.openemux.mobile.data.Artwork
 import com.openemux.mobile.data.PrefsAccountStore
@@ -38,6 +40,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -133,8 +137,14 @@ class OpenEmuxApp : Application() {
         updates = UpdateStore.create(this)
         updates.checkOnce(appScope)
         appScope.launch {
-            // A provider switched or an account added runs the sync again with them (issue 753).
-            combine(library.roms, artworkRetry, providers.settings, accounts.account) { roms, _, _, _ -> roms }.collectLatest { roms ->
+            // A provider switched or an account added runs the sync again with them (issue 753). Only
+            // what the sync reads counts: reordering or a search-only change must not restart it.
+            val syncSettings = providers.settings.map {
+                // The cover sync goes by name: ScreenScraper box art is search-only (Covers.mirrorUrl).
+                it.serving(ArtKind.COVER).firstOrNull { p -> p != ArtProvider.SCREENSCRAPER } to
+                    it.serves(ArtProvider.SCREENSCRAPER, ArtKind.LABEL)
+            }.distinctUntilChanged()
+            combine(library.roms, artworkRetry, syncSettings, accounts.account) { roms, _, _, _ -> roms }.collectLatest { roms ->
                 coroutineScope {
                     launch { covers.prefetch(roms) }
                     launch { labels.sync(roms) }

@@ -172,7 +172,11 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
     }
 
     // "Search artwork…" and the other ways in that name a search tab start its search at once.
+    // Once per visit: a recreated screen keeps the tab the user moved to instead of searching again.
+    var autoSearched by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(rom.key) {
+        if (autoSearched) return@LaunchedEffect
+        autoSearched = true
         ArtTab.of(startTab)?.let { if (it == ArtTab.COVER) search(ArtKind.COVER) else if (it == ArtTab.LABEL && ArtKind.LABEL in kinds) search(ArtKind.LABEL) }
     }
 

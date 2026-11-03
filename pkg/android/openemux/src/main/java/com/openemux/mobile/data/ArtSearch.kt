@@ -81,14 +81,19 @@ class ArtSearch(
         run.issue()?.let { emit(SearchEvent.Issue(it)) }
     }.flowOn(Dispatchers.IO)
 
-    /** Suggestions for box art, then each one's preview from the mirror. */
+    /**
+     * Suggestions for box art, then each one's preview from the first provider the settings let
+     * serve box art by name (the mirror by default); none when they let none.
+     */
     fun suggest(rom: Rom, name: String): Flow<SearchEvent> = flow {
         val list = ArtSuggestions.suggest(name, titles.titles(rom.console))
         emit(SearchEvent.Suggested(list))
         val run = Run()
+        val provider = settings().serving(ArtKind.COVER).firstOrNull { Covers.urlOf(it, rom.console, "") != null }
         for (s in list) {
-            val url = Covers.urlOf(ArtProvider.MIRROR, rom.console, s.title)!!
-            val image = fetch(ArtProvider.MIRROR, url, run)?.let {
+            // Each suggestion is a title of its own: one whose image matches another's still needs its preview to be chosen.
+            run.seen.clear()
+            val image = provider?.let { p -> Covers.urlOf(p, rom.console, s.title)?.let { fetch(p, it, run) } }?.let {
                 ArtCandidate(it.provider, it.bytes, it.format, it.sha1, s.title, s.approximate)
             }
             emit(SearchEvent.Preview(s.title, image))

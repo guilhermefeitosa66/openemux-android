@@ -117,7 +117,8 @@ class SearchState(val kind: ArtKind, title: String) {
                 // A box-art search that finds nothing offers similar names at once (desktop issue 175).
                 if (kind == ArtKind.COVER && results.isEmpty()) suggest(scope, search, rom)
             } finally {
-                running = false
+                // A search cancelled by a newer one finishes after it started: the flag is the newer one's.
+                if (job === coroutineContext[Job]) running = false
             }
         }
     }
@@ -139,7 +140,7 @@ class SearchState(val kind: ArtKind, title: String) {
                     }
                 }
             } finally {
-                suggesting = false
+                if (suggestJob === coroutineContext[Job]) suggesting = false
             }
         }
     }

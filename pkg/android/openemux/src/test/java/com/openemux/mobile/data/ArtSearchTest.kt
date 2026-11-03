@@ -161,4 +161,22 @@ class ArtSearchTest {
         assertEquals(3, (offline.first() as SearchEvent.Suggested).suggestions.size)
         assertEquals(SearchEvent.Suggested::class, search().suggest(rom, "zzz").first()::class)
     }
+
+    @Test
+    fun `suggestion previews come from the provider the settings allow, and none when they allow none`() = runBlocking {
+        http.on("thumbnails.libretro.com", FakeHttp.png(4))
+        settings = ProviderSettings().setEnabled(ArtProvider.MIRROR, false)
+        val previews = search().suggest(rom, "Tetris").toList().filterIsInstance<SearchEvent.Preview>()
+        // The same bytes for every title: each suggestion still gets its preview.
+        assertEquals(3, previews.size)
+        assertTrue(previews.all { it.candidate?.provider == ArtProvider.LIBRETRO })
+        assertTrue(http.asked.none { "openemux-artwork" in it })
+
+        settings = settings.setEnabled(ArtProvider.LIBRETRO, false)
+        http.asked.clear()
+        val none = search().suggest(rom, "Tetris").toList().filterIsInstance<SearchEvent.Preview>()
+        assertEquals(3, none.size)
+        assertTrue(none.all { it.candidate == null })
+        assertTrue(http.asked.isEmpty())
+    }
 }
