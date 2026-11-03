@@ -97,7 +97,7 @@ class Artwork(
         if (kind == ArtKind.LABEL) return ArtState(kind, null)
         val url = covers.mirrorUrl(rom) ?: return ArtState(kind, null)
         val entry = sources.entry(rom.baseName)?.takeIf { it.url == url }
-        return ArtState(kind, ArtSource.SYNCED, url = url, updated = entry?.updated, provider = ArtSources.PROVIDER_MIRROR)
+        return ArtState(kind, ArtSource.SYNCED, url = url, updated = entry?.updated, provider = Covers.providerOf(url))
     }
 
     private val busy get() = covers.syncing || labels.syncing
@@ -111,7 +111,7 @@ class Artwork(
                 val url = covers.mirrorUrl(rom) ?: return@act ArtOutcome.NOT_FOUND
                 when (covers.fetch(url)) {
                     Fetch.FOUND -> {
-                        sources(rom.console, kind).recordUrl(rom.baseName, url)
+                        sources(rom.console, kind).recordUrl(rom.baseName, url, Covers.providerOf(url))
                         ArtOutcome.DONE
                     }
                     Fetch.MISSING -> ArtOutcome.NOT_FOUND
@@ -161,7 +161,7 @@ class Artwork(
                     Fetch.FOUND -> {
                         deleteLocalCovers(rom)
                         // The URL entry replaces the file's: recordUrl writes over it.
-                        sources(rom.console, kind).recordUrl(rom.baseName, url)
+                        sources(rom.console, kind).recordUrl(rom.baseName, url, Covers.providerOf(url))
                         ArtOutcome.DONE
                     }
                     Fetch.MISSING -> ArtOutcome.NOT_FOUND
@@ -192,6 +192,41 @@ class Artwork(
                 }
             }
         }
+    }
+
+    /**
+     * Saves art the user chose (issue 753): a search result, a suggestion, an imported or adjusted
+     * image. Written beside the synced art under the same name, recorded as Manual, so the sync
+     * never writes over it. A cover keeps its format ([ext]) and the other suffixes go; a label is
+     * always `<name>.png` (the caller hands PNG bytes) and loses its ".none" marker.
+     */
+    suspend fun saveManual(rom: Rom, kind: ArtKind, bytes: ByteArray, ext: String, provider: String?, origin: String): ArtOutcome = act {
+        val target = when (kind) {
+            ArtKind.COVER -> File(paths.covers(rom.console), "${rom.baseName}.${ext.lowercase()}")
+            ArtKind.LABEL -> labels.labelFile(rom)
+        }
+        target.parentFile?.mkdirs()
+        val tmp = File(target.path + ".tmp")
+        try {
+            tmp.writeBytes(bytes)
+            if (!tmp.renameTo(target)) {
+                target.delete()
+                if (!tmp.renameTo(target)) return@act ArtOutcome.UNAVAILABLE
+            }
+        } catch (_: java.io.IOException) {
+            return@act ArtOutcome.UNAVAILABLE
+        } finally {
+            tmp.delete()
+        }
+        if (kind == ArtKind.COVER) {
+            Covers.COVER_SUFFIXES.filter { it != target.extension }.forEach { File(paths.covers(rom.console), "${rom.baseName}.$it").delete() }
+            covers.forgetMatch(rom)
+        } else {
+            labels.noneMarker(rom).delete()
+        }
+        sources(rom.console, kind).record(rom.baseName, target, ArtSource.MANUAL, provider, origin)
+        if (kind == ArtKind.LABEL) labels.changed(rom, target)
+        ArtOutcome.DONE
     }
 
     /**
