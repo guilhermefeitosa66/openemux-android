@@ -1,6 +1,8 @@
 package com.openemux.mobile.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -142,6 +144,7 @@ class ArtSearch(
         var found = 0
         for (url in ScreenScraper.mediaUrls(game, kind, regions, PER_PROVIDER * 2)) {
             if (found >= PER_PROVIDER) break
+            currentCoroutineContext().ensureActive()
             run.requests++
             val reply = ss.media(url)
             if (reply.code == -1) run.networkFailures++
@@ -150,6 +153,8 @@ class ArtSearch(
     }
 
     private suspend fun fetch(provider: ArtProvider, url: String, run: Run): ArtCandidate? {
+        // Cancel search stops here, between two requests.
+        currentCoroutineContext().ensureActive()
         run.requests++
         val reply = http.get(url)
         if (reply.code == -1) run.networkFailures++
