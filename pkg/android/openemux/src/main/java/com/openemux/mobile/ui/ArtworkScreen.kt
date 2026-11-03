@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.imageLoader
+import coil.request.ImageRequest
 import com.openemux.mobile.data.ArtCandidate
 import com.openemux.mobile.data.ArtImages
 import com.openemux.mobile.data.ArtKind
@@ -206,9 +207,11 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
     }
 
     // The Edit tab starts on a copy of the current art.
-    LaunchedEffect(tab, kind, states[kind]) {
+    val editing = editors[kind]
+    // Keyed on whether it tried and on the editor holding anything, so Undo and Try again copy it in again.
+    LaunchedEffect(tab, kind, states[kind], editTried.containsKey(kind), editing?.active) {
         if (tab != ArtTab.EDIT) return@LaunchedEffect
-        val editor = editors[kind] ?: return@LaunchedEffect
+        val editor = editing ?: return@LaunchedEffect
         val state = states[kind] ?: return@LaunchedEffect
         if (editor.active || editor.loading || editTried.containsKey(kind)) return@LaunchedEffect
         if (state.missing) {
@@ -310,7 +313,7 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
                             canRemove = state?.removable == true,
                             empty = {
                                 EditEmpty(
-                                    kind, state, editTried[kind],
+                                    kind, state, editTried.containsKey(kind), editTried[kind],
                                     onSearch = { search(kind) }, onImport = { select(ArtTab.IMPORT, kind) }, onRetry = { restore(kind) },
                                 )
                             },
@@ -336,8 +339,13 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
 
 /** What the Edit tab shows with nothing to edit: why, and the ways to get an image. */
 @Composable
-private fun EditEmpty(kind: ArtKind, state: ArtState?, why: Int?, onSearch: () -> Unit, onImport: () -> Unit, onRetry: () -> Unit) {
+private fun EditEmpty(kind: ArtKind, state: ArtState?, tried: Boolean, why: Int?, onSearch: () -> Unit, onImport: () -> Unit, onRetry: () -> Unit) {
     val cover = kind == ArtKind.COVER
+    if (state != null && !state.missing && !tried) {
+        // About to copy the current art in.
+        CircularProgressIndicator(Modifier.size(28.dp), color = Oe.AccentText, strokeWidth = 3.dp)
+        return
+    }
     Icon(Icons.Image, Oe.Faint, 36.dp, stroke = 1.6f)
     if (state == null || state.missing) {
         Text(stringResource(if (cover) R.string.artwork_missing_cover else R.string.artwork_missing_label), style = Type.BodyMedium.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
@@ -716,20 +724,28 @@ private fun imageInfo(file: File): ImageInfo? {
 @Composable
 private fun Preview(rom: Rom, state: ArtState, width: Dp, height: Dp) {
     val cover = state.kind == ArtKind.COVER
+    val context = LocalContext.current
     val description = stringResource(if (cover) R.string.artwork_preview_cover else R.string.artwork_preview_label, rom.title)
-    val model: Any? = state.file?.let { "${it.toURI().toASCIIString()}?v=${it.lastModified()}" } ?: state.url
+    val file = state.file
+    // The file itself, as the library's cartridge loads a label, keyed by its date so a save shows at once.
+    val model: Any? = remember(file, file?.lastModified(), state.url) {
+        file?.let { ImageRequest.Builder(context).data(it).memoryCacheKey("${it.path}#${it.lastModified()}").build() } ?: state.url
+    }
+    val shape = RoundedCornerShape(if (cover) 8.dp else 6.dp)
+    var failed by remember(model) { mutableStateOf(false) }
     Box(
-        Modifier.size(width, height).clip(RoundedCornerShape(if (cover) 8.dp else 6.dp))
-            .then(
-                if (model == null) Modifier.border(2.dp, Oe.Border, RoundedCornerShape(if (cover) 8.dp else 6.dp))
-                else Modifier.background(Oe.Surface2),
-            ),
+        Modifier.size(width, height).clip(shape)
+            .then(if (model == null || failed) Modifier.border(2.dp, Oe.Border, shape) else Modifier.background(Oe.Surface2)),
         contentAlignment = Alignment.Center,
     ) {
-        if (model != null) {
-            AsyncImage(model, description, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+        if (model != null && !failed) {
+            AsyncImage(
+                model, description, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+                onError = { failed = true },
+            )
         } else {
-            Icon(if (cover) Icons.Grid else Icons.Cart, Oe.Faint, 28.dp)
+            // Missing, or a file that does not decode: the frame says so instead of staying blank.
+            Icon(if (failed) Icons.Alert else if (cover) Icons.Grid else Icons.Cart, Oe.Faint, 28.dp)
         }
     }
 }
