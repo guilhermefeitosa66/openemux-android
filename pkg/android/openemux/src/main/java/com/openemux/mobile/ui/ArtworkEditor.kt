@@ -347,8 +347,10 @@ private fun CropStage(editor: EditorState, original: Bitmap, height: androidx.co
     ) {
         if (preview != null) {
             Canvas(Modifier.fillMaxSize()) {
-                val pad = 12.dp.toPx()
-                val scale = min((size.width - 2 * pad) / preview.width, (size.height - 2 * pad) / preview.height)
+                // Clear of the screen's edges, where a drag would start the system's back gesture instead.
+                val padX = 32.dp.toPx()
+                val padY = 14.dp.toPx()
+                val scale = min((size.width - 2 * padX) / preview.width, (size.height - 2 * padY) / preview.height)
                 val w = preview.width * scale
                 val h = preview.height * scale
                 val r = Rect(Offset((size.width - w) / 2, (size.height - h) / 2), Size(w, h))

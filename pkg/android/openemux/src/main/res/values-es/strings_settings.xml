@@ -265,4 +265,30 @@
     <string name="settings_button_labels_nintendo_desc">B abajo, A a la derecha.</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">Equis abajo, círculo a la derecha.</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">Arte</string>
+    <string name="providers_title">Proveedores de arte</string>
+    <string name="providers_desc">Orden de búsqueda, fuentes y la cuenta de ScreenScraper</string>
+    <string name="providers_lead">Dónde buscan la búsqueda de arte y la sincronización automática, en este orden. La sincronización usa el espejo de OpenEmux y libretro para las portadas, y ScreenScraper para las etiquetas.</string>
+    <string name="providers_order">Orden de búsqueda</string>
+    <string name="providers_move_up">Subir %1$s</string>
+    <string name="providers_move_down">Bajar %1$s</string>
+    <string name="providers_kind_covers">Portadas</string>
+    <string name="providers_kind_labels">Etiquetas</string>
+    <string name="providers_account">Cuenta de ScreenScraper</string>
+    <string name="providers_account_intro">Opcional. Con tu propia cuenta tienes tu propia cuota diaria. Sin ella, OpenEmux usa su cuenta compartida de la app.</string>
+    <string name="providers_account_intro_none">Opcional. Con tu propia cuenta tienes tu propia cuota diaria. Esta compilación no tiene cuenta compartida de la app: ScreenScraper también necesita una cuenta de desarrollador, más abajo.</string>
+    <string name="providers_user">Usuario</string>
+    <string name="providers_password">Contraseña</string>
+    <string name="providers_save_check">Guardar y comprobar</string>
+    <string name="providers_checking">Comprobando…</string>
+    <string name="providers_remove_account">Quitar cuenta</string>
+    <string name="providers_signed_in_quota">Sesión iniciada. %1$s de %2$s solicitudes usadas hoy.</string>
+    <string name="providers_signed_in">Sesión iniciada como %1$s.</string>
+    <string name="providers_developer_ok">Cuenta de desarrollador aceptada.</string>
+    <string name="providers_developer">Cuenta de desarrollador (avanzado)</string>
+    <string name="providers_developer_intro">Solo para una cuenta de desarrollador de ScreenScraper propia. Hacen falta los dos campos; si no, se usa la compartida.</string>
+    <string name="providers_dev_id">ID de desarrollador</string>
+    <string name="providers_dev_password">Contraseña de desarrollador</string>
+    <string name="providers_remove_developer">Quitar cuenta de desarrollador</string>
 </resources>

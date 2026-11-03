@@ -243,4 +243,30 @@
     <string name="settings_button_labels_nintendo_desc">B 在下，A 在右。</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">叉在下，圈在右。</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">封面图</string>
+    <string name="providers_title">封面图来源</string>
+    <string name="providers_desc">搜索顺序、来源和 ScreenScraper 账号</string>
+    <string name="providers_lead">封面图搜索和自动同步按此顺序查找。同步时，封面使用 OpenEmux 镜像和 libretro，标签使用 ScreenScraper。</string>
+    <string name="providers_order">搜索顺序</string>
+    <string name="providers_move_up">上移 %1$s</string>
+    <string name="providers_move_down">下移 %1$s</string>
+    <string name="providers_kind_covers">封面</string>
+    <string name="providers_kind_labels">标签</string>
+    <string name="providers_account">ScreenScraper 账号</string>
+    <string name="providers_account_intro">可选。使用你自己的账号可获得专属的每日配额。没有账号时，OpenEmux 使用应用的共享账号。</string>
+    <string name="providers_account_intro_none">可选。使用你自己的账号可获得专属的每日配额。此版本没有应用共享账号：ScreenScraper 还需要下方的开发者账号。</string>
+    <string name="providers_user">用户名</string>
+    <string name="providers_password">密码</string>
+    <string name="providers_save_check">保存并检查</string>
+    <string name="providers_checking">正在检查…</string>
+    <string name="providers_remove_account">移除账号</string>
+    <string name="providers_signed_in_quota">已登录。今天已使用 %1$s / %2$s 次请求。</string>
+    <string name="providers_signed_in">已登录为 %1$s。</string>
+    <string name="providers_developer_ok">开发者账号已通过验证。</string>
+    <string name="providers_developer">开发者账号（高级）</string>
+    <string name="providers_developer_intro">仅用于你自己的 ScreenScraper 开发者账号。两个字段都必须填写，否则使用共享账号。</string>
+    <string name="providers_dev_id">开发者 ID</string>
+    <string name="providers_dev_password">开发者密码</string>
+    <string name="providers_remove_developer">移除开发者账号</string>
 </resources>

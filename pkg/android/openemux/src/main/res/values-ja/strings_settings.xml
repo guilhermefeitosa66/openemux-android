@@ -243,4 +243,30 @@
     <string name="settings_button_labels_nintendo_desc">B が下、A が右。</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">×が下、○が右。</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">アートワーク</string>
+    <string name="providers_title">アートワークの提供元</string>
+    <string name="providers_desc">検索順、取得元、ScreenScraperアカウント</string>
+    <string name="providers_lead">アートワーク検索と自動同期は、この順番で探します。同期では、カバーにOpenEmuxミラーとlibretroを、ラベルにScreenScraperを使います。</string>
+    <string name="providers_order">検索順</string>
+    <string name="providers_move_up">%1$sを上へ移動</string>
+    <string name="providers_move_down">%1$sを下へ移動</string>
+    <string name="providers_kind_covers">カバー</string>
+    <string name="providers_kind_labels">ラベル</string>
+    <string name="providers_account">ScreenScraperアカウント</string>
+    <string name="providers_account_intro">任意。自分のアカウントを使うと、自分専用の1日の上限が使えます。アカウントがない場合、OpenEmuxは共有のアプリアカウントを使います。</string>
+    <string name="providers_account_intro_none">任意。自分のアカウントを使うと、自分専用の1日の上限が使えます。このビルドには共有のアプリアカウントがありません。ScreenScraperでは下の開発者アカウントも必要です。</string>
+    <string name="providers_user">ユーザー名</string>
+    <string name="providers_password">パスワード</string>
+    <string name="providers_save_check">保存して確認</string>
+    <string name="providers_checking">確認中…</string>
+    <string name="providers_remove_account">アカウントを削除</string>
+    <string name="providers_signed_in_quota">ログイン中。本日は %2$s 件中 %1$s 件のリクエストを使用しました。</string>
+    <string name="providers_signed_in">%1$s でログイン中。</string>
+    <string name="providers_developer_ok">開発者アカウントが承認されました。</string>
+    <string name="providers_developer">開発者アカウント (詳細)</string>
+    <string name="providers_developer_intro">自分のScreenScraper開発者アカウントがある場合のみ。両方の欄が必要です。そうでない場合は共有のものが使われます。</string>
+    <string name="providers_dev_id">開発者ID</string>
+    <string name="providers_dev_password">開発者パスワード</string>
+    <string name="providers_remove_developer">開発者アカウントを削除</string>
 </resources>
