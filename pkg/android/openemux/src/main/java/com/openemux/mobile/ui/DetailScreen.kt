@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openemux.mobile.data.ArtKind
 import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SHADERS
@@ -130,6 +131,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     // The skin is the console's (issues 718, 720): the row shows it and opens the same choice as the console's settings.
     val skinChoice = rememberSkinChoice(lib, rom.console)
     val skin = lib.consoleSettings(rom.console).skin
+    val artSource = rememberArtSource(rom)
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -198,15 +200,6 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                         menu = false
                         a.app.shareCoordinator.startSend(listOf(rom))
                         a.nav.navigate(Routes.SHARE)
-                    },
-                )
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.detail_artwork), style = Type.Body) },
-                    leadingIcon = { Icon(Icons.Image, Oe.Text, 20.dp) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
-                    onClick = {
-                        menu = false
-                        a.nav.navigate(Routes.artwork(rom.key))
                     },
                 )
                 androidx.compose.material3.DropdownMenuItem(
@@ -286,6 +279,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val settings = listOf(
         Setting(stringResource(R.string.detail_core), core.name, romMeta?.core == null) { sheet = Sheet.Core },
         Setting(stringResource(R.string.detail_shader), shader.name(), romMeta?.shader == null) { sheet = Sheet.Shader },
+        // The way into the artwork manager (issue 746): the art the game shows, and where it came from.
+        Setting(stringResource(R.string.artwork_title), artSource?.let { stringResource(it) } ?: "", false) { a.nav.navigate(Routes.artwork(rom.key)) },
         Setting(
             stringResource(R.string.detail_controller_skin),
             skinValueLabel(skinChoice, skin)?.let { stringResource(it) } ?: "OpenEmux ${rom.console.short}", false,
@@ -527,6 +522,21 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
 @Composable
 private fun showsNoArt(rom: Rom): Boolean =
     if (rom.console.frame != null) labelFor(rom) == null && !labelPending(rom) else coverFor(rom) == null
+
+/**
+ * Where the art the game shows came from (the label on a cartridge console, the cover on the
+ * others), as the string naming it; null until it is read (see [rememberArtStates]).
+ */
+@Composable
+private fun rememberArtSource(rom: Rom): Int? {
+    val artwork = LocalActions.current.app.artwork
+    val kinds = remember(rom.console) { listOf(artwork.primaryKind(rom.console)) }
+    val state = rememberArtStates(rom, kinds)[kinds.single()]
+    val pending = labelPending(rom)
+    // A label still on its way is not missing: the cartridge above shows it loading, so the row waits too.
+    if (state?.source == null && kinds.single() == ArtKind.LABEL && pending) return null
+    return state?.let { artworkSourceLabel(it.source) }
+}
 
 /** The violet glow behind the cartridge. */
 @Composable

@@ -1,6 +1,7 @@
 package com.openemux.mobile.ui
 
 import android.graphics.BitmapFactory
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +58,8 @@ import com.openemux.mobile.data.ArtState
 import com.openemux.mobile.data.Rom
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -83,18 +86,12 @@ fun ArtworkScreen(key: String) {
         return
     }
     val artwork = a.app.artwork
-    val changes by artwork.changes.collectAsState()
-    // The sync can bring art in while the manager is open: its progress is part of what the cards show.
-    val labelsFound by a.app.labels.found.collectAsState()
-    val coverProgress by a.app.covers.progress.collectAsState()
     val scope = rememberCoroutineScope()
     var running by remember { mutableStateOf<Pair<ArtKind, String>?>(null) }
     var message by remember { mutableStateOf<ArtMessage?>(null) }
     var confirmReset by rememberSaveable { mutableStateOf<ArtKind?>(null) }
     val kinds = remember(rom.console) { artwork.kinds(rom.console) }
-    val states = produceState(initialValue = emptyMap<ArtKind, ArtState>(), rom, changes, labelsFound, coverProgress.running) {
-        value = withContext(Dispatchers.IO) { kinds.associateWith { artwork.describe(rom, it) } }
-    }.value
+    val states = rememberArtStates(rom, kinds)
 
     val notFoundCover = stringResource(R.string.artwork_msg_sync_not_found_cover, rom.title)
     val notFoundLabel = stringResource(R.string.artwork_msg_sync_not_found_label, rom.title)
@@ -279,13 +276,42 @@ private fun DangerButton(text: String, onClick: () -> Unit, busy: Boolean) {
     }
 }
 
+/**
+ * Where each of [kinds] came from for [rom], read off the main thread and again after every
+ * artwork change, a label found or a cover sync starting or ending; empty until the first read.
+ * Shared by the manager's cards and the detail screen's Artwork row, so they cannot disagree.
+ */
+@Composable
+fun rememberArtStates(rom: Rom, kinds: List<ArtKind>): Map<ArtKind, ArtState> {
+    val app = LocalActions.current.app
+    val changes by app.artwork.changes.collectAsState()
+    // The sync can bring art in while the screen is open: its progress is part of what it shows.
+    val labelsFound by app.labels.found.collectAsState()
+    // Only whether the cover sync runs matters: collecting every progress tick would recompose the caller on each cover.
+    val coversRunning by remember(app) { app.covers.progress.map { it.running }.distinctUntilChanged() }
+        .collectAsState(app.covers.progress.value.running)
+    return produceState(initialValue = emptyMap<ArtKind, ArtState>(), rom, kinds, changes, labelsFound, coversRunning) {
+        value = withContext(Dispatchers.IO) { kinds.associateWith { app.artwork.describe(rom, it) } }
+    }.value
+}
+
+/** The name of where an art came from, as its pill and the detail screen's Artwork row say it. */
+@StringRes
+fun artworkSourceLabel(source: ArtSource?): Int = when (source) {
+    ArtSource.SYNCED -> R.string.artwork_pill_automatic
+    ArtSource.MANUAL -> R.string.artwork_pill_manual
+    ArtSource.LOCAL -> R.string.artwork_pill_local
+    null -> R.string.artwork_pill_missing
+}
+
 @Composable
 private fun SourcePill(source: ArtSource?) {
-    val (text, bg, fg) = when (source) {
-        ArtSource.SYNCED -> Triple(R.string.artwork_pill_automatic, Oe.OkBg, Oe.OkText)
-        ArtSource.MANUAL -> Triple(R.string.artwork_pill_manual, Oe.AccentSoft, Oe.AccentOnSoft)
-        ArtSource.LOCAL -> Triple(R.string.artwork_pill_local, Oe.WarnBg, Oe.WarnText)
-        null -> Triple(R.string.artwork_pill_missing, Oe.Surface2, Oe.Muted)
+    val text = artworkSourceLabel(source)
+    val (bg, fg) = when (source) {
+        ArtSource.SYNCED -> Oe.OkBg to Oe.OkText
+        ArtSource.MANUAL -> Oe.AccentSoft to Oe.AccentOnSoft
+        ArtSource.LOCAL -> Oe.WarnBg to Oe.WarnText
+        null -> Oe.Surface2 to Oe.Muted
     }
     Box(Modifier.clip(RoundedCornerShape(999.dp)).background(bg).padding(horizontal = 10.dp, vertical = 3.dp)) {
         Text(stringResource(text), style = Type.Caption.copy(color = fg, fontSize = 12.sp))
