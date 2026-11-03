@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openemux.mobile.data.ArtKind
 import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SHADERS
@@ -530,7 +531,11 @@ private fun showsNoArt(rom: Rom): Boolean =
 private fun rememberArtSource(rom: Rom): Int? {
     val artwork = LocalActions.current.app.artwork
     val kinds = remember(rom.console) { listOf(artwork.primaryKind(rom.console)) }
-    return rememberArtStates(rom, kinds)[kinds.single()]?.let { artworkSourceLabel(it.source) }
+    val state = rememberArtStates(rom, kinds)[kinds.single()]
+    val pending = labelPending(rom)
+    // A label still on its way is not missing: the cartridge above shows it loading, so the row waits too.
+    if (state?.source == null && kinds.single() == ArtKind.LABEL && pending) return null
+    return state?.let { artworkSourceLabel(it.source) }
 }
 
 /** The violet glow behind the cartridge. */
