@@ -15,6 +15,7 @@ sealed interface SettingsItem {
     data object ControllerLayout : SettingsItem
     data object ButtonLabels : SettingsItem
     data object Achievements : SettingsItem
+    data object ArtworkProviders : SettingsItem
     data object Backup : SettingsItem
     data object About : SettingsItem
     data class License(val id: String) : SettingsItem
@@ -29,6 +30,7 @@ sealed interface SettingsItem {
             ControllerLayout -> "controller_layout"
             ButtonLabels -> "button_labels"
             Achievements -> "achievements"
+            ArtworkProviders -> "artwork_providers"
             Backup -> "backup"
             About -> "about"
             is License -> "license:$id"
@@ -40,6 +42,7 @@ sealed interface SettingsItem {
             is Console -> Routes.console(id)
             Bios -> Routes.BIOS
             Achievements -> Routes.ACHIEVEMENTS
+            ArtworkProviders -> Routes.ARTWORK_PROVIDERS
             Backup -> Routes.BACKUP
             About -> Routes.ABOUT
             is License -> Routes.license(id)
@@ -59,6 +62,7 @@ sealed interface SettingsItem {
                 "controller_layout" -> ControllerLayout
                 "button_labels" -> ButtonLabels
                 "achievements" -> Achievements
+                "artwork_providers" -> ArtworkProviders
                 "backup" -> Backup
                 "about" -> About
                 else -> null

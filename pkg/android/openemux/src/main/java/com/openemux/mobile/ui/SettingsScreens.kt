@@ -302,6 +302,19 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
             )
         }
 
+        SectionHeader(stringResource(R.string.settings_section_artwork))
+        Card(Modifier.padding(horizontal = 20.dp)) {
+            ListRow(
+                stringResource(R.string.providers_title), subtitle = stringResource(R.string.providers_desc), minHeight = 60.dp,
+                leading = {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Oe.AccentTint), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Image, Oe.AccentText, 22.dp)
+                    }
+                },
+                selected = picked == SettingsItem.ArtworkProviders, onClick = { onPick(SettingsItem.ArtworkProviders) },
+            )
+        }
+
         SectionHeader(stringResource(R.string.settings_section_consoles), stringResource(R.string.settings_section_consoles_trailing))
         Card(Modifier.padding(horizontal = 20.dp)) {
             lib.orderedConsoles(meta.consoleOrder).forEachIndexed { i, c ->
@@ -373,6 +386,7 @@ private fun SettingsPane(picked: SettingsItem?, onPick: (SettingsItem) -> Unit) 
                     SettingsItem.ControllerLayout -> ControllerLayoutPane()
                     SettingsItem.ButtonLabels -> ButtonLabelsPane()
                     SettingsItem.Achievements -> AchievementsScreen(embedded = true)
+                    SettingsItem.ArtworkProviders -> ArtworkProvidersScreen(embedded = true)
                     SettingsItem.Backup -> BackupScreen(embedded = true)
                     SettingsItem.About -> AboutScreen(embedded = true, onOpenLicense = { onPick(SettingsItem.License(it)) })
                     is SettingsItem.License -> LicenseTextScreen(picked.id, embedded = true, onBack = { onPick(SettingsItem.About) })

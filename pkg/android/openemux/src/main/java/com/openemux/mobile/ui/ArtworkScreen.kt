@@ -1,7 +1,12 @@
 package com.openemux.mobile.ui
 
+import android.content.Context
 import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.annotation.StringRes
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,16 +19,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,19 +52,26 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.imageLoader
+import com.openemux.mobile.data.ArtCandidate
+import com.openemux.mobile.data.ArtImages
 import com.openemux.mobile.data.ArtKind
 import com.openemux.mobile.data.ArtOutcome
+import com.openemux.mobile.data.ArtProvider
 import com.openemux.mobile.data.ArtSource
-import com.openemux.mobile.data.ArtSources
 import com.openemux.mobile.data.ArtState
+import com.openemux.mobile.data.PickedArt
 import com.openemux.mobile.data.Rom
+import com.openemux.mobile.data.RomIdentity
+import com.openemux.mobile.data.SearchIssue
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -66,32 +82,58 @@ import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
-/** What the manager says after an action: the message's text and whether it is a warning. */
-private data class ArtMessage(val text: String, val warn: Boolean = true)
+/** What the manager says after an action: the message's text and how loud it is. */
+internal data class ArtMessage(val text: String, val danger: Boolean = false)
+
+/** The manager's tabs (issue 753); [id] is the route's `tab` argument. */
+enum class ArtTab(val id: String) {
+    CURRENT("current"), COVER("cover"), LABEL("label"), IMPORT("import");
+
+    companion object {
+        fun of(id: String?) = entries.firstOrNull { it.id == id }
+        fun of(kind: ArtKind) = if (kind == ArtKind.COVER) COVER else LABEL
+    }
+}
 
 /**
- * The per-game artwork manager (issue 746): one card per art kind showing where the art came
- * from, with Sync now, Remove and Reset. Search, import and the editor (issues 747 to 749) add
- * their own tabs and buttons here; until then the screen is "Current" alone.
+ * The per-game artwork manager: Current (issue 746) shows where each art came from, with Sync now,
+ * Remove and Reset; Cover and Label search the providers, and Import edits a picked image or the
+ * current art (issue 753).
  */
 @Composable
-fun ArtworkScreen(key: String) {
+fun ArtworkScreen(key: String, startTab: String? = null) {
     val a = LocalActions.current
     val roms by a.app.library.roms.collectAsState()
     val rom = roms.firstOrNull { it.key == key }
-    GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back)))
     if (rom == null) {
+        GamepadButtons(hints = listOf("B" to stringResource(R.string.settings_hint_back)))
         // Removed from the library while the manager was open (or a stale route).
         Box(Modifier.fillMaxSize().background(Oe.Bg))
         return
     }
+    val context = LocalContext.current
     val artwork = a.app.artwork
     val scope = rememberCoroutineScope()
+    val kinds = remember(rom.console) { artwork.kinds(rom.console) }
+    val tabs = remember(kinds) { listOf(ArtTab.CURRENT, ArtTab.COVER) + (if (ArtKind.LABEL in kinds) listOf(ArtTab.LABEL) else emptyList()) + ArtTab.IMPORT }
+    var tabId by rememberSaveable { mutableStateOf(ArtTab.of(startTab)?.takeIf { it in tabs }?.id ?: ArtTab.CURRENT.id) }
+    val tab = ArtTab.of(tabId) ?: ArtTab.CURRENT
     var running by remember { mutableStateOf<Pair<ArtKind, String>?>(null) }
     var message by remember { mutableStateOf<ArtMessage?>(null) }
     var confirmReset by rememberSaveable { mutableStateOf<ArtKind?>(null) }
-    val kinds = remember(rom.console) { artwork.kinds(rom.console) }
+    val searches = remember(rom.key) { kinds.associateWith { SearchState(it, rom.title) } }
+    val editor = remember(rom.key) { EditorState() }
+    DisposableEffect(editor) { onDispose { editor.clear() } }
     val states = rememberArtStates(rom, kinds)
+    // The hash only when a search tab is opened: hashing a large disc image takes a while.
+    var hashWanted by remember { mutableStateOf(false) }
+    if (tab == ArtTab.COVER || tab == ArtTab.LABEL) hashWanted = true
+    val identity = produceState<HashState>(HashState.Computing, hashWanted, rom) {
+        if (!hashWanted) return@produceState
+        value = withContext(Dispatchers.IO) {
+            runCatching { RomIdentity.of(rom.file, rom.console.extensions) }.getOrNull()?.let { HashState.Known(it) } ?: HashState.Failed
+        }
+    }.value
 
     val notFoundCover = stringResource(R.string.artwork_msg_sync_not_found_cover, rom.title)
     val notFoundLabel = stringResource(R.string.artwork_msg_sync_not_found_label, rom.title)
@@ -119,37 +161,120 @@ fun ArtworkScreen(key: String) {
         }
     }
 
+    fun select(next: ArtTab) {
+        tabId = next.id
+        message = null
+    }
+
+    fun search(kind: ArtKind) {
+        select(ArtTab.of(kind))
+        searches[kind]?.start(scope, a.app.artSearch, rom, null)
+    }
+
+    // "Search artwork…" and the other ways in that name a search tab start its search at once.
+    LaunchedEffect(rom.key) {
+        ArtTab.of(startTab)?.let { if (it == ArtTab.COVER) search(ArtKind.COVER) else if (it == ArtTab.LABEL && ArtKind.LABEL in kinds) search(ArtKind.LABEL) }
+    }
+
+    // The image picker, and the art kind it was opened for (kept across a process death while the picker is up).
+    var pickFor by rememberSaveable { mutableStateOf<ArtKind?>(null) }
+    fun load(result: PickedArt, name: String, kind: ArtKind, origin: String) {
+        when (result) {
+            is PickedArt.Copy -> scope.launch {
+                if (editor.load(result.file, name, kind, origin)) {
+                    select(ArtTab.IMPORT)
+                } else {
+                    message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
+                }
+            }
+            PickedArt.NotImage -> message = ArtMessage(context.getString(R.string.artwork_msg_not_image), danger = true)
+            PickedArt.Unreadable -> message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true)
+        }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        val kind = pickFor ?: ArtKind.COVER
+        pickFor = null
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val (result, name) = withContext(Dispatchers.IO) { ArtImages.importUri(context, uri) to displayName(context, uri) }
+            load(result, name, kind, ArtCandidate.ORIGIN_FILE)
+        }
+    }
+    fun pick(kind: ArtKind) {
+        pickFor = kind
+        message = null
+        runCatching { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) }
+            .onFailure { message = ArtMessage(context.getString(R.string.artwork_msg_unreadable), danger = true) }
+    }
+    fun adjust(kind: ArtKind) {
+        val state = states[kind] ?: return
+        message = null
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                state.file?.let { ArtImages.copyOf(context, it) }
+                    ?: state.url?.let { url -> context.imageLoader.diskCache?.openSnapshot(url)?.use { ArtImages.copyOf(context, it.data.toFile()) } }
+            }
+            if (result == null) message = ArtMessage(context.getString(R.string.artwork_msg_nothing_to_adjust))
+            else load(result, rom.title, kind, ArtCandidate.ORIGIN_ADJUSTED)
+        }
+    }
+
+    val saveFailed = stringResource(R.string.artwork_msg_save_failed)
+    fun saved(outcome: ArtOutcome) {
+        if (outcome == ArtOutcome.DONE) {
+            select(ArtTab.CURRENT)
+        } else {
+            message = ArtMessage(saveFailed, danger = true)
+        }
+    }
+
+    GamepadButtons(
+        hints = listOf(
+            "A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back),
+            "L1 R1" to stringResource(R.string.settings_hint_tabs),
+        ),
+        l1 = { select(tabs[(tabs.indexOf(tab) - 1).coerceAtLeast(0)]) },
+        r1 = { select(tabs[(tabs.indexOf(tab) + 1).coerceAtMost(tabs.lastIndex)]) },
+    )
+
     BoxWithConstraints(Modifier.fillMaxSize().background(Oe.Bg)) {
         val wide = maxWidth >= 840.dp
-        MarginFocusScroll(trailing = FocusMargin + hintBarInset) {
-            Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
-                Column(
-                    Modifier.fillMaxWidth().then(if (wide) Modifier.padding(horizontal = 32.dp) else Modifier.readingWidth().padding(horizontal = 16.dp))
-                        .padding(top = 8.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Header(rom)
-                    message?.let { Banner(it) { message = null } }
-                    val cards: @Composable (ArtKind, Modifier) -> Unit = { kind, modifier ->
-                        val state = states[kind]
+        val side = if (wide) Modifier.padding(horizontal = 32.dp) else Modifier.readingWidth().padding(horizontal = 16.dp)
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+            Column(Modifier.fillMaxWidth().then(side).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Header(rom, if (wide) ({ ArtTabs(tabs, tab, ::select, Modifier.width(440.dp)) }) else null)
+                if (!wide) ArtTabs(tabs, tab, ::select, Modifier.fillMaxWidth())
+                message?.let { Banner(it) { message = null } }
+            }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when (tab) {
+                    ArtTab.CURRENT -> CurrentTab(
+                        rom, kinds, states, wide, side, running,
+                        onSync = { kind -> run(kind, ACTION_SYNC, if (kind == ArtKind.COVER) notFoundCover else notFoundLabel) { artwork.syncNow(rom, kind) } },
+                        onRemove = { kind -> run(kind, ACTION_REMOVE, "") { artwork.remove(rom, kind) } },
+                        onReset = { kind -> confirmReset = kind },
+                        onSearch = ::search,
+                        onPick = ::pick,
+                        onAdjust = ::adjust,
+                    )
+                    ArtTab.COVER, ArtTab.LABEL -> {
+                        val kind = if (tab == ArtTab.COVER) ArtKind.COVER else ArtKind.LABEL
+                        val state = searches[kind]
                         if (state != null) {
-                            ArtCard(
-                                rom, state, wide, modifier,
-                                running = running?.takeIf { it.first == kind }?.second,
-                                onSync = { run(kind, ACTION_SYNC, if (kind == ArtKind.COVER) notFoundCover else notFoundLabel) { artwork.syncNow(rom, kind) } },
-                                onRemove = { run(kind, ACTION_REMOVE, "") { artwork.remove(rom, kind) } },
-                                onReset = { confirmReset = kind },
+                            SearchTab(
+                                rom, state, identity, wide, side,
+                                onIssue = { message = it?.let { issue -> issueMessage(context, issue) } },
+                                onCancel = { select(ArtTab.CURRENT) },
+                                onSave = { candidate -> scope.launch { saved(state.save(context, artwork, rom, candidate)) } },
                             )
                         }
                     }
-                    if (wide) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            kinds.forEach { cards(it, Modifier.weight(1f)) }
-                            if (kinds.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    } else {
-                        kinds.forEach { cards(it, Modifier.fillMaxWidth()) }
-                    }
+                    ArtTab.IMPORT -> ImportTab(
+                        editor, kinds, wide, side,
+                        onPick = { pick(editor.saveAs) },
+                        onCancel = { editor.clear(); select(ArtTab.CURRENT) },
+                        onSave = { scope.launch { saved(editor.save(artwork, rom)) } },
+                    )
                 }
             }
         }
@@ -171,12 +296,34 @@ fun ArtworkScreen(key: String) {
     }
 }
 
+/** The ROM's hash, for the Hash field and Search by hash. */
+sealed interface HashState {
+    data object Computing : HashState
+    data object Failed : HashState
+    class Known(val identity: RomIdentity) : HashState
+}
+
+/** The plain-word message for what went wrong in a search. */
+internal fun issueMessage(context: Context, issue: SearchIssue) = when (issue) {
+    SearchIssue.OFFLINE -> ArtMessage(context.getString(R.string.artwork_msg_offline), danger = true)
+    SearchIssue.REFUSED -> ArtMessage(context.getString(R.string.artwork_msg_refused), danger = true)
+    SearchIssue.NO_CREDENTIALS -> ArtMessage(context.getString(R.string.artwork_msg_no_credentials))
+    SearchIssue.QUOTA -> ArtMessage(context.getString(R.string.artwork_msg_quota))
+    SearchIssue.UNREACHABLE -> ArtMessage(context.getString(R.string.artwork_msg_ss_unreachable))
+}
+
+private fun displayName(context: Context, uri: Uri): String = runCatching {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+    }
+}.getOrNull() ?: uri.lastPathSegment ?: "image"
+
 private const val ACTION_SYNC = "sync"
 private const val ACTION_RESET = "reset"
 private const val ACTION_REMOVE = "remove"
 
 @Composable
-private fun Header(rom: Rom) {
+private fun Header(rom: Rom, trailing: (@Composable () -> Unit)?) {
     val a = LocalActions.current
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         RoundIconButton(Icons.Back, stringResource(R.string.detail_back), { a.nav.popBackStack() }, background = Oe.Control, padFocus = false)
@@ -187,23 +334,107 @@ private fun Header(rom: Rom) {
                 style = Type.Small, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
+        trailing?.invoke()
+    }
+}
+
+/** The segmented tab row of the design: Current · Cover · Label · Import. */
+@Composable
+private fun ArtTabs(tabs: List<ArtTab>, selected: ArtTab, onSelect: (ArtTab) -> Unit, modifier: Modifier) {
+    Row(
+        modifier.clip(RoundedCornerShape(14.dp)).background(Oe.Surface).border(1.dp, Oe.Border, RoundedCornerShape(14.dp)).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        tabs.forEach { t ->
+            val on = t == selected
+            Box(
+                Modifier.weight(1f).height(padSize(36.dp, 40.dp)).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (on) Oe.AccentSoft else Color.Transparent)
+                    .semantics { this.selected = on }
+                    .clickable(role = Role.Tab) { onSelect(t) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(
+                        when (t) {
+                            ArtTab.CURRENT -> R.string.artwork_tab_current
+                            ArtTab.COVER -> R.string.artwork_cover
+                            ArtTab.LABEL -> R.string.artwork_label
+                            ArtTab.IMPORT -> R.string.artwork_tab_import
+                        },
+                    ),
+                    style = Type.Button.copy(fontSize = 14.sp, color = if (on) Oe.AccentOnSoft else Oe.Muted),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }
 
 /** A message inside the manager, never a toast over something else (issue 746). */
 @Composable
-private fun Banner(message: ArtMessage, onDismiss: () -> Unit) {
+internal fun Banner(message: ArtMessage, onDismiss: () -> Unit) {
+    val bg = if (message.danger) Oe.DangerBg else Oe.WarnBg
+    val fg = if (message.danger) Oe.Danger else Oe.WarnText
+    val line = when {
+        message.danger -> if (Oe.dark) Color(0xFF4A2A2E) else Color(0xFFF3C9C5)
+        else -> if (Oe.dark) Color(0xFF3D3424) else Color(0xFFF0DDB8)
+    }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Oe.WarnBg)
-            .border(1.dp, if (Oe.dark) Color(0xFF3D3424) else Color(0xFFF0DDB8), RoundedCornerShape(14.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(bg)
+            .border(1.dp, line, RoundedCornerShape(14.dp))
             .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(Icons.Info, Oe.Warn, 18.dp)
-        Text(message.text, style = Type.Body.copy(fontSize = 14.sp, lineHeight = 19.sp, color = Oe.WarnText), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
-        RoundIconButton(Icons.Close, stringResource(R.string.artwork_dismiss), onDismiss, tint = Oe.WarnText, background = Color.Transparent)
+        Icon(if (message.danger) Icons.Alert else Icons.Info, if (message.danger) Oe.Danger else Oe.Warn, 18.dp)
+        Text(message.text, style = Type.Body.copy(fontSize = 14.sp, lineHeight = 19.sp, color = fg), modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+        RoundIconButton(Icons.Close, stringResource(R.string.artwork_dismiss), onDismiss, tint = fg, background = Color.Transparent)
+    }
+}
+
+@Composable
+private fun CurrentTab(
+    rom: Rom,
+    kinds: List<ArtKind>,
+    states: Map<ArtKind, ArtState>,
+    wide: Boolean,
+    side: Modifier,
+    running: Pair<ArtKind, String>?,
+    onSync: (ArtKind) -> Unit,
+    onRemove: (ArtKind) -> Unit,
+    onReset: (ArtKind) -> Unit,
+    onSearch: (ArtKind) -> Unit,
+    onPick: (ArtKind) -> Unit,
+    onAdjust: (ArtKind) -> Unit,
+) {
+    MarginFocusScroll(trailing = FocusMargin + hintBarInset) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(side).padding(top = 14.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            val cards: @Composable (ArtKind, Modifier) -> Unit = { kind, modifier ->
+                val state = states[kind]
+                if (state != null) {
+                    ArtCard(
+                        rom, state, wide, modifier,
+                        running = running?.takeIf { it.first == kind }?.second,
+                        busy = running != null,
+                        onSync = { onSync(kind) }, onRemove = { onRemove(kind) }, onReset = { onReset(kind) },
+                        onSearch = { onSearch(kind) }, onPick = { onPick(kind) }, onAdjust = { onAdjust(kind) },
+                    )
+                }
+            }
+            if (wide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    kinds.forEach { cards(it, Modifier.weight(1f)) }
+                    if (kinds.size == 1) Spacer(Modifier.weight(1f))
+                }
+            } else {
+                kinds.forEach { cards(it, Modifier.fillMaxWidth()) }
+            }
+        }
     }
 }
 
@@ -214,9 +445,13 @@ private fun ArtCard(
     wide: Boolean,
     modifier: Modifier,
     running: String?,
+    busy: Boolean,
     onSync: () -> Unit,
     onRemove: () -> Unit,
     onReset: () -> Unit,
+    onSearch: () -> Unit,
+    onPick: () -> Unit,
+    onAdjust: () -> Unit,
 ) {
     val cover = state.kind == ArtKind.COVER
     Column(
@@ -239,6 +474,24 @@ private fun ArtCard(
                 stringResource(if (running == ACTION_SYNC) R.string.artwork_syncing else R.string.artwork_sync_now),
                 { if (running == null) onSync() }, Modifier.fillMaxWidth(), icon = Icons.Reset, height = 48.dp,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton(stringResource(if (cover) R.string.artwork_search_covers else R.string.artwork_search_labels), onSearch, Modifier.weight(1f), height = 48.dp, busy = busy)
+                SecondaryButton(stringResource(R.string.artwork_import_file), onPick, Modifier.weight(1f), height = 48.dp, busy = busy)
+            }
+        } else {
+            val pickAnother = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_pick_another), onSearch, m, height = 48.dp, busy = busy) }
+            val replace = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_replace_file), onPick, m, height = 48.dp, busy = busy) }
+            val adjust = @Composable { m: Modifier -> SecondaryButton(stringResource(R.string.artwork_adjust), onAdjust, m, height = 48.dp, busy = busy) }
+            if (wide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pickAnother(Modifier.weight(1f)); replace(Modifier.weight(1f)); adjust(Modifier.weight(1f))
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pickAnother(Modifier.weight(1f)); replace(Modifier.weight(1f))
+                }
+                adjust(Modifier.fillMaxWidth())
+            }
         }
         if (state.resettable || state.removable) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(Oe.Divider))
@@ -251,11 +504,11 @@ private fun ArtCard(
                             else -> R.string.artwork_reset_label
                         },
                     ),
-                    onReset, Modifier.fillMaxWidth(), height = 48.dp, icon = Icons.Load, busy = running != null,
+                    onReset, Modifier.fillMaxWidth(), height = 48.dp, icon = Icons.Load, busy = busy,
                 )
             }
             if (state.removable) {
-                DangerButton(stringResource(if (cover) R.string.artwork_remove_cover else R.string.artwork_remove_label), onRemove, running != null)
+                DangerButton(stringResource(if (cover) R.string.artwork_remove_cover else R.string.artwork_remove_label), onRemove, busy)
             }
         }
     }
@@ -356,17 +609,21 @@ private fun Facts(state: ArtState) {
     }
     val from = when {
         state.source == ArtSource.MANUAL -> stringResource(R.string.artwork_chosen_by_you) + (state.provider?.let { " · " + providerName(it) } ?: "")
-        state.source == ArtSource.SYNCED && state.provider == ArtSources.PROVIDER_MIRROR -> stringResource(R.string.artwork_from_mirror)
+        state.source == ArtSource.SYNCED && state.provider == ArtProvider.MIRROR.id -> stringResource(R.string.artwork_from_mirror)
+        state.source == ArtSource.SYNCED && state.provider == ArtProvider.LIBRETRO.id -> stringResource(R.string.artwork_from_libretro)
         state.source == ArtSource.SYNCED -> stringResource(R.string.artwork_from_screenscraper)
         else -> null
     }
     from?.let { Text(it, style = Type.Small) }
 }
 
-private fun providerName(id: String) = when (id) {
-    ArtSources.PROVIDER_MIRROR -> "OpenEmux"
-    ArtSources.PROVIDER_SCREENSCRAPER -> "ScreenScraper"
-    else -> id
+/** A provider's name as the screens show it. */
+@Composable
+internal fun providerName(id: String) = when (ArtProvider.of(id)) {
+    ArtProvider.MIRROR -> stringResource(R.string.artwork_provider_mirror)
+    ArtProvider.LIBRETRO -> stringResource(R.string.artwork_provider_libretro)
+    ArtProvider.SCREENSCRAPER -> "ScreenScraper"
+    null -> id
 }
 
 private class ImageInfo(val format: String, val width: Int, val height: Int) {
@@ -406,14 +663,18 @@ private fun Preview(rom: Rom, state: ArtState, width: Dp, height: Dp) {
     }
 }
 
-/** "Search artwork…" under a game that shows no art (desktop issue 127). */
+/**
+ * "Search artwork…" under a game that shows no art (desktop issue 127): straight to the search of
+ * what is missing, the label on a cartridge console, the cover elsewhere.
+ */
 @Composable
 fun SearchArtworkButton(rom: Rom, modifier: Modifier = Modifier) {
     val a = LocalActions.current
+    val tab = if (rom.console.frame != null) ArtTab.LABEL else ArtTab.COVER
     Row(
         modifier.height(40.dp).widthIn(min = 44.dp).gamepadFocus(corner = 20.dp).clip(RoundedCornerShape(20.dp))
             .background(Oe.AccentTint).border(1.dp, Oe.AccentSoft, RoundedCornerShape(20.dp))
-            .clickable(role = Role.Button) { a.nav.navigate(Routes.artwork(rom.key)) }
+            .clickable(role = Role.Button) { a.nav.navigate(Routes.artwork(rom.key, tab.id)) }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

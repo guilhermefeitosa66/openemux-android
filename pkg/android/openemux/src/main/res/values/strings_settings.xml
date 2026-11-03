@@ -255,4 +255,30 @@
     <string name="settings_button_labels_nintendo_desc">B at the bottom, A on the right.</string>
     <string name="settings_button_labels_playstation">PlayStation</string>
     <string name="settings_button_labels_playstation_desc">Cross at the bottom, circle on the right.</string>
+    <!-- Artwork providers (issue 753). -->
+    <string name="settings_section_artwork">Artwork</string>
+    <string name="providers_title">Artwork providers</string>
+    <string name="providers_desc">Search order, sources and the ScreenScraper account</string>
+    <string name="providers_lead">Where the artwork search and the automatic sync look, in this order. The sync uses the OpenEmux mirror and libretro for covers, and ScreenScraper for labels.</string>
+    <string name="providers_order">Search order</string>
+    <string name="providers_move_up">Move %1$s up</string>
+    <string name="providers_move_down">Move %1$s down</string>
+    <string name="providers_kind_covers">Covers</string>
+    <string name="providers_kind_labels">Labels</string>
+    <string name="providers_account">ScreenScraper account</string>
+    <string name="providers_account_intro">Optional. Your own account gives you your own daily quota. Without one, OpenEmux uses its shared app account.</string>
+    <string name="providers_account_intro_none">Optional. Your own account gives you your own daily quota. This build has no shared app account: ScreenScraper also needs a developer account, below.</string>
+    <string name="providers_user">User name</string>
+    <string name="providers_password">Password</string>
+    <string name="providers_save_check">Save and check</string>
+    <string name="providers_checking">Checking…</string>
+    <string name="providers_remove_account">Remove account</string>
+    <string name="providers_signed_in_quota">Signed in. %1$s of %2$s requests used today.</string>
+    <string name="providers_signed_in">Signed in as %1$s.</string>
+    <string name="providers_developer_ok">Developer account accepted.</string>
+    <string name="providers_developer">Developer account (advanced)</string>
+    <string name="providers_developer_intro">Only for a ScreenScraper developer account of your own. Both fields are needed; otherwise the shared one is used.</string>
+    <string name="providers_dev_id">Developer ID</string>
+    <string name="providers_dev_password">Developer password</string>
+    <string name="providers_remove_developer">Remove developer account</string>
 </resources>
