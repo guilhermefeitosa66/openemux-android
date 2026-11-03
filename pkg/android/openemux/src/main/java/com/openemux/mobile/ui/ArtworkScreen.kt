@@ -74,6 +74,7 @@ import com.openemux.mobile.data.RomIdentity
 import com.openemux.mobile.data.SearchIssue
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -131,7 +132,15 @@ fun ArtworkScreen(key: String, startTab: String? = null) {
     val identity = produceState<HashState>(HashState.Computing, hashWanted, rom) {
         if (!hashWanted) return@produceState
         value = withContext(Dispatchers.IO) {
-            runCatching { RomIdentity.of(rom.file, rom.console.extensions) }.getOrNull()?.let { HashState.Known(it) } ?: HashState.Failed
+            // Leaving the manager stops the read: hashing a large disc image takes a while.
+            val identity = try {
+                RomIdentity.of(rom.file, rom.console.extensions) { isActive }
+            } catch (e: java.util.concurrent.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            identity?.let { HashState.Known(it) } ?: HashState.Failed
         }
     }.value
 

@@ -55,4 +55,9 @@ class RomIdentityTest {
         assertEquals(64L * 1024 * 1024, RomIdentity.MAX_ZIP_MD5)
         assertNull(RomIdentity("00000000", null, "x", 0).md5)
     }
+
+    @Test(expected = java.util.concurrent.CancellationException::class)
+    fun `a caller that left stops the hash`() {
+        RomIdentity.of(File(dir, "big.gb").apply { writeBytes(data) }, setOf("gb")) { false }
+    }
 }
