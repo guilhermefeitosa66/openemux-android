@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The per-game artwork manager (issue 746). -->
+<resources>
+    <string name="detail_artwork">Arte…</string>
+    <string name="detail_search_artwork">Buscar arte…</string>
+    <string name="artwork_title">Arte</string>
+    <string name="artwork_subtitle">%1$s · %2$s</string>
+    <string name="artwork_cover">Portada</string>
+    <string name="artwork_label">Etiqueta</string>
+    <string name="artwork_pill_automatic">Automática</string>
+    <string name="artwork_pill_manual">Manual</string>
+    <string name="artwork_pill_local">Archivo local</string>
+    <string name="artwork_pill_missing">Falta</string>
+    <string name="artwork_synced_on">Sincronizada el %1$s</string>
+    <string name="artwork_saved_on">Guardada el %1$s</string>
+    <string name="artwork_synced_unknown">De la sincronización de arte</string>
+    <string name="artwork_from_mirror">Del espejo de OpenEmux</string>
+    <string name="artwork_from_screenscraper">De ScreenScraper</string>
+    <string name="artwork_chosen_by_you">Elegida por ti</string>
+    <string name="artwork_found_on_device">Encontrada en el dispositivo</string>
+    <string name="artwork_missing_cover">Aún sin portada</string>
+    <string name="artwork_missing_label">Aún sin etiqueta</string>
+    <string name="artwork_missing_cover_hint">Sincronízala desde el espejo de arte de OpenEmux.</string>
+    <string name="artwork_missing_label_hint">Sin etiqueta, el cartucho muestra solo la carcasa.</string>
+    <string name="artwork_details">%1$s · %2$d × %3$d</string>
+    <string name="artwork_unreadable">No se pudo leer el archivo</string>
+    <string name="artwork_sync_now">Sincronizar ahora</string>
+    <string name="artwork_syncing">Sincronizando…</string>
+    <string name="artwork_reset_cover">Volver a la portada sincronizada</string>
+    <string name="artwork_reset_label">Volver a la etiqueta sincronizada</string>
+    <string name="artwork_remove_cover">Quitar portada</string>
+    <string name="artwork_remove_label">Quitar etiqueta</string>
+    <string name="artwork_reset_title_cover">¿Volver a la portada sincronizada?</string>
+    <string name="artwork_reset_title_label">¿Volver a la etiqueta sincronizada?</string>
+    <string name="artwork_reset_body_cover">La portada que elegiste se cambiará por la que encuentre la sincronización de arte para este juego. Si no se encuentra nada, se queda la portada actual.</string>
+    <string name="artwork_reset_body_label">La etiqueta que elegiste se cambiará por la que encuentre la sincronización de arte para este juego. Si no se encuentra nada, se queda la etiqueta actual.</string>
+    <string name="artwork_reset_confirm">Restablecer</string>
+    <string name="artwork_msg_busy">Hay una sincronización de la biblioteca en curso. Inténtalo de nuevo cuando termine.</string>
+    <string name="artwork_msg_unavailable">No se pudo acceder al servicio de arte. No se cambió nada.</string>
+    <string name="artwork_msg_reset_not_found_cover">No se encontró ninguna portada sincronizada para %1$s. Se queda la actual.</string>
+    <string name="artwork_msg_reset_not_found_label">No se encontró ninguna etiqueta sincronizada para %1$s. Se queda la actual.</string>
+    <string name="artwork_msg_sync_not_found_cover">No se encontró ninguna portada para %1$s.</string>
+    <string name="artwork_msg_sync_not_found_label">No se encontró ninguna etiqueta para %1$s.</string>
+    <string name="artwork_preview_cover">Portada de %1$s</string>
+    <string name="artwork_preview_label">Etiqueta de %1$s</string>
+    <string name="artwork_dismiss">Cerrar</string>
+</resources>

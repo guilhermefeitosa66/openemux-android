@@ -560,7 +560,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                 Box(Modifier.width(92.dp).rotate(6f)) {
                     Cartridge(
                         console, sample?.let { labelFor(it) }, sample?.title ?: console.displayName,
-                        settings.color, Modifier.fillMaxWidth(), cover = sample?.let { a.app.covers.urlFor(it) },
+                        settings.color, Modifier.fillMaxWidth(), cover = sample?.let { coverFor(it) },
                     )
                 }
             }
@@ -651,7 +651,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                 Text(stringResource(R.string.settings_cart_color), style = Type.Title.copy(fontSize = 22.sp))
                 Text(stringResource(R.string.settings_cart_color_desc, console.short), style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
                 if (sample != null) {
-                    Cartridge(console, labelFor(sample), sample.title, settings.color, Modifier.align(Alignment.CenterHorizontally).width(220.dp), cover = a.app.covers.urlFor(sample))
+                    Cartridge(console, labelFor(sample), sample.title, settings.color, Modifier.align(Alignment.CenterHorizontally).width(220.dp), cover = coverFor(sample))
                     Spacer(Modifier.height(16.dp))
                 }
                 ColorSwatches(settings.color) { c -> lib.updateConsole(console) { it.copy(color = c) } }

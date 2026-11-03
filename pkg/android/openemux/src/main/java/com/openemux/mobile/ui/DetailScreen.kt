@@ -201,6 +201,15 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                     },
                 )
                 androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.detail_artwork), style = Type.Body) },
+                    leadingIcon = { Icon(Icons.Image, Oe.Text, 20.dp) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
+                    onClick = {
+                        menu = false
+                        a.nav.navigate(Routes.artwork(rom.key))
+                    },
+                )
+                androidx.compose.material3.DropdownMenuItem(
                     text = { Text(stringResource(R.string.detail_remove_from_library), style = Type.Body.copy(color = Oe.Danger)) },
                     modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
                     onClick = { menu = false; confirmDelete = true },
@@ -219,8 +228,9 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     }
     val cartridge: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.fillMaxWidth(), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+            Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
             Box(Modifier.padding(top = 6.dp).fillMaxWidth(0.83f).height(10.dp).blur(6.dp).clip(CircleShape).background(Color(0x8C000000)))
+            if (showsNoArt(rom)) SearchArtworkButton(rom, Modifier.padding(top = 10.dp))
         }
     }
     val playButtons: @Composable (Dp, Dp) -> Unit = { height, restart ->
@@ -367,7 +377,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                     menuButton()
                 }
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.width(236.dp), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+                    Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.width(236.dp), pending = labelPending(rom), cover = coverFor(rom))
+                    if (showsNoArt(rom)) SearchArtworkButton(rom, Modifier.padding(top = 12.dp))
                     Text(rom.title, style = Type.Title.copy(fontSize = 23.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(top = 18.dp))
                     Text(
                         "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
@@ -445,8 +456,9 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                     Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.TopCenter) {
                         Glow(Modifier.fillMaxWidth().height(360.dp))
                         Column(Modifier.padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.widthIn(max = 400.dp).fillMaxWidth(), pending = labelPending(rom), cover = a.app.covers.urlFor(rom))
+                            Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.widthIn(max = 400.dp).fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
                             Box(Modifier.padding(top = 10.dp).fillMaxWidth(0.8f).height(12.dp).blur(8.dp).clip(CircleShape).background(Color(0x8C000000)))
+                            if (showsNoArt(rom)) SearchArtworkButton(rom, Modifier.padding(top = 12.dp))
                         }
                     }
                     if (rom.console.frame != null) {
@@ -507,6 +519,14 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         )
     }
 }
+
+/**
+ * Whether the game shows no art of its own: a cartridge with no label (not one still on its way),
+ * or a box console with no cover. Such a game offers "Search artwork…" (issue 746).
+ */
+@Composable
+private fun showsNoArt(rom: Rom): Boolean =
+    if (rom.console.frame != null) labelFor(rom) == null && !labelPending(rom) else coverFor(rom) == null
 
 /** The violet glow behind the cartridge. */
 @Composable

@@ -5,6 +5,8 @@ import android.net.Uri
 import coil.imageLoader
 import coil.request.ErrorResult
 import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.text.Normalizer
@@ -25,13 +28,15 @@ import java.util.concurrent.atomic.AtomicInteger
  * the device ([Paths.covers], one received through Share nearby) wins over
  * the mirror; it is looked for on every call, so one that arrives later shows.
  */
-class Covers(private val context: Context, private val paths: Paths) {
+class Covers(private val context: Context, private val paths: Paths) : CoverOps {
     private val indexes = ConcurrentHashMap<Console, Index>()
     /** "" marks a ROM with no match: ConcurrentHashMap takes no nulls. */
     private val cache = ConcurrentHashMap<String, String>()
 
     private val _progress = MutableStateFlow(SyncProgress())
     val progress: StateFlow<SyncProgress> = _progress.asStateFlow()
+
+    override val syncing: Boolean get() = _progress.value.running
 
     /** Warms the image cache with every ROM's box art, so the library fills in without waiting. */
     suspend fun prefetch(roms: List<Rom>) = coroutineScope {
@@ -45,7 +50,10 @@ class Covers(private val context: Context, private val paths: Paths) {
         val done = AtomicInteger(missing + cached.size)
         val offline = AtomicInteger()
         _progress.value = SyncProgress(running = todo.isNotEmpty(), total = roms.size, done = done.get(), missing = missing)
-        if (todo.isEmpty()) return@coroutineScope
+        if (todo.isEmpty()) {
+            record(cached)
+            return@coroutineScope
+        }
         val gate = Semaphore(4)
         todo.map { (rom, url) ->
             async {
@@ -53,9 +61,10 @@ class Covers(private val context: Context, private val paths: Paths) {
                     val result = context.imageLoader.execute(ImageRequest.Builder(context).data(url).build())
                     if ((result as? ErrorResult)?.throwable is IOException) offline.incrementAndGet()
                     _progress.value = _progress.value.copy(done = done.incrementAndGet(), current = rom.title)
+                    result is SuccessResult
                 }
             }
-        }.awaitAll()
+        }.awaitAll().let { fetched -> record(cached + todo.filterIndexed { i, _ -> fetched[i] }) }
         _progress.value = SyncProgress(
             total = roms.size, done = done.get(), missing = missing,
             paused = if (offline.get() > 0) SyncPause.Offline else null,
@@ -65,17 +74,48 @@ class Covers(private val context: Context, private val paths: Paths) {
 
     private class Index(val exact: Map<String, List<String>>, val tokens: List<Pair<Set<String>, String>>)
 
-    fun urlFor(rom: Rom): String? = localCover(rom)?.toURI()?.toASCIIString() ?: mirrorUrl(rom)
+    /**
+     * What to draw for [rom]. A cover kept on the device carries its mtime, so one replaced in place
+     * is a new model to the image views and they load it again.
+     */
+    fun urlFor(rom: Rom): String? =
+        localCover(rom)?.let { "${it.toURI().toASCIIString()}?v=${it.lastModified()}" } ?: mirrorUrl(rom)
 
     /** The cover kept on the device for [rom], if any. */
-    fun localCover(rom: Rom): File? = localCover(paths, rom.console, rom.baseName)
+    override fun localCover(rom: Rom): File? = localCover(paths, rom.console, rom.baseName)
 
     /** Drops the mirror matches of [keys], so they are looked up again. */
     fun forget(keys: Collection<String>) {
         keys.forEach(cache::remove)
     }
 
-    private fun mirrorUrl(rom: Rom): String? = cache.getOrPut(rom.key) {
+    override fun forgetMatch(rom: Rom) {
+        cache.remove(rom.key)
+    }
+
+    override suspend fun fetch(url: String): Fetch {
+        val result = context.imageLoader.execute(ImageRequest.Builder(context).data(url).build())
+        return when {
+            result is SuccessResult -> Fetch.FOUND
+            (result as? ErrorResult)?.throwable is IOException -> Fetch.UNAVAILABLE
+            else -> Fetch.MISSING
+        }
+    }
+
+    /**
+     * Notes where the covers now in the image cache came from, one write per console (issue 746).
+     * Only mirror covers: a cover kept on the device has a record of its own, which this never touches.
+     */
+    private suspend fun record(served: List<Pair<Rom, String>>) = withContext(Dispatchers.IO) {
+        served.filter { (rom, _) -> localCover(rom) == null }.groupBy { it.first.console }.forEach { (console, list) ->
+            val sources = ArtSources(paths.covers(console))
+            val known = sources.entries()
+            val fresh = list.filter { (rom, url) -> known[rom.baseName]?.url != url }
+            if (fresh.isNotEmpty()) sources.batch { b -> fresh.forEach { (rom, url) -> b.recordUrl(rom.baseName, url) } }
+        }
+    }
+
+    override fun mirrorUrl(rom: Rom): String? = cache.getOrPut(rom.key) {
         match(rom.console, rom.file.nameWithoutExtension)?.let { name ->
             "https://raw.githubusercontent.com/guilhermefeitosa66/openemux-artwork/main/" +
                 "${rom.console.artworkDir}/${Uri.encode(name)}.webp"

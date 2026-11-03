@@ -31,7 +31,9 @@ class PathsCoversTest {
         assertEquals(File(dir, "Game (USA).webp"), covers.localCover(rom))
         File(dir, "Game (USA).jpg").writeText("j")
         assertEquals(File(dir, "Game (USA).jpg"), covers.localCover(rom))
-        assertEquals(File(dir, "Game (USA).jpg").toURI().toASCIIString(), covers.urlFor(rom))
+        // The mtime rides along, so a cover replaced in place is a new model to the image views (issue 746).
+        val jpg = File(dir, "Game (USA).jpg")
+        assertEquals("${jpg.toURI().toASCIIString()}?v=${jpg.lastModified()}", covers.urlFor(rom))
         assertEquals(true, covers.urlFor(rom)!!.startsWith("file:/"))
         assertEquals(true, covers.urlFor(rom)!!.contains("Game%20(USA).jpg"))
         covers.forget(listOf(rom.key))

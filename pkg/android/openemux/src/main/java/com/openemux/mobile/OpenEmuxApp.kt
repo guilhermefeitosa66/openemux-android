@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
 import com.openemux.mobile.data.AchievementsStore
+import com.openemux.mobile.data.Artwork
 import com.openemux.mobile.data.BackupManager
 import com.openemux.mobile.data.BackupRoots
 import com.openemux.mobile.data.Covers
@@ -39,6 +40,9 @@ class OpenEmuxApp : Application() {
     lateinit var covers: Covers
         private set
     lateinit var labels: Labels
+        private set
+    /** The per-game artwork manager's model (issue 746). */
+    lateinit var artwork: Artwork
         private set
     lateinit var launcher: GameLauncher
         private set
@@ -97,6 +101,7 @@ class OpenEmuxApp : Application() {
         library = Library(this)
         covers = Covers(this, library.paths)
         labels = Labels(library.paths)
+        artwork = Artwork(library.paths, covers, labels, java.io.File(cacheDir, "artwork"))
         achievements = AchievementsStore(this, File(library.paths.launch, "current/retroarch.cfg"))
         launcher = GameLauncher(this, library, covers, labels, achievements)
         importer = Importer(this, library)

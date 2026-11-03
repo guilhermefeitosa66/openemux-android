@@ -37,7 +37,7 @@ data class SyncProgress(
  * hash like the desktop app does. Box art is a different asset ([Covers]).
  * Labels are kept on disk; a ".none" file remembers a ROM that has none.
  */
-class Labels(private val paths: Paths) {
+class Labels(private val paths: Paths) : LabelOps {
     private val _found = MutableStateFlow<Map<String, File>>(emptyMap())
     val found: StateFlow<Map<String, File>> = _found.asStateFlow()
 
@@ -49,7 +49,11 @@ class Labels(private val paths: Paths) {
     val pending: StateFlow<Set<String>> = _pending.asStateFlow()
 
     private val mutex = Mutex()
+    /** One ScreenScraper request at a time, the sync's and the manager's alike: the pacing below needs it. */
+    private val requests = Mutex()
     private var lastRequest = 0L
+
+    override val syncing: Boolean get() = _progress.value.running
 
     private val usable get() = BuildConfig.SS_DEVID.isNotEmpty() && BuildConfig.SS_DEVPASSWORD.isNotEmpty()
 
@@ -57,11 +61,44 @@ class Labels(private val paths: Paths) {
     private fun file(rom: Rom) = File(dir(rom.console), "${rom.baseName}.png")
     private fun none(rom: Rom) = File(dir(rom.console), "${rom.baseName}.none")
 
+    override fun labelFile(rom: Rom): File = file(rom)
+    override fun noneMarker(rom: Rom): File = none(rom)
+
+    override fun changed(rom: Rom, file: File?) {
+        _found.value = if (file != null) _found.value + (rom.key to file) else _found.value - rom.key
+        _pending.value = _pending.value - rom.key
+    }
+
+    /** One ROM's label, for the artwork manager: written to [target] only when one is found. */
+    override suspend fun fetch(rom: Rom, target: File): Fetch = withContext(Dispatchers.IO) {
+        if (!usable || !rom.file.exists()) return@withContext Fetch.UNAVAILABLE
+        when (fetch(rom, target, replace = true)) {
+            is Result.Found -> Fetch.FOUND
+            Result.Missing -> Fetch.MISSING
+            else -> Fetch.UNAVAILABLE
+        }
+    }
+
+    /**
+     * Labels synced before records existed (issue 746) carry none, and would all read as local
+     * files: the first sync after the update vouches for them, undated, once per console.
+     */
+    private fun migrate(roms: List<Rom>) {
+        roms.groupBy { it.console }.forEach { (console, list) ->
+            val sources = ArtSources(dir(console))
+            if (sources.exists()) return@forEach
+            val present = list.map { file(it) }.filter { it.isFile }
+            if (present.isEmpty()) return@forEach
+            sources.batch { b -> present.forEach { b.record(it.nameWithoutExtension, it, ArtSource.SYNCED, ArtSources.PROVIDER_SCREENSCRAPER, dated = false) } }
+        }
+    }
+
     /** Fetches what is missing, one ROM at a time; quota and network errors pause the run. */
     suspend fun sync(all: List<Rom>) = mutex.withLock {
         withContext(Dispatchers.IO) {
             // Only cartridges have a label window; the rest show box art.
             val roms = all.filter { it.console.frame != null }
+            migrate(roms)
             _found.value = roms.mapNotNull { rom -> file(rom).takeIf { it.exists() }?.let { rom.key to it } }.toMap()
             val todo = roms.filter { !file(it).exists() && !none(it).exists() && it.file.exists() }
             _pending.value = todo.map { it.key }.toSet()
@@ -74,9 +111,14 @@ class Labels(private val paths: Paths) {
             try {
                 for (rom in todo) {
                     _progress.value = SyncProgress(running = true, total = roms.size, done = done, current = rom.title)
-                    val result = fetch(rom)
+                    val result = fetch(rom, file(rom), replace = false)
                     when (result) {
-                        is Result.Found -> _found.value = _found.value + (rom.key to result.file)
+                        is Result.Found -> {
+                            if (result.wrote) {
+                                ArtSources(dir(rom.console)).record(rom.baseName, result.file, ArtSource.SYNCED, ArtSources.PROVIDER_SCREENSCRAPER)
+                            }
+                            _found.value = _found.value + (rom.key to result.file)
+                        }
                         Result.Missing -> { dir(rom.console).mkdirs(); none(rom).createNewFile() }
                         Result.Quota -> { _progress.value = _progress.value.copy(running = false, current = null, paused = SyncPause.Quota); return@withContext }
                         Result.Offline -> if (++failures >= 3) {
@@ -99,14 +141,18 @@ class Labels(private val paths: Paths) {
     }
 
     private sealed interface Result {
-        class Found(val file: File) : Result
+        class Found(val file: File, val wrote: Boolean = true) : Result
         data object Missing : Result
         data object Skip : Result
         data object Offline : Result
         data object Quota : Result
     }
 
-    private suspend fun fetch(rom: Rom): Result {
+    /**
+     * Looks [rom] up and writes its label to [target]. Without [replace] a file that appeared at
+     * [target] meanwhile (art the user chose while the sync ran) is kept, never written over.
+     */
+    private suspend fun fetch(rom: Rom, target: File, replace: Boolean): Result = requests.withLock {
         val (crc, md5) = runCatching { digests(rom.file) }.getOrElse { return Result.Skip }
         val params = listOf(
             "devid" to BuildConfig.SS_DEVID,
@@ -141,11 +187,14 @@ class Labels(private val paths: Paths) {
         val image = get("$url&maxwidth=640")
         if (image.code == -1) return Result.Offline
         if (image.code != 200 || image.body == null) return Result.Skip
-        val target = file(rom)
+        if (!replace && target.exists()) return Result.Found(target, wrote = false)
         target.parentFile?.mkdirs()
         val tmp = File(target.path + ".tmp")
         tmp.writeBytes(image.body)
-        tmp.renameTo(target)
+        if (!tmp.renameTo(target)) {
+            tmp.delete()
+            return Result.Skip
+        }
         return Result.Found(target)
     }
 
