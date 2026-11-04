@@ -17,8 +17,8 @@ It runs on pull requests to `openemux-mobile`, on pushes to it and by hand
 | Unit tests and lint | `./gradlew testDebugUnitTest lintDebug` in `pkg/android/openemux/` (JDK 17). |
 | Engine compile check | `ndk-build APP_ABI=arm64-v8a` in `pkg/android/phoenix-common/`, with ccache. Skipped on pull requests that touch only `pkg/android/openemux/`; pushes and manual runs always compile. |
 
-Lint findings that predate CI (26 errors, most of them in RetroArch's Java
-glue) are recorded in `pkg/android/openemux/lint-baseline.xml`, so only new
+Lint findings that predate CI (26 errors and 595 warnings, in the app and in
+RetroArch's Java glue) are recorded in `pkg/android/openemux/lint-baseline.xml`, so only new
 ones fail. Fix a finding rather than growing the baseline;
 `./gradlew updateLintBaseline` regenerates it when that is really needed.
 
