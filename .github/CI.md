@@ -13,7 +13,7 @@ It runs on pull requests to `openemux-mobile`, on pushes to it and by hand
 
 | Job | What it checks |
 |---|---|
-| Workflow allowlist | `.github/workflows/` holds only the files on the allowlist (`Android.yml`). |
+| Workflow allowlist | `.github/workflows/` holds only the files on the allowlist (`Android.yml`), and `.gitlab-ci.yml` is absent. |
 | Unit tests and lint | `./gradlew testDebugUnitTest lintDebug` in `pkg/android/openemux/` (JDK 17). |
 | Engine compile check | `ndk-build APP_ABI=arm64-v8a` in `pkg/android/phoenix-common/`, with ccache. Skipped on pull requests that touch only `pkg/android/openemux/`; pushes and manual runs always compile. |
 
@@ -39,8 +39,8 @@ start and crash.
 ## Adding a workflow
 
 Add the file to `.github/workflows/` and its name to `allowed` in the
-"Only the allowed workflows exist" step of `Android.yml`, in the same pull
-request.
+"Only the allowed workflows exist" step of `Android.yml`, on a line of its own
+(the list is one name per line), in the same pull request.
 
 ## After a sync from upstream
 
@@ -51,4 +51,5 @@ Merging `upstream/master` brings upstream's workflows back:
 - a workflow upstream **changed** shows up as a modify/delete conflict: keep the
   deletion (`git rm <file>`);
 - a change upstream made to `Android.yml` conflicts with ours: keep ours;
-- `.gitlab-ci.yml` comes back the same way: delete it.
+- `.gitlab-ci.yml` comes back the same way: delete it (the allowlist job
+  fails while it is there).

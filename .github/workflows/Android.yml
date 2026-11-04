@@ -36,15 +36,18 @@ jobs:
         sparse-checkout: .github
     - name: Only the allowed workflows exist
       run: |
+        # One file name per line: grep -F takes each line as a pattern.
         allowed="Android.yml"
         extra=$(ls -A .github/workflows | grep -vxF "$allowed" || true)
+        # libretro's GitLab CI comes back with an upstream sync as well.
+        [ -e .gitlab-ci.yml ] && extra="$extra .gitlab-ci.yml"
         if [ -n "$extra" ]; then
           echo "::error::Workflows outside the allowlist: $(echo $extra)"
           echo "This fork runs only CI Android. Delete these files (an upstream"
           echo "sync brought them back) or add them to the allowlist; see .github/CI.md."
           exit 1
         fi
-        echo "ok: only $allowed"
+        echo "ok: only $(echo $allowed)"
 
   app:
     name: Unit tests and lint
