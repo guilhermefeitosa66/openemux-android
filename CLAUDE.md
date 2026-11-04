@@ -30,8 +30,15 @@ tools/build.sh          # ndk-build the engine (arm64-v8a, x86_64) in ../phoenix
 ```
 
 Any change to C code (the engine hooks) needs the ndk-build step; Gradle only picks up
-the prebuilt `libretroarch-activity.so` from `../phoenix-common/libs`. There are no tests
-for the Android frontend; it has only been exercised on an x86_64 emulator.
+the prebuilt `libretroarch-activity.so` from `../phoenix-common/libs`. The frontend's JVM
+unit tests (`src/test`) run with `./gradlew testDebugUnitTest --no-daemon`, and in CI.
+
+### CI
+
+One workflow, `.github/workflows/Android.yml` ("CI Android"): unit tests and lint of the
+app, a compile check of the engine, and an allowlist that fails when an upstream sync
+brings RetroArch's workflows back. No APK is built in CI. See `.github/CI.md`, including
+what to do with upstream's workflows after merging `upstream/master`.
 
 `local.properties` (untracked) holds the ScreenScraper dev credential
 (`screenscraper.devid`, `screenscraper.devpassword`), injected as `BuildConfig.SS_*`.
