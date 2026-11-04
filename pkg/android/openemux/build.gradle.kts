@@ -79,6 +79,12 @@ android {
         }
     }
 
+    // Findings that predate CI (many in RetroArch's Java glue) are in the baseline;
+    // only new ones fail lintDebug. `./gradlew updateLintBaseline` regenerates it.
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
+
     // The JVM tests call android.util.Log; the stub answers instead of throwing.
     testOptions {
         unitTests.isReturnDefaultValues = true

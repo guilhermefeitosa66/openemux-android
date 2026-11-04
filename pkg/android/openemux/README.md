@@ -230,6 +230,9 @@ tools/build.sh              # engine (arm64-v8a, x86_64) + APK
 ./gradlew testDebugUnitTest --no-daemon   # JVM unit tests (src/test)
 ```
 
+CI (`.github/workflows/Android.yml`, see `.github/CI.md`) runs the unit tests,
+`lintDebug` and a compile check of the engine; it builds no APK.
+
 The APK ships no cores. On first open, `data/Setup.kt` downloads from the
 RetroArch buildbot every core `data/Console.kt` names (for the device's ABI),
 `info.zip` and the PPSSPP and Dolphin system files, and the app stays on that
