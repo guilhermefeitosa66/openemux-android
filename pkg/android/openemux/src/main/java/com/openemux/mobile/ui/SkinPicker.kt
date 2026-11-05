@@ -256,7 +256,8 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
 
     fun store(action: () -> Unit) {
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { runCatching(action).isSuccess }
+            // Migrated first: until then the console plays the first skin by name, which a copy or a delete would change.
+            val ok = withContext(Dispatchers.IO) { runCatching { library.migrateSkins() }; runCatching(action).isSuccess }
             if (!ok) Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
             onChanged()
         }

@@ -85,11 +85,7 @@ class ImportedSkinRenderer {
         val portraitW = minOf(width, height)
         val portraitH = maxOf(width, height) - cutout
         ZipFile(skinFile).use { zip ->
-            val infoEntry = zip.entries().asSequence()
-                .first { it.name.endsWith("info.json") && !it.name.startsWith("__MACOSX") }
-            val text = zip.getInputStream(infoEntry).bufferedReader().readText().removePrefix("﻿")
-            // Some community skins carry trailing commas, which strict JSON rejects.
-            val info = JSONObject(text.replace(Regex(",(\\s*[}\\]])"), "$1"))
+            val info = SkinStore.packageInfo(zip)
             Log.i(TAG, "importing ${info.optString("name")} (${info.optString("identifier")})")
             val reps = info.getJSONObject("representations")
             val own = mapOf("portrait" to representation(reps, "portrait", tablet), "landscape" to representation(reps, "landscape", tablet))
@@ -520,7 +516,7 @@ class ImportedSkinRenderer {
         fun imported(base: File, console: Console): File? = SkinStore(base).legacyPick(console)
 
         /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
-        fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
+        fun isOpenEmuxSkin(file: File) = SkinStore.isOwn(file)
 
         /**
          * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as the
