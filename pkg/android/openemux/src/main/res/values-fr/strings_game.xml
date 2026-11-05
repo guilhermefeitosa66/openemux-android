@@ -64,6 +64,8 @@
     <string name="rename_error_clash">Un autre jeu %1$s porte déjà ce nom.</string>
     <string name="rename_error_leftovers">Des sauvegardes ou des visuels existent déjà sous ce nom.</string>
     <string name="rename_error_failed">Impossible de renommer le jeu. Rien n’a été modifié.</string>
+    <string name="rename_error_shared">%1$s utilise les mêmes sauvegardes et visuels : ce jeu ne peut pas être renommé seul.</string>
+    <string name="rename_error_busy">Les visuels sont en cours de synchronisation. Réessayez une fois terminé.</string>
     <string name="detail_restart">Redémarrer</string>
     <string name="detail_save_states">États sauvegardés</string>
     <string name="detail_see_all">Tout voir (%1$d)</string>

@@ -64,6 +64,8 @@
     <string name="rename_error_clash">Otro juego de %1$s ya tiene este nombre.</string>
     <string name="rename_error_leftovers">Ya hay partidas o carátulas con este nombre.</string>
     <string name="rename_error_failed">No se pudo renombrar el juego. No se cambió nada.</string>
+    <string name="rename_error_shared">%1$s usa las mismas partidas y carátulas, así que este juego no se puede renombrar por separado.</string>
+    <string name="rename_error_busy">Se están sincronizando las carátulas. Inténtalo de nuevo cuando termine.</string>
     <string name="detail_restart">Reiniciar</string>
     <string name="detail_save_states">Estados guardados</string>
     <string name="detail_see_all">Ver todos (%1$d)</string>

@@ -64,6 +64,8 @@
     <string name="rename_error_clash">Outro jogo de %1$s já tem este nome.</string>
     <string name="rename_error_leftovers">Já existem saves ou artes com este nome.</string>
     <string name="rename_error_failed">Não foi possível renomear o jogo. Nada foi alterado.</string>
+    <string name="rename_error_shared">%1$s usa os mesmos saves e artes, então este jogo não pode ser renomeado sozinho.</string>
+    <string name="rename_error_busy">As artes estão sendo sincronizadas. Tente de novo quando terminar.</string>
     <string name="detail_restart">Reiniciar</string>
     <string name="detail_save_states">Estados salvos</string>
     <string name="detail_see_all">Ver todos (%1$d)</string>

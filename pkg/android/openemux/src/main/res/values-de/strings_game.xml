@@ -64,6 +64,8 @@
     <string name="rename_error_clash">Ein anderes %1$s-Spiel hat bereits diesen Namen.</string>
     <string name="rename_error_leftovers">Unter diesem Namen gibt es bereits Spielstände oder Artwork.</string>
     <string name="rename_error_failed">Das Spiel konnte nicht umbenannt werden. Es wurde nichts geändert.</string>
+    <string name="rename_error_shared">%1$s nutzt dieselben Spielstände und dasselbe Artwork, daher lässt sich dieses Spiel nicht allein umbenennen.</string>
+    <string name="rename_error_busy">Das Artwork wird gerade synchronisiert. Versuche es danach noch einmal.</string>
     <string name="detail_restart">Neu starten</string>
     <string name="detail_save_states">Savestates</string>
     <string name="detail_see_all">Alle anzeigen (%1$d)</string>

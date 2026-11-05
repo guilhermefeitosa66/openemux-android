@@ -6,7 +6,13 @@ import java.io.File
 import java.io.IOException
 
 /** Why a new name cannot be used, or [OK]; the sheet shows each as it is typed (issue 790). */
-enum class RenameCheck { OK, UNCHANGED, EMPTY, BAD_CHARS, LEADING_DOT, TOO_LONG, CLASH, LEFTOVERS }
+enum class RenameCheck {
+    OK, UNCHANGED, EMPTY, BAD_CHARS, LEADING_DOT, TOO_LONG, CLASH, LEFTOVERS,
+    /** Another game of the console has the same base name, so its states, saves and art are this one's too. */
+    SHARED,
+    /** An artwork sync is running: it could write art under the old name mid-rename. */
+    BUSY,
+}
 
 sealed interface RenameResult {
     data class Done(val rom: Rom) : RenameResult
@@ -39,6 +45,7 @@ class RomRenamer(
         val stem = stemOf(input)
         if (stem == rom.baseName) return RenameCheck.UNCHANGED
         if (stem.isEmpty()) return RenameCheck.EMPTY
+        if (sharer(rom) != null) return RenameCheck.SHARED
         if (stem.any { it in FORBIDDEN || it < ' ' || it == '\u007f' }) return RenameCheck.BAD_CHARS
         if (stem.startsWith('.')) return RenameCheck.LEADING_DOT
         val name = nameFor(rom, stem)
@@ -52,8 +59,17 @@ class RomRenamer(
         }
         val own = filesOf(rom, rom.baseName, ignoreCase = false).toSet()
         if (filesOf(rom, stem, ignoreCase = true).any { it !in own }) return RenameCheck.LEFTOVERS
+        if (covers.syncing || labels.syncing) return RenameCheck.BUSY
         return RenameCheck.OK
     }
+
+    /**
+     * Another listed game of [rom]'s console with the same base name ("Foo.sfc" beside "Foo.smc"):
+     * the engine keys states and saves on the base name, so the two share them, and moving them
+     * with one game would take them from the other. Its title, for the message; null when none.
+     */
+    fun sharer(rom: Rom): Rom? =
+        library.roms.value.firstOrNull { it.console == rom.console && it.key != rom.key && it.baseName.equals(rom.baseName, ignoreCase = true) }
 
     fun rename(rom: Rom, input: String): RenameResult {
         val check = check(rom, input)

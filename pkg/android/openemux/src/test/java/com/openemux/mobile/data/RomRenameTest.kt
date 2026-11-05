@@ -14,7 +14,7 @@ class RomRenameTest {
     private val paths = Paths(File(root, "ext"), File(root, "int"))
 
     private class FakeCovers(private val paths: Paths) : CoverOps {
-        override val syncing = false
+        override var syncing = false
         /** The mirror match per base name. */
         val matches = mutableMapOf<String, String>()
         var cached: ByteArray? = null
@@ -31,7 +31,7 @@ class RomRenameTest {
     }
 
     private class FakeLabels(private val paths: Paths) : LabelOps {
-        override val syncing = false
+        override var syncing = false
         val changes = mutableListOf<Pair<String, File?>>()
         override fun labelFile(rom: Rom) = File(paths.labels(rom.console), "${rom.baseName}.png")
         override fun noneMarker(rom: Rom) = File(paths.labels(rom.console), "${rom.baseName}.none")
@@ -324,6 +324,37 @@ class RomRenameTest {
 
         assertEquals("NOTES", renamed.file.name)
         assertEquals(listOf("SFC/NOTES"), lib.roms.value.map { it.key })
+    }
+
+    @Test
+    fun `a game sharing its base name with another one is not renamed alone`() {
+        val lib = seed()
+        put(paths.roms(Console.SFC), "Mario (USA).smc")
+        runBlocking { lib.scan() }
+        val renamer = RomRenamer(paths, lib, covers, labels)
+        val mario = game(lib, "Mario (USA).sfc")
+
+        assertEquals("Mario (USA).smc", renamer.sharer(mario)!!.file.name)
+        assertEquals(RenameCheck.SHARED, renamer.check(mario, "Super Mario World"))
+        assertEquals(RenameResult.Refused(RenameCheck.SHARED), renamer.rename(mario, "Super Mario World"))
+        assertTrue(File(paths.states(Console.SFC), "Mario (USA).state.auto").exists())
+        // A game whose base name is its own shares nothing.
+        assertNull(renamer.sharer(game(lib, "Zelda.sfc")))
+    }
+
+    @Test
+    fun `a rename waits for the artwork sync`() {
+        val lib = seed()
+        val renamer = RomRenamer(paths, lib, covers, labels)
+        val mario = game(lib, "Mario (USA).sfc")
+
+        covers.syncing = true
+        assertEquals(RenameCheck.BUSY, renamer.check(mario, "Super Mario World"))
+        covers.syncing = false
+        labels.syncing = true
+        assertEquals(RenameCheck.BUSY, renamer.check(mario, "Super Mario World"))
+        labels.syncing = false
+        assertEquals(RenameCheck.OK, renamer.check(mario, "Super Mario World"))
     }
 
     @Test

@@ -64,6 +64,8 @@
     <string name="rename_error_clash">Another %1$s game already has this name.</string>
     <string name="rename_error_leftovers">Saves or artwork already exist under this name.</string>
     <string name="rename_error_failed">Could not rename the game. Nothing was changed.</string>
+    <string name="rename_error_shared">%1$s uses the same saves and artwork, so this game cannot be renamed on its own.</string>
+    <string name="rename_error_busy">Artwork is syncing. Try again when it finishes.</string>
     <string name="detail_restart">Restart</string>
     <string name="detail_save_states">Save states</string>
     <string name="detail_see_all">See all (%1$d)</string>

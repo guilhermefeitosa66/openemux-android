@@ -424,10 +424,11 @@ class Library(
      */
     @Synchronized
     fun renamed(old: Rom, new: Rom) {
+        // Both in memory before either write, so a write that throws leaves them consistent and the rename can be undone.
         _roms.update { list -> (list.filterNot { it.key == old.key || it.key == new.key } + new).sortedWith(ROM_ORDER) }
-        saveIndex(_roms.value)
         _meta.update { it.renamedRom(old.key, new.key) }
         _revision.value++
+        saveIndex(_roms.value)
         saveMeta()
     }
 

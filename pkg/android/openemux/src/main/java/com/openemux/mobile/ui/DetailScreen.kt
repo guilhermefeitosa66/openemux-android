@@ -141,7 +141,7 @@ fun RomDetail(
     val skinList = rememberSkinList(lib, rom.console, skinRevision)
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf(false) }
+    var renaming by rememberSaveable { mutableStateOf(false) }
     val close = onClose ?: { a.nav.popBackStack(); Unit }
     // L1/R1 walk this console's games in the library's order; in the pane they stay the library's.
     val siblings = roms.filter { it.console == rom.console }

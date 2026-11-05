@@ -64,6 +64,8 @@
     <string name="rename_error_clash">另一款 %1$s 游戏已在使用此名称。</string>
     <string name="rename_error_leftovers">此名称下已有存档或封面。</string>
     <string name="rename_error_failed">无法重命名游戏。未做任何更改。</string>
+    <string name="rename_error_shared">%1$s 使用相同的存档和封面，因此不能单独重命名这款游戏。</string>
+    <string name="rename_error_busy">正在同步封面。请在完成后重试。</string>
     <string name="detail_restart">重启</string>
     <string name="detail_save_states">即时存档</string>
     <string name="detail_see_all">查看全部（%1$d）</string>

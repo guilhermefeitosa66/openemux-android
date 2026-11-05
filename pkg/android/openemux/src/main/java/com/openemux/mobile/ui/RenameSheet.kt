@@ -52,6 +52,7 @@ fun RenameSheet(rom: Rom, onClose: () -> Unit, onRenamed: (Rom) -> Unit) {
     val check by produceState(RenameCheck.UNCHANGED, name.text) {
         value = withContext(Dispatchers.IO) { renamer.check(rom, name.text) }
     }
+    val sharer = remember(rom.key) { renamer.sharer(rom) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val ready = check == RenameCheck.OK && !busy
@@ -79,6 +80,8 @@ fun RenameSheet(rom: Rom, onClose: () -> Unit, onRenamed: (Rom) -> Unit) {
             RenameCheck.TOO_LONG -> stringResource(R.string.rename_error_long)
             RenameCheck.CLASH -> stringResource(R.string.rename_error_clash, rom.console.fullName)
             RenameCheck.LEFTOVERS -> stringResource(R.string.rename_error_leftovers)
+            RenameCheck.SHARED -> stringResource(R.string.rename_error_shared, sharer?.file?.name.orEmpty())
+            RenameCheck.BUSY -> stringResource(R.string.rename_error_busy)
             RenameCheck.OK, RenameCheck.UNCHANGED -> null
         }
     }

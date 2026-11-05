@@ -64,6 +64,8 @@
     <string name="rename_error_clash">この名前は別の%1$sのゲームですでに使われています。</string>
     <string name="rename_error_leftovers">この名前のセーブまたはアートワークがすでにあります。</string>
     <string name="rename_error_failed">ゲーム名を変更できませんでした。何も変更されていません。</string>
+    <string name="rename_error_shared">%1$s は同じセーブとアートワークを使っているため、このゲームだけ名前を変更することはできません。</string>
+    <string name="rename_error_busy">アートワークを同期中です。終わってからもう一度お試しください。</string>
     <string name="detail_restart">リセット</string>
     <string name="detail_save_states">ステートセーブ</string>
     <string name="detail_see_all">すべて表示（%1$d）</string>
