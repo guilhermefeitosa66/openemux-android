@@ -195,11 +195,13 @@ actions:
 | `l`, `r` (also `l1`, `r1`), `l2`, `r2`, `l3`, `r3` | shoulders, triggers, stick clicks |
 | `start`, `select` | Start, Select |
 | N64: `z`, `cUp`, `cDown`, `cLeft`, `cRight` | Z and the C buttons |
-| Mega Drive: `c`, `z`, `mode` | C, Z, Mode |
+| Mega Drive, 32X, Mega-CD: `c`, `z`, `mode` | C, Z, Mode |
+| Saturn: `c`, `z` | C, Z (its `l`, `r` are the Saturn's own shoulders) |
+| Famicom Disk System: `disk` | turns the disk over (pressing nothing on other consoles) |
 | any `action` name below | that quick action |
 
 The console's own names mean the console's own buttons: on N64 `a` and `b` are the N64's A and B, on the Mega Drive
-`a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button.
+(and the 32X, the Mega-CD and the Saturn) `a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button.
 
 **`action`**: `quickSave`, `quickLoad`, `turbo`, `slowMotion`, `fastForward` (held), `toggleFastForward`,
 `screenshot`, `menu`, `restart` (also `reset`), `screens` (NDS: the next screen layout). In RetroAchievements hardcore

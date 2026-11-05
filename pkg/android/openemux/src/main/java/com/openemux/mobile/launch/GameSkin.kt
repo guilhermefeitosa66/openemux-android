@@ -23,7 +23,7 @@ import java.io.File
  */
 object GameSkin {
     /**
-     * [packaged]: a .deltaskin/.manicskin was used; [ndsLayouts] the saved NDS
+     * [packaged]: a skin package was used (a .deltaskin/.manicskin, or one in OpenEmux's own format); [ndsLayouts] the saved NDS
      * layouts when the skin has one page per layout (the drawn skin, or a
      * package with the art for each), else null: a package draws the two
      * screens one over the other.
@@ -51,18 +51,16 @@ object GameSkin {
         val importer = ImportedSkinRenderer()
         val user = ImportedSkinRenderer.imported(base, console)
         val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
+        // A skin in OpenEmux's own format ([name]: its folder or zip), or null, logged, when it cannot be drawn here.
+        fun ownFormatSkin(name: String, next: String, read: () -> SkinPackage) =
+            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold) }
+                .onFailure { e -> Log.e(OWN_TAG, "$name not drawn: falling back to the $next skin", e) }.getOrNull()
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
-        val own = user?.takeIf { ownFormat }?.let { dir ->
-            runCatching { openEmux(context, SkinFormat.readFolder(dir), dir.name, console, size, outDir, tablet, hardcore, first, fold) }
-                .onFailure { e -> Log.e(OWN_TAG, "${dir.name} not drawn: falling back to the bundled skin", e) }.getOrNull()
-        }
+        val own = user?.takeIf { ownFormat }?.let { dir -> ownFormatSkin(dir.name, "bundled") { SkinFormat.readFolder(dir) } }
         val bundled = if (own == null && (user == null || ownFormat)) ImportedSkinRenderer.bundled(context, console, variant) else null
         val bundledOwnFormat = bundled != null && ImportedSkinRenderer.isOpenEmuxPackage(bundled)
         // The shipped package in OpenEmux's own format; one that cannot be drawn here leaves the drawn skin next.
-        val shipped = bundled?.takeIf { bundledOwnFormat }?.let { zip ->
-            runCatching { openEmux(context, SkinFormat.readZip(zip), zip.name, console, size, outDir, tablet, hardcore, first, fold) }
-                .onFailure { e -> Log.e(OWN_TAG, "${zip.name} not drawn: falling back to the drawn skin", e) }.getOrNull()
-        }
+        val shipped = bundled?.takeIf { bundledOwnFormat }?.let { zip -> ownFormatSkin(zip.name, "drawn") { SkinFormat.readZip(zip) } }
         val pkg = when {
             own != null -> null
             user != null && !ownFormat -> user
