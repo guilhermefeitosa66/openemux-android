@@ -55,7 +55,8 @@ class SkinStore(private val base: File) {
      * packages, the rule [com.openemux.mobile.launch.ImportedSkinRenderer.imported] applied.
      */
     fun legacyPick(console: Console): File? =
-        root(console).listFiles()?.filter { isOwn(it) || isPackage(it) }?.minByOrNull { it.name }
+        // Only what [list] shows and [file] accepts: a hidden or linked entry would be saved as a ref nothing can use.
+        root(console).listFiles()?.filter { safeName(it.name) && !isLink(it) && (isOwn(it) || isPackage(it)) }?.minByOrNull { it.name }
 
     /** The file or folder [ref] names for [console], when it is still there; null for no ref or one that is gone. */
     fun file(console: Console, ref: String?): File? {
@@ -69,8 +70,7 @@ class SkinStore(private val base: File) {
     fun rename(console: Console, id: String, name: String) {
         val dir = own(console, id)
         val clean = cleanName(name)
-        val skin = SkinFormat.readFolder(dir).skin
-        writeJson(dir, skin.copy(name = clean))
+        writeJson(dir, renamed(dir, clean))
     }
 
     /**
@@ -80,13 +80,13 @@ class SkinStore(private val base: File) {
     fun duplicate(console: Console, id: String, name: String): String {
         val dir = own(console, id)
         val clean = cleanName(name)
-        val skin = SkinFormat.readFolder(dir).skin
+        val json = renamed(dir, clean)
         val newId = freeId(console, clean)
         val tmp = File(root(console), ".$newId.tmp")
         deleteTree(tmp)
         try {
             copyTree(dir, tmp)
-            writeJson(tmp, skin.copy(name = clean))
+            writeJson(tmp, json)
             if (!tmp.renameTo(File(root(console), newId))) throw IOException("could not create $newId")
         } finally {
             deleteTree(tmp)
@@ -140,10 +140,20 @@ class SkinStore(private val base: File) {
         )
     }
 
-    private fun writeJson(dir: File, skin: OpenEmuxSkin) {
+    /**
+     * [dir]'s skin.json with only its name changed to [name]: checked as a skin first, then edited as JSON, so the keys
+     * this build does not model (a newer format's, a creator's own) survive a rename or a copy.
+     */
+    private fun renamed(dir: File, name: String): String {
+        SkinFormat.readFolder(dir)
+        val text = File(dir, SkinFormat.SKIN_JSON).readText().removePrefix("\uFEFF")
+        return JSONObject(text).put("name", name).toString(2) + "\n"
+    }
+
+    private fun writeJson(dir: File, text: String) {
         val target = File(dir, SkinFormat.SKIN_JSON)
         val tmp = File(dir, SkinFormat.SKIN_JSON + ".tmp")
-        tmp.writeText(SkinFormat.toJson(skin))
+        tmp.writeText(text)
         if (!tmp.renameTo(target)) {
             tmp.delete()
             throw IOException("could not write ${target.path}")

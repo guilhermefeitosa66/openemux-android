@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -132,7 +133,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val artSource = rememberArtSource(rom)
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
     // Read again when the skin sheet closes: a skin may have been picked, renamed or deleted there.
-    val skinList = rememberSkinList(lib, rom.console, revision = if (sheet == Sheet.Skin) 1 else 0)
+    var skinRevision by remember { mutableIntStateOf(0) }
+    val skinList = rememberSkinList(lib, rom.console, skinRevision)
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val close = onClose ?: { a.nav.popBackStack(); Unit }
@@ -501,7 +503,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.Core -> CoreSheet(rom) { sheet = Sheet.None }
         Sheet.Shader -> ShaderSheet(rom) { sheet = Sheet.None }
         Sheet.States -> StatesSheet(states, ::playState) { sheet = Sheet.None }
-        Sheet.Skin -> SkinSheet(lib, rom.console) { sheet = Sheet.None }
+        Sheet.Skin -> SkinSheet(lib, rom.console) { sheet = Sheet.None; skinRevision++ }
         Sheet.None -> {}
     }
 

@@ -70,6 +70,7 @@ class SkinSelectionTest {
     }
 
     @Test fun theMigrationRunsOnce() {
+        paths.base.mkdirs()
         val lib = library()
         lib.migrateSkins()
         pkg("late.deltaskin")
@@ -78,6 +79,7 @@ class SkinSelectionTest {
     }
 
     @Test fun anInstallWithNoSkinsMigratesToTheBundledOnes() {
+        paths.base.mkdirs()
         val lib = library()
         lib.migrateSkins()
         assertTrue(library().meta.value.skinsMigrated)
@@ -124,5 +126,16 @@ class SkinSelectionTest {
         kotlinx.coroutines.runBlocking { lib.scan() }
         assertTrue(library().meta.value.skinsMigrated)
         assertEquals("pkg:p.deltaskin", library().customSkin(Console.SFC))
+    }
+
+    @Test fun storageThatCannotBeListedIsNotMigrated() {
+        // Not mounted yet: the skins are there, only unreadable for now, so nothing is decided.
+        val lib = library()
+        lib.migrateSkins()
+        assertFalse(lib.meta.value.skinsMigrated)
+        pkg("p.deltaskin")
+        lib.migrateSkins()
+        assertEquals("pkg:p.deltaskin", library().customSkin(Console.SFC))
+        assertTrue(library().meta.value.skinsMigrated)
     }
 }

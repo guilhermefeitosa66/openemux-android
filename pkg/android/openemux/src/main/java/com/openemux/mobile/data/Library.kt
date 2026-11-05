@@ -246,6 +246,9 @@ class Library(
     @Synchronized
     fun migrateSkins() {
         if (_meta.value.skinsMigrated) return
+        // Storage that cannot be listed (not mounted, no access yet) reads as "no skins": migrating then would drop the
+        // skin each console played with for good. The next pass with it readable migrates.
+        if (paths.base.listFiles() == null) return
         _meta.update { m ->
             val picks = Console.entries.mapNotNull { c ->
                 skins.legacyPick(c)?.let { c.id to m.settingsFor(c).copy(custom = SkinStore.refOf(it)) }

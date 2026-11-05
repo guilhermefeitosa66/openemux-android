@@ -268,4 +268,23 @@ class SkinStoreTest {
         assertNull(SkinStore.parse(null))
         assertNull(SkinStore.parse("pkg:"))
     }
+
+    @Test fun aRenameKeepsTheKeysThisBuildDoesNotRead() {
+        val dir = own("mine")
+        val json = File(dir, SkinFormat.SKIN_JSON)
+        json.writeText(org.json.JSONObject(json.readText()).put("author", "someone").toString())
+        store.rename(Console.SFC, "mine", "Renamed")
+        assertEquals("someone", org.json.JSONObject(json.readText()).getString("author"))
+        val copy = store.file(Console.SFC, store.duplicate(Console.SFC, "mine", "Copy"))!!
+        val copied = org.json.JSONObject(File(copy, SkinFormat.SKIN_JSON).readText())
+        assertEquals("someone", copied.getString("author"))
+        assertEquals("Copy", SkinFormat.readFolder(copy).skin.name)
+    }
+
+    @Test fun theLegacyPickSkipsHiddenAndLinkedEntries() {
+        own("b-mine")
+        File(store.root(Console.SFC), "._a.deltaskin").writeText("apple double")
+        Files.createSymbolicLink(File(store.root(Console.SFC), "a-link.deltaskin").toPath(), File(base, "elsewhere").apply { writeText("x") }.toPath())
+        assertEquals("b-mine", store.legacyPick(Console.SFC)?.name)
+    }
 }

@@ -170,7 +170,7 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
         }
     }
     val (choice, own, imported) = listed ?: return null
-    return SkinListState(choice, own, imported, settings?.skin ?: SkinVariant.CONSOLE.id, remember(meta) { library.customSkin(console) })
+    return SkinListState(choice, own, imported, settings?.skin ?: SkinVariant.CONSOLE.id, remember(meta, console) { library.customSkin(console) })
 }
 
 /** The catalog's JSON, read from the APK once per process: it only changes with an update, which restarts the app. */
