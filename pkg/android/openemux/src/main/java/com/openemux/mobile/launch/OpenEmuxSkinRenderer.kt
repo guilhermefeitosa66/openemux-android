@@ -117,7 +117,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             is ElementPlan.Dpad -> {
                 val pad = image(pkg, files[0], box) ?: cross(box, element.colors["pad"] ?: DEFAULT_PAD)
                 val travel = plan.travel.rect()
-                val ball = image(pkg, files[1], travel) ?: ball(travel, element.colors["ball"] ?: DEFAULT_BALL)
+                val ball = ball(pkg, files[1], travel, element.colors["ball"] ?: DEFAULT_BALL)
                 listOf(
                     OverlayDesc("nul", box, image = pad),
                     OverlayDesc("dpad_area", travel, dpad = listOf("up", "down", "left", "right"), reach = plan.reach, knob = ball),
@@ -206,11 +206,21 @@ class OpenEmuxSkinRenderer(context: Context) {
         return out
     }
 
-    /** A D-pad's ball with no image: a circle in its "ball" colour, about half its travel across, in the travel's box. */
-    private fun ball(travel: RectF, color: Int): Bitmap {
+    /**
+     * A D-pad's ball, about half its travel across, centred in the travel's box (the engine stretches the image over
+     * it): the skin's image, else a circle in its "ball" colour.
+     */
+    private fun ball(pkg: SkinPackage, file: String?, travel: RectF, color: Int): Bitmap {
         val out = blank(travel)
-        val d = minOf(out.width, out.height) * 0.55f
-        Canvas(out).drawOval(RectF((out.width - d) / 2f, (out.height - d) / 2f, (out.width + d) / 2f, (out.height + d) / 2f), fill(color))
+        val d = minOf(out.width, out.height) * BALL_SHARE
+        val target = RectF((out.width - d) / 2f, (out.height - d) / 2f, (out.width + d) / 2f, (out.height + d) / 2f)
+        val image = file?.let { decode(pkg, it, d, d) }
+        if (image != null) {
+            Canvas(out).drawBitmap(image, null, target, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+            image.recycle()
+        } else {
+            Canvas(out).drawOval(target, fill(color))
+        }
         return out
     }
 
@@ -293,6 +303,9 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     companion object {
         private const val TAG = "OpenEmuxSkin"
+
+        /** The D-pad's ball across, as a share of its travel's box. */
+        private const val BALL_SHARE = 0.55f
 
         // A part left unset, with no image, in the app's Dark skin family.
         private const val DEFAULT_BACKGROUND = 0xFF16161A.toInt()
