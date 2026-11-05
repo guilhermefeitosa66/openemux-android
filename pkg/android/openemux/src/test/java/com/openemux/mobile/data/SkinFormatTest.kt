@@ -218,6 +218,10 @@ class SkinFormatTest {
         val file = File(tmp.root, "not.zip").apply { writeText("hello") }
         assertError(SkinError.BAD_PACKAGE) { SkinFormat.readZip(file) }
         assertError(SkinError.BAD_PACKAGE) { SkinFormat.readZip(File(tmp.root, "missing.zip")) }
+        // A zip whose skin.json entry is damaged (its local header's signature broken) fails while it is opened.
+        val damaged = zip(mapOf("skin.json" to minimal.toByteArray()))
+        damaged.writeBytes(damaged.readBytes().also { it[0] = 0 })
+        assertError(SkinError.BAD_PACKAGE) { SkinFormat.readZip(damaged) }
     }
 
     private fun assertError(error: SkinError, block: () -> Unit) {
