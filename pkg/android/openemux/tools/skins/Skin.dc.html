@@ -349,15 +349,21 @@ const OE = (() => {
   function layout(id, device, orient, opts) {
     opts = opts || {};
     const S = palette(id, opts.variant);
-    const tab = device === 'tablet', port = orient === 'portrait';
-    const W = tab ? (port ? 800 : 1280) : (port ? 360 : 746);
-    const H = tab ? (port ? 1280 : 800) : (port ? 746 : 360);
+    // A fold is an unfolded foldable's inner screen (604 x 726 units, 1812 x 2178 px at 3 px a unit: about a Galaxy Z
+    // Fold's 1812 x 2176): the tablet's spacing on a squarer page, so the picture takes a phone's share of it and the
+    // side columns are narrower.
+    const fold = device === 'fold', tab = device === 'tablet' || fold, port = orient === 'portrait';
+    const W = fold ? (port ? 604 : 726) : tab ? (port ? 800 : 1280) : (port ? 360 : 746);
+    const H = fold ? (port ? 726 : 604) : tab ? (port ? 1280 : 800) : (port ? 746 : 360);
     const parts = [], items = [], screens = [], knobs = [];
     const add = (style, extra) => { parts.push(Object.assign({ style, hasLabel: false, hasIcon: false, label: '', labelStyle: '', icon: '', iconStyle: '', iconFill: 'none', iconStroke: 'none', iconWidth: 0 }, extra || {})); };
     const box = (x, y, w, h) => `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;box-sizing:border-box;`;
     const center = 'display:flex;align-items:center;justify-content:center;';
     const lbl = (label, ink, size, spacing) => ({ hasLabel: true, label, labelStyle: `font:700 ${r1(size)}px/1 'Space Grotesk',sans-serif;letter-spacing:${spacing || '.04em'};color:${ink};white-space:nowrap` });
     const item = (inputs, x, y, w, h, ext, thumbstick) => items.push({ inputs, frame: { x: r1(x), y: r1(y), width: r1(w), height: r1(h) }, extendedEdges: ext, thumbstick });
+    // How the last item looks, for the OpenEmux-format templates (build.py --templates): its group, label, shape and
+    // colour parts. The Delta packages leave it out.
+    const look = (l) => { items[items.length - 1].look = l; };
     const icon = (d, stroke, size, fill, width) => ({ hasIcon: true, icon: d, iconStroke: stroke, iconFill: fill || 'none', iconWidth: width == null ? 1.8 : width, iconStyle: `width:${size}px;height:${size}px;display:block` });
 
     // Body: matte plastic, lit from above; translucent and glossy shells get their own sheen.
@@ -380,11 +386,11 @@ const OE = (() => {
     let sw, sh;
     if (port) {
       const maxW = W - 2 * m - 2 * pad;
-      const maxH = H * (rows === 2 ? (tab ? 0.6 : 0.56) : (tab ? 0.5 : 0.42));
+      const maxH = H * (rows === 2 ? (fold ? 0.5 : tab ? 0.6 : 0.56) : (fold ? 0.4 : tab ? 0.5 : 0.42));
       sw = maxW / cols; sh = sw / S.aspect;
       if (rows * sh > maxH) { sh = maxH / rows; sw = sh * S.aspect; }
     } else {
-      const minSide = tab ? 240 : 150;
+      const minSide = fold ? 190 : tab ? 240 : 150;
       const maxH = H - 2 * m - pad - chin;
       const maxW = W - 2 * minSide - 2 * pad;
       sh = maxH / rows; sw = sh * S.aspect;
@@ -412,6 +418,7 @@ const OE = (() => {
       const x = r1(bx + slot * i), x1 = r1(bx + slot * (i + 1));
       add(box(x, barY, x1 - x, barH) + center, icon(ICON[ic], S.chinIcon || alpha('#ffffff', 0.7), tab ? 22 : 17));
       item([input], x, barY, x1 - x, barH);
+      look({ group: 'actions' });
     });
 
     function shoulders(y, h, l0, l1, r0, r1) {
@@ -424,6 +431,7 @@ const OE = (() => {
           add(box(x, y, w, h) + center + `border-radius:${rad};background:linear-gradient(180deg, ${lighten(S.shoulder, 0.12)}, ${darken(S.shoulder, 0.08)});box-shadow:0 3px 0 ${darken(S.shoulder, 0.35)}, 0 6px 10px rgba(0,0,0,.25);`,
             lbl(s.label, S.shoulderInk, tab ? 16 : 13));
           item([s.input], x, y, w, h, left ? { top: 10, left: 12 } : { top: 10, right: 12 });
+          look({ group: left ? 'shoulders-left' : 'shoulders-right', label: s.label, shape: 'rect', colors: { button: S.shoulder, letter: S.shoulderInk } });
         });
       };
       draw(S.shoulders[0], l0, l1, true);
@@ -433,6 +441,7 @@ const OE = (() => {
     function menuBtn(x, y, w, h) {
       add(box(x, y, w, h) + center + `border-radius:${h / 2}px;background:${S.bar};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.08)};`, icon(ICON.menu, S.barIcon, tab ? 22 : 18, 'none', 2));
       item(['menu'], x, y, w, h);
+      look({ group: 'menu', label: 'MENU', shape: 'pill', colors: { button: S.bar, letter: S.barIcon } });
     }
 
     function dpad(cx, cy, size) {
@@ -456,6 +465,7 @@ const OE = (() => {
       if (!opts.export) knobParts(S, size * DPAD_KNOB.radius * 2, size).forEach((k) => add(box(cx - travel, cy - travel, 2 * travel, 2 * travel) + k.style));
       item({ up: 'up', down: 'down', left: 'left', right: 'right' }, x0, y0, size, size, { top: 12, bottom: 12, left: 12, right: 12 });
       items[items.length - 1].knob = DPAD_KNOB.image;
+      look({ group: 'dpad', colors: { pad: S.dpad, ball: S.dpadMark } });
     }
 
     // The knob is not painted into the art: it is an image of its own (the item's thumbstick), the size of
@@ -473,6 +483,7 @@ const OE = (() => {
       // The canvas shows the knob at rest; the exported art leaves it out.
       if (!opts.export) add(knob(cx - side / 2, cy - side / 2), label);
       item(right ? RIGHT_STICK : LEFT_STICK, x, y, size, size, undefined, { name, width: side, height: side });
+      look({ group: right ? 'stick2' : 'stick', label: st.label, colors: { base: darken(S.well || S.body, 0.27), knob: kc } });
     }
 
     function button(b, cx, cy, k) {
@@ -493,6 +504,9 @@ const OE = (() => {
       add(style, extra);
       if (b.label && S.labelPos === 'below') add(box(x - 10, y + h + 6 * k, w + 20, 16 * k) + center, lbl(b.label, S.labelInk, 14 * k));
       item([b.input], x, y, w, h);
+      const text = b.symbol ? { tri: '△', circle: '○', cross: '✕', square: '□' }[b.symbol]
+        : (b.arrow != null ? { 0: '▲', 90: '▶', 180: '▼', 270: '◀' }[b.arrow] : b.label);
+      look({ group: 'face', label: text, shape: b.shape === 'square' ? 'rect' : (b.shape || 'circle'), colors: { button: c, letter: ink } });
     }
 
     /** [room] is the width the face buttons may take: they shrink to it and centre on [rx] by their own extent. */
@@ -521,6 +535,7 @@ const OE = (() => {
       add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
       add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, tab ? 12 : 10, '.14em'));
       item([c.input], cx - w / 2, cy - h / 2, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
+      look({ group: 'center', label: c.label, shape: 'pill', colors: { button: S.pill, letter: S.centerInk || S.labelInk } });
     }
 
     function brand(cx, cy) {
@@ -565,7 +580,10 @@ const OE = (() => {
       });
     }
 
-    return { W, H, parts, items, screens, knobs, name: S.name, aspect: S.aspect };
+    // The bezel and the page's colours, for the templates too.
+    const frame = { x: r1(bx), y: r1(by), width: r1(bw), height: r1(bh) };
+    const colors = { body: S.body, bezel: S.bezel, icons: S.chinIcon || alpha('#ffffff', 0.7) };
+    return { W, H, parts, items, screens, knobs, name: S.name, aspect: S.aspect, frame, colors };
   }
 
   return { layout, dpadKnob, palette, variants, swatch, DPAD_KNOB, C, DARK, VARIANTS, COLORS };
