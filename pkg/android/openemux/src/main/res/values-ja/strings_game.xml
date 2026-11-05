@@ -51,6 +51,19 @@
     <string name="detail_favorite_add">お気に入りに追加</string>
     <string name="detail_more_options">その他のオプション</string>
     <string name="detail_remove_from_library">ライブラリから削除</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">名前を変更…</string>
+    <string name="rename_title">ゲーム名を変更</string>
+    <string name="rename_label">ファイル名</string>
+    <string name="rename_hint">拡張子はそのままです。セーブ、ステート、アートワーク、設定もゲームと一緒に引き継がれます。</string>
+    <string name="rename_action">変更</string>
+    <string name="rename_error_empty">名前を入力してください。</string>
+    <string name="rename_error_chars">名前に次の文字は使えません: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">名前をドットで始めることはできません。</string>
+    <string name="rename_error_long">名前が長すぎます。</string>
+    <string name="rename_error_clash">この名前は別の%1$sのゲームですでに使われています。</string>
+    <string name="rename_error_leftovers">この名前のセーブまたはアートワークがすでにあります。</string>
+    <string name="rename_error_failed">ゲーム名を変更できませんでした。何も変更されていません。</string>
     <string name="detail_restart">リセット</string>
     <string name="detail_save_states">ステートセーブ</string>
     <string name="detail_see_all">すべて表示（%1$d）</string>

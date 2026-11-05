@@ -51,6 +51,19 @@
     <string name="detail_favorite_add">Añadir a favoritos</string>
     <string name="detail_more_options">Más opciones</string>
     <string name="detail_remove_from_library">Quitar de la biblioteca</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">Renombrar…</string>
+    <string name="rename_title">Renombrar juego</string>
+    <string name="rename_label">Nombre del archivo</string>
+    <string name="rename_hint">La extensión se mantiene. Las partidas, los estados, las carátulas y los ajustes siguen al juego.</string>
+    <string name="rename_action">Renombrar</string>
+    <string name="rename_error_empty">Escribe un nombre.</string>
+    <string name="rename_error_chars">Un nombre no puede tener estos caracteres: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">Un nombre no puede empezar por un punto.</string>
+    <string name="rename_error_long">El nombre es demasiado largo.</string>
+    <string name="rename_error_clash">Otro juego de %1$s ya tiene este nombre.</string>
+    <string name="rename_error_leftovers">Ya hay partidas o carátulas con este nombre.</string>
+    <string name="rename_error_failed">No se pudo renombrar el juego. No se cambió nada.</string>
     <string name="detail_restart">Reiniciar</string>
     <string name="detail_save_states">Estados guardados</string>
     <string name="detail_see_all">Ver todos (%1$d)</string>

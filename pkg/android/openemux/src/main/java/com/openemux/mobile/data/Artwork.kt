@@ -46,6 +46,8 @@ interface CoverOps {
     fun mirrorUrl(rom: Rom): String?
     /** Fetches [url] into the image cache. */
     suspend fun fetch(url: String): Fetch
+    /** Copies the image cached for [url] to [target]; false when the cache has none (issue 790). */
+    fun keepCachedCover(url: String, target: File): Boolean = false
 }
 
 /** ScreenScraper's labels, as the manager needs them ([Labels] in the app). */

@@ -51,6 +51,19 @@
     <string name="detail_favorite_add">Add to favorites</string>
     <string name="detail_more_options">More options</string>
     <string name="detail_remove_from_library">Remove from library</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">Rename…</string>
+    <string name="rename_title">Rename game</string>
+    <string name="rename_label">File name</string>
+    <string name="rename_hint">The extension stays. Saves, states, artwork and settings follow the game.</string>
+    <string name="rename_action">Rename</string>
+    <string name="rename_error_empty">Type a name.</string>
+    <string name="rename_error_chars">A name cannot use these characters: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">A name cannot start with a dot.</string>
+    <string name="rename_error_long">The name is too long.</string>
+    <string name="rename_error_clash">Another %1$s game already has this name.</string>
+    <string name="rename_error_leftovers">Saves or artwork already exist under this name.</string>
+    <string name="rename_error_failed">Could not rename the game. Nothing was changed.</string>
     <string name="detail_restart">Restart</string>
     <string name="detail_save_states">Save states</string>
     <string name="detail_see_all">See all (%1$d)</string>

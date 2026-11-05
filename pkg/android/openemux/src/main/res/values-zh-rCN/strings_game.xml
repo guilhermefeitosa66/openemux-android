@@ -51,6 +51,19 @@
     <string name="detail_favorite_add">加入收藏</string>
     <string name="detail_more_options">更多选项</string>
     <string name="detail_remove_from_library">从游戏库移除</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">重命名…</string>
+    <string name="rename_title">重命名游戏</string>
+    <string name="rename_label">文件名</string>
+    <string name="rename_hint">扩展名保持不变。存档、即时存档、封面和设置都会跟随游戏。</string>
+    <string name="rename_action">重命名</string>
+    <string name="rename_error_empty">请输入名称。</string>
+    <string name="rename_error_chars">名称不能包含以下字符：/ \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">名称不能以点开头。</string>
+    <string name="rename_error_long">名称太长。</string>
+    <string name="rename_error_clash">另一款 %1$s 游戏已在使用此名称。</string>
+    <string name="rename_error_leftovers">此名称下已有存档或封面。</string>
+    <string name="rename_error_failed">无法重命名游戏。未做任何更改。</string>
     <string name="detail_restart">重启</string>
     <string name="detail_save_states">即时存档</string>
     <string name="detail_see_all">查看全部（%1$d）</string>

@@ -104,10 +104,14 @@ fun DetailScreen(key: String) {
 /**
  * A game's detail in [style]. [active] tells whether its buttons answer the
  * gamepad (the pane only while it holds focus); [onClose] runs after the game
- * is removed, and [onOpenFull] opens the pane's game on its own screen.
+ * is removed, [onOpenFull] opens the pane's game on its own screen, and
+ * [onRenamed] gets the game's new key after a rename (issue 790).
  */
 @Composable
-fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: (() -> Unit)? = null, onOpenFull: (() -> Unit)? = null) {
+fun RomDetail(
+    key: String, style: DetailStyle, active: Boolean = true, onClose: (() -> Unit)? = null, onOpenFull: (() -> Unit)? = null,
+    onRenamed: ((String) -> Unit)? = null,
+) {
     val a = LocalActions.current
     val lib = a.app.library
     val roms by lib.roms.collectAsState()
@@ -137,6 +141,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val skinList = rememberSkinList(lib, rom.console, skinRevision)
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
     val close = onClose ?: { a.nav.popBackStack(); Unit }
     // L1/R1 walk this console's games in the library's order; in the pane they stay the library's.
     val siblings = roms.filter { it.console == rom.console }
@@ -203,6 +208,12 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                         a.app.shareCoordinator.startSend(listOf(rom))
                         a.nav.navigate(Routes.SHARE)
                     },
+                )
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.detail_rename), style = Type.Body) },
+                    leadingIcon = { Icon(Icons.Pencil, Oe.Text, 20.dp) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
+                    onClick = { menu = false; renaming = true },
                 )
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(stringResource(R.string.detail_remove_from_library), style = Type.Body.copy(color = Oe.Danger)) },
@@ -507,6 +518,13 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.None -> {}
     }
 
+    if (renaming) {
+        RenameSheet(rom, onClose = { renaming = false }) { renamed ->
+            renaming = false
+            // The screen is keyed on the game: it follows the game to its new key, as L1/R1 do.
+            onRenamed?.invoke(renamed.key) ?: a.nav.navigate(Routes.rom(renamed.key)) { popUpTo(Routes.ROM) { inclusive = true } }
+        }
+    }
     if (confirmDelete) {
         OeConfirmDialog(
             { confirmDelete = false },

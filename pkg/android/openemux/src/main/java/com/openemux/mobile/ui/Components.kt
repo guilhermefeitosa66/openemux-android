@@ -85,6 +85,9 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -170,6 +173,8 @@ object Icons {
     const val WifiOff = "M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19h.01M3 3l18 18"
     const val Qr = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M20 14v2M14 18h2v2M18 18h2v2"
     const val Copy = "M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"
+    /** A pencil: rename a game (issue 790). */
+    const val Pencil = "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"
 }
 
 @Composable
@@ -512,6 +517,73 @@ fun OeTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    OeFieldFrame(label, isError, interaction, modifier, trailing = {
+        if (onReveal != null) {
+            Box(
+                Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
+                    .semantics { contentDescription = revealLabel },
+                contentAlignment = Alignment.Center,
+            ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
+        }
+    }) { fieldModifier ->
+        BasicTextField(
+            value, onChange,
+            fieldModifier.let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
+            readOnly = readOnly,
+            singleLine = true,
+            textStyle = Type.Body,
+            cursorBrush = SolidColor(Oe.AccentText),
+            visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            interactionSource = interaction,
+        )
+    }
+}
+
+/**
+ * The same field over a [TextFieldValue], so it can open with its text selected (issue 790's
+ * rename); [suffix] is fixed text after what is typed, such as the extension a rename keeps.
+ */
+@Composable
+fun OeTextField(
+    label: String,
+    value: TextFieldValue,
+    onChange: (TextFieldValue) -> Unit,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    suffix: String? = null,
+    focusRequester: FocusRequester? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    OeFieldFrame(label, isError, interaction, modifier, trailing = {
+        if (suffix != null) Text(suffix, style = Type.Body.copy(color = Oe.Muted), modifier = Modifier.padding(start = 4.dp, end = 10.dp))
+    }) { fieldModifier ->
+        BasicTextField(
+            value, onChange,
+            fieldModifier.let { m -> if (focusRequester != null) m.focusRequester(focusRequester) else m },
+            singleLine = true,
+            textStyle = Type.Body,
+            cursorBrush = SolidColor(Oe.AccentText),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            interactionSource = interaction,
+        )
+    }
+}
+
+/** The label, border and focus ring both [OeTextField]s share; [field] gets the modifier its text field takes. */
+@Composable
+private fun OeFieldFrame(
+    label: String,
+    isError: Boolean,
+    interaction: MutableInteractionSource,
+    modifier: Modifier,
+    trailing: @Composable () -> Unit,
+    field: @Composable (Modifier) -> Unit,
+) {
     val focused by interaction.collectIsFocusedAsState()
     Column(modifier) {
         Text(label, style = Type.Caption.copy(color = Oe.Muted), modifier = Modifier.padding(bottom = 6.dp))
@@ -526,25 +598,8 @@ fun OeTextField(
                 .padding(start = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BasicTextField(
-                value, onChange,
-                Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically().let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
-                readOnly = readOnly,
-                singleLine = true,
-                textStyle = Type.Body,
-                cursorBrush = SolidColor(Oe.AccentText),
-                visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                interactionSource = interaction,
-            )
-            if (onReveal != null) {
-                Box(
-                    Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
-                        .semantics { contentDescription = revealLabel },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
-            }
+            field(Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically())
+            trailing()
         }
     }
 }
