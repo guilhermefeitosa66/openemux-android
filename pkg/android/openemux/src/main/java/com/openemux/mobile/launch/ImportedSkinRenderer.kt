@@ -18,6 +18,7 @@ import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
@@ -84,11 +85,7 @@ class ImportedSkinRenderer {
         val portraitW = minOf(width, height)
         val portraitH = maxOf(width, height) - cutout
         ZipFile(skinFile).use { zip ->
-            val infoEntry = zip.entries().asSequence()
-                .first { it.name.endsWith("info.json") && !it.name.startsWith("__MACOSX") }
-            val text = zip.getInputStream(infoEntry).bufferedReader().readText().removePrefix("﻿")
-            // Some community skins carry trailing commas, which strict JSON rejects.
-            val info = JSONObject(text.replace(Regex(",(\\s*[}\\]])"), "$1"))
+            val info = SkinStore.packageInfo(zip)
             Log.i(TAG, "importing ${info.optString("name")} (${info.optString("identifier")})")
             val reps = info.getJSONObject("representations")
             val own = mapOf("portrait" to representation(reps, "portrait", tablet), "landscape" to representation(reps, "landscape", tablet))
@@ -516,13 +513,10 @@ class ImportedSkinRenderer {
          * The skin the user put in files/skins/<console> for [console], if any: the first by name of the .deltaskin and
          * .manicskin files and the folders in OpenEmux's own format (with a skin.json, [isOpenEmuxSkin]).
          */
-        fun imported(base: File, console: Console): File? =
-            File(base, "skins/${console.id}").listFiles()
-                ?.filter { isOpenEmuxSkin(it) || it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
-                ?.minByOrNull { it.name }
+        fun imported(base: File, console: Console): File? = SkinStore(base).legacyPick(console)
 
         /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
-        fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
+        fun isOpenEmuxSkin(file: File) = SkinStore.isOwn(file)
 
         /**
          * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as the

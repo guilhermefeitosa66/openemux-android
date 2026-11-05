@@ -74,9 +74,6 @@
     <string name="settings_skin_color_clear">透明</string>
     <string name="settings_skin_color_clear_blue">透明蓝</string>
     <string name="settings_skin_color_clear_pink">透明粉</string>
-    <string name="settings_skin_sheet_desc">每款 %1$s 游戏都使用的虚拟手柄。</string>
-    <string name="settings_skin_imported">将改用你为 %1$s 导入的皮肤。</string>
-    <string name="settings_skin_imported_value">已导入的皮肤</string>
     <string name="settings_cart_color">卡带颜色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">应用于全部 %1$d 款 %2$s 游戏。</item>
@@ -269,4 +266,36 @@
     <string name="providers_dev_id">开发者 ID</string>
     <string name="providers_dev_password">开发者密码</string>
     <string name="providers_remove_developer">移除开发者账号</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">手柄皮肤</string>
+    <string name="skins_lead">点按皮肤即可在游戏中使用。每个皮肤都标明了适配的屏幕。内置皮肤永远不会被修改。</string>
+    <string name="skins_yours">我的皮肤</string>
+    <string name="skins_bundled">内置</string>
+    <string name="skins_imported">已导入</string>
+    <string name="skins_in_use">使用中</string>
+    <string name="skins_form_phone">手机</string>
+    <string name="skins_form_tablet">平板</string>
+    <string name="skins_form_fold">折叠屏</string>
+    <string name="skins_form_made">%1$s：已适配</string>
+    <string name="skins_form_missing">%1$s：未包含</string>
+    <string name="skins_not_for_phones">未适配手机</string>
+    <string name="skins_not_for_tablets">未适配平板</string>
+    <string name="skins_not_for_folds">未适配折叠屏</string>
+    <string name="skins_broken">无法读取</string>
+    <string name="skins_actions">%1$s 的操作</string>
+    <string name="skins_use">使用</string>
+    <string name="skins_use_as_is">直接使用</string>
+    <string name="skins_bundled_locked">内置皮肤永远不会被修改。</string>
+    <string name="skins_rename">重命名</string>
+    <string name="skins_rename_title">重命名皮肤</string>
+    <string name="skins_name_label">名称</string>
+    <string name="skins_save">保存</string>
+    <string name="skins_duplicate">复制</string>
+    <string name="skins_copy_name">%1$s（副本）</string>
+    <string name="skins_delete">删除</string>
+    <string name="skins_delete_sub">主机将改回 %1$s</string>
+    <string name="skins_delete_title">删除 %1$s？</string>
+    <string name="skins_delete_body">该皮肤及其图片将从此设备中移除。</string>
+    <string name="skins_error">无法更改皮肤。</string>
 </resources>

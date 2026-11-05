@@ -76,9 +76,6 @@
     <string name="settings_skin_color_clear">Transparent</string>
     <string name="settings_skin_color_clear_blue">Transparent (Blau)</string>
     <string name="settings_skin_color_clear_pink">Transparent (Pink)</string>
-    <string name="settings_skin_sheet_desc">Der virtuelle Controller, den jedes %1$s-Spiel verwendet.</string>
-    <string name="settings_skin_imported">Stattdessen wird ein Skin verwendet, den du für %1$s importiert hast.</string>
-    <string name="settings_skin_imported_value">Importierter Skin</string>
     <string name="settings_cart_color">Modulfarbe</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Gilt für das eine %2$s-Spiel.</item>
@@ -280,4 +277,36 @@
     <string name="providers_dev_id">Entwickler-ID</string>
     <string name="providers_dev_password">Entwicklerpasswort</string>
     <string name="providers_remove_developer">Entwicklerkonto entfernen</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">Controller-Skins</string>
+    <string name="skins_lead">Tippe auf einen Skin, um ihn im Spiel zu nutzen. Jeder zeigt, für welche Bildschirme er gemacht ist. Mitgelieferte Skins ändern sich nie.</string>
+    <string name="skins_yours">Deine Skins</string>
+    <string name="skins_bundled">Mitgeliefert</string>
+    <string name="skins_imported">Importiert</string>
+    <string name="skins_in_use">Aktiv</string>
+    <string name="skins_form_phone">Handy</string>
+    <string name="skins_form_tablet">Tablet</string>
+    <string name="skins_form_fold">Faltbar</string>
+    <string name="skins_form_made">%1$s: dafür gemacht</string>
+    <string name="skins_form_missing">%1$s: nicht enthalten</string>
+    <string name="skins_not_for_phones">Nicht für Handys gemacht</string>
+    <string name="skins_not_for_tablets">Nicht für Tablets gemacht</string>
+    <string name="skins_not_for_folds">Nicht für Faltbare gemacht</string>
+    <string name="skins_broken">Nicht lesbar</string>
+    <string name="skins_actions">Aktionen für %1$s</string>
+    <string name="skins_use">Verwenden</string>
+    <string name="skins_use_as_is">So verwenden</string>
+    <string name="skins_bundled_locked">Mitgelieferte Skins ändern sich nie.</string>
+    <string name="skins_rename">Umbenennen</string>
+    <string name="skins_rename_title">Skin umbenennen</string>
+    <string name="skins_name_label">Name</string>
+    <string name="skins_save">Speichern</string>
+    <string name="skins_duplicate">Duplizieren</string>
+    <string name="skins_copy_name">%1$s (Kopie)</string>
+    <string name="skins_delete">Löschen</string>
+    <string name="skins_delete_sub">Die Konsole wechselt zurück zu %1$s</string>
+    <string name="skins_delete_title">%1$s löschen?</string>
+    <string name="skins_delete_body">Der Skin und seine Bilder werden von diesem Gerät entfernt.</string>
+    <string name="skins_error">Der Skin konnte nicht geändert werden.</string>
 </resources>

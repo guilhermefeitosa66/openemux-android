@@ -76,9 +76,6 @@
     <string name="settings_skin_color_clear">Transparente</string>
     <string name="settings_skin_color_clear_blue">Azul transparente</string>
     <string name="settings_skin_color_clear_pink">Rosa transparente</string>
-    <string name="settings_skin_sheet_desc">O controle virtual que todo jogo de %1$s usa.</string>
-    <string name="settings_skin_imported">Uma skin que você importou para %1$s é usada no lugar.</string>
-    <string name="settings_skin_imported_value">Skin importada</string>
     <string name="settings_cart_color">Cor dos cartuchos</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Vale para todos os %1$d jogos do %2$s.</item>
@@ -280,4 +277,36 @@
     <string name="providers_dev_id">ID de desenvolvedor</string>
     <string name="providers_dev_password">Senha de desenvolvedor</string>
     <string name="providers_remove_developer">Remover conta de desenvolvedor</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">Skins do controle</string>
+    <string name="skins_lead">Toque numa skin para usá-la no jogo. Cada uma diz para quais telas foi feita. As skins do app nunca mudam.</string>
+    <string name="skins_yours">Suas skins</string>
+    <string name="skins_bundled">Do app</string>
+    <string name="skins_imported">Importadas</string>
+    <string name="skins_in_use">Em uso</string>
+    <string name="skins_form_phone">Celular</string>
+    <string name="skins_form_tablet">Tablet</string>
+    <string name="skins_form_fold">Dobrável</string>
+    <string name="skins_form_made">%1$s: feita para ele</string>
+    <string name="skins_form_missing">%1$s: não incluído</string>
+    <string name="skins_not_for_phones">Não feita para celulares</string>
+    <string name="skins_not_for_tablets">Não feita para tablets</string>
+    <string name="skins_not_for_folds">Não feita para dobráveis</string>
+    <string name="skins_broken">Não pode ser lida</string>
+    <string name="skins_actions">Ações de %1$s</string>
+    <string name="skins_use">Usar</string>
+    <string name="skins_use_as_is">Usar como está</string>
+    <string name="skins_bundled_locked">As skins do app nunca mudam.</string>
+    <string name="skins_rename">Renomear</string>
+    <string name="skins_rename_title">Renomear skin</string>
+    <string name="skins_name_label">Nome</string>
+    <string name="skins_save">Salvar</string>
+    <string name="skins_duplicate">Duplicar</string>
+    <string name="skins_copy_name">%1$s (cópia)</string>
+    <string name="skins_delete">Apagar</string>
+    <string name="skins_delete_sub">O console volta para %1$s</string>
+    <string name="skins_delete_title">Apagar %1$s?</string>
+    <string name="skins_delete_body">A skin e as imagens dela saem deste aparelho.</string>
+    <string name="skins_error">Não foi possível alterar a skin.</string>
 </resources>

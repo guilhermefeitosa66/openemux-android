@@ -44,22 +44,26 @@ class SkinCatalogTest {
     }
 
     @Test fun theChoiceKeepsTheVariantsThatShipAPackage() {
-        val choice = SkinChoice.of(json, Console.GBA, imported = false) { it != SkinVariant.CLEAR_BLUE }
+        val choice = SkinChoice.of(json, Console.GBA) { it != SkinVariant.CLEAR_BLUE }
         assertEquals(listOf(SkinVariant.CONSOLE, SkinVariant.DARK, SkinVariant.WHITE), choice.options.map { it.variant })
         assertTrue(choice.pickable)
-        assertFalse(choice.imported)
         assertEquals(SkinVariant.WHITE, choice.option("white")?.variant)
         assertEquals(SkinVariant.CONSOLE, choice.option("clear-blue")?.variant)
     }
 
     @Test fun withoutACatalogEveryVariantWithAPackageIsListedWithoutSwatches() {
-        val choice = SkinChoice.of(null, Console.GBA, imported = true) { it == SkinVariant.CONSOLE || it == SkinVariant.DARK }
+        val choice = SkinChoice.of(null, Console.GBA) { it == SkinVariant.CONSOLE || it == SkinVariant.DARK }
         assertEquals(listOf(SkinSwatch(SkinVariant.CONSOLE, null, null), SkinSwatch(SkinVariant.DARK, null, null)), choice.options)
-        assertTrue(choice.imported)
     }
 
     @Test fun aConsoleWithOnlyItsOwnPackageHasNothingToPick() {
-        assertFalse(SkinChoice.of(json, Console.GBA, imported = false) { it == SkinVariant.CONSOLE }.pickable)
-        assertFalse(SkinChoice.of(json, Console.MD, imported = false) { it == SkinVariant.CONSOLE }.pickable)
+        assertFalse(SkinChoice.of(json, Console.GBA) { it == SkinVariant.CONSOLE }.pickable)
+        assertFalse(SkinChoice.of(json, Console.MD) { it == SkinVariant.CONSOLE }.pickable)
+    }
+
+    @Test fun aConsoleWithNoPackageOffersItsDrawnSkin() {
+        val choice = SkinChoice.of(json, Console.GBA) { false }
+        assertEquals(listOf(SkinSwatch(SkinVariant.CONSOLE, null, null)), choice.options)
+        assertFalse(choice.pickable)
     }
 }
