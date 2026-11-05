@@ -503,9 +503,9 @@ private fun ActionRow(icon: String, label: String, danger: Boolean = false, sub:
     }
 }
 
+/** The sheet that asks for a skin's name: [title] over an optional [lead] line, [initial] filled in, [confirm] saving it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-/** The sheet that asks for a skin's name: [title] over an optional [lead] line, [initial] filled in, [confirm] saving it. */
 private fun NameSkinSheet(title: String, initial: String, confirm: String, lead: String? = null, onClose: () -> Unit, onSave: (String) -> Unit) {
     var name by remember { mutableStateOf(initial) }
     val valid = name.isNotBlank()

@@ -79,19 +79,8 @@ class SkinStore(private val base: File) {
      */
     fun duplicate(console: Console, id: String, name: String): String {
         val dir = own(console, id)
-        val clean = cleanName(name)
-        val json = renamed(dir, clean)
-        val newId = freeId(console, clean)
-        val tmp = File(root(console), ".$newId.tmp")
-        deleteTree(tmp)
-        try {
-            copyTree(dir, tmp)
-            writeJson(tmp, json)
-            if (!tmp.renameTo(File(root(console), newId))) throw IOException("could not create $newId")
-        } finally {
-            deleteTree(tmp)
-        }
-        return ref(StoredSkinKind.OWN, newId)
+        SkinFormat.readFolder(dir)
+        return build(console, File(dir, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(dir, tmp) }
     }
 
     /**
@@ -101,16 +90,17 @@ class SkinStore(private val base: File) {
      */
     fun create(console: Console, source: File, name: String): String =
         if (source.isDirectory) {
-            build(console, SkinFormat.readFolder(source), File(source, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(source, tmp) }
+            checkConsole(SkinFormat.readFolder(source), console)
+            build(console, File(source, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(source, tmp) }
         } else {
             create(console, ZipSkinSource(source), name)
         }
 
     /** [create] from a zip's [source]: each of its files extracted, none outside the new skin's folder. */
     internal fun create(console: Console, source: SkinSource, name: String): String {
-        val pkg = SkinFormat.read(source)
+        checkConsole(SkinFormat.read(source), console)
         val json = source.open(SkinFormat.SKIN_JSON)!!.use { it.bufferedReader().readText() }
-        return build(console, pkg, json, name) { tmp ->
+        return build(console, json, name) { tmp ->
             val top = tmp.canonicalFile
             for (path in source.files) {
                 val dest = File(tmp, path)
@@ -121,9 +111,15 @@ class SkinStore(private val base: File) {
         }
     }
 
-    /** The new skin [pkg] (its skin.json [json]) named [name] for [console], its files put in by [fill]: its ref. */
-    private fun build(console: Console, pkg: SkinPackage, json: String, name: String, fill: (File) -> Unit): String {
+    private fun checkConsole(pkg: SkinPackage, console: Console) {
         if (pkg.skin.console != console) throw SkinStoreException("a ${pkg.skin.console.id} skin is not for ${console.id}")
+    }
+
+    /**
+     * A new skin of the player's own for [console] (skin.json [json]) named [name], its files put in by [fill]: its ref.
+     * Built in a hidden folder renamed into place, so a copy cut short never shows up half made.
+     */
+    private fun build(console: Console, json: String, name: String, fill: (File) -> Unit): String {
         val clean = cleanName(name)
         val text = withName(json, clean)
         val root = root(console)

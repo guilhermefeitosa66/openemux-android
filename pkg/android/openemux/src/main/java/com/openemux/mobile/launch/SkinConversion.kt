@@ -27,8 +27,7 @@ object SkinConversion {
      * [list] lists an assets folder.
      */
     fun kind(list: (String) -> Array<String>?, console: Console, variant: SkinVariant): Kind? {
-        val name = listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { ImportedSkinRenderer.bundledName(list(it.assetDir), console) }
-            ?: return null
+        val (_, name) = ImportedSkinRenderer.bundledEntry(list, console, variant) ?: return null
         return Kind.OPENEMUX.takeIf { ImportedSkinRenderer.isOpenEmuxPackage(File(name)) }
     }
 
