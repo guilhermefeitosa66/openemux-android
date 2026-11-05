@@ -45,11 +45,9 @@
     <string name="detail_continue">続きから</string>
     <string name="detail_play">プレイ</string>
     <string name="detail_favorite">お気に入り</string>
-    <string name="detail_menu">メニュー ⋯</string>
     <string name="detail_back">戻る</string>
     <string name="detail_favorite_remove">お気に入りから削除</string>
     <string name="detail_favorite_add">お気に入りに追加</string>
-    <string name="detail_more_options">その他のオプション</string>
     <string name="detail_remove_from_library">ライブラリから削除</string>
     <!-- Rename a game from its detail screen (issue 790). -->
     <string name="detail_rename">名前を変更…</string>

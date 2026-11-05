@@ -45,11 +45,9 @@
     <string name="detail_continue">继续</string>
     <string name="detail_play">开始游戏</string>
     <string name="detail_favorite">收藏</string>
-    <string name="detail_menu">菜单 ⋯</string>
     <string name="detail_back">返回</string>
     <string name="detail_favorite_remove">移出收藏</string>
     <string name="detail_favorite_add">加入收藏</string>
-    <string name="detail_more_options">更多选项</string>
     <string name="detail_remove_from_library">从游戏库移除</string>
     <!-- Rename a game from its detail screen (issue 790). -->
     <string name="detail_rename">重命名…</string>

@@ -45,11 +45,9 @@
     <string name="detail_continue">தொடர்</string>
     <string name="detail_play">விளையாடு</string>
     <string name="detail_favorite">பிடித்தது</string>
-    <string name="detail_menu">மெனு ⋯</string>
     <string name="detail_back">பின்</string>
     <string name="detail_favorite_remove">பிடித்தவற்றிலிருந்து நீக்கு</string>
     <string name="detail_favorite_add">பிடித்தவற்றில் சேர்</string>
-    <string name="detail_more_options">மேலும் விருப்பங்கள்</string>
     <string name="detail_remove_from_library">நூலகத்திலிருந்து நீக்கு</string>
     <!-- Rename a game from its detail screen (issue 790). -->
     <string name="detail_rename">பெயர்மாற்று…</string>

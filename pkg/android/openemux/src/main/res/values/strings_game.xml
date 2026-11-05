@@ -45,11 +45,9 @@
     <string name="detail_continue">Continue</string>
     <string name="detail_play">Play</string>
     <string name="detail_favorite">Favorite</string>
-    <string name="detail_menu">Menu ⋯</string>
     <string name="detail_back">Back</string>
     <string name="detail_favorite_remove">Remove from favorites</string>
     <string name="detail_favorite_add">Add to favorites</string>
-    <string name="detail_more_options">More options</string>
     <string name="detail_remove_from_library">Remove from library</string>
     <!-- Rename a game from its detail screen (issue 790). -->
     <string name="detail_rename">Rename…</string>
