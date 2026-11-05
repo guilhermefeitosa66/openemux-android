@@ -65,7 +65,7 @@ object SkinTemplate {
             "zip the folder again and import it: Controller skins > Import .zip, as a new skin or replacing this one.",
             "",
             "An image you delete falls back to the one in the skin it replaces (or to the colours in skin.json).",
-            "A layout folder whose entry you remove from skin.json is no longer offered (its badge goes grey).",
+            "Delete a whole layout folder (say, fold-portrait/) and the skin stops offering that screen.",
             "The format: https://github.com/guilhermefeitosa66/openemux-android/blob/openemux-mobile/pkg/android/openemux/docs/skin-format.md",
             "",
         )

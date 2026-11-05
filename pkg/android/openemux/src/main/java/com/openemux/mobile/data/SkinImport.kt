@@ -90,7 +90,7 @@ object SkinImport {
             val skin = pkg.skin
             if (skin.console != console) return ImportCheck.Refused(ImportRefusal.OTHER_CONSOLE, skin.console)
             val kept = offered(pkg)
-            return ImportCheck.Own(skin, SkinForm.entries.filter { f -> kept.any { l -> l.form == f } }.toSet())
+            return ImportCheck.Own(skin, forms(kept).toSet())
         }
         if (names.none { isInfo(it) }) return ImportCheck.Refused(ImportRefusal.NOT_A_SKIN)
         val info = try {
@@ -117,6 +117,9 @@ object SkinImport {
         val present = pkg.skin.layouts.keys.filter { id -> pkg.source.files.any { file -> file.startsWith("${id.id}/") } }.toSet()
         return present.ifEmpty { pkg.skin.layouts.keys }
     }
+
+    /** The device forms [layouts] cover, in [SkinForm] order. */
+    fun forms(layouts: Set<SkinLayoutId>): List<SkinForm> = SkinForm.entries.filter { f -> layouts.any { it.form == f } }
 
     /** The consoles a Delta package's `gameTypeIdentifier` names; empty for one that names none the app knows. */
     fun deltaConsoles(info: JSONObject): Set<Console> {

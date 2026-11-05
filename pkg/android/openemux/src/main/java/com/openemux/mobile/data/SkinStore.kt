@@ -133,7 +133,7 @@ class SkinStore(private val base: File) {
             val json = JSONObject(text).put("name", finalName)
             val layoutsJson = json.getJSONObject("layouts")
             layoutsJson.keys().asSequence().toList().filter { key -> kept.none { it.id == key } }.forEach { layoutsJson.remove(it) }
-            json.put("forms", JSONArray(SkinForm.entries.filter { f -> kept.any { it.form == f } }.map { it.id }))
+            json.put("forms", JSONArray(SkinImport.forms(kept).map { it.id }))
             writeJson(tmp, json.toString(2) + "\n")
             var budget = SkinImport.MAX_BYTES
             for ((layoutId, layout) in pkg.skin.layouts.filterKeys { it in kept }) {
@@ -182,10 +182,7 @@ class SkinStore(private val base: File) {
         SkinImport.guard(zip)
         val root = root(console)
         root.mkdirs()
-        val slug = name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(MAX_ID).trim('-').ifEmpty { "skin" }
-        val taken = root.list().orEmpty().map { it.lowercase() }.toSet()
-        val file = generateSequence(1) { it + 1 }.map { n -> if (n == 1) "$slug.$extension" else "$slug-$n.$extension" }
-            .first { it !in taken && ".$it.tmp" !in taken }
+        val file = freeId(console, name, ".$extension")
         val tmp = File(root, ".$file.tmp")
         try {
             zip.inputStream().use { input -> tmp.outputStream().use { SkinImport.copyLimited(input, it, SkinImport.MAX_BYTES) } }
@@ -216,11 +213,14 @@ class SkinStore(private val base: File) {
         return dir
     }
 
-    /** The folder name for a new skin called [name]: its letters and digits, made unique with -2, -3... */
-    internal fun freeId(console: Console, name: String): String {
+    /**
+     * The folder name for a new skin called [name] (or, with [suffix], a package's file name): its letters and digits,
+     * made unique with -2, -3...
+     */
+    internal fun freeId(console: Console, name: String, suffix: String = ""): String {
         val slug = name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(MAX_ID).trim('-').ifEmpty { "skin" }
         val taken = root(console).list().orEmpty().map { it.lowercase() }.toSet()
-        return generateSequence(1) { it + 1 }.map { n -> if (n == 1) slug else "$slug-$n" }
+        return generateSequence(1) { it + 1 }.map { n -> (if (n == 1) slug else "$slug-$n") + suffix }
             .first { it !in taken && ".$it.tmp" !in taken }
     }
 

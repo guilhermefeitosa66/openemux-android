@@ -3,6 +3,7 @@ package com.openemux.mobile.ui
 import android.content.Context
 import android.widget.Toast
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -270,14 +271,25 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var saving by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf<PickedSkin?>(null) }
     var reading by remember { mutableStateOf(false) }
+    // An import still writing: picking another file meanwhile would clear the cache folder under it.
+    var writing by remember { mutableStateOf(false) }
 
     // Issue 787: the template is written straight into the document the player picked.
     val saveTemplate = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         val skin = templating
-        if (uri == null || skin == null) return@rememberLauncherForActivityResult
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (skin == null) {
+            // The sheet went away while the picker was open (the activity was recreated): drop the empty document.
+            runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
+            return@rememberLauncherForActivityResult
+        }
         saving = true
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { runCatching { writeTemplate(context, library, console, skin, uri) }.isSuccess }
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { writeTemplate(context, library, console, skin, uri) }.isSuccess
+                    // A zip cut short is no template: the document the picker created goes too.
+                    .also { if (!it) runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) } }
+            }
             saving = false
             if (ok) templating = null
             Toast.makeText(context, if (ok) R.string.skins_template_saved else R.string.skins_error, Toast.LENGTH_SHORT).show()
@@ -337,7 +349,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 }
             }
         }
-        SecondaryButton(stringResource(R.string.skins_import), { pickZip.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), icon = Icons.Upload, busy = reading)
+        SecondaryButton(stringResource(R.string.skins_import), { pickZip.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), icon = Icons.Upload, busy = reading || writing)
     }
 
     ownSheet?.let { skin ->
@@ -389,6 +401,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
         ImportSkinSheet(picked, console, state.own.filter { !it.broken }, onClose = { importing = null; picked.file.delete() }) { name, replace ->
             val check = picked.check
             importing = null
+            writing = true
             scope.launch {
                 val ok = withContext(Dispatchers.IO) {
                     runCatching { library.migrateSkins() }
@@ -400,6 +413,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                         }
                     }.isSuccess.also { picked.file.delete() }
                 }
+                writing = false
                 Toast.makeText(context, if (ok) R.string.skins_import_done else R.string.skins_error, Toast.LENGTH_SHORT).show()
                 onChanged()
             }
