@@ -53,6 +53,14 @@ class BundledSkinsTest {
         }
     }
 
+    @Test fun aZipIsAPackageInTheOwnFormat() {
+        assertTrue(ImportedSkinRenderer.isOpenEmuxPackage(File("GG.zip")))
+        assertTrue(ImportedSkinRenderer.isOpenEmuxPackage(File("PCE.ZIP")))
+        assertFalse(ImportedSkinRenderer.isOpenEmuxPackage(File("MD.deltaskin")))
+        assertFalse(ImportedSkinRenderer.isOpenEmuxPackage(File("PS.manicskin")))
+        assertEquals("GG.zip", ImportedSkinRenderer.bundledName(arrayOf("dark", "FC.deltaskin", "GG.zip"), Console.GG))
+    }
+
     @Test fun theBundledPackageIsTheOneNamedForTheConsole() {
         val names = arrayOf("dark", "FC.deltaskin", "GB.manicskin", "GBA.deltaskin")
         assertEquals("FC.deltaskin", ImportedSkinRenderer.bundledName(names, Console.FC))
@@ -93,8 +101,11 @@ class BundledSkinsTest {
         Console.entries.forEach { console ->
             val listed = SkinCatalog.parse(catalog, console)
             val own = packages(File(assets, SkinVariant.CONSOLE.assetDir)).firstOrNull { it.name.substringBeforeLast('.') == console.id }
+            val ownFormat = File(assets, "${SkinVariant.CONSOLE.assetDir}/${console.id}.zip").isFile
             if (own == null) {
-                assertTrue("${console.id} has no skin but the catalog lists it", listed.isEmpty())
+                // The consoles in OpenEmux's own format (issue 770) come in their own colours and Dark only.
+                val expected = if (ownFormat) listOf(SkinVariant.CONSOLE, SkinVariant.DARK) else emptyList()
+                assertEquals("${console.id} in the catalog", expected, listed.map { it.variant })
                 return@forEach
             }
             assertEquals(console.id, listOf(SkinVariant.CONSOLE, SkinVariant.DARK), listed.take(2).map { it.variant })

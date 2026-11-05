@@ -6,6 +6,7 @@ import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinPackage
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Fold
 import java.io.File
@@ -16,11 +17,13 @@ import java.io.File
  * OpenEmux's own format or a package in the iOS emulators' format), else the
  * package the app ships for the console, then the drawn skin when there is
  * none or it fails. A user's folder that cannot be drawn for the window's form
- * falls back to the shipped package.
+ * falls back to the shipped package. A shipped package is in the iOS
+ * emulators' format or, for the consoles issue 770 added, in OpenEmux's own
+ * (a .zip), drawn like a user's folder.
  */
 object GameSkin {
     /**
-     * [packaged]: a .deltaskin/.manicskin was used; [ndsLayouts] the saved NDS
+     * [packaged]: a skin package was used (a .deltaskin/.manicskin, or one in OpenEmux's own format); [ndsLayouts] the saved NDS
      * layouts when the skin has one page per layout (the drawn skin, or a
      * package with the art for each), else null: a package draws the two
      * screens one over the other.
@@ -48,17 +51,23 @@ object GameSkin {
         val importer = ImportedSkinRenderer()
         val user = ImportedSkinRenderer.imported(base, console)
         val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
+        // A skin in OpenEmux's own format ([name]: its folder or zip), or null, logged, when it cannot be drawn here.
+        fun ownFormatSkin(name: String, next: String, read: () -> SkinPackage) =
+            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold) }
+                .onFailure { e -> Log.e(OWN_TAG, "$name not drawn: falling back to the $next skin", e) }.getOrNull()
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
-        val own = user?.takeIf { ownFormat }?.let { dir ->
-            runCatching { openEmux(context, dir, console, size, outDir, tablet, hardcore, first, fold) }
-                .onFailure { e -> Log.e(OWN_TAG, "${dir.name} not drawn: falling back to the bundled skin", e) }.getOrNull()
-        }
+        val own = user?.takeIf { ownFormat }?.let { dir -> ownFormatSkin(dir.name, "bundled") { SkinFormat.readFolder(dir) } }
+        val bundled = if (own == null && (user == null || ownFormat)) ImportedSkinRenderer.bundled(context, console, variant) else null
+        val bundledOwnFormat = bundled != null && ImportedSkinRenderer.isOpenEmuxPackage(bundled)
+        // The shipped package in OpenEmux's own format; one that cannot be drawn here leaves the drawn skin next.
+        val shipped = bundled?.takeIf { bundledOwnFormat }?.let { zip -> ownFormatSkin(zip.name, "drawn") { SkinFormat.readZip(zip) } }
         val pkg = when {
             own != null -> null
             user != null && !ownFormat -> user
-            else -> ImportedSkinRenderer.bundled(context, console, variant)
+            bundledOwnFormat -> null
+            else -> bundled
         }
-        val packaged = own ?: pkg?.let {
+        val packaged = own ?: shipped ?: pkg?.let {
             runCatching {
                 // The page in [first]'s orientation (and NDS layout, when the package draws one page per layout) opens.
                 importer.render(it, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, packageNds)
@@ -85,17 +94,16 @@ object GameSkin {
     private const val OWN_TAG = "OpenEmuxSkin"
 
     /**
-     * The skin folder [dir] in OpenEmux's own format drawn for the window's form (the [fold]'s inner screen, a [tablet]
-     * or a phone), or null, logged, when it has no layout for that form in either orientation.
+     * The skin [pkg] in OpenEmux's own format ([name]: its folder or zip) drawn for the window's form (the [fold]'s inner
+     * screen, a [tablet] or a phone), or null, logged, when it has no layout for that form in either orientation.
      */
     private fun openEmux(
-        context: Context, dir: File, console: Console, size: SkinSize, outDir: File, tablet: Boolean, hardcore: Boolean,
-        first: String?, fold: Fold?,
+        context: Context, pkg: SkinPackage, name: String, console: Console, size: SkinSize, outDir: File, tablet: Boolean,
+        hardcore: Boolean, first: String?, fold: Fold?,
     ): File? {
-        val pkg = SkinFormat.readFolder(dir)
         return when (val choice = chooseLayouts(pkg.skin, skinForm(tablet, fold))) {
             is LayoutChoice.Missing -> {
-                Log.i(OWN_TAG, "${dir.name} has no ${choice.layout.id} layout: falling back to the bundled skin")
+                Log.i(OWN_TAG, "$name has no ${choice.layout.id} layout: falling back")
                 null
             }
             is LayoutChoice.Use ->

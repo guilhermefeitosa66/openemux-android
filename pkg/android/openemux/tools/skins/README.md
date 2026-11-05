@@ -73,8 +73,43 @@ layout. The build stops when a screen would leave the art or cover a key.
 Intermediate images go to
 `build/skins/`. Needs Node, Google Chrome and ImageMagick.
 
+## The consoles in OpenEmux's own format
+
+Eight more consoles (issue 770) ship in OpenEmux's own skin format
+(`docs/skin-format.md`) instead of Delta's or Manic's:
+`src/main/assets/skins/<console>.zip` and `dark/<console>.zip`, in their own
+colours and Dark only. `OWN_FORMAT` in `build.py` names them; the same command
+builds them (`python3 tools/skins/build.py GG PCE`), Pillow needed besides.
+
+Each package has `skin.json` (written by the same code as the templates) and
+the six layouts, phone, tablet and fold, at the templates' scale (3, 2 and 3 px
+per unit). The engine renders each layout twice: the whole art without the
+quick actions' icons, which is `background.png` with the screens cut out, and
+only the controls on a transparent page (`render.html?layer=controls`: every
+part the engine draws records the element it belongs to). Each element's image
+is that second render cut at the element's rect, so it lands on the same pixels
+of the background; `frame.png` is the bezel cut out of the background, and the
+D-pad's ball the engine's circle cut edge to edge at the ball's size. The zips
+are dated 1980-01-01, so a rebuild that changes nothing changes no binary.
+
+| Console | Base | Controls (input names) | Colours from |
+|---|---|---|---|
+| GG | own | D-pad, 1 (`b`), 2 (`a`), START (blue) | <https://en.wikipedia.org/wiki/Game_Gear> |
+| SG1000 | own | D-pad, 1 (`b`), 2 (`a`), PAUSE (`start`) | <https://en.wikipedia.org/wiki/SG-1000> |
+| S32X | MD | the six-button pad, MODE, START | <https://en.wikipedia.org/wiki/32X> |
+| MCD | MD | the six-button pad, MODE, START | <https://en.wikipedia.org/wiki/Sega_CD> |
+| SATURN | own | A B C X Y Z, L, R, START (the Japanese grey pad) | <https://en.wikipedia.org/wiki/Sega_Saturn> |
+| PCE | own | D-pad, II (`b`), I (`a`), SELECT, RUN (`start`) | <https://en.wikipedia.org/wiki/TurboGrafx-16> |
+| PCECD | PCE | as the PC Engine | <https://en.wikipedia.org/wiki/TurboGrafx-CD> |
+| FDS | FC | as the Famicom, plus DISK (`disk`, the app's own name, on L) | <https://en.wikipedia.org/wiki/Family_Computer_Disk_System> |
+
+Where the RetroPad has a console's buttons elsewhere (the six-button pads,
+Saturn, the disk key), `launch/SkinBinds.kt` says where, as `data/Skin.kt` does
+for the drawn skin; `OwnFormatBundledSkinsTest` checks every control against it.
+
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the
-build. `launch/ImportedSkinRenderer.kt` reads the packages.
+build. `launch/ImportedSkinRenderer.kt` reads the Delta and Manic packages,
+`launch/OpenEmuxSkinRenderer.kt` the ones in OpenEmux's format.
 
 `SpaceGrotesk.ttf` is the labels' typeface, under the SIL Open Font License
 (`SpaceGrotesk-OFL.txt`); only the rendered art ships in the app.

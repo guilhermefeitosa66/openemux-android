@@ -19,6 +19,20 @@ class SkinBindsTest {
         assertEquals("start", SkinBinds.bind(Console.GC, "start", false))
     }
 
+    @Test fun theSegaAndDiskSystemPadsLandWhereTheDrawnSkinPutsThem() {
+        for (console in listOf(Console.MD, Console.S32X, Console.MCD)) {
+            assertEquals(mapOf("a" to "y", "b" to "b", "c" to "a", "x" to "l", "y" to "x", "z" to "r", "mode" to "select"),
+                listOf("a", "b", "c", "x", "y", "z", "mode").associateWith { SkinBinds.bind(console, it, false) })
+        }
+        assertEquals(mapOf("a" to "b", "b" to "a", "c" to "r", "x" to "y", "y" to "x", "z" to "l", "l" to "l2", "r" to "r2", "start" to "start"),
+            listOf("a", "b", "c", "x", "y", "z", "l", "r", "start").associateWith { SkinBinds.bind(Console.SATURN, it, false) })
+        assertEquals("l", SkinBinds.bind(Console.FDS, SkinBinds.DISK_INPUT, false))
+        assertEquals("select", SkinBinds.bind(Console.FDS, "select", false))
+        // The disk key is the Disk System's only: elsewhere it presses nothing.
+        assertNull(SkinBinds.bind(Console.FC, SkinBinds.DISK_INPUT, false))
+        assertTrue(SkinBinds.DISK_INPUT in SkinBinds.NAMES)
+    }
+
     @Test fun theRetroPadNamesPassThrough() {
         listOf("up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select")
             .forEach { assertEquals(it, SkinBinds.bind(Console.SFC, it, false)) }

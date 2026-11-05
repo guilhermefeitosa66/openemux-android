@@ -9,6 +9,9 @@
 const q = new URLSearchParams(location.search);
 // knob=<n> renders that stick's knob alone, on its own transparent square; dpadKnob=<side> the D-pad's circle,
 // for the package's dpad_knob.png; screens=<layout> one NDS layout's art; variant=dark the Dark skin.
+// layer=background leaves the quick actions' icons out (the OpenEmux-format background), layer=controls draws only the
+// parts that belong to an element, on a transparent page (each element's image is cut out of it).
+const layer = q.get('layer');
 const variant = q.get('variant') || undefined;
 const L = q.get('dpadKnob') ? OE.dpadKnob(q.get('console'), +q.get('dpadKnob'), variant) : OE.layout(q.get('console'), q.get('device'), q.get('orient'), { export: true, screens: q.get('screens') || undefined, variant });
 const knob = q.get('knob') == null ? null : L.knobs[+q.get('knob')];
@@ -17,6 +20,8 @@ const root = document.getElementById('root');
 root.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden;font-family:'Space Grotesk',sans-serif;`;
 const NS = 'http://www.w3.org/2000/svg';
 for (const p of (knob ? knob.parts : L.parts)) {
+  if (layer === 'background' && p.act) continue;
+  if (layer === 'controls' && p.el == null) continue;
   const d = document.createElement('div');
   d.style.cssText = p.style;
   if (p.hasIcon) {

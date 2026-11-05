@@ -166,7 +166,10 @@ class SkinAssetPlanTest {
         // The Virtual Boy's right pad as four buttons, the disk key named, the keypad's corner keys.
         assertEquals(listOf("pad-up", "pad-down", "pad-left", "pad-right"),
             drawnRows(Console.VB).filter { it.id.startsWith("pad-") }.map { it.id })
-        assertEquals("DISK", drawnRows(Console.FDS).first { it.bind == "l" }.label)
+        // The disk key under the app's own name (issue 770), which turns the disk over on L.
+        val disk = drawnRows(Console.FDS).first { it.bind == SkinBinds.DISK_INPUT }
+        assertEquals("DISK", disk.label)
+        assertEquals("l", SkinBinds.bind(Console.FDS, disk.bind, hardcore = false))
         val cv = drawnRows(Console.CV).filter { it.type == SkinElementType.KEYPAD }
         assertEquals(12, cv.size)
         assertEquals(listOf("keypadStar", "keypad0", "keypadHash"), cv.takeLast(3).map { it.bind })
