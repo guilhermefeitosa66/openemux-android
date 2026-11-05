@@ -287,4 +287,123 @@ class SkinStoreTest {
         Files.createSymbolicLink(File(store.root(Console.SFC), "a-link.deltaskin").toPath(), File(base, "elsewhere").apply { writeText("x") }.toPath())
         assertEquals("b-mine", store.legacyPick(Console.SFC)?.name)
     }
+
+    /** A source skin outside the store: [skin]'s skin.json plus one image, in a folder. */
+    private fun sourceFolder(skin: OpenEmuxSkin = phoneSkin("Bundled")): File =
+        File(base, "source-${skin.name}").apply {
+            mkdirs()
+            File(this, SkinFormat.SKIN_JSON).writeText(SkinFormat.toJson(skin))
+            File(this, "phone-portrait").mkdirs()
+            File(this, "phone-portrait/background.png").writeBytes(byteArrayOf(1, 2, 3))
+        }
+
+    /** [dir]'s files zipped, at the zip's root or under [folder]. */
+    private fun zipOf(dir: File, folder: String = ""): File = File(base, "${dir.name}.zip").apply {
+        ZipOutputStream(outputStream()).use { z ->
+            dir.walkTopDown().filter { it.isFile }.forEach { f ->
+                z.putNextEntry(ZipEntry(folder + f.relativeTo(dir).invariantSeparatorsPath)); z.write(f.readBytes()); z.closeEntry()
+            }
+        }
+    }
+
+    private fun filesOf(dir: File) = dir.walkTopDown().filter { it.isFile }.associate { it.relativeTo(dir).invariantSeparatorsPath to it.readBytes().toList() }
+
+    private fun assertCopyOf(source: File, ref: String, name: String) {
+        val copy = store.file(Console.SFC, ref)!!
+        val read = SkinFormat.readFolder(copy).skin
+        assertEquals(name, read.name)
+        assertEquals(SkinFormat.readFolder(source).skin.copy(name = name), read)
+        assertEquals(filesOf(source).keys, filesOf(copy).keys)
+        assertArrayEquals(byteArrayOf(1, 2, 3), File(copy, "phone-portrait/background.png").readBytes())
+        assertEquals(listOf(name), store.list(Console.SFC).map { it.name })
+    }
+
+    @Test fun createMakesAnOwnSkinFromAZip() {
+        val source = sourceFolder()
+        val zip = zipOf(source)
+        val before = zip.readBytes()
+        val ref = store.create(Console.SFC, zip, "  Mine  ")
+        assertEquals(StoredSkinKind.OWN to "mine", SkinStore.parse(ref))
+        assertCopyOf(source, ref, "Mine")
+        assertArrayEquals("the source is only read", before, zip.readBytes())
+    }
+
+    @Test fun createReadsAZipWhoseFilesAreInOneFolder() {
+        val source = sourceFolder()
+        assertCopyOf(source, store.create(Console.SFC, zipOf(source, "skin/"), "Mine"), "Mine")
+    }
+
+    @Test fun createMakesAnOwnSkinFromAFolderAndLeavesLinksBehind() {
+        val source = sourceFolder()
+        Files.createSymbolicLink(File(source, "link.png").toPath(), File(base, "outside.png").apply { writeText("x") }.toPath())
+        val ref = store.create(Console.SFC, source, "Mine")
+        val copy = store.file(Console.SFC, ref)!!
+        assertFalse(File(copy, "link.png").exists())
+        assertEquals("Bundled", SkinFormat.readFolder(source).skin.name)
+        assertEquals("Mine", SkinFormat.readFolder(copy).skin.name)
+    }
+
+    @Test fun createKeepsTheKeysThisBuildDoesNotReadAndMakesTheIdUnique() {
+        val source = sourceFolder()
+        val json = File(source, SkinFormat.SKIN_JSON)
+        json.writeText(JSONObject(json.readText()).put("author", "someone").toString())
+        val first = store.create(Console.SFC, zipOf(source), "Mine")
+        val second = store.create(Console.SFC, source, "Mine")
+        assertEquals("own:mine", first)
+        assertEquals("own:mine-2", second)
+        assertEquals("someone", JSONObject(File(store.file(Console.SFC, second), SkinFormat.SKIN_JSON).readText()).getString("author"))
+        assertEquals(listOf("Mine", "Mine"), store.list(Console.SFC).map { it.name })
+    }
+
+    @Test fun createRefusesAnotherConsolesSkinABlankNameAndAnUnreadableSourceLeavingNothing() {
+        val zip = zipOf(sourceFolder())
+        assertThrows(SkinStoreException::class.java) { store.create(Console.MD, zip, "Mine") }
+        assertThrows(SkinStoreException::class.java) { store.create(Console.SFC, zip, "   ") }
+        val empty = File(base, "empty").apply { mkdirs() }
+        assertThrows(SkinFormatException::class.java) { store.create(Console.SFC, empty, "Mine") }
+        val notZip = File(base, "not.zip").apply { writeText("nope") }
+        assertThrows(java.io.IOException::class.java) { store.create(Console.SFC, notZip, "Mine") }
+        assertTrue(store.root(Console.SFC).list().orEmpty().isEmpty())
+        assertTrue(store.root(Console.MD).list().orEmpty().isEmpty())
+    }
+
+    /** A source that reads like [inner] but fails on [failing], as a copy cut short does. */
+    private class FailingSource(private val inner: SkinSource, private val failing: String) : SkinSource {
+        override val files get() = inner.files
+        override fun open(path: String) = if (path == failing) throw java.io.IOException("cut short") else inner.open(path)
+    }
+
+    @Test fun aCreateCutShortLeavesNoHalfMadeSkin() {
+        val source = FailingSource(FolderSkinSource(sourceFolder()), "phone-portrait/background.png")
+        assertThrows(java.io.IOException::class.java) { store.create(Console.SFC, source, "Mine") }
+        assertTrue(store.root(Console.SFC).list().orEmpty().isEmpty())
+        assertTrue(store.list(Console.SFC).isEmpty())
+    }
+
+    /** A source whose file names climb out of the skin, which [ZipSkinSource] would have filtered. */
+    private class ClimbingSource(private val inner: SkinSource) : SkinSource {
+        override val files get() = inner.files + "../escaped.png"
+        override fun open(path: String) = inner.open(path) ?: "x".byteInputStream()
+    }
+
+    @Test fun aFileThatWouldLandOutsideTheNewSkinIsRefused() {
+        val source = ClimbingSource(FolderSkinSource(sourceFolder()))
+        assertThrows(SkinStoreException::class.java) { store.create(Console.SFC, source, "Mine") }
+        assertFalse(File(store.root(Console.SFC), "escaped.png").exists())
+        assertTrue(store.root(Console.SFC).list().orEmpty().isEmpty())
+    }
+
+    @Test fun aCreateThatCannotBeRenamedIntoPlaceLeavesNothing() {
+        val source = sourceFolder()
+        val root = store.root(Console.SFC).apply { mkdirs() }
+        // A read-only console folder: the hidden folder cannot even be made, nor anything renamed into place.
+        root.setWritable(false)
+        try {
+            if (root.canWrite()) return // running as root: nothing can be refused this way
+            assertThrows(java.io.IOException::class.java) { store.create(Console.SFC, source, "Mine") }
+        } finally {
+            root.setWritable(true)
+        }
+        assertTrue(root.list().orEmpty().isEmpty())
+    }
 }

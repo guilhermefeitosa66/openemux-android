@@ -310,4 +310,9 @@
     <string name="skins_delete_title">Delete %1$s?</string>
     <string name="skins_delete_body">The skin and its images are removed from this device.</string>
     <string name="skins_error">Could not change the skin.</string>
+    <string name="skins_create_copy">Create copy and edit</string>
+    <string name="skins_create_copy_title">Name your copy</string>
+    <string name="skins_create_copy_lead">Bundled skins stay as they are. The copy keeps every layout, and you can rename it later.</string>
+    <string name="skins_create_copy_save">Create copy</string>
+    <string name="skins_bundled_copy_name">%1$s copy</string>
 </resources>
