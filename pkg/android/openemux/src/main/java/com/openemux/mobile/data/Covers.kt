@@ -96,12 +96,19 @@ class Covers(
         cache.remove(rom.key)
     }
 
-    override fun keepCachedCover(url: String, target: File): Boolean = runCatching {
-        context.imageLoader.diskCache?.openSnapshot(url)?.use { snapshot ->
-            snapshot.data.toFile().copyTo(target, overwrite = false)
-            true
-        } ?: false
-    }.getOrDefault(false)
+    override fun keepCachedCover(url: String, target: File): Boolean {
+        if (target.exists()) return false
+        return runCatching {
+            context.imageLoader.diskCache?.openSnapshot(url)?.use { snapshot ->
+                snapshot.data.toFile().copyTo(target, overwrite = false)
+                true
+            } ?: false
+        }.getOrElse {
+            // A copy cut short (storage full) must not stay behind as a local cover with no record.
+            target.delete()
+            false
+        }
+    }
 
     override suspend fun fetch(url: String): Fetch {
         val result = context.imageLoader.execute(ImageRequest.Builder(context).data(url).build())

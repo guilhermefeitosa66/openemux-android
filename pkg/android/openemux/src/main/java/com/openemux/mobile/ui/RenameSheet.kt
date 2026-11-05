@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -30,6 +31,9 @@ import com.openemux.mobile.data.Rom
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -41,15 +45,20 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RenameSheet(rom: Rom, onClose: () -> Unit, onRenamed: (Rom) -> Unit) {
-    val renamer = LocalActions.current.app.renamer
+    val app = LocalActions.current.app
+    val renamer = app.renamer
     val scope = rememberCoroutineScope()
     var name by remember(rom.key) { mutableStateOf(TextFieldValue(rom.baseName, TextRange(0, rom.baseName.length))) }
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     // A refusal at the last moment (something took the name meanwhile) shows until the name is edited.
     var refused by remember { mutableStateOf<RenameCheck?>(null) }
-    // The check lists the game's folders: off the main thread, again on every keystroke.
-    val check by produceState(RenameCheck.UNCHANGED, name.text) {
+    // A sync that starts or ends changes the answer (BUSY) with no keystroke: the check runs again then too.
+    val coversSyncing by remember { app.covers.progress.map { it.running }.distinctUntilChanged() }.collectAsState(app.covers.syncing)
+    val labelsSyncing by remember { app.labels.progress.map { it.running }.distinctUntilChanged() }.collectAsState(app.labels.syncing)
+    // The check lists the game's folders: off the main thread, once typing pauses (a new keystroke cancels the wait).
+    val check by produceState(RenameCheck.UNCHANGED, name.text, coversSyncing, labelsSyncing) {
+        delay(CHECK_DEBOUNCE_MS)
         value = withContext(Dispatchers.IO) { renamer.check(rom, name.text) }
     }
     val sharer = remember(rom.key) { renamer.sharer(rom) }
@@ -107,3 +116,6 @@ fun RenameSheet(rom: Rom, onClose: () -> Unit, onRenamed: (Rom) -> Unit) {
         }
     }
 }
+
+/** How long typing must pause before the name is checked against the game's folders. */
+private const val CHECK_DEBOUNCE_MS = 150L
