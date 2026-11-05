@@ -134,7 +134,8 @@ class RomRenamer(
     /** Never over another file; a change of case only goes through a temporary name, which the case-blind storage needs. */
     private fun moveSafely(from: File, to: File): Boolean {
         if (!from.name.equals(to.name, ignoreCase = true)) return !to.exists() && move(from, to)
-        val tmp = File(from.parentFile, ".${from.name}.renaming")
+        // Short and fixed: "<name>.renaming" would pass the 255-byte limit for a name close to it.
+        val tmp = File(from.parentFile, TMP_NAME)
         if (tmp.exists() || !move(from, tmp)) return false
         if (move(tmp, to)) return true
         move(tmp, from)
@@ -147,6 +148,8 @@ class RomRenamer(
         const val FORBIDDEN = "/\\:*?\"<>|"
         const val MAX_NAME_BYTES = 255
         private const val LONGEST_SUFFIX = ".state.auto.png".length
+        /** The temporary name a change of case goes through; a dotfile, so no scan lists it. */
+        internal const val TMP_NAME = ".openemux-renaming"
         /** After "<stem>": ".state", ".state<N>", ".state.auto", each with its ".png" thumbnail. */
         private val STATE_SUFFIX = Regex("""\.state(\.auto|\d+)?(\.png)?""")
     }

@@ -196,7 +196,7 @@ class RomRenameTest {
         val renamed = (renamer.rename(mario, "MARIO (USA)") as RenameResult.Done).rom
 
         assertEquals("SFC/MARIO (USA).sfc", renamed.key)
-        assertEquals(".Mario (USA).sfc.renaming" , calls[0].second)
+        assertEquals(RomRenamer.TMP_NAME, calls[0].second)
         assertEquals("MARIO (USA).sfc", calls[1].second)
         assertTrue(renamed.file.exists())
         assertTrue(lib.romMeta(renamed.key).favorite)
@@ -234,13 +234,13 @@ class RomRenameTest {
         assertEquals(RenameResult.Failed, renamer.rename(mario, "mario (usa)"))
 
         assertTrue(File(paths.roms(Console.SFC), "Mario (USA).sfc").exists())
-        assertFalse(File(paths.roms(Console.SFC), ".Mario (USA).sfc.renaming").exists())
+        assertFalse(File(paths.roms(Console.SFC), RomRenamer.TMP_NAME).exists())
     }
 
     @Test
     fun `a temporary name already taken refuses the case change`() {
         val lib = seed()
-        put(paths.roms(Console.SFC), ".Mario (USA).sfc.renaming")
+        put(paths.roms(Console.SFC), RomRenamer.TMP_NAME)
         val mario = game(lib, "Mario (USA).sfc")
 
         assertEquals(RenameResult.Failed, RomRenamer(paths, lib, covers, labels).rename(mario, "MARIO (USA)"))

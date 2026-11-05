@@ -8,10 +8,10 @@ import com.openemux.mobile.data.AccountStore
 import com.openemux.mobile.data.ArtImages
 import com.openemux.mobile.data.ArtKind
 import com.openemux.mobile.data.ArtProvider
-import com.openemux.mobile.data.RomRenamer
 import com.openemux.mobile.data.ArtSearch
 import com.openemux.mobile.data.Artwork
 import com.openemux.mobile.data.PrefsAccountStore
+import com.openemux.mobile.data.RomRenamer
 import com.openemux.mobile.data.ProviderSettingsStore
 import com.openemux.mobile.data.ScreenScraper
 import com.openemux.mobile.data.UrlHttp
@@ -55,6 +55,7 @@ class OpenEmuxApp : Application() {
         private set
     /** The per-game artwork manager's model (issue 746). */
     lateinit var artwork: Artwork
+        private set
     /** Renames a game and what it keeps under its name (issue 790). */
     lateinit var renamer: RomRenamer
         private set
