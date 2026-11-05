@@ -139,6 +139,12 @@
         <item quantity="one">%d Datei übersprungen.</item>
         <item quantity="other">%d Dateien übersprungen.</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="one">%d Spiel ist schon in deiner Bibliothek.</item>
+        <item quantity="other">%d Spiele sind schon in deiner Bibliothek.</item>
+    </plurals>
+    <string name="import_unsupported">OpenEmux kann %1$s nicht importieren: Keine Konsole spielt .%2$s-Dateien.</string>
+    <string name="import_open_with_label">In OpenEmux importieren</string>
     <string name="settings_import_none">Keine ROMs erkannt.</string>
     <string name="settings_import_view">Ansehen</string>
     <string name="settings_import_formats">Unterstützte Formate</string>

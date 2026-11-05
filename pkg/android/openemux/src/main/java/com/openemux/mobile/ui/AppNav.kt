@@ -277,6 +277,8 @@ fun OpenEmuxRoot() {
                 // Share nearby: an incoming offer over whatever is open, a link to an address, an expired offer's toast.
                 IncomingOfferSheet()
                 ShareLinks()
+                // "Open with" and "Share" from the file manager (ImportActivity).
+                ExternalImports()
                 }
             }
         }

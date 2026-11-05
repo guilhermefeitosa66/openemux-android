@@ -61,13 +61,25 @@ class MainActivity : ComponentActivity() {
             }
         }
         // A recreated activity, or one relaunched from Recents, carries the link it was opened with: it was handled then.
-        if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) handleShareLink(intent)
+        if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            handleShareLink(intent)
+            handleImport(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleShareLink(intent)
+        handleImport(intent)
+    }
+
+    /** Files from "Open with" or "Share", forwarded by ImportActivity with their read grant: the library imports them. */
+    private fun handleImport(intent: Intent?) {
+        if (intent?.action != ImportActivity.ACTION_IMPORT) return
+        val clip = intent.clipData ?: return
+        val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+        if (uris.isNotEmpty()) (application as OpenEmuxApp).externalImports.value = uris
     }
 
     /**

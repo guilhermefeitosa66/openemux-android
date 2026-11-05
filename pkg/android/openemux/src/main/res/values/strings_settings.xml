@@ -139,6 +139,12 @@
         <item quantity="one">%d file skipped.</item>
         <item quantity="other">%d files skipped.</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="one">%d game is already in your library.</item>
+        <item quantity="other">%d games are already in your library.</item>
+    </plurals>
+    <string name="import_unsupported">OpenEmux can\'t import %1$s: no console plays .%2$s files.</string>
+    <string name="import_open_with_label">Import to OpenEmux</string>
     <string name="settings_import_none">No ROMs recognized.</string>
     <string name="settings_import_view">View</string>
     <string name="settings_import_formats">Accepted formats</string>
