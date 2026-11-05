@@ -48,7 +48,9 @@ TYPES = {
 }
 # The consoles bundled in OpenEmux's own skin format (issue 770), with no Delta or Manic identifier: each package is
 # <console>.zip, skin.json and the six layouts, the art cut into one image per element (build_own).
-OWN_FORMAT = ["GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS"]
+# Issue 771 added the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy.
+OWN_FORMAT = ["GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS",
+              "A2600", "A7800", "LYNX", "NGP", "WS", "VECTREX", "VB"]
 CONSOLES = list(TYPES) + OWN_FORMAT
 # The format's families: iphone/edgeToEdge for phones, ipad/standard for tablets; px per unit.
 REPS = [("phone", "iphone", "edgeToEdge", 3), ("tablet", "ipad", "standard", 2)]
@@ -146,8 +148,13 @@ def cut_screens(png, screens, scale):
 
 def check_fit(L, where):
     """The screens inside the art and clear of every item, or the build stops: a layout's art must never hide a key."""
+    # Edges that meet do not overlap: the engine rounds each position and size to a tenth of a unit, so an edge
+    # (position plus size) may land up to a tenth past the neighbour's, a third of a pixel at most.
+    eps = 0.1 + 1e-6
+
     def overlap(a, b):
-        return a["x"] < b["x"] + b["width"] and b["x"] < a["x"] + a["width"] and a["y"] < b["y"] + b["height"] and b["y"] < a["y"] + a["height"]
+        return (a["x"] < b["x"] + b["width"] - eps and b["x"] < a["x"] + a["width"] - eps
+                and a["y"] < b["y"] + b["height"] - eps and b["y"] < a["y"] + a["height"] - eps)
     for sc in L["screens"]:
         if sc["x"] < 0 or sc["y"] < 0 or sc["x"] + sc["width"] > L["W"] or sc["y"] + sc["height"] > L["H"]:
             raise SystemExit(f"{where}: a screen leaves the art")
@@ -326,7 +333,9 @@ def element(it, scale, W, H, taken):
         elif first.startswith("analogStick"):
             base, kind, bind = "stick", "stick", "analogStick"
         else:
-            base, kind, bind = "dpad", "dpad", "dpad"
+            # A second D-pad (the Virtual Boy's right one) is the format's dpad2, its directions the console's own.
+            bind = it.get("dpad") or "dpad"
+            base, kind = bind, "dpad"
     elif look.get("group") == "actions":
         base, kind, bind = ACTION_IDS[inputs[0]], "action", inputs[0]
     else:

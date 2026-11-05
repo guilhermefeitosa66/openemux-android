@@ -193,6 +193,61 @@ const OE = (() => {
     }),
   });
 
+  // Issue 771: the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy, also in
+  // OpenEmux's own format. Where a console's key has a name of its own that no generic name takes, the skin uses it
+  // (the Lynx's option1 and option2, the Neo Geo Pocket's A and B, launch/SkinBinds.kt); the Reset switches are on the
+  // RetroPad button the core reads them from (reset is the format's restart action).
+  Object.assign(C, {
+    // The woodgrain console's CX40 joystick: one red Fire button; the console's Select and Reset switches.
+    A2600: {
+      name: 'Atari 2600', res: '160 × 210', aspect: 4 / 3, body: '#3A2616', bezel: '#140D08', bar: '#24170E', barIcon: '#C9A27A',
+      dpad: '#111113', dpadMark: '#5A4A3C', pill: '#4A3422', labelInk: '#C9A27A', brandInk: '#C9A27A',
+      face: { kind: 'one', color: '#C8322B', ink: '#F6E0DE', labels: { b: 'FIRE' } }, shoulders: [[], []],
+      center: [{ input: 'select', label: 'SELECT' }, { input: 'start', label: 'RESET' }],
+    },
+    // The ProLine: 1 on the left, the one 2600 games read (RT-458), and 2; the console's Select, Pause and Reset.
+    A7800: {
+      name: 'Atari 7800', res: '320 × 223', aspect: 4 / 3, body: '#1C1C21', bezel: '#0E0E11', bar: '#16161A', barIcon: '#B4B4C0',
+      dpad: '#141417', dpadMark: '#5A5A62', pill: '#2E2E35', labelInk: '#B4B4C0', brandInk: '#B4B4C0',
+      face: { kind: 'ab', color: '#B8343A', ink: '#F6E0E1', labels: { b: '1', a: '2' } }, shoulders: [[], []],
+      center: [{ input: 'select', label: 'SELECT' }, { input: 'start', label: 'PAUSE' }, { input: 'x', label: 'RESET' }],
+    },
+    LYNX: {
+      name: 'Lynx', res: '160 × 102', aspect: 160 / 102, body: '#2A2A30', bezel: '#111114', bar: '#1D1D22', barIcon: '#A9A9B4',
+      dpad: '#141417', dpadMark: '#5A5A62', pill: '#3E3E48', labelInk: '#A9A9B4', brandInk: '#A9A9B4',
+      face: { kind: 'ab', color: '#3E3E48', ink: '#E8E8EE' }, shoulders: [[], []],
+      center: [{ input: 'option1', label: 'OPTION 1' }, { input: 'option2', label: 'OPTION 2' }, { input: 'start', label: 'PAUSE' }],
+    },
+    // A on the left, B on the right: each button's input is its own letter.
+    NGP: {
+      name: 'Neo Geo Pocket', res: '160 × 152', aspect: 160 / 152, body: '#2C3445', bezel: '#141822', bar: '#1C2230', barIcon: '#9AA6BE',
+      dpad: '#151A24', dpadMark: '#5A6478', pill: '#1C2230', labelInk: '#B8C2D6', brandInk: '#B8C2D6',
+      face: { kind: 'ab', color: '#E6E8EE', ink: '#2C3445', inputs: { b: 'a', a: 'b' }, labels: { b: 'A', a: 'B' } }, shoulders: [[], []],
+      center: [{ input: 'start', label: 'OPTION' }],
+    },
+    WS: {
+      name: 'WonderSwan', res: '224 × 144', aspect: 224 / 144, body: '#D8D9DF', bezel: '#2C2C34', bar: '#C2C3CA', barIcon: '#3A3A46',
+      dpad: '#3A3A44', dpadMark: '#8A8A96', pill: '#6E6E7A', labelInk: '#4A4A58', brandInk: '#4A4A58',
+      face: { kind: 'ab', color: '#4A4A55', ink: '#F3F3F6' }, shoulders: [[], []], center: [{ input: 'start', label: 'START' }],
+    },
+    // The upright screen; the controller's four buttons in a row, no Start or Select.
+    VECTREX: {
+      name: 'Vectrex', res: '330 × 410', aspect: 330 / 410, body: '#18181B', bezel: '#0B0B0D', bar: '#121214', barIcon: '#9A9AA6',
+      dpad: '#111113', dpadMark: '#55555E', pill: '#2A2A30', labelInk: '#9A9AA6', brandInk: '#9A9AA6',
+      face: { kind: 'row4', color: '#3A3A42', ink: '#E8E8EE' }, shoulders: [[], []], center: [],
+    },
+    // Two D-pads side by side, B and A under the right one. The right pad is the format's second D-pad (dpad2), its
+    // directions Beetle VB's: up L2, down L3, left R2, right R3.
+    VB: {
+      name: 'Virtual Boy', res: '384 × 224', aspect: 384 / 224, body: '#161616', bezel: '#0A0A0A', bar: '#222222', barIcon: '#D42A2A',
+      dpad: '#262626', dpadMark: '#8A2020', shoulder: '#262626', shoulderInk: '#E83A3A', pill: '#2E2E2E', labelInk: '#D42A2A', brandInk: '#A33A3A',
+      face: { kind: 'ab', color: '#2A2A2A', ink: '#E83A3A' },
+      shoulders: [[{ input: 'l', label: 'L' }], [{ input: 'r', label: 'R' }]],
+      secondary: [{ pos: 'right', kind: 'dpad', size: 140, swap: true, bind: 'dpad2', inputs: { up: 'l2', down: 'l3', left: 'r2', right: 'r3' } }],
+      center: SELECT_START,
+    },
+  });
+
   // The Dark variant: every console's layout in one palette, for playing in a dark room. A black body, the
   // controls in a dark grey that stands out from it just enough to be found by eye, labels and glyphs in a
   // muted grey, so the game's picture is the brightest thing on the screen. Only colours change: the layout
@@ -354,10 +409,17 @@ const OE = (() => {
   }
 
   // Face clusters: offsets from the cluster's centre, in units at scale 1.
+  // [labels] names the buttons where the console calls them otherwise (the PC Engine's II and I, the Game Gear's 1 and 2),
+  // [inputs] gives the button in the b or a place another input (the Neo Geo Pocket's A on the left).
+  const fin = (f, k) => (f.inputs || {})[k] || k;
+  const flab = (f, k) => (f.labels || {})[k] || k.toUpperCase();
   const FACE = {
-    // [labels] names the two buttons where the console calls them otherwise (the PC Engine's II and I, the Game Gear's 1 and 2).
-    ab: (f) => [{ input: 'b', label: (f.labels || {}).b || 'B', dx: -36, dy: 18, w: 62 }, { input: 'a', label: (f.labels || {}).a || 'A', dx: 36, dy: -18, w: 62 }],
-    nes: (f) => [{ input: 'b', label: (f.labels || {}).b || 'B', dx: -38, dy: 0, w: 60 }, { input: 'a', label: (f.labels || {}).a || 'A', dx: 38, dy: 0, w: 60 }],
+    ab: (f) => [{ input: fin(f, 'b'), label: flab(f, 'b'), dx: -36, dy: 18, w: 62 }, { input: fin(f, 'a'), label: flab(f, 'a'), dx: 36, dy: -18, w: 62 }],
+    nes: (f) => [{ input: fin(f, 'b'), label: flab(f, 'b'), dx: -38, dy: 0, w: 60 }, { input: fin(f, 'a'), label: flab(f, 'a'), dx: 38, dy: 0, w: 60 }],
+    // A single large button (the 2600's Fire), its word smaller than a letter so it fits.
+    one: (f) => [{ input: fin(f, 'b'), label: flab(f, 'b'), dx: 0, dy: 0, w: 84, fs: 0.26 }],
+    // Four buttons in a row, 1 to 4 (the Vectrex's).
+    row4: () => [['a', '1', -81], ['b', '2', -27], ['x', '3', 27], ['y', '4', 81]].map(([input, label, dx]) => ({ input, label, dx, dy: 0, w: 50 })),
     // As tall as the d-pad: the top button lines up with its up arm, the bottom one with its down arm.
     diamond: (f) => [['top', 0, -47], ['left', -47, 0], ['right', 47, 0], ['bottom', 0, 47]]
       .map(([pos, dx, dy]) => Object.assign({ dx, dy, w: 46 }, f.map[pos])),
@@ -504,7 +566,8 @@ const OE = (() => {
       look({ group: 'menu', label: 'MENU', shape: 'pill', colors: { button: S.bar, letter: S.barIcon } });
     }
 
-    function dpad(cx, cy, size) {
+    /** [spec]: a second D-pad's bind (dpad2) and inputs; the D-pad's own when left out. */
+    function dpad(cx, cy, size, spec) {
       const t = size * 0.34, x0 = cx - size / 2, y0 = cy - size / 2, c = S.dpad;
       own();
       // The relief goes under the whole cross: both arms' edges first, then both faces over them,
@@ -524,9 +587,10 @@ const OE = (() => {
       // (dpadKnob above). The canvas draws it at rest, the package only names it.
       const travel = size * DPAD_KNOB.travel;
       if (!opts.export) knobParts(S, size * DPAD_KNOB.radius * 2, size).forEach((k) => add(box(cx - travel, cy - travel, 2 * travel, 2 * travel) + k.style));
-      item({ up: 'up', down: 'down', left: 'left', right: 'right' }, x0, y0, size, size, { top: 12, bottom: 12, left: 12, right: 12 });
+      item((spec && spec.inputs) || { up: 'up', down: 'down', left: 'left', right: 'right' }, x0, y0, size, size, { top: 12, bottom: 12, left: 12, right: 12 });
       owner = null;
       items[items.length - 1].knob = DPAD_KNOB.image;
+      if (spec && spec.bind) items[items.length - 1].dpad = spec.bind;
       look({ group: 'dpad', colors: { pad: S.dpad, ball: S.dpadMark } });
     }
 
@@ -564,7 +628,7 @@ const OE = (() => {
       let extra = {};
       if (b.symbol) extra = icon(ICON[b.symbol], f.symColor || PS_SYM[b.symbol], r1(Math.min(w, h) * 0.52), 'none', 2.2);
       else if (b.arrow != null) { extra = icon(ICON.arrow, 'none', r1(w * 0.46), ink, 0); extra.iconStyle += `;transform:rotate(${b.arrow}deg)`; }
-      else if (b.label && S.labelPos !== 'below') extra = lbl(b.label, ink, Math.max(11, Math.min(w, h) * 0.36));
+      else if (b.label && S.labelPos !== 'below') extra = lbl(b.label, ink, Math.max(11, Math.min(w, h) * (b.fs || 0.36)));
       own();
       add(style, extra);
       owner = null;
@@ -575,24 +639,29 @@ const OE = (() => {
       look({ group: 'face', label: text, shape: b.shape === 'square' ? 'rect' : (b.shape || 'circle'), colors: { button: c, letter: ink } });
     }
 
-    /** [room] is the width the face buttons may take: they shrink to it and centre on [rx] by their own extent. */
-    function main(lx, rx, cy, k, room) {
+    /**
+     * [room] is the width the face buttons may take: they shrink to it and centre on [rx] by their own extent. [faceY]
+     * puts them on another row than the left cluster's (the Virtual Boy's, under its right D-pad).
+     */
+    function main(lx, rx, cy, k, room, faceY) {
       const btns = FACE[S.face.kind](S.face);
       const ext = (b) => Math.max(b.w, b.h || b.w) / 2;
       const minX = Math.min(...btns.map((b) => b.dx - ext(b))), maxX = Math.max(...btns.map((b) => b.dx + ext(b)));
       const kf = Math.min(k, room / (maxX - minX));
       const fx = Math.min(rx - ((minX + maxX) / 2) * kf, W - 8 - maxX * kf);
-      if (S.faceWell) { const s = 168 * kf; add(box(fx - s / 2, cy - s / 2, s, s) + `border-radius:50%;background:${S.faceWell};box-shadow:inset 0 2px 6px rgba(0,0,0,.18);`); }
+      const fy = faceY == null ? cy : faceY;
+      if (S.faceWell) { const s = 168 * kf; add(box(fx - s / 2, fy - s / 2, s, s) + `border-radius:50%;background:${S.faceWell};box-shadow:inset 0 2px 6px rgba(0,0,0,.18);`); }
       if (S.leftMain === 'stick') stick(lx, cy, 112 * k, S.stick, false);
       else dpad(lx, cy, 140 * k);
-      btns.forEach((b) => button(b, fx, cy, kf));
+      btns.forEach((b) => button(b, fx, fy, kf));
     }
 
-    function secondary(lx, rx, cy, k) {
+    /** The secondary row at [cy]; one with [swap] takes the main row ([mainY]) on its side, the face going down to [cy]. */
+    function secondary(lx, rx, cy, k, mainY) {
       (S.secondary || []).forEach((s) => {
-        const x = s.pos === 'left' ? lx : rx;
-        if (s.kind === 'dpad') dpad(x, cy, 100 * k);
-        else stick(x, cy, (s.size || 92) * k, s, !!s.right);
+        const x = s.pos === 'left' ? lx : rx, y = s.swap ? mainY : cy;
+        if (s.kind === 'dpad') dpad(x, y, (s.size || 100) * k, s);
+        else stick(x, y, (s.size || 92) * k, s, !!s.right);
       });
     }
 
@@ -611,6 +680,7 @@ const OE = (() => {
     }
 
     const hasSec = !!(S.secondary && S.secondary.length);
+    const swap = hasSec && S.secondary.some((s) => s.swap);
     if (port) {
       const y0 = by + bh + (tab ? 24 : 10);
       const shH = tab ? 48 : 40;
@@ -622,8 +692,9 @@ const OE = (() => {
       if (S.panel) add(box(12, aTop - 4, W - 24, H - aTop - (tab ? 70 : 40)) + `border-radius:${tab ? 26 : 18}px;background:${S.panel};box-shadow:inset 0 2px 0 ${alpha('#ffffff', 0.05)}, 0 1px 0 ${alpha('#ffffff', 0.5)};`);
       const k = Math.min(tab ? 1.12 : 1, (aBot - aTop) / (hasSec ? 290 : 170));
       const lx = tab ? 160 : 90, rx = W - (tab ? 160 : 96);
-      main(lx, rx, hasSec ? aTop + (aBot - aTop) * 0.36 : aTop + (aBot - aTop) * 0.42, k, W / 2 + 10);
-      if (hasSec) secondary(lx, rx, aTop + (aBot - aTop) * 0.82, k);
+      const mainY = hasSec ? aTop + (aBot - aTop) * 0.36 : aTop + (aBot - aTop) * 0.42, secY = aTop + (aBot - aTop) * 0.82;
+      main(lx, rx, mainY, k, W / 2 + 10, swap ? secY : undefined);
+      if (hasSec) secondary(lx, rx, secY, k, mainY);
       const cyKeys = H - reserve + (tab ? 44 : 22);
       const step = tab ? 120 : 92;
       S.center.forEach((c, i) => centerKey(c, W / 2 + (i - (S.center.length - 1) / 2) * step, cyKeys));
@@ -638,8 +709,9 @@ const OE = (() => {
       brand(rx, mY + mH / 2);
       const top = mY + mH + 10, bot = H - (tab ? 70 : 52);
       const k = (tab ? 1.12 : 0.86) * (hasSec && !tab ? 0.88 : 1);
-      main(lx, rx, hasSec ? top + (bot - top) * 0.33 : (top + bot) / 2, k, side - 16);
-      if (hasSec) secondary(lx, rx, top + (bot - top) * 0.82, k);
+      const mainY = hasSec ? top + (bot - top) * 0.33 : (top + bot) / 2, secY = top + (bot - top) * 0.82;
+      main(lx, rx, mainY, k, side - 16, swap ? secY : undefined);
+      if (hasSec) secondary(lx, rx, secY, k, mainY);
       const cyKeys = H - (tab ? 40 : 30);
       const half = Math.ceil(S.center.length / 2);
       const gap = (tab ? 66 : 54) + 14;

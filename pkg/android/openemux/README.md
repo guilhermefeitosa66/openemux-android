@@ -156,8 +156,9 @@ the screen, the game's screens cut out of it as the viewport, and each item
 a touch area, with each console's button names translated to the RetroPad
 as `data/Skin.kt` does. A skin in `files/skins/<console>/` takes the
 bundled one's place, and one that fails to load falls back to the drawn
-skin. Eight more consoles (Game Gear, SG-1000, 32X, Mega-CD, Saturn, PC
-Engine, PC Engine CD, Famicom Disk System) ship their skins in OpenEmux's
+skin. Fifteen more consoles (Game Gear, SG-1000, 32X, Mega-CD, Saturn, PC
+Engine, PC Engine CD, Famicom Disk System, Atari 2600, Atari 7800, Lynx, Neo Geo
+Pocket, WonderSwan, Vectrex, Virtual Boy) ship their skins in OpenEmux's
 own format instead (`docs/skin-format.md`: `assets/skins/<console>.zip`,
 six layouts with a foldable's among them), drawn by
 `launch/OpenEmuxSkinRenderer.kt` like a user's skin in that format. The NDS skin draws its two screens one over the other, and DeSmuME is

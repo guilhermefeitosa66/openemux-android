@@ -75,10 +75,17 @@ sealed interface ElementPlan {
     ) : ElementPlan
 
     /**
-     * The D-pad: [travel] is its ball's travel about the centre (the engine's desc rect), touched [reach] times its
-     * half-size on each side (left, top, right, bottom), which is the element's whole [box].
+     * A D-pad: [travel] is its ball's travel about the centre (the engine's desc rect), touched [reach] times its
+     * half-size on each side (left, top, right, bottom), which is the element's whole [box]. [binds] are its up, down,
+     * left and right; null for a second D-pad on a console with none, drawn and pressing nothing.
      */
-    data class Dpad(override val index: Int, override val box: SkinBox, val travel: SkinBox, val reach: FloatArray) : ElementPlan
+    data class Dpad(
+        override val index: Int, override val box: SkinBox, val travel: SkinBox, val reach: FloatArray, val binds: List<String>? = DIRECTIONS,
+    ) : ElementPlan {
+        companion object {
+            val DIRECTIONS = listOf("up", "down", "left", "right")
+        }
+    }
 
     /**
      * A stick ([bind]: analog_left or analog_right) in the well [box]: its range is the square [range] (the value
@@ -110,7 +117,7 @@ fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boo
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)!!
                 ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
             }
-            SkinElementType.DPAD -> dpad(i, box)
+            SkinElementType.DPAD -> dpad(i, box, OpenEmuxBinds.dpad(console, e.bind))
             SkinElementType.STICK -> stick(i, box, if (e.bind == "rightAnalogStick") "analog_right" else "analog_left")
         }
     }
@@ -118,13 +125,13 @@ fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boo
 }
 
 /** A D-pad over [box]: its ball travels [OverlayLines.DPAD_TRAVEL] of the half-size, and the whole box starts a touch. */
-private fun dpad(i: Int, box: SkinBox): ElementPlan.Dpad {
+private fun dpad(i: Int, box: SkinBox, binds: List<String>?): ElementPlan.Dpad {
     val tx = box.w / 2f * OverlayLines.DPAD_TRAVEL
     val ty = box.h / 2f * OverlayLines.DPAD_TRAVEL
     val cx = box.x + box.w / 2f
     val cy = box.y + box.h / 2f
     val reach = 1f / OverlayLines.DPAD_TRAVEL
-    return ElementPlan.Dpad(i, box, SkinBox(cx - tx, cy - ty, 2f * tx, 2f * ty), floatArrayOf(reach, reach, reach, reach))
+    return ElementPlan.Dpad(i, box, SkinBox(cx - tx, cy - ty, 2f * tx, 2f * ty), floatArrayOf(reach, reach, reach, reach), binds)
 }
 
 /**
@@ -168,6 +175,10 @@ object OpenEmuxBinds {
         }
         return Action(bind, icon, bind?.let { OverlayWriter.LIT_BY[it] }, dim)
     }
+
+    /** A D-pad's directions on [console]: [name] dpad's, or dpad2's (the console's second pad, null when it has none). */
+    fun dpad(console: Console, name: String): List<String>? =
+        if (name == SkinBinds.DPAD2) SkinBinds.SECOND_DPAD[console] else ElementPlan.Dpad.DIRECTIONS
 
     /** A button's [name] on [console] (a quick action's name is [action]'s), or null for one nothing maps. */
     fun button(console: Console, name: String): String? = SkinBinds.bind(console, name, hardcore = false)
