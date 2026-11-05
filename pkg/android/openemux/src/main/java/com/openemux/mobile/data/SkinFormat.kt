@@ -124,6 +124,9 @@ object SkinFormat {
     val KEYPAD_BINDS = (0..9).map { "keypad$it" }.toSet() + setOf("keypadStar", "keypadHash")
     const val DPAD_BIND = "dpad"
 
+    /** A D-pad binds the D-pad, or the console's second one (the Virtual Boy's right pad, SkinBinds.SECOND_DPAD). */
+    val DPAD_BINDS = setOf(DPAD_BIND, SkinBinds.DPAD2)
+
     /** A button takes any name a Delta or Manic skin may use, plus the format's own quick actions. */
     val BUTTON_BINDS = SkinBinds.NAMES + ACTION_BINDS
 
@@ -132,7 +135,7 @@ object SkinFormat {
 
     fun bindsFor(type: SkinElementType): Set<String> = when (type) {
         SkinElementType.BUTTON -> BUTTON_BINDS
-        SkinElementType.DPAD -> setOf(DPAD_BIND)
+        SkinElementType.DPAD -> DPAD_BINDS
         SkinElementType.STICK -> STICK_BINDS
         SkinElementType.ACTION -> ACTION_BINDS
         SkinElementType.KEYPAD -> KEYPAD_BINDS
@@ -358,7 +361,7 @@ object SkinFormat {
     private fun elementJson(e: SkinElement): Map<String, Any> = buildMap {
         put("id", e.id)
         put("type", e.type.id)
-        if (e.type != SkinElementType.DPAD) put("bind", e.bind)
+        if (e.type != SkinElementType.DPAD || e.bind != DPAD_BIND) put("bind", e.bind)
         e.group?.let { put("group", it) }
         putAll(rectJson(e.rect))
         e.shape?.let { put("shape", it.id) }

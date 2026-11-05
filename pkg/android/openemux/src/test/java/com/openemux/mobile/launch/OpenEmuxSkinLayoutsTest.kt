@@ -128,6 +128,18 @@ class OpenEmuxSkinLayoutsTest {
         assertArrayEquals(floatArrayOf(reach, reach, reach, reach), d.reach, 0f)
         // Its reach takes a touch on the box's edge.
         assertEquals(150f, tx * d.reach[0], 0.001f)
+        assertEquals(listOf("up", "down", "left", "right"), d.binds)
+    }
+
+    @Test fun aSecondDpadPressesTheConsolesSecondPadOrNothing() {
+        val pad = element(SkinElementType.DPAD, "dpad2", 100f, 1000f, 300f, 300f)
+        // The Virtual Boy's right pad: Beetle VB's L2, L3, R2 and R3.
+        assertEquals(listOf("l2", "l3", "r2", "r3"), (plan(Console.VB, pad).single() as ElementPlan.Dpad).binds)
+        // A console with one D-pad: drawn, pressing nothing; the same place and travel as a first pad's.
+        val none = plan(Console.GBA, pad).single() as ElementPlan.Dpad
+        assertNull(none.binds)
+        assertEquals((plan(Console.GBA, element(SkinElementType.DPAD, "dpad", 100f, 1000f, 300f, 300f)).single() as ElementPlan.Dpad).travel, none.travel)
+        assertEquals(listOf("up", "down", "left", "right"), OpenEmuxBinds.dpad(Console.VB, "dpad"))
     }
 
     @Test fun aSticksKnobIsHalfTheWellAndTravelsWithinIt() {
