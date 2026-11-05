@@ -73,6 +73,21 @@ layout. The build stops when a screen would leave the art or cover a key.
 Intermediate images go to
 `build/skins/`. Needs Node, Google Chrome and ImageMagick.
 
+## Templates for skin creators
+
+`python3 tools/skins/build.py --templates [CONSOLE ...]` builds
+`tools/skins/templates/<console>-template.zip` for every console above
+(issue 665): the console's own layouts, the same frames, screens and knobs
+as its bundled package, with plain placeholder art drawn from those frames
+(each control a white outlined shape with its input name) instead of the
+engine's art. Each image is rendered from an SVG the template carries under
+`sources/`, one layer per control, and each template has a `README.md`
+listing its images and their sizes. The templates are committed (they are
+what creators download) and stay out of the app's assets.
+`tools/skins/templates/README.md` is the creators' guide, and
+`SkinTemplatesTest` checks every template against its bundled package, so
+rebuild them when a layout changes.
+
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the
 build. `launch/ImportedSkinRenderer.kt` reads the packages.
 

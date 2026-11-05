@@ -441,23 +441,8 @@ class ImportedSkinRenderer {
      * The skin's input name as a RetroArch overlay bind, or null for one left out. The skin names the
      * console's own buttons; the RetroPad has them where data/Skin.kt puts them for that console.
      */
-    private fun bind(input: String): String? {
-        CONSOLE_BINDS[console]?.get(input)?.let { return it }
-        return when (input) {
-            "up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select" -> input
-            "l1" -> "l"
-            "r1" -> "r"
-            "menu" -> "menu_toggle"
-            "quickSave" -> "save_state"
-            "quickLoad" -> "load_state"
-            "fastForward" -> if (hardcore) null else "hold_fast_forward"
-            "toggleFastForward" -> if (hardcore) null else "toggle_fast_forward"
-            "turbo" -> "turbo_fire_toggle"
-            "screenshot" -> "screenshot"
-            "restart", "reset" -> "reset"
-            else -> null.also { Log.w(TAG, "input '$input' not mapped") }
-        }
-    }
+    private fun bind(input: String): String? =
+        SkinBinds.bind(console, input, hardcore) ?: null.also { Log.w(TAG, "input '$input' not mapped") }
 
     /** [b] grown by the item's extended edges ([edge] of "left", "top", "right", "bottom"), in mapping units. */
     private fun extended(b: SkinBox, edge: (String) -> Float) =
@@ -517,16 +502,6 @@ class ImportedSkinRenderer {
 
         /** How much of a pixel a lifted glyph covers before erasing it paints the colour around it there: noise stays. */
         private const val ERASE_MIN_COVER = 0.06f
-
-        /** Where the skins' buttons sit on the RetroPad, for the consoles whose names differ (as in data/Skin.kt). */
-        private val CONSOLE_BINDS = mapOf(
-            Console.N64 to mapOf(
-                "a" to "b", "b" to "y", "z" to "l2", "cUp" to "r_y_minus", "cDown" to "r_y_plus",
-                "cLeft" to "r_x_minus", "cRight" to "r_x_plus",
-            ),
-            Console.MD to mapOf("a" to "y", "b" to "b", "c" to "a", "x" to "l", "y" to "x", "z" to "r", "mode" to "select"),
-            Console.GC to mapOf("z" to "r", "l" to "l2", "r" to "r2"),
-        )
 
         /** The NDS screens key's input: the app's own name (tools/skins), which other emulators ignore. */
         const val SCREENS_INPUT = "screens"

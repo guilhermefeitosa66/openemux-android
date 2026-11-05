@@ -1,6 +1,7 @@
 """Builds the bundled controller skins (src/main/assets/skins) from the design.
 
   python3 tools/skins/build.py [--variant <id>] [CONSOLE ...]
+  python3 tools/skins/build.py --templates [CONSOLE ...]   # the templates for skin creators (tools/skins/templates)
 
 Every console is built in each of its variants: its own colours (src/main/assets/skins/<console>.<ext>), the
 Dark variant (src/main/assets/skins/dark/<console>.<ext>), the same layout in a black and dark grey palette,
@@ -167,6 +168,14 @@ def representation(console, device, orient, scale, folder, profile, files, scree
         subprocess.run(["convert", str(folder / file), "-crop", f"{px}x{px}+0+0", "+repage", str(folder / file)], check=True)
         knobs[k["name"]] = file
     files.extend(knobs.values())
+    rep, knob = entry(L, image, knobs)
+    return rep, L["name"], knob
+
+
+def entry(L, image, knobs):
+    """A representation's entry in info.json from the engine's layout [L], its art [image] and its sticks' [knobs]
+    images by name; and the D-pad circle's image, if a D-pad names one. The bundled skins and the templates share it,
+    so a template's frames are always the bundled skin's."""
     items = []
     knob = None
     for it in L["items"]:
@@ -188,7 +197,7 @@ def representation(console, device, orient, scale, folder, profile, files, scree
         "screens": [{"outputFrame": s} for s in L["screens"]],
         "items": items,
     }
-    return rep, L["name"], knob
+    return rep, knob
 
 
 def build(console, profile, variant="console", label=None):
@@ -244,6 +253,256 @@ def build(console, profile, variant="console", label=None):
     print(f"{pkg.relative_to(APP)}  {pkg.stat().st_size // 1024} KB")
 
 
+# The templates for skin creators (issue 665): each console's bundled layout with plain placeholder art, the SVG
+# each image is rendered from, and a README with the console's asset plan. tools/skins/templates/README.md is the
+# guide. They are not in the app's assets: the APK does not carry them.
+TEMPLATES = HERE / "templates"
+# The placeholder's colours: a light body, white controls outlined in dark grey, dark labels.
+T_BODY, T_EDGE, T_KEY, T_LINE, T_INK, T_WELL = "#E6E6E6", "#A8A8A8", "#FFFFFF", "#444444", "#222222", "#CFCFCF"
+# The D-pad circle's diameter on its travel square, as the engine draws it (DPAD_KNOB: radius over travel).
+DPAD_CIRCLE = 14 / 44
+
+
+def esc(text):
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def n(v):
+    """[v] for an SVG attribute: at most two decimals, no trailing zeros."""
+    return f"{v:.2f}".rstrip("0").rstrip(".")
+
+
+def control_name(inputs):
+    """What a control is called in its template: its SVG layer's id and its label."""
+    if isinstance(inputs, dict):
+        first = str(inputs.get("up", ""))
+        if first.startswith(("rightAnalogStick", "cStick")):
+            return "rightAnalogStick"
+        return "analogStick" if first.startswith("analogStick") else "dpad"
+    return "+".join(inputs)
+
+
+def svg_document(w, h, body):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
+            f'width="{n(w)}" height="{n(h)}" viewBox="0 0 {n(w)} {n(h)}">\n{body}</svg>\n')
+
+
+def layer(name, content, hidden=False):
+    style = ' style="display:none"' if hidden else ""
+    return f'<g id="{esc(name)}" inkscape:groupmode="layer" inkscape:label="{esc(name)}"{style}>\n{content}</g>\n'
+
+
+def control_svg(item):
+    """One control drawn in placeholder style: its frame's shape, outlined, with its name."""
+    f = item["frame"]
+    x, y, w, h = f["x"], f["y"], f["width"], f["height"]
+    cx, cy, line = x + w / 2, y + h / 2, max(1.5, min(3.0, min(w, h) * 0.04))
+    name = control_name(item["inputs"])
+    out = []
+    if isinstance(item["inputs"], dict) and name == "dpad":
+        arm = min(w, h) / 3
+        out.append(f'<path d="M{n(cx - arm / 2)} {n(y)}h{n(arm)}v{n(h / 2 - arm / 2)}h{n(w / 2 - arm / 2)}v{n(arm)}'
+                   f'h{n(-(w / 2 - arm / 2))}v{n(h / 2 - arm / 2)}h{n(-arm)}v{n(-(h / 2 - arm / 2))}h{n(-(w / 2 - arm / 2))}'
+                   f'v{n(-arm)}h{n(w / 2 - arm / 2)}z" fill="{T_KEY}" stroke="{T_LINE}" stroke-width="{n(line)}"/>')
+        return "".join(out) + "\n"
+    if isinstance(item["inputs"], dict):
+        # A stick's well: its knob is an image of its own, which the app moves over it.
+        out.append(f'<circle cx="{n(cx)}" cy="{n(cy)}" r="{n(min(w, h) / 2 - line / 2)}" fill="{T_WELL}" '
+                   f'stroke="{T_LINE}" stroke-width="{n(line)}"/>')
+        size = min(12.0, h * 0.13)
+        out.append(f'<text x="{n(cx)}" y="{n(y + size * 1.4)}" font-family="sans-serif" font-size="{n(size)}" '
+                   f'text-anchor="middle" fill="{T_INK}">{esc(name)}</text>')
+        return "".join(out) + "\n"
+    if abs(w - h) <= 0.15 * max(w, h):
+        out.append(f'<ellipse cx="{n(cx)}" cy="{n(cy)}" rx="{n(w / 2 - line / 2)}" ry="{n(h / 2 - line / 2)}" '
+                   f'fill="{T_KEY}" stroke="{T_LINE}" stroke-width="{n(line)}"/>')
+    else:
+        r = min(w, h) / 2 if min(w, h) <= 34 else 10
+        out.append(f'<rect x="{n(x + line / 2)}" y="{n(y + line / 2)}" width="{n(w - line)}" height="{n(h - line)}" '
+                   f'rx="{n(r)}" fill="{T_KEY}" stroke="{T_LINE}" stroke-width="{n(line)}"/>')
+    size = max(6.0, min(14.0, h * 0.42, w / max(1, len(name)) * 1.6))
+    out.append(f'<text x="{n(cx)}" y="{n(cy + size * 0.35)}" font-family="sans-serif" font-size="{n(size)}" '
+               f'text-anchor="middle" fill="{T_INK}">{esc(name)}</text>')
+    return "".join(out) + "\n"
+
+
+def template_svg(L, edges):
+    """The template's art for one layout [L], as an SVG in mapping units: a body with the screens cut out, one layer
+    per control, and two hidden helper layers (where the screens are, where each control's touch area reaches)."""
+    W, H = L["W"], L["H"]
+    holes = "".join(f'M{n(s["x"])} {n(s["y"])}h{n(s["width"])}v{n(s["height"])}h{n(-s["width"])}z' for s in L["screens"])
+    body = (f'<path d="M0 0H{n(W)}V{n(H)}H0z{holes}" fill="{T_BODY}" fill-rule="evenodd"/>\n'
+            f'<rect x="1" y="1" width="{n(W - 2)}" height="{n(H - 2)}" fill="none" stroke="{T_EDGE}" stroke-width="2"/>\n')
+    out = layer("body", body)
+    ids = {}
+    for it in L["items"]:
+        name = control_name(it["inputs"])
+        ids[name] = ids.get(name, 0) + 1
+        out += layer(name if ids[name] == 1 else f"{name}-{ids[name]}", control_svg(it))
+    guides = "".join(f'<rect x="{n(s["x"])}" y="{n(s["y"])}" width="{n(s["width"])}" height="{n(s["height"])}" '
+                     f'fill="none" stroke="#3A7BD5" stroke-width="2" stroke-dasharray="6 4"/>\n' for s in L["screens"])
+    out += layer("screen-guides", guides, hidden=True)
+    touch = ""
+    for it in L["items"]:
+        e = dict(edges, **(it.get("extendedEdges") or {}))
+        f = it["frame"]
+        touch += (f'<rect x="{n(f["x"] - e["left"])}" y="{n(f["y"] - e["top"])}" '
+                  f'width="{n(f["width"] + e["left"] + e["right"])}" height="{n(f["height"] + e["top"] + e["bottom"])}" '
+                  f'fill="none" stroke="#D53A3A" stroke-width="1" stroke-dasharray="2 3"/>\n')
+    out += layer("touch-areas", touch, hidden=True)
+    return svg_document(W, H, out)
+
+
+def circle_svg(side, diameter):
+    """A round knob, [diameter] units wide, centred on a transparent square [side] units wide."""
+    line = max(1.5, diameter * 0.06)
+    return svg_document(side, side, layer("knob", f'<circle cx="{n(side / 2)}" cy="{n(side / 2)}" '
+                        f'r="{n(diameter / 2 - line / 2)}" fill="{T_KEY}" stroke="{T_LINE}" stroke-width="{n(line)}"/>\n'))
+
+
+def render_svg(svg, png, w, h, scale, profile):
+    """[svg] (a file) rendered by headless Chrome to [png], [w] by [h] units at [scale] px per unit."""
+    page = svg.with_suffix(".html")
+    page.write_text('<!doctype html><html><body style="margin:0;background:transparent">'
+                    f'<img src="{svg.name}" width="{w}" height="{h}" style="display:block"></body></html>')
+    subprocess.run([
+        CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}",
+        f"--force-device-scale-factor={scale}", f"--window-size={w},{h}", "--default-background-color=00000000",
+        "--virtual-time-budget=2000", f"--screenshot={png}", f"file://{page}",
+    ], check=True, capture_output=True)
+    page.unlink()
+    px, py = round(w * scale), round(h * scale)
+    subprocess.run(["convert", str(png), "-crop", f"{px}x{py}+0+0", "+repage", str(png)], check=True)
+
+
+def template_representation(console, device, orient, scale, folder, profile, plan, plan_knobs, screens=None):
+    """One representation of [console]'s template: its art drawn from the layout's frames, and its entry in info.json.
+    [plan] gets a row per layout image for the README, [plan_knobs] one per stick knob image (its name, its pixels)."""
+    L = engine_layout(console, device, orient, screens)
+    check_fit(L, f"{console} template {device} {orient} {screens or ''}")
+    suffix = f"_{screens}" if screens else ""
+    image = f"{device}_{orient}{suffix}.png"
+    sources = folder / "sources"
+    sources.mkdir(exist_ok=True)
+    edges = {"top": 6, "bottom": 6, "left": 6, "right": 6}
+    svg = sources / image.replace(".png", ".svg")
+    svg.write_text(template_svg(L, edges))
+    render_svg(svg, folder / image, L["W"], L["H"], scale, profile)
+    cut_screens(folder / image, L["screens"], scale)
+    plan.append((image, f"{device} {orient}" + (f", {screens} layout" if screens else ""), L, scale))
+    knobs = {}
+    for k in L["knobs"]:
+        file = f"{device}_{orient}{suffix}_{k['name']}"
+        side = round(k["size"] * scale) / scale
+        ksvg = sources / file.replace(".png", ".svg")
+        ksvg.write_text(circle_svg(side, side))
+        render_svg(ksvg, folder / file, side, side, scale, profile)
+        knobs[k["name"]] = file
+        plan_knobs.append((file, round(side * scale)))
+    return entry(L, image, knobs)[0]
+
+
+def plan_readme(console, name, ext, plan, knob, knob_files, items):
+    """The template's README: what the package is and every image it holds, at its size."""
+    rows = []
+    for image, where, L, scale in plan:
+        screens = "; ".join(f'{n(s["x"])}, {n(s["y"])}, {n(s["width"])} x {n(s["height"])}' for s in L["screens"]) or "none"
+        rows.append(f"| `{image}` | {where} | {L['W']} x {L['H']} | {round(L['W'] * scale)} x {round(L['H'] * scale)} px "
+                    f"| {screens} |")
+    knob_rows = [f"| `{f}` | {round(px)} x {round(px)} px | a stick's knob, moved by the thumb over the stick's well |"
+                 for f, px in knob_files]
+    if knob:
+        knob_rows.append(f"| `{knob}` | {KNOB_UNITS * KNOB_SCALE} x {KNOB_UNITS * KNOB_SCALE} px | the D-pad's circle, "
+                         "stretched over the D-pad's travel and moved by the thumb |")
+    controls = "\n".join(f"- `{c}`" for c in items)
+    return f"""# {name} skin template
+
+A skin package for OpenEmux on Android, with plain placeholder art at the exact sizes the app reads. Repaint the
+images, keep the file names and sizes, zip the files again and install it. The guide that explains the format,
+every input name and the install steps is `tools/skins/templates/README.md` in the openemux-android repository:
+<https://github.com/guilhermefeitosa66/openemux-android/blob/openemux-mobile/pkg/android/openemux/tools/skins/templates/README.md>
+
+## Files
+
+- `info.json`: the layouts, with every control placed and bound. Positions are in mapping units, not pixels.
+- The PNG images below: the art, one per layout. The screens are transparent holes.
+- `sources/`: one SVG per PNG, the image's editable source. Each control is a layer named after its input
+  (`a`, `start`, `dpad`, `analogStick`...); two hidden layers show where the screens are (`screen-guides`)
+  and how far each control's touch area reaches (`touch-areas`). Export each SVG to its PNG at the size below.
+- `README.md`: this file.
+
+`sources/` and `README.md` are optional in the installed package: the app reads only `info.json` and the images it
+names.
+
+## Layout art
+
+| Image | Layout | Mapping size (units) | Image size | Screen frame(s) (x, y, w x h, units) |
+|---|---|---|---|---|
+{chr(10).join(rows)}
+
+## Knobs
+
+| Image | Size | What it is |
+|---|---|---|
+{chr(10).join(knob_rows) or "| none | | |"}
+
+## Controls
+
+The inputs of the phone portrait layout, in drawing order (the other layouts have the same ones):
+
+{controls}
+
+## Install
+
+1. Zip the files so that `info.json` sits at the zip's root (not inside a folder).
+2. Name the zip `{console}.{ext}`.
+3. Copy it to `Android/data/com.openemux.mobile/files/skins/{console}/` on the device, then start a game.
+   Delete it to go back to the bundled skin.
+"""
+
+
+def build_template(console, profile):
+    """[console]'s template: tools/skins/templates/<console>-template.zip."""
+    folder = WORK / "templates" / console
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    reps, plan, knob, knob_files = {}, [], None, []
+    for device, family, kind, scale in REPS:
+        for orient in ("portrait", "landscape"):
+            rep = template_representation(console, device, orient, scale, folder, profile, plan, knob_files)
+            knob = knob or next((it["knob"] for it in rep["items"] if it.get("knob")), None)
+            layouts = SCREEN_LAYOUTS.get(console, [])
+            if layouts:
+                rep["layouts"] = {}
+                for layout_id in layouts:
+                    rep["layouts"][layout_id] = template_representation(console, device, orient, scale, folder, profile,
+                                                                        plan, knob_files, layout_id)
+            reps.setdefault(family, {}).setdefault(kind, {})[orient] = rep
+    name = engine_layout(console, "phone", "portrait")["name"]
+    if knob:
+        svg = folder / "sources" / knob.replace(".png", ".svg")
+        svg.write_text(circle_svg(KNOB_UNITS, KNOB_UNITS * DPAD_CIRCLE))
+        render_svg(svg, folder / knob, KNOB_UNITS, KNOB_UNITS, KNOB_SCALE, profile)
+    info = {
+        "name": f"{name} template",
+        "identifier": f"openemux.template.{console.lower()}",
+        "gameTypeIdentifier": TYPES[console],
+        "debug": False,
+        "representations": reps,
+    }
+    (folder / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False) + "\n")
+    ext = "manicskin" if TYPES[console].startswith("public.aoshuang") else "deltaskin"
+    items = [control_name(it["inputs"]) for it in reps["iphone"]["edgeToEdge"]["portrait"]["items"]]
+    (folder / "README.md").write_text(plan_readme(console, name, ext, plan, knob, knob_files, items))
+    TEMPLATES.mkdir(exist_ok=True)
+    out = TEMPLATES / f"{console}-template.zip"
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(folder.rglob("*")):
+            if f.is_file():
+                z.write(f, f.relative_to(folder).as_posix())
+    print(f"{out.relative_to(APP)}  {out.stat().st_size // 1024} KB")
+
+
 def main():
     args = sys.argv[1:]
     only = None
@@ -253,11 +512,21 @@ def main():
         del args[i:i + 2]
         if not only:
             raise SystemExit("--variant takes a variant id (console, dark or a colour)")
+    templates = "--templates" in args
+    if templates:
+        args.remove("--templates")
+        if only:
+            raise SystemExit("--templates and --variant do not go together: a template has its own placeholder art")
     consoles = args or list(TYPES)
     unknown = [c for c in consoles if c not in TYPES]
     if unknown:
         raise SystemExit(f"unknown console: {', '.join(unknown)} (one of {', '.join(TYPES)})")
     sync_engine()
+    if templates:
+        with tempfile.TemporaryDirectory() as profile:
+            for c in consoles:
+                build_template(c, profile)
+        return
     ASSETS.mkdir(parents=True, exist_ok=True)
     cat = catalog()
     known = {v["id"] for vs in cat.values() for v in vs}

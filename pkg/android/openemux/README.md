@@ -154,9 +154,11 @@ emulators Delta and Manic EMU (`.deltaskin`/`.manicskin`: a zip with
 the phone or tablet art (tablet from 600 dp on the smallest side) scaled to
 the screen, the game's screens cut out of it as the viewport, and each item
 a touch area, with each console's button names translated to the RetroPad
-as `data/Skin.kt` does. A skin in `files/skins/<console>/` takes the
+as `data/Skin.kt` does (`launch/SkinBinds.kt`). A skin in `files/skins/<console>/` takes the
 bundled one's place, and one that fails to load falls back to the drawn
-skin. The NDS skin draws its two screens one over the other, and DeSmuME is
+skin. Skin creators start from a template: one per bundled console, with
+placeholder art and an editable SVG per image, in `tools/skins/templates/`
+(its `README.md` is the guide to the format). The NDS skin draws its two screens one over the other, and DeSmuME is
 set to that layout. An item bound to turbo or toggle fast forward gets the
 same lit `nul` desc as the drawn strip: the accent pill over the item's
 frame, with the skin's own glyph lifted off the art (what differs from the
