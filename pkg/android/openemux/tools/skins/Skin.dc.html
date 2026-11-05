@@ -349,8 +349,9 @@ const OE = (() => {
   function layout(id, device, orient, opts) {
     opts = opts || {};
     const S = palette(id, opts.variant);
-    // A fold is an unfolded foldable's inner screen (a Galaxy Z Fold's 1812 x 2176 px at 3 px a unit): the tablet's
-    // spacing on a squarer page, so the picture takes a phone's share of it and the side columns are narrower.
+    // A fold is an unfolded foldable's inner screen (604 x 726 units, 1812 x 2178 px at 3 px a unit: about a Galaxy Z
+    // Fold's 1812 x 2176): the tablet's spacing on a squarer page, so the picture takes a phone's share of it and the
+    // side columns are narrower.
     const fold = device === 'fold', tab = device === 'tablet' || fold, port = orient === 'portrait';
     const W = fold ? (port ? 604 : 726) : tab ? (port ? 800 : 1280) : (port ? 360 : 746);
     const H = fold ? (port ? 726 : 604) : tab ? (port ? 1280 : 800) : (port ? 746 : 360);

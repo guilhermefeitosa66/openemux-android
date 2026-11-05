@@ -61,7 +61,7 @@ proportions. The templates use these sizes:
 | `phone-landscape` | 2238 × 1080 | |
 | `tablet-portrait` | 1600 × 2560 | a 10" tablet |
 | `tablet-landscape` | 2560 × 1600 | |
-| `fold-portrait` | 1812 × 2178 | a Galaxy Z Fold's inner screen (1812 × 2176) |
+| `fold-portrait` | 1812 × 2178 | about a Galaxy Z Fold's inner screen (1812 × 2176) |
 | `fold-landscape` | 2178 × 1812 | |
 
 Everything in a layout (screens, frame, controls) is a rect in that space, `x`, `y`, `width`, `height` from its
@@ -78,7 +78,7 @@ that element from its colours, shape and label in `skin.json` instead, so a skin
 | `frame.png` | the frame's rect | the bezel around the game screen, where the quick actions sit |
 | `<id>.png` | the element's rect | a button, a quick action or a keypad key |
 | `dpad.png` | the D-pad's rect | the D-pad |
-| `dpad-ball.png` | the D-pad's side × 44/60, square | the ball that moves with the thumb, drawn centred on the pad |
+| `dpad-ball.png` | the D-pad's side × 44/60, square | the ball that moves with the thumb, edge to edge (the app fits the whole image to the ball), drawn centred on the pad |
 | `stick-base.png` | the stick's rect | an analog stick's well |
 | `stick-knob.png` | half the stick's side, square | the knob that moves with the thumb |
 

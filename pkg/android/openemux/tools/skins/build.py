@@ -17,6 +17,7 @@ headless Chrome from render.html, the game's screens are cut out
 (transparent), and info.json gets the frames the engine laid out. Needs
 Node, Google Chrome and ImageMagick.
 """
+import functools
 import json
 import math
 import shutil
@@ -254,7 +255,7 @@ def build(console, profile, variant="console", label=None):
 # not carry them: creators download them from the repository.
 TEMPLATES = HERE / "templates"
 # The six layouts, and px per engine unit: the bundled art's scale (3 on phones, 2 on tablets) and 3 on a fold, whose
-# 604 x 726 units are a Galaxy Z Fold's inner screen (1812 x 2176 px).
+# 604 x 726 units (1812 x 2178 px) are about a Galaxy Z Fold's inner screen (1812 x 2176 px).
 TEMPLATE_LAYOUTS = [("phone", "portrait"), ("phone", "landscape"), ("tablet", "portrait"), ("tablet", "landscape"),
                     ("fold", "portrait"), ("fold", "landscape")]
 TEMPLATE_SCALE = {"phone": 3, "tablet": 2, "fold": 3}
@@ -262,10 +263,10 @@ TEMPLATE_SCALE = {"phone": 3, "tablet": 2, "fold": 3}
 ACTION_IDS = {"quickSave": "save", "quickLoad": "load", "turbo": "turbo", "toggleFastForward": "fast-forward",
               "fastForward": "fast-forward", "slowMotion": "slow-motion", "screenshot": "screenshot", "menu": "menu",
               "restart": "restart", "screens": "screens"}
-# What the app draws an image over, as issue 776's renderer does (launch/OverlayLines.kt): the D-pad's ball over the
-# pad's travel box (the pad's side times DPAD_TRAVEL, centred), a stick's knob at half its well.
+# What the app draws an image over, as issue 776's renderer does (launch/OverlayLines.kt): the D-pad's ball image at
+# the pad's travel box (the pad's side times DPAD_TRAVEL, centred), a stick's knob at half its well. Both are the
+# thing itself, edge to edge: the renderer fits the whole image to the ball or the knob.
 DPAD_TRAVEL = 44 / 60
-DPAD_BALL = 28 / 120
 STICK_KNOB = 0.5
 # The placeholders' colours: a light body and frame, white controls outlined in dark grey, dark names.
 P_BODY, P_FRAME, P_KEY, P_LINE, P_INK, P_WELL, P_ACTION = "#E6E6E6", "#BDBDBD", "#FFFFFF", "#444444", "#222222", "#CFCFCF", "#D6D6D6"
@@ -373,12 +374,13 @@ def images(layout):
     return out
 
 
+@functools.lru_cache(maxsize=None)
 def font(size):
     from PIL import ImageFont
     return ImageFont.truetype(str(FONT), max(8, round(size)))
 
 
-def placeholder(name, size, kind, e, layout):
+def placeholder(name, size, e, layout):
     """The plain placeholder for one image: its shape outlined, the element's name on it."""
     from PIL import Image, ImageDraw
     w, h = size
@@ -401,8 +403,7 @@ def placeholder(name, size, kind, e, layout):
     line = max(2, round(min(W, H) * 0.035))
     label = name[:-4]
     if name.endswith("-ball.png"):
-        r = (min(e["width"], e["height"]) * DPAD_BALL / 2) * k
-        d.ellipse([W / 2 - r, H / 2 - r, W / 2 + r, H / 2 + r], fill=P_KEY, outline=P_LINE, width=line)
+        d.ellipse([line / 2, line / 2, W - line / 2, H - line / 2], fill=P_KEY, outline=P_LINE, width=line)
         label = None
     elif name.endswith("-knob.png"):
         d.ellipse([line / 2, line / 2, W - line / 2, H - line / 2], fill=P_KEY, outline=P_LINE, width=line)
@@ -466,7 +467,8 @@ def n_(v):
 
 
 def skin_json(skin):
-    """skin.json as the app writes it (docs/skin-format.md, Writing): its key order, two-space indents."""
+    """skin.json in the app's key order and two-space indents (docs/skin-format.md, Writing); unlike the app, it keeps
+    a D-pad's optional "bind": "dpad", so every element reads the same."""
     return json.dumps(skin, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -510,11 +512,12 @@ def build_template(console):
     (folder / "sources").mkdir()
     for layout_id, layout in layouts.items():
         (folder / layout_id).mkdir()
-        for file, size, what, e in images(layout):
-            placeholder(file, size, what, e, layout).save(folder / layout_id / file, optimize=True)
-        (folder / "sources" / f"{layout_id}.svg").write_text(layout_svg(layout_id, layout))
-    (folder / "skin.json").write_text(skin_json(skin))
-    (folder / "README.txt").write_text(template_readme(console, name, skin))
+        for file, size, _, e in images(layout):
+            placeholder(file, size, e, layout).save(folder / layout_id / file, optimize=True)
+        (folder / "sources" / f"{layout_id}.svg").write_text(layout_svg(layout_id, layout), encoding="utf-8")
+    # UTF-8 whatever the locale: the labels hold symbols (the PlayStation's, the N64's C arrows).
+    (folder / "skin.json").write_text(skin_json(skin), encoding="utf-8")
+    (folder / "README.txt").write_text(template_readme(console, name, skin), encoding="utf-8")
     TEMPLATES.mkdir(exist_ok=True)
     out = TEMPLATES / f"{console}-template.zip"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -525,7 +528,6 @@ def build_template(console):
                 info.compress_type = zipfile.ZIP_DEFLATED
                 z.writestr(info, f.read_bytes())
     print(f"{out.relative_to(APP)}  {out.stat().st_size // 1024} KB")
-
 
 
 def main():
