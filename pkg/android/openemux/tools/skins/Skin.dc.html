@@ -143,6 +143,56 @@ const OE = (() => {
     },
   };
 
+  // Issue 770: the consoles bundled in OpenEmux's own skin format (tools/skins/build.py, OWN_FORMAT). Where the hardware
+  // shares a controller, the skin shares its base: 32X and Mega-CD the Mega Drive's six-button pad, the PC Engine CD
+  // the PC Engine's, the Disk System the Famicom's (in the Famicom's own deep red and gold, with the disk key).
+  Object.assign(C, {
+    GG: {
+      name: 'Game Gear', res: '160 × 144', aspect: 10 / 9, body: '#26262A', bezel: '#121214', bar: '#1C1C1F', barIcon: '#9A9AA4',
+      dpad: '#151517', dpadMark: '#5A5A62', pill: '#2F5FC4', labelInk: '#9A9AA4', brandInk: '#9A9AA4', centerInk: '#9A9AA4',
+      face: { kind: 'ab', color: '#3A3A40', ink: '#D9D9DE', labels: { b: '1', a: '2' } }, shoulders: [[], []],
+      center: [{ input: 'start', label: 'START' }],
+    },
+    SG1000: {
+      name: 'SG-1000', res: '256 × 192', aspect: 4 / 3, body: '#232327', bezel: '#111113', bar: '#1A1A1D', barIcon: '#B4B4C0',
+      dpad: '#141416', dpadMark: '#5A5A60', pill: '#3A3A40', labelInk: '#B4B4C0', brandInk: '#8E8E96',
+      face: { kind: 'sms', color: '#C73A35', ink: '#F6E3E2' }, shoulders: [[], []], center: [{ input: 'start', label: 'PAUSE' }],
+    },
+    S32X: Object.assign({}, C.MD, {
+      name: '32X', barIcon: '#E0473A', labelInk: '#E0473A', brandInk: '#9A9AA2', face: { kind: 'md', color: '#2A2A30', ink: '#E0473A' },
+    }),
+    MCD: Object.assign({}, C.MD, {
+      name: 'Mega-CD', body: '#1D1F25', bezel: '#0F1014', bar: '#16181D', barIcon: '#7FA8D9', pill: '#30333B',
+      labelInk: '#7FA8D9', brandInk: '#7FA8D9', face: { kind: 'md', color: '#30333B', ink: '#7FB0E8' },
+    }),
+    // The Japanese grey pad: A B C X Y Z, the L and R shoulders and START.
+    SATURN: {
+      name: 'Saturn', res: '320 × 224', aspect: 4 / 3, body: '#B4B4BE', bezel: '#34343C', bar: '#9C9CA6', barIcon: '#2E2E38',
+      dpad: '#3A3A44', dpadMark: '#7A7A84', shoulder: '#9C9CA6', shoulderInk: '#2E2E38', pill: '#6E6E78', labelInk: '#4A4A54', brandInk: '#4A4A54',
+      face: { kind: 'md', color: '#4B4B55', ink: '#F3F3F6', colors: { x: '#5E5E68', y: '#5E5E68', z: '#5E5E68' } },
+      shoulders: [[{ input: 'l', label: 'L' }], [{ input: 'r', label: 'R' }]], center: [{ input: 'start', label: 'START' }],
+    },
+    // The PC Engine's white pad: II and I side by side, SELECT and RUN between.
+    PCE: {
+      name: 'PC Engine', res: '256 × 224', aspect: 4 / 3, body: '#E6E4DF', bezel: '#2C2C30', bar: '#CFCDC8', barIcon: '#3A3A40',
+      dpad: '#26262A', dpadMark: '#6A6A70', pill: '#55555B', labelInk: '#4A4A50', brandInk: '#4A4A50',
+      face: { kind: 'nes', color: '#26262A', ink: '#F3F3F6', labels: { b: 'II', a: 'I' } }, shoulders: [[], []],
+      center: [{ input: 'select', label: 'SELECT' }, { input: 'start', label: 'RUN' }],
+    },
+  });
+  Object.assign(C, {
+    PCECD: Object.assign({}, C.PCE, {
+      name: 'PC Engine CD', body: '#24252B', bezel: '#111115', bar: '#17181C', barIcon: '#E2702B', dpad: '#141418', dpadMark: '#5A5A62',
+      pill: '#3A3B44', labelInk: '#E2702B', brandInk: '#9A9AA4', face: Object.assign({}, C.PCE.face, { color: '#3A3B44', ink: '#F2944F' }),
+    }),
+    // Nestopia turns the disk over on L: the disk key's input is the app's own name, bound to L (launch/SkinBinds.kt).
+    FDS: Object.assign({}, C.FC, {
+      name: 'Famicom Disk System', body: '#8C1C24', bezel: '#2B1013', bar: '#5A1218', barIcon: '#F1E3C0', panel: '#C8A84A',
+      dpad: '#1A1A1A', pill: '#5A1218', brandInk: '#F1E3C0', labelInk: '#7A1A1E', centerInk: '#F1E3C0',
+      center: SELECT_START.concat([{ input: 'disk', label: 'DISK' }]),
+    }),
+  });
+
   // The Dark variant: every console's layout in one palette, for playing in a dark room. A black body, the
   // controls in a dark grey that stands out from it just enough to be found by eye, labels and glyphs in a
   // muted grey, so the game's picture is the brightest thing on the screen. Only colours change: the layout
@@ -305,8 +355,9 @@ const OE = (() => {
 
   // Face clusters: offsets from the cluster's centre, in units at scale 1.
   const FACE = {
-    ab: () => [{ input: 'b', label: 'B', dx: -36, dy: 18, w: 62 }, { input: 'a', label: 'A', dx: 36, dy: -18, w: 62 }],
-    nes: () => [{ input: 'b', label: 'B', dx: -38, dy: 0, w: 60 }, { input: 'a', label: 'A', dx: 38, dy: 0, w: 60 }],
+    // [labels] names the two buttons where the console calls them otherwise (the PC Engine's II and I, the Game Gear's 1 and 2).
+    ab: (f) => [{ input: 'b', label: (f.labels || {}).b || 'B', dx: -36, dy: 18, w: 62 }, { input: 'a', label: (f.labels || {}).a || 'A', dx: 36, dy: -18, w: 62 }],
+    nes: (f) => [{ input: 'b', label: (f.labels || {}).b || 'B', dx: -38, dy: 0, w: 60 }, { input: 'a', label: (f.labels || {}).a || 'A', dx: 38, dy: 0, w: 60 }],
     // As tall as the d-pad: the top button lines up with its up arm, the bottom one with its down arm.
     diamond: (f) => [['top', 0, -47], ['left', -47, 0], ['right', 47, 0], ['bottom', 0, 47]]
       .map(([pos, dx, dy]) => Object.assign({ dx, dy, w: 46 }, f.map[pos])),
@@ -356,7 +407,10 @@ const OE = (() => {
     const W = fold ? (port ? 604 : 726) : tab ? (port ? 800 : 1280) : (port ? 360 : 746);
     const H = fold ? (port ? 726 : 604) : tab ? (port ? 1280 : 800) : (port ? 746 : 360);
     const parts = [], items = [], screens = [], knobs = [];
-    const add = (style, extra) => { parts.push(Object.assign({ style, hasLabel: false, hasIcon: false, label: '', labelStyle: '', icon: '', iconStyle: '', iconFill: 'none', iconStroke: 'none', iconWidth: 0 }, extra || {})); };
+    // [owner]: the index of the item the parts being added belong to (null: the background's); [act]: a quick action's.
+    let owner = null, act = false;
+    const own = () => { owner = items.length; };
+    const add = (style, extra) => { parts.push(Object.assign({ style, hasLabel: false, hasIcon: false, label: '', labelStyle: '', icon: '', iconStyle: '', iconFill: 'none', iconStroke: 'none', iconWidth: 0, el: owner, act }, extra || {})); };
     const box = (x, y, w, h) => `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;box-sizing:border-box;`;
     const center = 'display:flex;align-items:center;justify-content:center;';
     const lbl = (label, ink, size, spacing) => ({ hasLabel: true, label, labelStyle: `font:700 ${r1(size)}px/1 'Space Grotesk',sans-serif;letter-spacing:${spacing || '.04em'};color:${ink};white-space:nowrap` });
@@ -416,8 +470,10 @@ const OE = (() => {
     acts.forEach(([input, ic], i) => {
       // Edges rounded once, so neighbouring slots meet without overlapping.
       const x = r1(bx + slot * i), x1 = r1(bx + slot * (i + 1));
+      own(); act = true;
       add(box(x, barY, x1 - x, barH) + center, icon(ICON[ic], S.chinIcon || alpha('#ffffff', 0.7), tab ? 22 : 17));
       item([input], x, barY, x1 - x, barH);
+      owner = null; act = false;
       look({ group: 'actions' });
     });
 
@@ -428,9 +484,11 @@ const OE = (() => {
         list.forEach((s, i) => {
           const x = left ? x0 + i * (w + g) : x1 - (list.length - i) * (w + g) + g;
           const rad = left ? `${h / 2}px ${h / 3}px ${h / 3}px ${h / 3}px` : `${h / 3}px ${h / 2}px ${h / 3}px ${h / 3}px`;
+          own();
           add(box(x, y, w, h) + center + `border-radius:${rad};background:linear-gradient(180deg, ${lighten(S.shoulder, 0.12)}, ${darken(S.shoulder, 0.08)});box-shadow:0 3px 0 ${darken(S.shoulder, 0.35)}, 0 6px 10px rgba(0,0,0,.25);`,
             lbl(s.label, S.shoulderInk, tab ? 16 : 13));
           item([s.input], x, y, w, h, left ? { top: 10, left: 12 } : { top: 10, right: 12 });
+          owner = null;
           look({ group: left ? 'shoulders-left' : 'shoulders-right', label: s.label, shape: 'rect', colors: { button: S.shoulder, letter: S.shoulderInk } });
         });
       };
@@ -439,13 +497,16 @@ const OE = (() => {
     }
 
     function menuBtn(x, y, w, h) {
+      own();
       add(box(x, y, w, h) + center + `border-radius:${h / 2}px;background:${S.bar};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.08)};`, icon(ICON.menu, S.barIcon, tab ? 22 : 18, 'none', 2));
       item(['menu'], x, y, w, h);
+      owner = null;
       look({ group: 'menu', label: 'MENU', shape: 'pill', colors: { button: S.bar, letter: S.barIcon } });
     }
 
     function dpad(cx, cy, size) {
       const t = size * 0.34, x0 = cx - size / 2, y0 = cy - size / 2, c = S.dpad;
+      own();
       // The relief goes under the whole cross: both arms' edges first, then both faces over them,
       // so no edge shows across the middle.
       const rad = `border-radius:${t * 0.22}px;`;
@@ -464,6 +525,7 @@ const OE = (() => {
       const travel = size * DPAD_KNOB.travel;
       if (!opts.export) knobParts(S, size * DPAD_KNOB.radius * 2, size).forEach((k) => add(box(cx - travel, cy - travel, 2 * travel, 2 * travel) + k.style));
       item({ up: 'up', down: 'down', left: 'left', right: 'right' }, x0, y0, size, size, { top: 12, bottom: 12, left: 12, right: 12 });
+      owner = null;
       items[items.length - 1].knob = DPAD_KNOB.image;
       look({ group: 'dpad', colors: { pad: S.dpad, ball: S.dpadMark } });
     }
@@ -473,6 +535,7 @@ const OE = (() => {
     const TRAVEL = 0.65;
     function stick(cx, cy, size, st, right) {
       const x = cx - size / 2, y = cy - size / 2;
+      own();
       add(box(x, y, size, size) + `border-radius:50%;background:radial-gradient(circle at 50% 40%, ${darken(S.well || S.body, 0.34)}, ${darken(S.well || S.body, 0.2)} 72%);box-shadow:inset 0 3px 7px rgba(0,0,0,.45), 0 1px 0 ${alpha('#ffffff', S.dark ? 0.04 : 0.18)};`);
       // Half the well wide, its shadow inside the margin the travel leaves around it.
       const r = size / 2, ks = r, kc = st.knob, side = r1(2 * r * TRAVEL);
@@ -483,6 +546,7 @@ const OE = (() => {
       // The canvas shows the knob at rest; the exported art leaves it out.
       if (!opts.export) add(knob(cx - side / 2, cy - side / 2), label);
       item(right ? RIGHT_STICK : LEFT_STICK, x, y, size, size, undefined, { name, width: side, height: side });
+      owner = null;
       look({ group: right ? 'stick2' : 'stick', label: st.label, colors: { base: darken(S.well || S.body, 0.27), knob: kc } });
     }
 
@@ -501,7 +565,9 @@ const OE = (() => {
       if (b.symbol) extra = icon(ICON[b.symbol], f.symColor || PS_SYM[b.symbol], r1(Math.min(w, h) * 0.52), 'none', 2.2);
       else if (b.arrow != null) { extra = icon(ICON.arrow, 'none', r1(w * 0.46), ink, 0); extra.iconStyle += `;transform:rotate(${b.arrow}deg)`; }
       else if (b.label && S.labelPos !== 'below') extra = lbl(b.label, ink, Math.max(11, Math.min(w, h) * 0.36));
+      own();
       add(style, extra);
+      owner = null;
       if (b.label && S.labelPos === 'below') add(box(x - 10, y + h + 6 * k, w + 20, 16 * k) + center, lbl(b.label, S.labelInk, 14 * k));
       item([b.input], x, y, w, h);
       const text = b.symbol ? { tri: '△', circle: '○', cross: '✕', square: '□' }[b.symbol]
@@ -532,7 +598,9 @@ const OE = (() => {
 
     function centerKey(c, cx, cy) {
       const w = tab ? 66 : 54, h = tab ? 22 : 18;
+      own();
       add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
+      owner = null;
       add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, tab ? 12 : 10, '.14em'));
       item([c.input], cx - w / 2, cy - h / 2, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
       look({ group: 'center', label: c.label, shape: 'pill', colors: { button: S.pill, letter: S.centerInk || S.labelInk } });
@@ -574,9 +642,12 @@ const OE = (() => {
       if (hasSec) secondary(lx, rx, top + (bot - top) * 0.82, k);
       const cyKeys = H - (tab ? 40 : 30);
       const half = Math.ceil(S.center.length / 2);
+      const gap = (tab ? 66 : 54) + 14;
       S.center.forEach((c, i) => {
         const leftSide = S.center.length === 1 ? false : i < half;
-        centerKey(c, leftSide ? side - 44 : W - side + 44, cyKeys);
+        // The keys on the left end at side - 44 and step left, on the right start at W - side + 44 and step right.
+        const nth = leftSide ? half - 1 - i : i - (S.center.length === 1 ? 0 : half);
+        centerKey(c, leftSide ? side - 44 - nth * gap : W - side + 44 + nth * gap, cyKeys);
       });
     }
 

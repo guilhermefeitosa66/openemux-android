@@ -10,6 +10,10 @@ colour variants' art is lossy WebP, a tenth of the PNG's size; the console's own
 picker's list (src/main/assets/skins/variants.json: per console, its variants in order with the colours of
 their swatch) is written on every run.
 
+The consoles in OWN_FORMAT (issue 770) ship in OpenEmux's own skin format instead (docs/skin-format.md):
+src/main/assets/skins/<console>.zip and dark/<console>.zip, skin.json and the six layouts (phone, tablet, fold),
+one image per element cut out of the engine's art. Needs Pillow as well.
+
 The layout and the art have one source: the engine of the design canvas's
 Skin component (Skin.dc.html, between ENGINE START and ENGINE END). Each
 representation (phone and tablet, portrait and landscape) is rendered by
@@ -42,6 +46,10 @@ TYPES = {
     "GB": "public.aoshuang.game.gb", "GC": "public.aoshuang.game.ngc", "SMS": "public.aoshuang.game.ms",
     "PS": "public.aoshuang.game.ps1", "PSP": "public.aoshuang.game.psp",
 }
+# The consoles bundled in OpenEmux's own skin format (issue 770), with no Delta or Manic identifier: each package is
+# <console>.zip, skin.json and the six layouts, the art cut into one image per element (build_own).
+OWN_FORMAT = ["GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS"]
+CONSOLES = list(TYPES) + OWN_FORMAT
 # The format's families: iphone/edgeToEdge for phones, ipad/standard for tablets; px per unit.
 REPS = [("phone", "iphone", "edgeToEdge", 3), ("tablet", "ipad", "standard", 2)]
 # The D-pad's circle: one image per console, stretched by the app over each D-pad's travel square.
@@ -82,7 +90,7 @@ def catalog():
 
 def write_catalog(cat):
     """skins/variants.json, what the app's picker lists: per console, each variant's id and its swatch's colours."""
-    out = {c: [{"id": v["id"], "body": v["body"], "key": v["key"]} for v in vs] for c, vs in cat.items() if c in TYPES}
+    out = {c: [{"id": v["id"], "body": v["body"], "key": v["key"]} for v in vs] for c, vs in cat.items() if c in CONSOLES}
     (ASSETS / "variants.json").write_text(json.dumps(out, indent=1) + "\n")
 
 
@@ -273,9 +281,10 @@ P_BODY, P_FRAME, P_KEY, P_LINE, P_INK, P_WELL, P_ACTION = "#E6E6E6", "#BDBDBD", 
 FONT = HERE / "SpaceGrotesk.ttf"
 
 
-def template_layout(console, device, orient):
+def template_layout(console, device, orient, variant="console"):
     """The engine's layout of [console] on [device] in [orient], with each item's look, the bezel and the colours."""
-    return engine(f"OE.layout({json.dumps(console)},{json.dumps(device)},{json.dumps(orient)},{{export:true}})")
+    return engine(f"OE.layout({json.dumps(console)},{json.dumps(device)},{json.dumps(orient)},"
+                  f"{{export:true,variant:{json.dumps(variant)}}})")
 
 
 def color(value):
@@ -520,14 +529,88 @@ def build_template(console):
     (folder / "README.txt").write_text(template_readme(console, name, skin), encoding="utf-8")
     TEMPLATES.mkdir(exist_ok=True)
     out = TEMPLATES / f"{console}-template.zip"
+    zip_folder(folder, out, f"{folder.name}/")
+    print(f"{out.relative_to(APP)}  {out.stat().st_size // 1024} KB")
+
+
+def zip_folder(folder, out, root=""):
+    """[folder]'s files into the zip [out] under [root], sorted and dated 1980-01-01: a rebuild that changes nothing gives
+    the same zip, not a new binary in git."""
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(folder.rglob("*")):
             if f.is_file():
-                # A fixed date: a rebuild that changes nothing gives the same zip, not a new binary in git.
-                info = zipfile.ZipInfo(f.relative_to(folder.parent).as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+                info = zipfile.ZipInfo(root + f.relative_to(folder).as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 z.writestr(info, f.read_bytes())
-    print(f"{out.relative_to(APP)}  {out.stat().st_size // 1024} KB")
+
+
+def own_layout(console, device, orient, variant, folder, profile, ball):
+    """One layout of [console]'s package in OpenEmux's own format: its skin.json entry, and its images in [folder].
+
+    The engine renders the layout twice: the art without the quick actions' icons (background.png, the game's screens
+    cut out), and only the controls on a transparent page. Each element's image is the second render cut at the
+    element's rect, so drawn over the background it lands on the same pixels and a dimmed quick action is not drawn
+    twice. frame.png is the bezel cut out of the background; the D-pad's ball the engine's circle at the ball's size."""
+    from PIL import Image
+    L = template_layout(console, device, orient, variant)
+    where = f"{console} {variant} {device} {orient}"
+    check_fit(L, where)
+    # A variant changes colours only: the same frames, screens and knobs as the console's own skin.
+    if variant != "console" and engine_layout(console, device, orient, variant=variant) != engine_layout(console, device, orient):
+        raise SystemExit(f"{where}: the layout differs from the console's own skin")
+    scale = TEMPLATE_SCALE[device]
+    layout = skin_layout(L, scale)
+    W, H = layout["size"]["width"], layout["size"]["height"]
+    folder.mkdir(parents=True)
+    bg, controls = folder / "background.png", folder.parent / f"{folder.name}-controls.png"
+    screenshot(console, device, orient, L["W"], L["H"], scale, bg, profile, "&layer=background", variant)
+    cut_screens(bg, L["screens"], scale)
+    screenshot(console, device, orient, L["W"], L["H"], scale, controls, profile, "&layer=controls", variant)
+    art, keys = Image.open(bg).convert("RGBA"), Image.open(controls).convert("RGBA")
+    controls.unlink()
+    if art.size != (W, H) or keys.size != (W, H):
+        raise SystemExit(f"{where}: rendered {art.size}, the layout is {W} x {H}")
+    for file, (w, h), _, e in images(layout):
+        if file == "background.png":
+            continue
+        if file == "frame.png":
+            f = layout["frame"]
+            img = art.crop((f["x"], f["y"], f["x"] + w, f["y"] + h))
+        elif file.endswith("-ball.png"):
+            img = ball.resize((w, h), Image.LANCZOS)
+        elif e["type"] == "stick":
+            raise SystemExit(f"{where}: a stick's images are not cut yet (no console in OWN_FORMAT has one)")
+        else:
+            img = keys.crop((e["x"], e["y"], e["x"] + w, e["y"] + h))
+        img.save(folder / file, optimize=True)
+    art.save(bg, optimize=True)
+    return layout, L["name"]
+
+
+def build_own(console, profile, variant="console", label=None):
+    """[console]'s package in [variant] in OpenEmux's own skin format: <assets>/<variant>/<console>.zip."""
+    from PIL import Image
+    folder = WORK / "own" / variant / console
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    # The D-pad's circle, edge to edge: every layout's ball is this, at its own size.
+    knob = folder.parent / f"{console}-ball.png"
+    screenshot(console, "phone", "portrait", KNOB_UNITS, KNOB_UNITS, KNOB_SCALE, knob, profile, f"&dpadKnob={KNOB_UNITS}", variant)
+    ball = Image.open(knob).convert("RGBA")
+    ball = ball.crop(ball.getbbox())
+    knob.unlink()
+    layouts, name = {}, None
+    for device, orient in TEMPLATE_LAYOUTS:
+        layout_id = f"{device}-{orient}"
+        layouts[layout_id], name = own_layout(console, device, orient, variant, folder / layout_id, profile, ball)
+    suffix = {"console": ""}.get(variant, f" {label or variant.capitalize()}")
+    skin = {"format": 1, "console": console, "name": f"OpenEmux {name}{suffix}", "forms": ["phone", "tablet", "fold"],
+            "layouts": layouts}
+    (folder / "skin.json").write_text(skin_json(skin), encoding="utf-8")
+    variant_dir(variant).mkdir(parents=True, exist_ok=True)
+    pkg = variant_dir(variant) / f"{console}.zip"
+    zip_folder(folder, pkg)
+    print(f"{pkg.relative_to(APP)}  {pkg.stat().st_size // 1024} KB")
 
 
 def main():
@@ -544,16 +627,17 @@ def main():
         args.remove("--templates")
         if only:
             raise SystemExit("--templates and --variant do not go together: a template has its own placeholder art")
-    consoles = args or list(TYPES)
-    unknown = [c for c in consoles if c not in TYPES]
+    consoles = args or CONSOLES
+    unknown = [c for c in consoles if c not in CONSOLES]
     if unknown:
-        raise SystemExit(f"unknown console: {', '.join(unknown)} (one of {', '.join(TYPES)})")
+        raise SystemExit(f"unknown console: {', '.join(unknown)} (one of {', '.join(CONSOLES)})")
     sync_engine()
-    if templates:
+    if templates or any(c in OWN_FORMAT for c in consoles):
         try:
             import PIL  # noqa: F401
         except ImportError:
-            raise SystemExit("--templates draws the placeholders with Pillow: pip install pillow")
+            raise SystemExit("--templates and the OpenEmux-format packages need Pillow: pip install pillow")
+    if templates:
         for c in consoles:
             build_template(c)
         return
@@ -571,7 +655,7 @@ def main():
         for c in consoles:
             for v in cat[c]:
                 if only in (None, v["id"]):
-                    build(c, profile, v["id"], v["label"])
+                    (build_own if c in OWN_FORMAT else build)(c, profile, v["id"], v["label"])
 
 
 main()
