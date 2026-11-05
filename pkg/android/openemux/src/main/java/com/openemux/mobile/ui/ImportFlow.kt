@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +45,16 @@ import kotlinx.coroutines.launch
  * library scanned again. Settings › Import and "Open with"/"Share" both go
  * through it, so they behave the same.
  */
+/** The extensions in an import that several consoles take, with their candidates. */
+fun interface ImportQuestions {
+    suspend fun find(): Map<String, List<Console>>
+}
+
+/** The copy itself, once every question has an answer. */
+fun interface ImportJob {
+    suspend fun run(choices: Map<String, Console>): ImportResult
+}
+
 class ImportFlow(private val app: OpenEmuxApp, private val scope: CoroutineScope) {
     var result by mutableStateOf<ImportResult?>(null)
     var working by mutableStateOf(false)
@@ -52,18 +64,18 @@ class ImportFlow(private val app: OpenEmuxApp, private val scope: CoroutineScope
     var asking by mutableStateOf<List<Pair<String, List<Console>>>>(emptyList())
         private set
     private var choices = emptyMap<String, Console>()
-    private var pending: (suspend (Map<String, Console>) -> ImportResult)? = null
+    private var pending: ImportJob? = null
 
-    fun run(ambiguities: suspend () -> Map<String, List<Console>>, block: suspend (Map<String, Console>) -> ImportResult) {
+    fun run(questions: ImportQuestions, block: ImportJob) {
         working = true
         scope.launch {
-            val open = runCatching { ambiguities() }.getOrDefault(emptyMap())
+            val open = runCatching { questions.find() }.getOrDefault(emptyMap())
             if (open.isEmpty()) finish(block)
             else { choices = emptyMap(); pending = block; asking = open.toList() }
         }
     }
 
-    fun files(uris: List<Uri>) = run({ app.importer.ambiguities(uris) }) { app.importer.importRoms(uris, it) }
+    fun files(uris: List<Uri>) = run({ app.importer.ambiguities(uris) }, { app.importer.importRoms(uris, it) })
 
     fun choose(ext: String, console: Console) {
         choices = choices + (ext to console)
@@ -78,11 +90,11 @@ class ImportFlow(private val app: OpenEmuxApp, private val scope: CoroutineScope
         working = false
     }
 
-    private fun finish(block: suspend (Map<String, Console>) -> ImportResult) {
+    private fun finish(block: ImportJob) {
         val picked = choices
         pending = null
         scope.launch {
-            result = runCatching { block(picked) }.getOrDefault(ImportResult(0, 0))
+            result = runCatching { block.run(picked) }.getOrDefault(ImportResult(0, 0))
             app.library.scan()
             working = false
         }
@@ -173,8 +185,8 @@ fun ExternalImports() {
 
     ImportConsoleSheet(flow)
     if (flow.working && flow.asking.isEmpty()) {
-        // The copy runs to the end: closing this would only hide it.
-        OeSheet({}) {
+        // The copy runs to the end: closing this would only hide it, so a swipe or a tap outside does not.
+        OeSheet({}, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden })) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 32.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,

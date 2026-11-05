@@ -950,7 +950,7 @@ fun ImportScreen() {
         if (uris.isNotEmpty()) flow.files(uris)
     }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) flow.run({ a.app.importer.ambiguitiesInTree(uri) }) { a.app.importer.importRomTree(uri, it) }
+        if (uri != null) flow.run({ a.app.importer.ambiguitiesInTree(uri) }, { a.app.importer.importRomTree(uri, it) })
     }
 
     ImportConsoleSheet(flow)
