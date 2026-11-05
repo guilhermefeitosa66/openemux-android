@@ -156,7 +156,7 @@ def check_fit(L, where):
         return (a["x"] < b["x"] + b["width"] - eps and b["x"] < a["x"] + a["width"] - eps
                 and a["y"] < b["y"] + b["height"] - eps and b["y"] < a["y"] + a["height"] - eps)
     for sc in L["screens"]:
-        if sc["x"] < 0 or sc["y"] < 0 or sc["x"] + sc["width"] > L["W"] or sc["y"] + sc["height"] > L["H"]:
+        if sc["x"] < -eps or sc["y"] < -eps or sc["x"] + sc["width"] > L["W"] + eps or sc["y"] + sc["height"] > L["H"] + eps:
             raise SystemExit(f"{where}: a screen leaves the art")
         for it in L["items"]:
             if overlap(sc, it["frame"]):

@@ -659,7 +659,7 @@ const OE = (() => {
     /** The secondary row at [cy]; one with [swap] takes the main row ([mainY]) on its side, the face going down to [cy]. */
     function secondary(lx, rx, cy, k, mainY) {
       (S.secondary || []).forEach((s) => {
-        const x = s.pos === 'left' ? lx : rx, y = s.swap ? mainY : cy;
+        const x = s.pos === 'left' ? lx : rx, y = s.swap && s.pos === 'right' ? mainY : cy;
         if (s.kind === 'dpad') dpad(x, y, (s.size || 100) * k, s);
         else stick(x, y, (s.size || 92) * k, s, !!s.right);
       });
@@ -680,7 +680,8 @@ const OE = (() => {
     }
 
     const hasSec = !!(S.secondary && S.secondary.length);
-    const swap = hasSec && S.secondary.some((s) => s.swap);
+    // Only a right-hand item swaps: the face buttons are on the right.
+    const swap = hasSec && S.secondary.some((s) => s.swap && s.pos === 'right');
     if (port) {
       const y0 = by + bh + (tab ? 24 : 10);
       const shH = tab ? 48 : 40;
