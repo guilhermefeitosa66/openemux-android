@@ -5,6 +5,7 @@ import com.openemux.mobile.data.SkinCatalog
 import com.openemux.mobile.data.SkinVariant
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,6 +28,26 @@ class BundledSkinsTest {
             File(dir, "a.DELTASKIN").writeText("")
             assertEquals("a.DELTASKIN", ImportedSkinRenderer.imported(base, Console.SFC)?.name)
             assertNull(ImportedSkinRenderer.imported(base, Console.FC))
+        } finally {
+            base.deleteRecursively()
+        }
+    }
+
+    @Test fun aSkinFolderInTheOwnFormatCompetesByName() {
+        val base = Files.createTempDirectory("skins-base").toFile()
+        try {
+            val dir = File(base, "skins/GBA").apply { mkdirs() }
+            // A folder without a skin.json is no skin.
+            File(dir, "0-empty").mkdirs()
+            File(dir, "b.deltaskin").writeText("")
+            assertEquals("b.deltaskin", ImportedSkinRenderer.imported(base, Console.GBA)?.name)
+            File(dir, "a-mine").apply { mkdirs() }.resolve("skin.json").writeText("{}")
+            assertEquals("a-mine", ImportedSkinRenderer.imported(base, Console.GBA)?.name)
+            assertTrue(ImportedSkinRenderer.isOpenEmuxSkin(File(dir, "a-mine")))
+            assertFalse(ImportedSkinRenderer.isOpenEmuxSkin(File(dir, "0-empty")))
+            assertFalse(ImportedSkinRenderer.isOpenEmuxSkin(File(dir, "b.deltaskin")))
+            File(dir, "0-empty/skin.json").mkdirs()
+            assertFalse(ImportedSkinRenderer.isOpenEmuxSkin(File(dir, "0-empty")))
         } finally {
             base.deleteRecursively()
         }

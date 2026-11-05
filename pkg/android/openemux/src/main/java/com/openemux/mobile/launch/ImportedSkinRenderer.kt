@@ -17,6 +17,7 @@ import android.util.Log
 import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
@@ -511,23 +512,27 @@ class ImportedSkinRenderer {
         /** The NDS layouts a package draws apart from its representations' own art, one over the other. */
         private val NDS_ART_LAYOUTS = listOf("top", "bottom", "side")
 
-        /** The skin the user put in files/skins/<console> for [console] (the first .deltaskin or .manicskin), if any. */
+        /**
+         * The skin the user put in files/skins/<console> for [console], if any: the first by name of the .deltaskin and
+         * .manicskin files and the folders in OpenEmux's own format (with a skin.json, [isOpenEmuxSkin]).
+         */
         fun imported(base: File, console: Console): File? =
             File(base, "skins/${console.id}").listFiles()
-                ?.filter { it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
+                ?.filter { isOpenEmuxSkin(it) || it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
                 ?.minByOrNull { it.name }
+
+        /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
+        fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
 
         /** The package [names] (an assets folder's listing) holds for [console], if any. */
         fun bundledName(names: Array<String>?, console: Console): String? =
             names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }
 
         /**
-         * The skin for [console]: the one the user imported ([imported]), else the one the app ships in
-         * [variant]'s assets folder (the console's own when that variant ships none for it), copied out (to a cache
-         * folder of its own per variant) so it can be read as a zip.
+         * The package the app ships for [console] in [variant]'s assets folder (the console's own when that variant ships
+         * none for it), copied out (to a cache folder of its own per variant) so it can be read as a zip.
          */
-        fun find(context: Context, base: File, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
-            imported(base, console)?.let { return it }
+        fun bundled(context: Context, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
             val (dir, name) = listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v ->
                 bundledName(context.assets.list(v.assetDir), console)?.let { v.assetDir to it }
             } ?: return null

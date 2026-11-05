@@ -240,6 +240,32 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 | `BAD_SHAPE` | A `shape` other than `circle`, `pill`, `rect`. |
 | `BAD_SCREENS` | Not one screen (two for NDS). |
 
+## How the app draws it
+
+A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
+for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
+read from that folder.
+
+- **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window
+  600dp or more across its short side uses `tablet-*`; else `phone-*`. One form never borrows another's layouts.
+- **Both orientations.** The game turns between the portrait and the landscape page without redrawing, so the skin is
+  used only when it has **both** layouts of the window's form. Missing either, the app draws the console's bundled skin
+  instead (then the drawn skin), and logs which layout was missing (logcat tag `OpenEmuxSkin`). A skin that cannot be
+  read falls back the same way.
+- **Scaling.** Each layout is scaled to the window keeping its proportions and centred; the space left around it takes
+  the background colour. The game's picture goes in `screens`; with two (NDS), in the box around both, the core showing
+  the screens one over the other: put the two screens one over the other.
+- **Images.** A button, keypad key or quick action image is stretched over the element's rect, a stick base over the
+  stick's rect. The D-pad ball is drawn 55% as wide as its travel (the D-pad's rect times 44/60), the stick knob half
+  as wide as the stick, both centred, and both move with the thumb. A missing or unreadable image is drawn from the element's colours.
+- **Defaults.** A colour part left unset: background `#16161A`, frame `#0E0E11`, icons `#FFFFFF`, active `#7C3AED`
+  (light icon), button and pad and stick base `#2E2E35`, letter `#FFFFFF`, ball and knob `#6B6B76`. A button with no
+  `shape` is a circle, a keypad key a rounded rect.
+- **Quick actions** light (the `active` background) while turbo, fast forward or slow motion is on. `screens` is drawn
+  and does nothing (the skin has no page per NDS layout). In RetroAchievements hardcore the speed keys are dimmed and do
+  nothing.
+- The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout.
+
 ## Writing
 
 The app writes `skin.json` with its keys in the order of the tables above, two-space indents, optional keys left out
