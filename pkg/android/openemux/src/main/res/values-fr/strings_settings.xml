@@ -79,8 +79,6 @@
     <string name="settings_skin_color_clear_blue">Bleu transparent</string>
     <string name="settings_skin_color_clear_pink">Rose transparent</string>
     <string name="settings_skin_sheet_desc">La manette virtuelle utilisée par chaque jeu %1$s.</string>
-    <string name="settings_skin_imported">Un skin que vous avez importé pour %1$s est utilisé à la place.</string>
-    <string name="settings_skin_imported_value">Skin importé</string>
     <string name="settings_cart_color">Couleur de la cartouche</string>
     <plurals name="settings_applies_all">
         <item quantity="one">S’applique au seul jeu %2$s.</item>
@@ -291,4 +289,36 @@
     <string name="providers_dev_id">ID développeur</string>
     <string name="providers_dev_password">Mot de passe développeur</string>
     <string name="providers_remove_developer">Supprimer le compte développeur</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">Skins de manette</string>
+    <string name="skins_lead">Touchez un skin pour l’utiliser en jeu. Chacun indique pour quels écrans il a été conçu. Les skins fournis ne changent jamais.</string>
+    <string name="skins_yours">Vos skins</string>
+    <string name="skins_bundled">Fournis</string>
+    <string name="skins_imported">Importés</string>
+    <string name="skins_in_use">Utilisé</string>
+    <string name="skins_form_phone">Téléphone</string>
+    <string name="skins_form_tablet">Tablette</string>
+    <string name="skins_form_fold">Pliable</string>
+    <string name="skins_form_made">%1$s : conçu pour</string>
+    <string name="skins_form_missing">%1$s : non inclus</string>
+    <string name="skins_not_for_phones">Pas conçu pour les téléphones</string>
+    <string name="skins_not_for_tablets">Pas conçu pour les tablettes</string>
+    <string name="skins_not_for_folds">Pas conçu pour les pliables</string>
+    <string name="skins_broken">Illisible</string>
+    <string name="skins_actions">Actions pour %1$s</string>
+    <string name="skins_use">Utiliser</string>
+    <string name="skins_use_as_is">Utiliser tel quel</string>
+    <string name="skins_bundled_locked">Les skins fournis ne changent jamais.</string>
+    <string name="skins_rename">Renommer</string>
+    <string name="skins_rename_title">Renommer le skin</string>
+    <string name="skins_name_label">Nom</string>
+    <string name="skins_save">Enregistrer</string>
+    <string name="skins_duplicate">Dupliquer</string>
+    <string name="skins_copy_name">%1$s (copie)</string>
+    <string name="skins_delete">Supprimer</string>
+    <string name="skins_delete_sub">La console revient à %1$s</string>
+    <string name="skins_delete_title">Supprimer %1$s ?</string>
+    <string name="skins_delete_body">Le skin et ses images sont retirés de cet appareil.</string>
+    <string name="skins_error">Impossible de modifier le skin.</string>
 </resources>

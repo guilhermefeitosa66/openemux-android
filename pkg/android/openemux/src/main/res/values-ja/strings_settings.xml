@@ -75,8 +75,6 @@
     <string name="settings_skin_color_clear_blue">クリアブルー</string>
     <string name="settings_skin_color_clear_pink">クリアピンク</string>
     <string name="settings_skin_sheet_desc">%1$s のすべてのゲームで使う仮想コントローラー。</string>
-    <string name="settings_skin_imported">%1$s 用にインポートしたスキンが代わりに使われます。</string>
-    <string name="settings_skin_imported_value">インポートしたスキン</string>
     <string name="settings_cart_color">カートリッジの色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">%2$s のゲーム %1$d 本すべてに適用されます。</item>
@@ -269,4 +267,36 @@
     <string name="providers_dev_id">開発者ID</string>
     <string name="providers_dev_password">開発者パスワード</string>
     <string name="providers_remove_developer">開発者アカウントを削除</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">コントローラースキン</string>
+    <string name="skins_lead">スキンをタップするとゲームで使います。各スキンには対応する画面が表示されます。同梱のスキンは変更されません。</string>
+    <string name="skins_yours">マイスキン</string>
+    <string name="skins_bundled">同梱</string>
+    <string name="skins_imported">インポート済み</string>
+    <string name="skins_in_use">使用中</string>
+    <string name="skins_form_phone">スマホ</string>
+    <string name="skins_form_tablet">タブレット</string>
+    <string name="skins_form_fold">折りたたみ</string>
+    <string name="skins_form_made">%1$s：対応</string>
+    <string name="skins_form_missing">%1$s：非対応</string>
+    <string name="skins_not_for_phones">スマホ非対応</string>
+    <string name="skins_not_for_tablets">タブレット非対応</string>
+    <string name="skins_not_for_folds">折りたたみ非対応</string>
+    <string name="skins_broken">読み込めません</string>
+    <string name="skins_actions">%1$s の操作</string>
+    <string name="skins_use">使う</string>
+    <string name="skins_use_as_is">そのまま使う</string>
+    <string name="skins_bundled_locked">同梱のスキンは変更されません。</string>
+    <string name="skins_rename">名前を変更</string>
+    <string name="skins_rename_title">スキン名の変更</string>
+    <string name="skins_name_label">名前</string>
+    <string name="skins_save">保存</string>
+    <string name="skins_duplicate">複製</string>
+    <string name="skins_copy_name">%1$s（コピー）</string>
+    <string name="skins_delete">削除</string>
+    <string name="skins_delete_sub">本体は %1$s に戻ります</string>
+    <string name="skins_delete_title">%1$s を削除しますか？</string>
+    <string name="skins_delete_body">スキンとその画像がこの端末から削除されます。</string>
+    <string name="skins_error">スキンを変更できませんでした。</string>
 </resources>
