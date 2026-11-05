@@ -173,6 +173,14 @@ area.
 renderers, each stick's movable knob (`<overlay>-knob<N>.png`) and its
 widened touch zone included.
 
+OpenEmux also has a skin format of its own, the one the skin editor and the
+templates use: a folder (zipped to move it around) with a `skin.json` and up
+to six layouts (phone, tablet and fold, each upright and sideways), one image
+per element, any of them optional. `docs/skin-format.md` documents it;
+`data/SkinFormat.kt` reads, checks and writes it into the model in
+`data/OpenEmuxSkin.kt`. Both formats name inputs with one table,
+`launch/SkinBinds.kt`.
+
 On a foldable, `SkinRenderer` also draws a tabletop shape for the half-open
 posture with the fold across the screen: the picture on the top half, the
 controls on the bottom one, nothing within 12 dp of the fold, and on NDS one

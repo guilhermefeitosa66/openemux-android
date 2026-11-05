@@ -361,6 +361,18 @@ class SkinFormatTest {
         assertFalse("analogStick" in SkinFormat.bindsFor(SkinElementType.BUTTON))
     }
 
+    @Test fun theDocumentsExampleIsAValidSkin() {
+        // Gradle runs the unit tests from the module's folder, where docs/ is.
+        val doc = File("docs/skin-format.md").readText()
+        val example = doc.substringAfter("```json\n").substringBefore("```")
+        val skin = SkinFormat.parse(example)
+        assertEquals(Console.GBA, skin.console)
+        assertEquals(listOf(SkinForm.PHONE), skin.forms)
+        assertEquals(5, skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.size)
+        // Every error kind is in the document's table.
+        SkinError.entries.forEach { assertTrue(it.name, "| `${it.name}` |" in doc) }
+    }
+
     @Test fun theErrorSaysWhatAndWhere() {
         assertEquals("BAD_COLOR at layouts.x.color: red", SkinFormatException(SkinError.BAD_COLOR, "layouts.x.color", "red").message)
         assertEquals("NO_SKIN_JSON at skin", SkinFormatException(SkinError.NO_SKIN_JSON, "").message)
