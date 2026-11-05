@@ -18,6 +18,7 @@ import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
@@ -516,10 +517,7 @@ class ImportedSkinRenderer {
          * The skin the user put in files/skins/<console> for [console], if any: the first by name of the .deltaskin and
          * .manicskin files and the folders in OpenEmux's own format (with a skin.json, [isOpenEmuxSkin]).
          */
-        fun imported(base: File, console: Console): File? =
-            File(base, "skins/${console.id}").listFiles()
-                ?.filter { isOpenEmuxSkin(it) || it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
-                ?.minByOrNull { it.name }
+        fun imported(base: File, console: Console): File? = SkinStore(base).legacyPick(console)
 
         /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
         fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile

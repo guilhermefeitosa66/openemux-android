@@ -27,6 +27,8 @@ object GameExtras {
     const val SHADER_PICKS = "OE_SHADER_PICKS"
     /** The console's SkinVariant id, so a redraw in game uses the skin the launch did. */
     const val SKIN_VARIANT = "OE_SKIN_VARIANT"
+    /** The player's skin the console plays with (SkinStore.ref), absent for the bundled one (issue 782). */
+    const val SKIN_CUSTOM = "OE_SKIN_CUSTOM"
 }
 
 /**

@@ -7,14 +7,16 @@ import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinPackage
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Fold
 import java.io.File
 
 /**
  * Picks and draws a game's skin, the same way at launch and when the game's
- * window changes size: the user's own in files/skins/<console> (a folder in
- * OpenEmux's own format or a package in the iOS emulators' format), else the
+ * window changes size: the player's skin picked for the console in
+ * files/skins/<console> (a folder in OpenEmux's own format or a package in the
+ * iOS emulators' format, issue 782), else the
  * package the app ships for the console, then the drawn skin when there is
  * none or it fails. A user's folder that cannot be drawn for the window's form
  * falls back to the shipped package. A shipped package is in the iOS
@@ -36,11 +38,12 @@ object GameSkin {
      * [fold], the one the window has now, adds the drawn tabletop overlays when it runs across the long side.
      * [gamepad]: a gamepad is connected, the drawn skin opens on its gamepad layout.
      * [variant]: which of the app's packages the console plays with (its own colors, Dark or one of its official colors).
+     * [custom]: the player's skin picked for the console ([SkinStore.ref]); null, or one no longer there, plays [variant].
      */
     fun render(
         context: Context, base: File, console: Console, size: SkinSize, outDir: File,
         density: Float, hardcore: Boolean, coreId: String?, first: String? = null, fold: Fold? = null,
-        gamepad: Boolean = false, variant: SkinVariant = SkinVariant.CONSOLE,
+        gamepad: Boolean = false, variant: SkinVariant = SkinVariant.CONSOLE, custom: String? = null,
     ): Drawn {
         val tablet = SkinGeometry.tablet(size.short, size.long, density)
         val ndsTabletop = if (console == Console.NDS) NdsLayouts.loadTabletop(context.filesDir) else null
@@ -49,7 +52,7 @@ object GameSkin {
         // the screens one over the other, which the package's own art draws.
         val packageNds = ndsLayouts?.takeIf { "desmume" in coreId.orEmpty() }
         val importer = ImportedSkinRenderer()
-        val user = ImportedSkinRenderer.imported(base, console)
+        val user = SkinStore(base).file(console, custom)
         val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
         // A skin in OpenEmux's own format ([name]: its folder or zip), or null, logged, when it cannot be drawn here.
         fun ownFormatSkin(name: String, next: String, read: () -> SkinPackage) =
