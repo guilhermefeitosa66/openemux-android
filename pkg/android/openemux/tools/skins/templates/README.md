@@ -18,6 +18,14 @@ layout with plain placeholder art, every image at its exact size, so repainting 
 | Master System | [`SMS-template.zip`](SMS-template.zip) |
 | PlayStation | [`PS-template.zip`](PS-template.zip) |
 | PSP | [`PSP-template.zip`](PSP-template.zip) |
+| Game Gear | [`GG-template.zip`](GG-template.zip) |
+| SG-1000 | [`SG1000-template.zip`](SG1000-template.zip) |
+| 32X | [`S32X-template.zip`](S32X-template.zip) |
+| Mega-CD | [`MCD-template.zip`](MCD-template.zip) |
+| Saturn | [`SATURN-template.zip`](SATURN-template.zip) |
+| PC Engine | [`PCE-template.zip`](PCE-template.zip) |
+| PC Engine CD | [`PCECD-template.zip`](PCECD-template.zip) |
+| Famicom Disk System | [`FDS-template.zip`](FDS-template.zip) |
 
 The other consoles have no template yet (their bundled skins come in later batches). [`ASSET-PLAN.md`](ASSET-PLAN.md)
 lists, for all 31 consoles the app runs, the elements a skin has, so the art can be planned before a template exists.
