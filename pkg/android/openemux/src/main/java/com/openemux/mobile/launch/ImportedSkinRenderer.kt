@@ -528,10 +528,6 @@ class ImportedSkinRenderer {
         fun bundledName(names: Array<String>?, console: Console): String? =
             names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }
 
-        /** The skin for [console]: the one the user imported ([imported]), else the one the app ships ([bundled]). */
-        fun find(context: Context, base: File, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? =
-            imported(base, console) ?: bundled(context, console, variant)
-
         /**
          * The package the app ships for [console] in [variant]'s assets folder (the console's own when that variant ships
          * none for it), copied out (to a cache folder of its own per variant) so it can be read as a zip.

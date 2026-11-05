@@ -173,12 +173,16 @@ object OpenEmuxBinds {
     fun button(console: Console, name: String): String? = SkinBinds.bind(console, name, hardcore = false)
 
     /**
-     * A keypad key: the digits are typed on the keyboard's number pad, as the drawn skins' keypad; the keys beside the 0
-     * ([name] keypadStar, keypadHash) are the console's own (Console.skin's keypad), none when it has no keypad.
+     * A keypad key, as the drawn skins' keypad (Console.skin's) presses it: a digit is the console's key with that
+     * label (ColecoVision's are joypad buttons), else typed on the keyboard's number pad; the keys beside the 0
+     * ([name] keypadStar, keypadHash) are the console's own, none when it has no keypad.
      */
     fun keypad(console: Console, name: String): String? {
-        name.removePrefix("keypad").toIntOrNull()?.let { return "retrok_num$it" }
-        val row = console.skin.keypad.lastOrNull()?.takeIf { it.size == 3 } ?: return null
+        val keys = console.skin.keypad
+        name.removePrefix("keypad").toIntOrNull()?.let { digit ->
+            return keys.flatten().firstOrNull { it.label == "$digit" }?.bind ?: "retrok_num$digit"
+        }
+        val row = keys.lastOrNull()?.takeIf { it.size == 3 } ?: return null
         return when (name) {
             "keypadStar" -> row[0].bind
             "keypadHash" -> row[2].bind

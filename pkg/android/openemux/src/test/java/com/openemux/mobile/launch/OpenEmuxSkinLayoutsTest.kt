@@ -79,6 +79,10 @@ class OpenEmuxSkinLayoutsTest {
         assertEquals("retrok_asterisk", key(Console.A5200, "keypadStar"))
         assertEquals("retrok_hash", key(Console.A5200, "keypadHash"))
         assertEquals("retrok_leftbracket", key(Console.INTV, "keypadStar"))
+        // ColecoVision's keypad is on the joypad (blueMSX), not the keyboard.
+        assertEquals("x", key(Console.CV, "keypad1"))
+        assertEquals("r_x_plus", key(Console.CV, "keypad0"))
+        assertEquals("select", key(Console.CV, "keypadStar"))
         // A console with no keypad of its own has no keys beside the 0.
         assertNull(key(Console.GBA, "keypadStar"))
         assertNull(OpenEmuxBinds.keypad(Console.A5200, "keypadDot"))

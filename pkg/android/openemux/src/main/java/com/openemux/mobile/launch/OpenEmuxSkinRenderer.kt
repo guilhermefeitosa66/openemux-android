@@ -110,7 +110,7 @@ class OpenEmuxSkinRenderer(context: Context) {
                 val icon = art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
                 if (plan.dim) return listOf(OverlayDesc("nul", box, image = faded(icon)))
                 val lit = plan.lit?.let { state ->
-                    OverlayDesc("nul", RectF(box), lit = OverlayLit(state, tile(plan.icon, box, frame, image(pkg, files[0], box))))
+                    OverlayDesc("nul", RectF(box), lit = OverlayLit(state, tile(plan.icon, box, frame, art?.copy(Bitmap.Config.ARGB_8888, false))))
                 }
                 listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, image = icon), lit)
             }

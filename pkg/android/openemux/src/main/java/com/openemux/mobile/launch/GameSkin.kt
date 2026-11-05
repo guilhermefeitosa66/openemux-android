@@ -47,14 +47,15 @@ object GameSkin {
         val packageNds = ndsLayouts?.takeIf { "desmume" in coreId.orEmpty() }
         val importer = ImportedSkinRenderer()
         val user = ImportedSkinRenderer.imported(base, console)
+        val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
-        val own = user?.takeIf(ImportedSkinRenderer::isOpenEmuxSkin)?.let { dir ->
+        val own = user?.takeIf { ownFormat }?.let { dir ->
             runCatching { openEmux(context, dir, console, size, outDir, tablet, hardcore, first, fold) }
                 .onFailure { e -> Log.e(OWN_TAG, "${dir.name} not drawn: falling back to the bundled skin", e) }.getOrNull()
         }
         val pkg = when {
             own != null -> null
-            user != null && !ImportedSkinRenderer.isOpenEmuxSkin(user) -> user
+            user != null && !ownFormat -> user
             else -> ImportedSkinRenderer.bundled(context, console, variant)
         }
         val packaged = own ?: pkg?.let {
