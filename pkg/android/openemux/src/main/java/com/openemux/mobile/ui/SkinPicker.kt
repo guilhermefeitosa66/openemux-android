@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -216,9 +221,11 @@ private fun storedColors(skin: StoredSkin): Pair<Color, Color> =
     Color(skin.body?.toLong()?.and(0xFFFFFFFFL) ?: 0xFF24242C) to Color(skin.key?.toLong()?.and(0xFFFFFFFFL) ?: 0xFF6E6E7C)
 
 /** Phone, Tablet and Fold: lit for the forms in [forms], grey and dashed for the others. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FormBadges(forms: Set<SkinForm>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+fun FormBadges(forms: Set<SkinForm>, modifier: Modifier = Modifier) {
+    // A badge never shrinks under its word: when the three do not fit side by side, the last one goes to a new line.
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SkinForm.entries.forEach { form ->
             val on = form in forms
             val label = stringResource(formLabel(form))
@@ -228,7 +235,7 @@ fun FormBadges(forms: Set<SkinForm>) {
                     .background(if (on) Oe.AccentSoft else Color.Transparent)
                     .let { if (on) it.border(1.dp, Oe.AccentText.copy(alpha = 0.4f), RoundedCornerShape(6.dp)) else it.dashedBorder(Oe.Chevron, 6.dp) }
                     .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) { Text(label, style = Type.Tag.copy(color = if (on) Oe.AccentOnSoft else Oe.Faint, fontSize = 10.sp)) }
+            ) { Text(label, style = Type.Tag.copy(color = if (on) Oe.AccentOnSoft else Oe.Faint, fontSize = 10.sp), maxLines = 1, softWrap = false) }
         }
     }
 }
@@ -378,29 +385,36 @@ private fun SkinCard(
     onPick: () -> Unit, onMenu: () -> Unit,
 ) {
     val menuLabel = stringResource(R.string.skins_actions, name)
+    // The menu button sits inside the card, so a spatial search from the card never finds it: Right goes to it and
+    // Left comes back, and from the button Right goes on to the next card as before.
+    val cardFocus = remember { FocusRequester() }
+    val menuFocus = remember { FocusRequester() }
     Column(
         Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Surface)
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
+            .focusRequester(cardFocus).focusProperties { right = menuFocus }
             .clickable(role = Role.RadioButton) { if (pickable) onPick() else onMenu() }
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         MiniSkin(body, key, Modifier.fillMaxWidth().height(78.dp).alpha(if (pickable) 1f else DIMMED_ALPHA))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(start = 4.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = Type.Section, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 when {
                     inUse -> Text(stringResource(R.string.skins_in_use), style = Type.Small.copy(color = Oe.AccentText, fontWeight = FontWeight.SemiBold))
                     !pickable -> Text(reason, style = Type.Small)
                 }
-                FormBadges(forms)
             }
             Box(
                 Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape)
+                    .focusRequester(menuFocus).focusProperties { left = cardFocus }
                     .clickable(onClickLabel = menuLabel, role = Role.Button, onClick = onMenu).semantics { contentDescription = menuLabel },
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Dots, Oe.Muted, 20.dp) }
         }
+        // Under the name and the menu button, across the whole card: beside the button there was no room for three.
+        FormBadges(forms, Modifier.padding(start = 4.dp, bottom = 4.dp))
     }
 }
 
