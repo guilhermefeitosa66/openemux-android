@@ -123,7 +123,7 @@ No template yet: the controls of the skin the app draws.
 
 ## FDS: Famicom Disk System
 
-No template yet: the controls of the skin the app draws.
+Template: [`FDS-template.zip`](FDS-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -137,7 +137,7 @@ No template yet: the controls of the skin the app draws.
 | `a` | button | `a` | A | `a.png` |
 | `select` | button | `select` | SELECT | `select.png` |
 | `start` | button | `start` | START | `start.png` |
-| `l` | button | `l` | DISK | `l.png` |
+| `disk` | button | `disk` | DISK | `disk.png` |
 
 ## FC: Nintendo (NES)
 
@@ -211,7 +211,7 @@ Template: [`GBA-template.zip`](GBA-template.zip).
 
 ## GG: Game Gear
 
-No template yet: the controls of the skin the app draws.
+Template: [`GG-template.zip`](GG-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -366,7 +366,7 @@ No template yet: the controls of the skin the app draws.
 
 ## SG1000: SG-1000
 
-No template yet: the controls of the skin the app draws.
+Template: [`SG1000-template.zip`](SG1000-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -382,7 +382,7 @@ No template yet: the controls of the skin the app draws.
 
 ## S32X: Sega 32X
 
-No template yet: the controls of the skin the app draws.
+Template: [`S32X-template.zip`](S32X-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -392,18 +392,18 @@ No template yet: the controls of the skin the app draws.
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
-| `y` | button | `y` | A | `y.png` |
+| `x` | button | `x` | X | `x.png` |
+| `y` | button | `y` | Y | `y.png` |
+| `z` | button | `z` | Z | `z.png` |
+| `a` | button | `a` | A | `a.png` |
 | `b` | button | `b` | B | `b.png` |
-| `a` | button | `a` | C | `a.png` |
-| `l` | button | `l` | X | `l.png` |
-| `x` | button | `x` | Y | `x.png` |
-| `r` | button | `r` | Z | `r.png` |
-| `select` | button | `select` | MODE | `select.png` |
+| `c` | button | `c` | C | `c.png` |
+| `mode` | button | `mode` | MODE | `mode.png` |
 | `start` | button | `start` | START | `start.png` |
 
 ## MCD: Mega CD
 
-No template yet: the controls of the skin the app draws.
+Template: [`MCD-template.zip`](MCD-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -413,13 +413,13 @@ No template yet: the controls of the skin the app draws.
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
-| `y` | button | `y` | A | `y.png` |
+| `x` | button | `x` | X | `x.png` |
+| `y` | button | `y` | Y | `y.png` |
+| `z` | button | `z` | Z | `z.png` |
+| `a` | button | `a` | A | `a.png` |
 | `b` | button | `b` | B | `b.png` |
-| `a` | button | `a` | C | `a.png` |
-| `l` | button | `l` | X | `l.png` |
-| `x` | button | `x` | Y | `x.png` |
-| `r` | button | `r` | Z | `r.png` |
-| `select` | button | `select` | MODE | `select.png` |
+| `c` | button | `c` | C | `c.png` |
+| `mode` | button | `mode` | MODE | `mode.png` |
 | `start` | button | `start` | START | `start.png` |
 
 ## MD: Mega Drive
@@ -461,7 +461,7 @@ Template: [`SMS-template.zip`](SMS-template.zip).
 
 ## SATURN: Sega Saturn
 
-No template yet: the controls of the skin the app draws.
+Template: [`SATURN-template.zip`](SATURN-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -469,16 +469,16 @@ No template yet: the controls of the skin the app draws.
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `l2` | button | `l2` | L | `l2.png` |
-| `r2` | button | `r2` | R | `r2.png` |
+| `l` | button | `l` | L | `l.png` |
+| `r` | button | `r` | R | `r.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
-| `b` | button | `b` | A | `b.png` |
-| `a` | button | `a` | B | `a.png` |
-| `r` | button | `r` | C | `r.png` |
-| `y` | button | `y` | X | `y.png` |
-| `x` | button | `x` | Y | `x.png` |
-| `l` | button | `l` | Z | `l.png` |
+| `x` | button | `x` | X | `x.png` |
+| `y` | button | `y` | Y | `y.png` |
+| `z` | button | `z` | Z | `z.png` |
+| `a` | button | `a` | A | `a.png` |
+| `b` | button | `b` | B | `b.png` |
+| `c` | button | `c` | C | `c.png` |
 | `start` | button | `start` | START | `start.png` |
 
 ## PS: Sony PlayStation
@@ -551,7 +551,7 @@ Template: [`SFC-template.zip`](SFC-template.zip).
 
 ## PCE: PC Engine
 
-No template yet: the controls of the skin the app draws.
+Template: [`PCE-template.zip`](PCE-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -568,7 +568,7 @@ No template yet: the controls of the skin the app draws.
 
 ## PCECD: PC Engine CD
 
-No template yet: the controls of the skin the app draws.
+Template: [`PCECD-template.zip`](PCECD-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|

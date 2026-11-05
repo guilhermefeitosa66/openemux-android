@@ -524,6 +524,12 @@ class ImportedSkinRenderer {
         /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
         fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
 
+        /**
+         * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as the
+         * consoles issue 770 added ship; the others are .deltaskin and .manicskin.
+         */
+        fun isOpenEmuxPackage(file: File) = file.name.endsWith(".zip", ignoreCase = true)
+
         /** The package [names] (an assets folder's listing) holds for [console], if any. */
         fun bundledName(names: Array<String>?, console: Console): String? =
             names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }

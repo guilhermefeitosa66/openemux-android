@@ -244,7 +244,9 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 
 A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
 for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
-read from that folder.
+read from that folder. The skins the app ships for some consoles (issue 770: GG, SG1000, S32X, MCD, SATURN, PCE,
+PCECD, FDS) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
+wins over them, and one the app cannot draw falls back to the drawn skin.
 
 - **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window
   600dp or more across its short side uses `tablet-*`; else `phone-*`. One form never borrows another's layouts.

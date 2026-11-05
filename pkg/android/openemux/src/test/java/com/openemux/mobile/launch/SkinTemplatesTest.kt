@@ -26,7 +26,7 @@ class SkinTemplatesTest {
 
     /** The bundled packages in the console's own colours: console id to file. */
     private fun bundled() = skins.listFiles()!!
-        .filter { it.isFile && (it.name.endsWith(".deltaskin") || it.name.endsWith(".manicskin")) }
+        .filter { it.isFile && (it.name.endsWith(".deltaskin") || it.name.endsWith(".manicskin") || it.name.endsWith(".zip")) }
         .associateBy { it.name.substringBeforeLast('.') }
 
     private fun template(id: String): SkinPackage = SkinFormat.readZip(File(templates, "$id-template.zip"))
@@ -103,8 +103,27 @@ class SkinTemplatesTest {
         }
     }
 
+    /** A console bundled in OpenEmux's own format (issue 770): its template has the package's six layouts, control for control. */
+    @Test fun anOwnFormatTemplateHasTheBundledLayouts() {
+        val own = bundled().filterValues { ImportedSkinRenderer.isOpenEmuxPackage(it) }
+        assertTrue(own.isNotEmpty())
+        for ((id, file) in own) {
+            val pkg = template(id).skin
+            val shipped = SkinFormat.readZip(file).skin
+            assertEquals(id, shipped.layouts.keys, pkg.layouts.keys)
+            for ((layoutId, layout) in shipped.layouts) {
+                val t = pkg.layouts.getValue(layoutId)
+                val where = "$id ${layoutId.id}"
+                assertEquals(where, layout.size, t.size)
+                assertEquals(where, layout.screens, t.screens)
+                assertEquals(where, layout.frame?.rect, t.frame?.rect)
+                assertEquals(where, layout.elements.map { listOf(it.id, it.type, it.bind, it.rect) }, t.elements.map { listOf(it.id, it.type, it.bind, it.rect) })
+            }
+        }
+    }
+
     @Test fun phoneAndTabletAreTheBundledLayouts() {
-        for ((id, file) in bundled()) {
+        for ((id, file) in bundled().filterValues { !ImportedSkinRenderer.isOpenEmuxPackage(it) }) {
             val pkg = template(id)
             val info = ZipFile(file).use { JSONObject(it.getInputStream(it.getEntry("info.json")).bufferedReader().readText()) }
             val reps = info.getJSONObject("representations")
