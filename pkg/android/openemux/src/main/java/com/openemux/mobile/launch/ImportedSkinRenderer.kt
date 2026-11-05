@@ -442,7 +442,9 @@ class ImportedSkinRenderer {
      * console's own buttons; the RetroPad has them where data/Skin.kt puts them for that console.
      */
     private fun bind(input: String): String? =
-        SkinBinds.bind(console, input, hardcore) ?: null.also { Log.w(TAG, "input '$input' not mapped") }
+        SkinBinds.bind(console, input, hardcore)
+            // Hardcore leaves the speed keys out on purpose: only a name nothing knows is worth a warning.
+            ?: null.also { if (SkinBinds.bind(console, input, false) == null) Log.w(TAG, "input '$input' not mapped") }
 
     /** [b] grown by the item's extended edges ([edge] of "left", "top", "right", "bottom"), in mapping units. */
     private fun extended(b: SkinBox, edge: (String) -> Float) =

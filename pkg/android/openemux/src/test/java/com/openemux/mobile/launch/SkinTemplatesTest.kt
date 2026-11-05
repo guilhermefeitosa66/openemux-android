@@ -58,8 +58,7 @@ class SkinTemplatesTest {
                     val kinds = reps.getJSONObject(family)
                     for (kind in kinds.keys()) for (orient in kinds.getJSONObject(kind).keys()) {
                         val rep = kinds.getJSONObject(kind).getJSONObject(orient)
-                        val all = listOf(rep) + rep.optJSONObject("layouts").let { l -> l?.keys()?.asSequence()?.map { l.getJSONObject(it) }?.toList().orEmpty() }
-                        for (r in all) {
+                        for (r in withLayouts(rep)) {
                             val size = r.getJSONObject("mappingSize")
                             val art = r.getJSONObject("assets").getString("large")
                             assertEquals("$id $art", size.getInt("width") * scale to size.getInt("height") * scale, png(zip, art))
@@ -83,12 +82,12 @@ class SkinTemplatesTest {
                 val reps = info(zip).getJSONObject("representations")
                 for (family in reps.keys()) for (kind in reps.getJSONObject(family).keys()) {
                     val orients = reps.getJSONObject(family).getJSONObject(kind)
-                    for (orient in orients.keys()) for (item in items(orients.getJSONObject(orient))) {
+                    for (orient in orients.keys()) for (item in withLayouts(orients.getJSONObject(orient)).flatMap { items(it) }) {
                         val inputs = item.get("inputs")
                         val names = if (inputs is JSONArray) (0 until inputs.length()).map { inputs.getString(it) }
                         else (inputs as JSONObject).let { o -> o.keys().asSequence().map { o.getString(it) }.toList() }
                         for (name in names) {
-                            val stick = inputs is JSONObject && (name.startsWith("analogStick") || name.startsWith("rightAnalogStick"))
+                            val stick = inputs is JSONObject && (listOf("analogStick", "rightAnalogStick", "cStick").any { name.startsWith(it) })
                             val ok = stick || name == ImportedSkinRenderer.SCREENS_INPUT || SkinBinds.bind(console, name, false) != null
                             assertTrue("$id $family $orient: '$name' presses nothing", ok)
                         }
@@ -97,6 +96,10 @@ class SkinTemplatesTest {
             }
         }
     }
+
+    /** [rep] and, for the NDS, each of its screen layouts. */
+    private fun withLayouts(rep: JSONObject): List<JSONObject> =
+        listOf(rep) + rep.optJSONObject("layouts").let { l -> l?.keys()?.asSequence()?.map { l.getJSONObject(it) }?.toList().orEmpty() }
 
     private fun items(rep: JSONObject): List<JSONObject> {
         val a = rep.getJSONArray("items")

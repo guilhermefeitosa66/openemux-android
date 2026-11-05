@@ -344,7 +344,9 @@ def template_svg(L, edges):
     out += layer("screen-guides", guides, hidden=True)
     touch = ""
     for it in L["items"]:
-        e = dict(edges, **(it.get("extendedEdges") or {}))
+        # As the app reads them: an item's own edges replace the layout's, and a side they leave out reaches nothing.
+        own = it.get("extendedEdges")
+        e = {k: (own if own else edges).get(k, 0) for k in ("top", "bottom", "left", "right")}
         f = it["frame"]
         touch += (f'<rect x="{n(f["x"] - e["left"])}" y="{n(f["y"] - e["top"])}" '
                   f'width="{n(f["width"] + e["left"] + e["right"])}" height="{n(f["height"] + e["top"] + e["bottom"])}" '
@@ -384,11 +386,7 @@ def template_representation(console, device, orient, scale, folder, profile, pla
     image = f"{device}_{orient}{suffix}.png"
     sources = folder / "sources"
     sources.mkdir(exist_ok=True)
-    edges = {"top": 6, "bottom": 6, "left": 6, "right": 6}
     svg = sources / image.replace(".png", ".svg")
-    svg.write_text(template_svg(L, edges))
-    render_svg(svg, folder / image, L["W"], L["H"], scale, profile)
-    cut_screens(folder / image, L["screens"], scale)
     plan.append((image, f"{device} {orient}" + (f", {screens} layout" if screens else ""), L, scale))
     knobs = {}
     for k in L["knobs"]:
@@ -399,7 +397,12 @@ def template_representation(console, device, orient, scale, folder, profile, pla
         render_svg(ksvg, folder / file, side, side, scale, profile)
         knobs[k["name"]] = file
         plan_knobs.append((file, round(side * scale)))
-    return entry(L, image, knobs)[0]
+    rep = entry(L, image, knobs)[0]
+    # The touch-areas guide uses the layout's edges info.json gets, so the two cannot drift apart.
+    svg.write_text(template_svg(L, rep["extendedEdges"]))
+    render_svg(svg, folder / image, L["W"], L["H"], scale, profile)
+    cut_screens(folder / image, L["screens"], scale)
+    return rep
 
 
 def plan_readme(console, name, ext, plan, knob, knob_files, items):
@@ -499,7 +502,9 @@ def build_template(console, profile):
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(folder.rglob("*")):
             if f.is_file():
-                z.write(f, f.relative_to(folder).as_posix())
+                # A fixed date: a rebuild that changes nothing gives the same zip, not a new binary in git.
+                entry_info = zipfile.ZipInfo(f.relative_to(folder).as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+                z.writestr(entry_info, f.read_bytes(), zipfile.ZIP_DEFLATED)
     print(f"{out.relative_to(APP)}  {out.stat().st_size // 1024} KB")
 
 

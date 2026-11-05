@@ -121,7 +121,7 @@ Each control (`items[]`):
 |---|---|
 | `frame` | Where it is, in units |
 | `inputs` | What it presses: a list of names for a button (two names press both), or `up`/`down`/`left`/`right` for a D-pad or a stick |
-| `extendedEdges` | Its own touch reach, over the layout's |
+| `extendedEdges` | Its own touch reach, instead of the layout's: a side it leaves out reaches nothing past the frame |
 | `thumbstick` | A stick's knob image (`name`) and size (`width`, `height`, in units) |
 | `knob` | OpenEmux's own key: the D-pad's circle image. Other emulators ignore it |
 
