@@ -119,11 +119,9 @@ class OpenEmuxSkinRenderer(context: Context) {
                 val travel = plan.travel.rect()
                 val ball = ball(pkg, files[1], travel, element.colors["ball"] ?: DEFAULT_BALL)
                 // A second D-pad on a console with none is drawn, ball at rest, and presses nothing.
-                val binds = plan.binds ?: return listOf(OverlayDesc("nul", box, image = pad), OverlayDesc("nul", travel, image = ball))
-                listOf(
-                    OverlayDesc("nul", box, image = pad),
-                    OverlayDesc("dpad_area", travel, dpad = binds, reach = plan.reach, knob = ball),
-                )
+                val area = plan.binds?.let { OverlayDesc("dpad_area", travel, dpad = it, reach = plan.reach, knob = ball) }
+                    ?: OverlayDesc("nul", travel, image = ball)
+                listOf(OverlayDesc("nul", box, image = pad), area)
             }
             is ElementPlan.Stick -> {
                 val base = image(pkg, files[0], box) ?: disc(box, element.colors["base"] ?: DEFAULT_BASE)

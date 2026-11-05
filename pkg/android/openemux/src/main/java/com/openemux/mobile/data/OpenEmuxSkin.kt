@@ -101,7 +101,7 @@ data class SkinFrame(val rect: SkinRect, val colors: SkinFrameColors = SkinFrame
 }
 
 /**
- * One control. [bind] is its input name (docs/skin-format.md; "dpad" for a D-pad), [group] what the editor moves it
+ * One control. [bind] is its input name (docs/skin-format.md; "dpad" for a D-pad, "dpad2" for a second one), [group] what the editor moves it
  * with, [colors] its colour parts (ARGB, keys from [SkinElementType.colorParts]), [shape] and [label] what it is drawn
  * as without an image, [image] a base name for its image files other than [id].
  */
