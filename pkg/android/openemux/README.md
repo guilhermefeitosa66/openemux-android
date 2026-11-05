@@ -181,6 +181,12 @@ per element, any of them optional. `docs/skin-format.md` documents it;
 `data/OpenEmuxSkin.kt`. Both formats name inputs with one table,
 `launch/SkinBinds.kt`.
 
+Skin creators start from the templates in `tools/skins/templates/`: one zip
+per console with a bundled skin, in this format, with placeholder art at the
+exact sizes, and a guide (`tools/skins/templates/README.md`) to the files,
+layouts, colours, binds and the install step. `ASSET-PLAN.md` there lists the
+elements of a skin for every console the app runs.
+
 On a foldable, `SkinRenderer` also draws a tabletop shape for the half-open
 posture with the fold across the screen: the picture on the top half, the
 controls on the bottom one, nothing within 12 dp of the fold, and on NDS one
