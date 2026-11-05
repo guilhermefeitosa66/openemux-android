@@ -128,7 +128,7 @@ class SkinStoreTest {
     }
 
     @Test fun aPackagesInfoForgivesTrailingCommasAndAByteOrderMark() {
-        pkg("t.deltaskin", "﻿{\"name\":\"Trailing\",\"representations\":${reps("iphone")},}")
+        pkg("t.deltaskin", "\uFEFF{\"name\":\"Trailing\",\"representations\":${reps("iphone")},}")
         val s = store.list(Console.SFC).single()
         assertEquals("Trailing", s.name)
         assertEquals(setOf(SkinForm.PHONE), s.forms)

@@ -74,7 +74,6 @@
     <string name="settings_skin_color_clear">クリア</string>
     <string name="settings_skin_color_clear_blue">クリアブルー</string>
     <string name="settings_skin_color_clear_pink">クリアピンク</string>
-    <string name="settings_skin_sheet_desc">%1$s のすべてのゲームで使う仮想コントローラー。</string>
     <string name="settings_cart_color">カートリッジの色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">%2$s のゲーム %1$d 本すべてに適用されます。</item>

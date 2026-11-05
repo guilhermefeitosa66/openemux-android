@@ -74,7 +74,6 @@
     <string name="settings_skin_color_clear">透明</string>
     <string name="settings_skin_color_clear_blue">透明蓝</string>
     <string name="settings_skin_color_clear_pink">透明粉</string>
-    <string name="settings_skin_sheet_desc">每款 %1$s 游戏都使用的虚拟手柄。</string>
     <string name="settings_cart_color">卡带颜色</string>
     <plurals name="settings_applies_all">
         <item quantity="other">应用于全部 %1$d 款 %2$s 游戏。</item>

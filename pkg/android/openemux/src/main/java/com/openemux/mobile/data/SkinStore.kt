@@ -191,7 +191,7 @@ class SkinStore(private val base: File) {
         /** A package's info.json, the way the renderer reads it (a byte-order mark and trailing commas forgiven). */
         internal fun packageInfo(file: File): JSONObject = ZipFile(file).use { zip ->
             val entry = zip.entries().asSequence().first { it.name.endsWith("info.json") && !it.name.startsWith("__MACOSX") }
-            val text = zip.getInputStream(entry).bufferedReader().readText().removePrefix("﻿")
+            val text = zip.getInputStream(entry).bufferedReader().readText().removePrefix("\uFEFF")
             JSONObject(text.replace(Regex(",(\\s*[}\\]])"), "$1"))
         }
 

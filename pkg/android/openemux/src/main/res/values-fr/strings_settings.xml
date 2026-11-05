@@ -78,7 +78,6 @@
     <string name="settings_skin_color_clear">Transparent</string>
     <string name="settings_skin_color_clear_blue">Bleu transparent</string>
     <string name="settings_skin_color_clear_pink">Rose transparent</string>
-    <string name="settings_skin_sheet_desc">La manette virtuelle utilisée par chaque jeu %1$s.</string>
     <string name="settings_cart_color">Couleur de la cartouche</string>
     <plurals name="settings_applies_all">
         <item quantity="one">S’applique au seul jeu %2$s.</item>

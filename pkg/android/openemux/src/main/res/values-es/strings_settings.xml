@@ -78,7 +78,6 @@
     <string name="settings_skin_color_clear">Transparente</string>
     <string name="settings_skin_color_clear_blue">Azul transparente</string>
     <string name="settings_skin_color_clear_pink">Rosa transparente</string>
-    <string name="settings_skin_sheet_desc">El mando virtual que usan todos los juegos de %1$s.</string>
     <string name="settings_cart_color">Color del cartucho</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Se aplica al juego de %2$s.</item>

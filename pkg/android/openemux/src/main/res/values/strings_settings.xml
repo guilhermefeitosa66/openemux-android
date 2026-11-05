@@ -76,7 +76,6 @@
     <string name="settings_skin_color_clear">Clear</string>
     <string name="settings_skin_color_clear_blue">Clear blue</string>
     <string name="settings_skin_color_clear_pink">Clear pink</string>
-    <string name="settings_skin_sheet_desc">The virtual controller every %1$s game uses.</string>
     <string name="settings_cart_color">Cartridge color</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Applies to the %1$d %2$s game.</item>

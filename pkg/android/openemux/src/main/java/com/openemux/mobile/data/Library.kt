@@ -176,7 +176,8 @@ class Library(
             Log.w(TAG, "ROM storage not ready, scan skipped: ${paths.base}")
             return@withContext
         }
-        migrateSkins()
+        // A meta.json that cannot be written must not stop the scan: the next start migrates again.
+        runCatching { migrateSkins() }.onFailure { Log.w(TAG, "skin choices not saved", it) }
         var listed = true
         try {
             listed = scanRoms()

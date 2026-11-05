@@ -76,7 +76,6 @@
     <string name="settings_skin_color_clear">Transparent</string>
     <string name="settings_skin_color_clear_blue">Transparent (Blau)</string>
     <string name="settings_skin_color_clear_pink">Transparent (Pink)</string>
-    <string name="settings_skin_sheet_desc">Der virtuelle Controller, den jedes %1$s-Spiel verwendet.</string>
     <string name="settings_cart_color">Modulfarbe</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Gilt für das eine %2$s-Spiel.</item>

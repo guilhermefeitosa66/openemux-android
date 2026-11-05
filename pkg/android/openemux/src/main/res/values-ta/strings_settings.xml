@@ -76,7 +76,6 @@
     <string name="settings_skin_color_clear">ஒளிபுகும்</string>
     <string name="settings_skin_color_clear_blue">ஒளிபுகும் நீலம்</string>
     <string name="settings_skin_color_clear_pink">ஒளிபுகும் இளஞ்சிவப்பு</string>
-    <string name="settings_skin_sheet_desc">ஒவ்வொரு %1$s விளையாட்டும் பயன்படுத்தும் மெய்நிகர் கட்டுப்படுத்தி.</string>
     <string name="settings_cart_color">கார்ட்ரிட்ஜ் நிறம்</string>
     <plurals name="settings_applies_all">
         <item quantity="one">%2$s விளையாட்டுக்குப் பொருந்தும்.</item>

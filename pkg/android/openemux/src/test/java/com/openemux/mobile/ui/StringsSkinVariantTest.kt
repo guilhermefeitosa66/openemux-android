@@ -16,7 +16,6 @@ class StringsSkinVariantTest {
         "settings_skin_console_desc" to emptyList(),
         "settings_skin_dark" to emptyList(),
         "settings_skin_dark_desc" to emptyList(),
-        "settings_skin_sheet_desc" to listOf("%1\$s"),
         "skins_form_made" to listOf("%1\$s"),
         "skins_form_missing" to listOf("%1\$s"),
         "skins_actions" to listOf("%1\$s"),

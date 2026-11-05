@@ -76,7 +76,6 @@
     <string name="settings_skin_color_clear">Transparente</string>
     <string name="settings_skin_color_clear_blue">Azul transparente</string>
     <string name="settings_skin_color_clear_pink">Rosa transparente</string>
-    <string name="settings_skin_sheet_desc">O controle virtual que todo jogo de %1$s usa.</string>
     <string name="settings_cart_color">Cor dos cartuchos</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Vale para todos os %1$d jogos do %2$s.</item>
