@@ -138,18 +138,20 @@ object SkinFormat {
         SkinElementType.KEYPAD -> KEYPAD_BINDS
     }
 
-    /** Whether a zip entry name stays inside the skin: relative, no "..", no backslash. */
-    fun safePath(name: String) = !name.startsWith("/") && '\\' !in name && name.split('/').none { it == ".." }
+    /**
+     * Whether a zip entry name stays inside the skin (relative, no "..", no backslash) and is not the `__MACOSX/` copy
+     * of the resource forks macOS adds when it zips a folder.
+     */
+    fun safePath(name: String) =
+        !name.startsWith("/") && !name.startsWith("__MACOSX/") && '\\' !in name && name.split('/').none { it == ".." }
 
     fun readFolder(dir: File): SkinPackage = read(FolderSkinSource(dir))
 
-    fun readZip(file: File): SkinPackage {
-        val source = try {
-            ZipSkinSource(file)
-        } catch (e: java.util.zip.ZipException) {
-            throw SkinFormatException(SkinError.BAD_PACKAGE, "", e.message)
-        }
-        return read(source)
+    /** A file that is not a zip, or one that fails while skin.json is read from it (a bad entry), is [SkinError.BAD_PACKAGE]. */
+    fun readZip(file: File): SkinPackage = try {
+        read(ZipSkinSource(file))
+    } catch (e: java.io.IOException) {
+        throw SkinFormatException(SkinError.BAD_PACKAGE, "", e.message)
     }
 
     fun read(source: SkinSource): SkinPackage {
@@ -206,9 +208,13 @@ object SkinFormat {
         elements.forEachIndexed { i, e ->
             if (!ids.add(e.id)) throw SkinFormatException(SkinError.DUPLICATE_ID, "$path.elements[$i].id", e.id)
         }
+        // Each image file with the key that names it, so a clash points at the second one.
+        val owners = listOf(background.imageFile to "$path.background") +
+            listOfNotNull(frame?.let { it.imageFile to "$path.frame" }) +
+            elements.flatMapIndexed { i, e -> e.imageFiles.map { it to "$path.elements[$i]" } }
         val files = HashSet<String>()
-        (listOf(background.imageFile) + listOfNotNull(frame?.imageFile) + elements.flatMap { it.imageFiles }).forEach {
-            if (!files.add(it)) throw SkinFormatException(SkinError.DUPLICATE_ID, path, "image $it used twice")
+        owners.forEach { (file, owner) ->
+            if (!files.add(file)) throw SkinFormatException(SkinError.DUPLICATE_ID, owner, "image $file used twice")
         }
         return SkinLayout(size, screens, background, frame, elements)
     }
@@ -248,7 +254,8 @@ object SkinFormat {
         json.optObj("colors", "$path.colors")?.let { c ->
             for (part in c.keys().asSequence().toList()) {
                 if (part !in type.colorParts) throw SkinFormatException(SkinError.UNKNOWN_COLOR_PART, "$path.colors.$part", part)
-                colors[part] = color(c.string(part, "$path.colors.$part"), "$path.colors.$part")
+                // A part set to null reads as left out, like any other key.
+                colors[part] = color(c.optText(part, "$path.colors.$part") ?: continue, "$path.colors.$part")
             }
         }
         return SkinElement(

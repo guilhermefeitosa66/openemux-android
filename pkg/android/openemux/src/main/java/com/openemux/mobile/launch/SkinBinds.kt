@@ -19,32 +19,25 @@ object SkinBinds {
         Console.GC to mapOf("z" to "r", "l" to "l2", "r" to "r2"),
     )
 
+    /** The generic names, whatever the console, and their RetroArch overlay binds. */
+    private val GENERIC_BINDS: Map<String, String> =
+        listOf("up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select")
+            .associateWith { it } + mapOf(
+            "l1" to "l", "r1" to "r", "menu" to "menu_toggle", "quickSave" to "save_state", "quickLoad" to "load_state",
+            "fastForward" to "hold_fast_forward", "toggleFastForward" to "toggle_fast_forward",
+            "turbo" to "turbo_fire_toggle", "screenshot" to "screenshot", "restart" to "reset", "reset" to "reset",
+        )
+
+    /** The speed keys, which RetroAchievements hardcore leaves out. */
+    private val SPEED_KEYS = setOf("fastForward", "toggleFastForward")
+
     /**
      * Every name [bind] maps on some console: the generic ones plus each console's own. The OpenEmux skin format
      * (data/SkinFormat.kt) accepts these and adds its own few.
      */
-    val NAMES: Set<String> = setOf(
-        "up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select",
-        "l1", "r1", "menu", "quickSave", "quickLoad", "fastForward", "toggleFastForward", "turbo", "screenshot",
-        "restart", "reset",
-    ) + CONSOLE_BINDS.values.flatMap { it.keys }
+    val NAMES: Set<String> = GENERIC_BINDS.keys + CONSOLE_BINDS.values.flatMap { it.keys }
 
     /** [input] on [console] as a RetroArch overlay bind, or null for one left out ([hardcore] leaves the speed keys out). */
-    fun bind(console: Console?, input: String, hardcore: Boolean): String? {
-        CONSOLE_BINDS[console]?.get(input)?.let { return it }
-        return when (input) {
-            "up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select" -> input
-            "l1" -> "l"
-            "r1" -> "r"
-            "menu" -> "menu_toggle"
-            "quickSave" -> "save_state"
-            "quickLoad" -> "load_state"
-            "fastForward" -> if (hardcore) null else "hold_fast_forward"
-            "toggleFastForward" -> if (hardcore) null else "toggle_fast_forward"
-            "turbo" -> "turbo_fire_toggle"
-            "screenshot" -> "screenshot"
-            "restart", "reset" -> "reset"
-            else -> null
-        }
-    }
+    fun bind(console: Console?, input: String, hardcore: Boolean): String? =
+        CONSOLE_BINDS[console]?.get(input) ?: if (hardcore && input in SPEED_KEYS) null else GENERIC_BINDS[input]
 }

@@ -30,7 +30,8 @@ my-skin/
 ```
 
 Files the app does not know are ignored. Nothing in the zip is extracted: the app reads the entries in place, and an
-entry whose name starts with `/`, contains a `\` or a `..` segment is ignored.
+entry whose name starts with `/`, contains a `\` or a `..` segment is ignored, and so is the `__MACOSX/` folder macOS
+adds when it zips a folder.
 
 ### Layouts and forms
 
@@ -217,7 +218,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 
 | Error | When |
 |---|---|
-| `BAD_PACKAGE` | The file is not a zip. |
+| `BAD_PACKAGE` | The file is not a zip, or cannot be read as one. |
 | `NO_SKIN_JSON` | No `skin.json` at the root of the folder or zip (or of its single folder). |
 | `TOO_LARGE` | `skin.json` is over 1 MiB. |
 | `BAD_JSON` | `skin.json` is not JSON, or not an object. |

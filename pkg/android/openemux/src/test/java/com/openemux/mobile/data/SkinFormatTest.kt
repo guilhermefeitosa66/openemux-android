@@ -201,6 +201,13 @@ class SkinFormatTest {
         assertFalse(SkinFormat.safePath("phone-portrait/../a.png"))
     }
 
+    @Test fun aZipMadeOnMacosReadsFromItsSingleFolder() {
+        val json = SkinFormat.toJson(full).toByteArray()
+        val pkg = SkinFormat.readZip(zip(mapOf("My skin/skin.json" to json, "__MACOSX/My skin/._skin.json" to byteArrayOf(0))))
+        assertEquals(full, pkg.skin)
+        assertEquals(setOf("skin.json"), pkg.source.files)
+    }
+
     @Test fun aZipWithNoSkinJsonOrTwoFoldersIsRefused() {
         assertError(SkinError.NO_SKIN_JSON) { SkinFormat.readZip(zip(mapOf("a/skin.json" to minimal.toByteArray(), "b/x.png" to byteArrayOf(1)))) }
         assertError(SkinError.NO_SKIN_JSON) { SkinFormat.readZip(zip(mapOf("x.png" to byteArrayOf(1)))) }
@@ -210,6 +217,7 @@ class SkinFormatTest {
     @Test fun aFileThatIsNotAZipIsRefused() {
         val file = File(tmp.root, "not.zip").apply { writeText("hello") }
         assertError(SkinError.BAD_PACKAGE) { SkinFormat.readZip(file) }
+        assertError(SkinError.BAD_PACKAGE) { SkinFormat.readZip(File(tmp.root, "missing.zip")) }
     }
 
     private fun assertError(error: SkinError, block: () -> Unit) {
@@ -305,7 +313,7 @@ class SkinFormatTest {
         refused(SkinError.BAD_ID) { element(1).put("id", "a/b") }
         refused(SkinError.BAD_ID) { element(1).put("id", "-a") }
         refused(SkinError.DUPLICATE_ID, "layouts.phone-portrait.elements[2].id") { element(2).put("id", "a") }
-        refused(SkinError.DUPLICATE_ID, "layouts.phone-portrait") { element(2).put("id", "bg-dark") }
+        refused(SkinError.DUPLICATE_ID, "layouts.phone-portrait.elements[2]") { element(2).put("id", "bg-dark") }
         refused(SkinError.DUPLICATE_ID) { element(2).put("image", "a-red") }
         refused(SkinError.UNKNOWN_TYPE, "layouts.phone-portrait.elements[1].type") { element(1).put("type", "trigger") }
         refused(SkinError.MISSING_KEY, "layouts.phone-portrait.elements[1].bind") { element(1).remove("bind") }
@@ -328,6 +336,12 @@ class SkinFormatTest {
         val withBind = json().apply { element(0).put("bind", "dpad") }.toString()
         assertEquals("dpad", SkinFormat.parse(withBind).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].bind)
         assertEquals("dpad", SkinFormat.parse(SkinFormat.toJson(full)).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].bind)
+    }
+
+    @Test fun aColourPartSetToNullReadsAsLeftOut() {
+        val text = json().apply { element(1).put("colors", JSONObject().put("button", JSONObject.NULL).put("letter", "#FFFFFF")) }.toString()
+        val a = SkinFormat.parse(text).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[1]
+        assertEquals(mapOf("letter" to 0xFFFFFFFF.toInt()), a.colors)
     }
 
     @Test fun colourPartsComeOutInTheTypesOrderAndAlphaIsKept() {
