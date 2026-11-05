@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -90,6 +92,9 @@ private data class Picked(val uri: Uri, val name: String, val size: Long)
 class Importer(private val context: Context, private val library: Library) {
     private val resolver get() = context.contentResolver
 
+    /** One copy at a time: Settings › Import and "Open with"/"Share" may overlap, and share the `.part` names. */
+    private val copying = Mutex()
+
     /**
      * Extensions in this batch that more than one console takes, with the
      * candidates, most likely first. The UI asks once per extension, like the
@@ -109,11 +114,11 @@ class Importer(private val context: Context, private val library: Library) {
     }
 
     suspend fun importRoms(uris: List<Uri>, choices: Map<String, Console> = emptyMap()): ImportResult = withContext(Dispatchers.IO) {
-        importPicked(uris.mapNotNull { describe(it) }, choices)
+        copying.withLock { importPicked(uris.mapNotNull { describe(it) }, choices) }
     }
 
     suspend fun importRomTree(tree: Uri, choices: Map<String, Console> = emptyMap()): ImportResult = withContext(Dispatchers.IO) {
-        importPicked(walkTree(tree), choices)
+        copying.withLock { importPicked(walkTree(tree), choices) }
     }
 
     private fun ambiguitiesOf(files: List<Picked>): Map<String, List<Console>> {

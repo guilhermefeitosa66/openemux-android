@@ -2,6 +2,7 @@ package com.openemux.mobile
 
 import android.app.Activity
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -40,15 +41,7 @@ class ImportActivity : Activity() {
         }
         // Some senders only fill the clip.
         val clipped = intent.clipData?.let { c -> (0 until c.itemCount).mapNotNull { c.getItemAt(it).uri } }.orEmpty()
-        return (listed + clipped).filter { it.scheme == "content" || (it.scheme == "file" && !isOwnStorage(it)) }.distinct()
-    }
-
-    /** A file:// path into the app's own storage: never something a file manager hands over. */
-    private fun isOwnStorage(uri: Uri): Boolean {
-        val path = runCatching { java.io.File(uri.path ?: return true).canonicalPath }.getOrElse { return true }
-        return listOf(dataDir, filesDir.parentFile, getExternalFilesDir(null)?.parentFile).any { dir ->
-            dir != null && (path + "/").startsWith(dir.canonicalPath + "/")
-        }
+        return (listed + clipped).filter { isAcceptableImport(it) }.distinct()
     }
 
     @Suppress("DEPRECATION")
@@ -64,5 +57,17 @@ class ImportActivity : Activity() {
     companion object {
         /** The library's own action for files handed over from here. */
         const val ACTION_IMPORT = "com.openemux.mobile.IMPORT_ROMS"
+    }
+}
+
+/** A content:// document, or a file:// path outside the app's own storage. */
+internal fun Context.isAcceptableImport(uri: Uri): Boolean =
+    uri.scheme == "content" || (uri.scheme == "file" && !isOwnStorage(uri))
+
+/** A file:// path into the app's own storage: never something a file manager hands over. */
+private fun Context.isOwnStorage(uri: Uri): Boolean {
+    val path = runCatching { java.io.File(uri.path ?: return true).canonicalPath }.getOrElse { return true }
+    return listOf(dataDir, filesDir.parentFile, getExternalFilesDir(null)?.parentFile).any { dir ->
+        dir != null && (path + "/").startsWith(dir.canonicalPath + "/")
     }
 }

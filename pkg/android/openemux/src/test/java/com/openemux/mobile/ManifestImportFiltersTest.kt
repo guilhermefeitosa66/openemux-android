@@ -45,7 +45,7 @@ class ManifestImportFiltersTest {
 
     @Test fun noFilterClaimsUnrelatedFiles() {
         val filters = importActivity().children("intent-filter")
-        assertEquals(2, filters.size)
+        assertEquals(3, filters.size)
         val unrelated = listOf("image/", "text/", "video/", "audio/", "application/pdf", "application/vnd.android.package-archive", "application/*")
         for (filter in filters) {
             val types = filter.data("mimeType")
@@ -56,17 +56,24 @@ class ManifestImportFiltersTest {
                 assertTrue(filter.data("pathPattern").isNotEmpty())
                 assertEquals(listOf("android.intent.action.VIEW"), filter.children("action").map { it.getAttributeNS(ANDROID, "name") })
             }
-            assertEquals(setOf("content", "file"), filter.data("scheme").toSet())
+            val actions = filter.children("action").map { it.getAttributeNS(ANDROID, "name") }.toSet()
+            // A SEND intent has no data URI: a filter naming a scheme would never match it.
+            val schemes = if ("android.intent.action.VIEW" in actions) setOf("content", "file") else emptySet()
+            assertEquals(schemes, filter.data("scheme").toSet())
         }
     }
 
-    @Test fun mimeFilterTakesOpenWithAndBothShares() {
-        val filter = importActivity().children("intent-filter").single { "application/octet-stream" in it.data("mimeType") }
+    @Test fun mimeFiltersTakeOpenWithAndBothSharesWithTheSameTypes() {
+        val filters = importActivity().children("intent-filter").filter { "application/octet-stream" in it.data("mimeType") }
+        assertEquals(2, filters.size)
+        val actions = filters.map { f -> f.children("action").map { it.getAttributeNS(ANDROID, "name") }.toSet() }
         assertEquals(
-            setOf("android.intent.action.VIEW", "android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE"),
-            filter.children("action").map { it.getAttributeNS(ANDROID, "name") }.toSet(),
+            listOf(setOf("android.intent.action.VIEW"), setOf("android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE")),
+            actions,
         )
-        assertTrue("application/zip" in filter.data("mimeType"))
+        assertEquals(filters[0].data("mimeType"), filters[1].data("mimeType"))
+        assertTrue("application/zip" in filters[0].data("mimeType"))
+        assertTrue(filters[1].data("scheme").isEmpty())
     }
 
     private companion object {

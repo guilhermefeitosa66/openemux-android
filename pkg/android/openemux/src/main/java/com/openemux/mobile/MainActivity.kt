@@ -21,6 +21,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.flow.update
 import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ButtonLabelsPref
@@ -78,8 +79,10 @@ class MainActivity : ComponentActivity() {
     private fun handleImport(intent: Intent?) {
         if (intent?.action != ImportActivity.ACTION_IMPORT) return
         val clip = intent.clipData ?: return
-        val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
-        if (uris.isNotEmpty()) (application as OpenEmuxApp).externalImports.value = uris
+        // This activity is exported too: the guard against the app's own files holds here, not only in ImportActivity.
+        val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.filter { isAcceptableImport(it) }
+        // Files that arrive while others still wait join them instead of replacing them.
+        if (uris.isNotEmpty()) (application as OpenEmuxApp).externalImports.update { (it.orEmpty() + uris).distinct() }
     }
 
     /**

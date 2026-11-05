@@ -37,14 +37,9 @@ import com.openemux.mobile.data.RomIntake
 import com.retroarch.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
 
-/**
- * One ROM import, from the files to the result: the extensions several
- * consoles take are asked first, once each, then everything is copied and the
- * library scanned again. Settings › Import and "Open with"/"Share" both go
- * through it, so they behave the same.
- */
 /** The extensions in an import that several consoles take, with their candidates. */
 fun interface ImportQuestions {
     suspend fun find(): Map<String, List<Console>>
@@ -55,6 +50,12 @@ fun interface ImportJob {
     suspend fun run(choices: Map<String, Console>): ImportResult
 }
 
+/**
+ * One ROM import, from the files to the result: the extensions several
+ * consoles take are asked first, once each, then everything is copied and the
+ * library scanned again. Settings › Import and "Open with"/"Share" both go
+ * through it, so they behave the same.
+ */
 class ImportFlow(private val app: OpenEmuxApp, private val scope: CoroutineScope) {
     var result by mutableStateOf<ImportResult?>(null)
     var working by mutableStateOf(false)
@@ -135,12 +136,11 @@ fun ImportConsoleSheet(flow: ImportFlow) {
 fun importMessage(r: ImportResult): String {
     val duplicates = if (r.duplicates > 0) countString(R.plurals.settings_import_duplicates, r.duplicates, r.duplicates) else null
     val parts = when {
-        r.imported > 0 -> listOfNotNull(
-            countString(R.plurals.settings_import_games, r.imported, r.imported),
+        r.imported > 0 || duplicates != null -> listOfNotNull(
+            if (r.imported > 0) countString(R.plurals.settings_import_games, r.imported, r.imported) else null,
             if (r.skipped > 0) countString(R.plurals.settings_import_skipped, r.skipped, r.skipped) else null,
             duplicates,
         )
-        duplicates != null -> listOf(duplicates)
         else -> listOf(stringResource(R.string.settings_import_none))
     }
     return parts.joinToString(" ")
@@ -163,12 +163,12 @@ fun ExternalImports() {
     LaunchedEffect(a.app) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             // Files that arrive during another import wait for it to end.
-            combine(a.app.externalImports, snapshotFlow { flow.working }) { uris, busy -> uris.takeUnless { busy } }.collect { uris ->
-                if (uris == null) return@collect
-                a.app.externalImports.value = null
-                val names = uris.map { a.app.importer.displayName(it) }
+            combine(a.app.externalImports, snapshotFlow { flow.working }) { uris, busy -> uris.takeUnless { busy } }.collect { seen ->
+                // flow.working is read again: the snapshot flow may not have seen the import just started.
+                if (seen == null || flow.working) return@collect
+                val uris = a.app.externalImports.getAndUpdate { null } ?: return@collect
                 // A lone file no console plays is refused before anything is read or copied.
-                val only = names.singleOrNull()
+                val only = uris.singleOrNull()?.let { a.app.importer.displayName(it) }
                 if (only != null && !RomIntake.isImportable(only)) refused = only
                 else flow.files(uris)
             }
