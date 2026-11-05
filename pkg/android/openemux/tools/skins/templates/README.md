@@ -160,7 +160,13 @@ own names:
 
 ## Installing
 
-Until the app can import a zip (the skin list's "Import .zip"), copy the folder to the device:
+Zip the skin's folder and import it: Settings → the console → Controller skins → "Import .zip", as a new skin (with
+a name) or over one of your skins. A zip for another console, a broken `skin.json` or a zip with paths that leave its
+folder is refused, and nothing is written. Only `skin.json` and the images it names are kept (this README and
+`sources/` are not), and a layout whose folder is missing from the zip is no longer offered. "Download as template" in
+one of your skins' sheet gives the zip back, with an image for every element, to repaint again.
+
+Or copy the folder to the device by hand:
 
 1. Copy the skin's folder into `Android/data/com.openemux.mobile/files/skins/<console>/`, so that
    `files/skins/GBA/my-skin/skin.json` exists (with a USB cable, a file manager, or
