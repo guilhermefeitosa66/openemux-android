@@ -256,8 +256,8 @@ read from that folder.
   the background colour. The game's picture goes in `screens`; with two (NDS), in the box around both, the core showing
   the screens one over the other: put the two screens one over the other.
 - **Images.** A button, keypad key or quick action image is stretched over the element's rect, a stick base over the
-  stick's rect. The D-pad ball and the stick knob are drawn half the size of their element's travel and move with the
-  thumb. A missing or unreadable image is drawn from the element's colours.
+  stick's rect. The D-pad ball is drawn 55% as wide as its travel (the D-pad's rect times 44/60), the stick knob half
+  as wide as the stick, both centred, and both move with the thumb. A missing or unreadable image is drawn from the element's colours.
 - **Defaults.** A colour part left unset: background `#16161A`, frame `#0E0E11`, icons `#FFFFFF`, active `#7C3AED`
   (light icon), button and pad and stick base `#2E2E35`, letter `#FFFFFF`, ball and knob `#6B6B76`. A button with no
   `shape` is a circle, a keypad key a rounded rect.
