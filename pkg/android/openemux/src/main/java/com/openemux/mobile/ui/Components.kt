@@ -112,6 +112,7 @@ object Icons {
     const val List = "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"
     const val Clock = "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M12 8v4l3 2"
     const val Download = "M12 4v11M7 10l5 5 5-5M5 20h14"
+    const val Upload = "M12 15V3M7 8l5-5 5 5M5 20h14"
     const val Sliders = "M4 7h10M18 7h2M4 17h4M12 17h8M16 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4M10 15a2 2 0 1 0 0 4a2 2 0 1 0 0-4"
     const val Play = "M7 4.5v15l13-7.5z"
     const val Star = "M12 3l2.8 5.9 6.2.8-4.6 4.3 1.2 6.3L12 17.3 6.4 20.3l1.2-6.3L3 9.7l6.2-.8z"
