@@ -114,8 +114,7 @@ data class SkinChoice(val options: List<SkinSwatch>) {
 /**
  * A console's skin list (issue 782): the [bundled] ones, the player's [own] and the [imported] packages, with the
  * bundled variant saved ([bundledId], the one to go back to) and the player's skin in use ([custom], a ref).
- * [convertible]: the bundled variants (ids) "Create copy and edit" can make a skin of the player's own of (issue 783),
- * [converted] those of them that are Delta/Manic packages, converted rather than copied (issue 797).
+ * [convertible]: the bundled variants (ids) "Create copy and edit" can make a skin of the player's own of (issue 783).
  */
 data class SkinListState(
     val bundled: SkinChoice,
@@ -124,7 +123,6 @@ data class SkinListState(
     val bundledId: String,
     val custom: String?,
     val convertible: Set<String> = emptySet(),
-    val converted: Set<String> = emptySet(),
 ) {
     /** The player's skin in use: the one [custom] names, when it is still there and readable. */
     val customInUse: StoredSkin? get() = (own + imported).firstOrNull { it.ref == custom && !it.broken }
@@ -138,9 +136,6 @@ data class SkinListState(
 
     /** Whether "Create copy and edit" is offered for the bundled [swatch]. */
     fun convertible(swatch: SkinSwatch) = swatch.variant.id in convertible
-
-    /** Whether making [swatch]'s copy converts a Delta/Manic package (issue 797), which takes a moment. */
-    fun converts(swatch: SkinSwatch) = swatch.variant.id in converted
 
     /**
      * More than one skin in all, or a bundled one to make a copy of (issue 798: a console with only the drawn skin):
@@ -204,7 +199,7 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
             val kinds = choice.options.associate { it.variant.id to SkinConversion.kind(list, console, it.variant) }
             SkinListState(
                 choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null,
-                kinds.filterValues { it != null }.keys, kinds.filterValues { it == SkinConversion.Kind.PACKAGE }.keys,
+                kinds.filterValues { it != null }.keys,
             )
         }
     }
@@ -450,8 +445,6 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             stringResource(R.string.skins_create_copy_save), lead = stringResource(R.string.skins_create_copy_lead), onClose = { copying = null },
         ) { name ->
             copying = null
-            // A Delta/Manic package takes a moment: every control is lifted off its art (issue 797).
-            if (state.converts(swatch)) Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
             // The copy is used at once and opens in the editor (issue 784).
             scope.launch {
                 val ref = withContext(Dispatchers.IO) {

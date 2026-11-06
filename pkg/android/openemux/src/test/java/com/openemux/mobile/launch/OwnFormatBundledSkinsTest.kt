@@ -8,6 +8,7 @@ import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinPackage
+import com.openemux.mobile.data.SkinScreenPage
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinVariant
@@ -26,7 +27,7 @@ import kotlin.math.min
  * The skins the app ships in OpenEmux's own format (issue 770: the Sega, NEC and Famicom Disk System consoles; issue
  * 771: the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy; issue 772:
  * the consoles with a keypad; issue 806: the eleven single-screen consoles that shipped Delta/Manic packages, with
- * their official colours), read by the app's own reader: the six layouts, every image at its element's size (PNG for
+ * their official colours; issue 808: the DS, with its screen-layout pages), read by the app's own reader: the six layouts, every image at its element's size (PNG for
  * the console's own colours and Dark, WebP for a colour variant), every variant with the same layout, and every
  * control pressing what the drawn skin's presses for that console.
  */
@@ -67,14 +68,14 @@ class OwnFormatBundledSkinsTest {
     @Test fun theConsolesShipInTheOwnFormat() {
         val ids = packages(SkinVariant.CONSOLE).map { it.name.removeSuffix(".zip") }
         assertEquals(listOf(
-            "A2600", "A5200", "A7800", "CV", "FC", "FDS", "GB", "GBA", "GBC", "GC", "GG", "INTV", "LYNX", "MCD", "MD", "N64", "NGP",
+            "A2600", "A5200", "A7800", "CV", "FC", "FDS", "GB", "GBA", "GBC", "GC", "GG", "INTV", "LYNX", "MCD", "MD", "N64", "NDS", "NGP",
             "O2", "PCE", "PCECD", "PS", "PSP", "S32X", "SATURN", "SFC", "SG1000", "SMS", "VB", "VECTREX", "WS",
         ), ids)
         assertEquals(ids, packages(SkinVariant.DARK).map { it.name.removeSuffix(".zip") })
-        // Issue 806: of the Delta/Manic packages, only the DS's are left (issue 808 moves them), in any variant folder.
+        // Issue 808: no Delta/Manic package is left in any variant folder, the DS's moved last.
         for (v in SkinVariant.entries) {
-            val left = File(assets, v.assetDir).listFiles()!!.filter { it.isFile && SkinStore.isPackageName(it.name) }.map { it.name }
-            assertEquals(v.id, if (left.isEmpty()) emptyList() else listOf("NDS.deltaskin"), left)
+            val left = File(assets, v.assetDir).listFiles().orEmpty().filter { it.isFile && SkinStore.isPackageName(it.name) }.map { it.name }
+            assertEquals(v.id, emptyList<String>(), left)
         }
     }
 
@@ -88,8 +89,8 @@ class OwnFormatBundledSkinsTest {
             for (v in listed) assertTrue("${v.id}/${file.name}", File(assets, "${v.assetDir}/${file.name}").isFile)
             colors += listed.size - 2
         }
-        // The 33 official colours of the eleven consoles issue 806 moved (the DS's five stay packages).
-        assertEquals(33, colors)
+        // The 33 official colours of the eleven consoles issue 806 moved and the DS's five (issue 808).
+        assertEquals(38, colors)
         // And no zip ships that the catalog does not list.
         for ((v, file) in allPackages()) {
             val console = read(file).skin.console
@@ -122,6 +123,15 @@ class OwnFormatBundledSkinsTest {
                     for (keypad in listOf(false, true)) {
                         assertEquals(where, layout.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) },
                             d.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) })
+                    }
+                    // The DS's screen-layout pages (issue 808) too.
+                    assertEquals(where, layout.screenLayouts.keys, d.screenLayouts.keys)
+                    for ((page, p) in layout.screenLayouts) {
+                        val q = d.screenLayouts.getValue(page)
+                        assertEquals("$where $page", p.screens, q.screens)
+                        assertEquals("$where $page", p.frame?.rect, q.frame?.rect)
+                        assertEquals("$where $page", p.elements.map { listOf(it.id, it.type, it.bind, it.rect, it.label) },
+                            q.elements.map { listOf(it.id, it.type, it.bind, it.rect, it.label) })
                     }
                 }
             }
@@ -158,6 +168,41 @@ class OwnFormatBundledSkinsTest {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Issue 808: the DS, in every variant, has the three screen-layout pages in every layout (what its Delta package drew
+     * as one art per screen layout), each image there at its size, and SCREENS on every page to step on.
+     */
+    @Test fun theDsHasEveryLayoutsScreenLayoutPagesInEveryVariant() {
+        val ds = allPackages().filter { (_, f) -> f.name == "NDS.zip" }
+        assertEquals(listOf("console", "dark", "black", "pink", "turquoise", "blue", "white").sorted(), ds.map { it.first.id }.sorted())
+        for ((v, file) in ds) {
+            val pkg = read(file)
+            val webp = v != SkinVariant.CONSOLE && v != SkinVariant.DARK
+            for ((id, layout) in pkg.skin.layouts) {
+                assertEquals(id.id, SkinScreenPage.IDS, layout.screenLayouts.keys.toList())
+                assertEquals(id.id, 2, layout.screens.size)
+                assertTrue(id.id, layout.elements.any { it.bind == "screens" })
+                for ((page, p) in layout.screenLayouts) {
+                    val where = "${v.id} ${id.id} $page"
+                    assertEquals(where, SkinScreenPage.SCREENS.getValue(page), p.screens.size)
+                    assertTrue(where, p.elements.any { it.bind == "screens" })
+                    // The same controls as the layout, each where the page puts it.
+                    assertEquals(where, layout.elements.map { it.bind }.sorted(), p.elements.map { it.bind }.sorted())
+                    assertEquals(where, layout.size.width to layout.size.height, imageSize(pkg, pkg.screenBackground(id, page)!!, webp))
+                    assertEquals(where, p.frame!!.rect.width.toInt() to p.frame!!.rect.height.toInt(), imageSize(pkg, pkg.screenFrame(id, page)!!, webp))
+                    for (e in p.elements) {
+                        val paths = pkg.screenImages(id, page, e)
+                        assertTrue("$where ${e.id}", paths.isNotEmpty())
+                        assertEquals("$where ${e.id}", e.rect.width.toInt() to e.rect.height.toInt(), imageSize(pkg, paths[0]!!, webp))
+                        paths.forEach { assertNotNull("$where ${e.id}", it) }
+                    }
+                }
+            }
+            // Played on a phone, both phone layouts draw their pages.
+            assertTrue(v.id, ndsPages(pkg.skin, LayoutChoice.Use(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE)))
         }
     }
 
@@ -233,9 +278,12 @@ class OwnFormatBundledSkinsTest {
                 val actions = layout.elements.filter { it.type == SkinElementType.ACTION }.map { it.bind }
                 // Issue 806: the consoles that were Delta/Manic packages keep the slow-motion key the app gave those.
                 val slow = if (pkg.skin.console in SLOW_MOTION) listOf("slowMotion") else emptyList()
-                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo") + slow + "toggleFastForward", actions)
+                // The DS's strip ends with SCREENS, the step to its next screen layout, as its Delta package's did.
+                val screens = if (pkg.skin.console == Console.NDS) listOf("screens") else emptyList()
+                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo") + slow + "toggleFastForward" + screens, actions)
                 assertTrue(layout.elements.any { it.bind == "menu" })
-                actions.forEach { assertNotNull(it, OpenEmuxBinds.action(pkg.skin.console, it, false)?.bind) }
+                // SCREENS presses nothing itself: planPage makes it the step to the next page (issue 807).
+                (actions - "screens").forEach { assertNotNull(it, OpenEmuxBinds.action(pkg.skin.console, it, false)?.bind) }
             }
         }
     }

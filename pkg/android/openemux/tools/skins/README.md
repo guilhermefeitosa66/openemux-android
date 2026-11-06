@@ -1,8 +1,8 @@
 # Bundled controller skins
 
 `build.py` builds the app's bundled skins, `src/main/assets/skins/<console>.zip`
-in OpenEmux's own skin format (`docs/skin-format.md`; the DS still a
-`<console>.deltaskin` until issue 808), from one source:
+in OpenEmux's own skin format (`docs/skin-format.md`), every console the
+same way, from one source:
 `Skin.dc.html`, the Skin component of the skins' design canvas. Its script
 holds the layout engine (between `ENGINE START` and `ENGINE END`) and each
 console's colors, measured on photos of the console's best-known shell
@@ -55,44 +55,33 @@ show them.
 | PSP | White (Ceramic White), Silver, Blue (Metallic Blue); the skin's own is Piano Black | <https://en.wikipedia.org/wiki/PlayStation_Portable>, <https://av.watch.impress.co.jp/docs/20061101/sce.htm> |
 | PS, MD, SMS | none: one retail colour each | <https://en.wikipedia.org/wiki/PlayStation_(console)>, <https://en.wikipedia.org/wiki/Sega_Genesis>, <https://en.wikipedia.org/wiki/Master_System> |
 
-The DS (the only console left in a Delta package, see `SCREEN_LAYOUTS`
-and `TYPES` in `build.py`) is built as follows. It lays out four representations (phone and tablet,
-portrait and landscape: `iphone/edgeToEdge` and `ipad/standard` in the
-format), renders each with headless Chrome from `render.html` (3 px per unit
-on phones, 2 on tablets), cuts the game's screens out of the art and writes
-`info.json` with the frames the engine laid out. A stick's knob is not in
-the art: each one is rendered on its own, the size of its travel, and the
-stick item names it as its `thumbstick` (`<device>_<orient>_knob<N>.png`), so
-the app can move it with the thumb. Nor is the D-pad's circle, which the app
-moves with the thumb too: it is one more image per package (`dpad_knob.png`,
-the circle on its travel square), which each D-pad item names under `knob`, a
-key of the app's own that other emulators ignore. A console with two screens
-(the DS) gets one art per screen layout: the base representation shows the two
-one over the other, as Delta expects, and its `layouts` key (the app's own
-again) holds the `top`, `bottom` and `side` ones, each with its own art,
-screens and items, so the picture always takes the room the layout needs. Its
-chin has a fifth key, `screens`, which the app turns into the step to the next
-layout. The build stops when a screen would leave the art or cover a key.
-In OpenEmux's own format (issue 807) the same pages are each layout's
-`screenLayouts` (`screen_page`): `build_own` renders each one like a layout,
-with `render.html?screens=<page>`, into the layout's `top/`, `bottom/` and
-`side/` folders, and the DS template has them with placeholders.
-Intermediate images go to
-`build/skins/`. Needs Node, Google Chrome and ImageMagick.
+A console with two screens (the DS, `SCREEN_LAYOUTS` in `build.py`) gets one
+page per screen layout: each layout itself shows the two one over the other,
+and its `screenLayouts` (issue 807, `screen_page`) hold the `top`, `bottom`
+and `side` ones, each with its own art, screens, bezel and controls, so the
+picture always takes the room the layout needs. `build_own` renders each one
+like a layout, with `render.html?screens=<page>`, into the layout's `top/`,
+`bottom/` and `side/` folders, and the DS template has them with
+placeholders. Its chin has a fifth key, `screens`, which the app turns into
+the step to the next page. The build stops when a screen would leave the art
+or cover a key. Intermediate images go to `build/skins/`. Needs Node, Google
+Chrome, ImageMagick and Pillow.
 
 ## The consoles in OpenEmux's own format
 
-Every console but the DS ships in OpenEmux's own skin format
-(`docs/skin-format.md`): nineteen that had the drawn skin (issues 770, 771
-and 772), in their own colours and Dark, and the eleven single-screen ones
-that were Delta/Manic packages (issue 806: FC, SFC, GB, GBC, GBA, MD, SMS,
-N64, GC, PS, PSP), in every variant they had, their official colours'
-images in WebP: `src/main/assets/skins/<console>.zip`, `dark/<console>.zip`
-and `<colour>/<console>.zip`. `OWN_FORMAT` in `build.py` names them; the
-same command builds them (`python3 tools/skins/build.py GG PCE`), Pillow
-needed besides. Their layouts gained the fold (six instead of four), and
-their controls keep the binds the packages had: the same engine items, the
-same input names.
+Every console ships in OpenEmux's own skin format (`docs/skin-format.md`):
+nineteen that had the drawn skin (issues 770, 771 and 772), in their own
+colours and Dark, and the twelve that were Delta/Manic packages, in every
+variant they had, their official colours' images in WebP: the eleven
+single-screen ones (issue 806: FC, SFC, GB, GBC, GBA, MD, SMS, N64, GC, PS,
+PSP) and the DS with its screen-layout pages (issue 808):
+`src/main/assets/skins/<console>.zip`, `dark/<console>.zip` and
+`<colour>/<console>.zip`. `OWN_FORMAT` in `build.py` names them; the same
+command builds them (`python3 tools/skins/build.py GG PCE`). Their layouts
+gained the fold (six instead of four), and their controls keep the binds the
+packages had: the same engine items, the same input names. The old packages
+are kept as test files (`src/test/resources/skins/packages/`), which the
+conversion of a player's Delta/Manic package is tested on.
 
 Each package has `skin.json` (written by the same code as the templates) and
 the six layouts, phone, tablet and fold, at the templates' scale (3, 2 and 3 px
@@ -148,8 +137,8 @@ A core that reads them elsewhere (Gearcoleco on the ColecoVision) gets the drawn
 skin's remap (`coreBind` in `data/Skin.kt`) in game.
 
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the
-build. `launch/ImportedSkinRenderer.kt` reads the Delta and Manic packages,
-`launch/OpenEmuxSkinRenderer.kt` the ones in OpenEmux's format.
+build. `launch/OpenEmuxSkinRenderer.kt` draws them; `launch/ImportedSkinRenderer.kt`
+reads only the Delta and Manic packages a player imports.
 
 `SpaceGrotesk.ttf` is the labels' typeface, under the SIL Open Font License
 (`SpaceGrotesk-OFL.txt`); only the rendered art ships in the app.
@@ -164,7 +153,7 @@ placeholder art, one PNG per element at its exact size, and the six layouts
 bundled skin's layout at its art's scale (3 and 2 px per unit); the fold is
 the engine's third device, 604 x 726 units at 3 px per unit (1812 x 2178 px),
 about a Galaxy Z Fold's inner screen. The engine's items carry a `look` (group, label, shape,
-colours) for this; the Delta packages leave it out. Needs Node and Pillow,
+colours) for this. Needs Node and Pillow,
 not Chrome. `tools/skins/templates/README.md` is the creators' guide and
 `ASSET-PLAN.md` the asset plan of every console (generated by
 `SkinAssetPlanTest`). The templates are not in the APK.

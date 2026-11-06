@@ -44,13 +44,15 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(list, Console.GG, SkinVariant.DARK))
     }
 
-    @Test fun deltaAndManicPackagesAreConverted() {
+    @Test fun aBundledFileNotInOpenEmuxsFormatIsNoCopy() {
+        // Issue 808: the app ships no Delta/Manic package any more; one in its assets would be offered no copy.
         val list = lister("skins" to arrayOf("SFC.deltaskin", "GB.manicskin", "N64.txt"))
-        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.SFC, SkinVariant.CONSOLE))
-        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.GB, SkinVariant.CONSOLE))
+        assertNull(SkinConversion.kind(list, Console.SFC, SkinVariant.CONSOLE))
+        assertNull(SkinConversion.kind(list, Console.GB, SkinVariant.CONSOLE))
         assertNull(SkinConversion.kind(list, Console.N64, SkinVariant.CONSOLE))
-        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(File("Mine.MANICSKIN")))
+        assertNull(SkinConversion.kind(File("Mine.MANICSKIN")))
         assertNull(SkinConversion.kind(File("notes.txt")))
+        assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(File("NDS.zip")))
     }
 
     @Test fun aConsoleWithNoPackageConvertsItsDrawnSkin() {
@@ -66,23 +68,21 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(list, Console.GG, SkinVariant.DARK))
         // The variant's own package wins over the console's, whatever its format.
         val delta = lister("skins" to arrayOf("FC.zip"), "skins/red" to arrayOf("FC.deltaskin"))
-        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
+        assertNull(SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
     }
 
     @Test fun theAppsOwnAssetsAnswerForEveryConsole() {
         val list = { dir: String -> File(assets, dir).list() }
         fun kind(k: SkinConversion.Kind) = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == k }.map { it.id }.sorted()
         // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more, issue 772 the four with a keypad,
-        // issue 806 the eleven single-screen consoles that shipped Delta/Manic packages.
+        // issue 806 the eleven single-screen consoles that shipped Delta/Manic packages, issue 808 the DS.
         assertEquals(
             listOf(
                 "A2600", "A5200", "A7800", "CV", "FC", "FDS", "GB", "GBA", "GBC", "GC", "GG", "INTV", "LYNX", "MCD", "MD", "N64",
-                "NGP", "O2", "PCE", "PCECD", "PS", "PSP", "S32X", "SATURN", "SFC", "SG1000", "SMS", "VB", "VECTREX", "WS",
+                "NDS", "NGP", "O2", "PCE", "PCECD", "PS", "PSP", "S32X", "SATURN", "SFC", "SG1000", "SMS", "VB", "VECTREX", "WS",
             ),
             kind(SkinConversion.Kind.OPENEMUX),
         )
-        // Only the DS still ships a Delta package (issue 808 moves it).
-        assertEquals(listOf("NDS"), kind(SkinConversion.Kind.PACKAGE))
         // Every variant of each has the same kind, its own package or the console's.
         for (console in Console.entries) {
             val k = SkinConversion.kind(list, console, SkinVariant.CONSOLE)
@@ -141,13 +141,15 @@ class SkinConversionTest {
         }
     }
 
-    @Test fun aDeltaOrManicPackageGoesToTheConverter() {
+    @Test fun aBundledDeltaOrManicPackageIsRefusedNotConverted() {
+        // Issue 808: a bundled skin is copied, never converted; a player's import goes through duplicatePackage.
         val delta = File(base, "SFC.deltaskin").apply { writeText("x") }
-        val calls = mutableListOf<Triple<Console, File, String>>()
-        withConverter({ s, c, f, n -> assertSame(store, s); calls += Triple(c, f, n); "own:done" }) {
-            assertEquals("own:done", SkinConversion.convert(store, Console.SFC, delta, "Mine"))
+        val calls = mutableListOf<File>()
+        withConverter({ s, _, f, _ -> assertSame(store, s); calls += f; "own:done" }) {
+            assertThrows(SkinStoreException::class.java) { SkinConversion.convert(store, Console.SFC, delta, "Mine") }
         }
-        assertEquals(listOf(Triple(Console.SFC, delta, "Mine")), calls)
+        assertEquals(emptyList<File>(), calls)
+        assertEquals(emptyList<Any>(), store.list(Console.SFC))
     }
 
     @Test fun duplicateConvertsThePlayersImportedPackageAndNothingElse() {
@@ -180,8 +182,9 @@ class SkinConversionTest {
 
     @Test fun everyOwnFormatBundledSkinCopiesWithEveryLayoutElementAndFile() {
         val packages = ownFormatPackages()
-        // Thirty consoles in their own colours and Dark, and the 33 official colours of the eleven issue 806 moved.
-        assertEquals(30 * 2 + 33, packages.size)
+        // Thirty-one consoles in their own colours and Dark, the 33 official colours of the eleven issue 806 moved and
+        // the DS's five (issue 808).
+        assertEquals(31 * 2 + 38, packages.size)
         for ((variant, zip) in packages) {
             val where = "${variant.id} ${zip.name}"
             val source = SkinFormat.readZip(zip)

@@ -19,9 +19,9 @@ import java.io.File
  * iOS emulators' format, issue 782), else the
  * package the app ships for the console, then the drawn skin when there is
  * none or it fails. A user's folder that cannot be drawn for the window's form
- * falls back to the shipped package. A shipped package is in the iOS
- * emulators' format or, for the consoles issue 770 added, in OpenEmux's own
- * (a .zip), drawn like a user's folder.
+ * falls back to the shipped package. A shipped package is in OpenEmux's own
+ * format (a .zip, issues 770 to 808), drawn like a user's folder; a user's
+ * package may also be in the iOS emulators' format.
  */
 object GameSkin {
     /**
@@ -63,15 +63,11 @@ object GameSkin {
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
         val own = user?.takeIf { ownFormat }?.let { dir -> ownFormatSkin(dir.name, "bundled") { SkinFormat.readFolder(dir) } }
         val bundled = if (own == null && (user == null || ownFormat)) ImportedSkinRenderer.bundled(context, console, variant) else null
-        val bundledOwnFormat = bundled != null && ImportedSkinRenderer.isOpenEmuxPackage(bundled)
-        // The shipped package in OpenEmux's own format; one that cannot be drawn here leaves the drawn skin next.
-        val shipped = bundled?.takeIf { bundledOwnFormat }?.let { zip -> ownFormatSkin(zip.name, "drawn") { SkinFormat.readZip(zip) } }
-        val pkg = when {
-            own != null -> null
-            user != null && !ownFormat -> user
-            bundledOwnFormat -> null
-            else -> bundled
-        }
+        // The shipped package, in OpenEmux's own format as every one is (issue 808); one that cannot be drawn here leaves
+        // the drawn skin next.
+        val shipped = bundled?.takeIf { ImportedSkinRenderer.isOpenEmuxPackage(it) }?.let { zip -> ownFormatSkin(zip.name, "drawn") { SkinFormat.readZip(zip) } }
+        // The user's Delta/Manic package, drawn by the importer.
+        val pkg = user?.takeIf { !ownFormat }
         val packaged = own ?: shipped ?: pkg?.let {
             runCatching {
                 // The page in [first]'s orientation (and NDS layout, when the package draws one page per layout) opens.
