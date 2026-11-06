@@ -259,16 +259,32 @@ typealias SkinRects = Map<SkinLayoutId, Map<String, SkinRect>>
 fun OpenEmuxSkin.rects(): SkinRects = layouts.mapValues { (_, l) -> l.elements.associate { it.id to it.rect } }
 
 /**
- * One editing session on [saved] (issue 784): the rects of every layout, the one being edited ([layoutId], set from
- * the device's form and rotation), the selection, Snap, and undo/redo. [start] is a draft's rects; only the layouts
- * and elements [saved] has are taken from it.
+ * One undo step's worth of an editing session: the rects of every layout, their colours ([looks], issue 786) and what
+ * was done to their image files ([images]).
  */
-class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
-    private val original = saved.rects()
-    private val history = SkinEditHistory(merge(original, start))
+data class SkinEditState(val rects: SkinRects, val looks: Map<SkinLayoutId, SkinLook>, val images: SkinImageEdits = emptyMap())
 
-    /** The rects while a drag or a pinch is going on, before it becomes one undo step. */
-    private var live: SkinRects? = null
+/**
+ * One editing session on [saved] (issue 784): the rects of every layout, the one being edited ([layoutId], set from
+ * the device's form and rotation), the selection, Snap, and undo/redo. [start] is a draft's rects, [looks] its colours
+ * and [images] its image edits; only the layouts and elements [saved] has are taken from them. [existing]: the image
+ * files the skin has (SkinSource.files), which tells a colour that drops an image from one that has none to drop.
+ */
+class SkinEditorModel(
+    val saved: OpenEmuxSkin,
+    start: SkinRects? = null,
+    looks: Map<SkinLayoutId, SkinLook>? = null,
+    images: SkinImageEdits = emptyMap(),
+    private val existing: Set<String> = emptySet(),
+) {
+    private val original = saved.rects()
+    private val originalLooks = saved.layouts.mapValues { (_, l) -> l.look() }
+    private val history = SkinEditHistory(
+        SkinEditState(merge(original, start), mergeLooks(originalLooks, looks), images.filterKeys { knownImage(it) }),
+    )
+
+    /** What a drag, a pinch or a colour being picked has done, before it becomes one undo step. */
+    private var live: SkinEditState? = null
     private var gestureFrom: Map<String, SkinRect>? = null
 
     var layoutId: SkinLayoutId? = null
@@ -279,18 +295,21 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
     var guides: List<SnapGuide> = emptyList()
         private set
 
-    val rects: SkinRects get() = live ?: history.current
-    val dirty: Boolean get() = rects != original
+    private val state: SkinEditState get() = live ?: history.current
+    val rects: SkinRects get() = state.rects
+    val looks: Map<SkinLayoutId, SkinLook> get() = state.looks
+    val images: SkinImageEdits get() = state.images
+    val dirty: Boolean get() = rects != original || looks != originalLooks || images.isNotEmpty()
     val canUndo: Boolean get() = history.canUndo
     val canRedo: Boolean get() = history.canRedo
 
-    /** The layout being edited with its current rects, or null when the skin has none for this form and rotation. */
+    /** The layout being edited with its current rects and colours, or null when the skin has none for this form and rotation. */
     val layout: SkinLayout?
         get() {
             val id = layoutId ?: return null
             val base = saved.layouts[id] ?: return null
             val now = rects.getValue(id)
-            return base.copy(elements = base.elements.map { e -> e.copy(rect = now.getValue(e.id)) })
+            return base.copy(elements = base.elements.map { e -> e.copy(rect = now.getValue(e.id)) }).withLook(looks.getValue(id))
         }
 
     /** Edits [form]'s layout in [orientation]; the selection is dropped. */
@@ -344,7 +363,7 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         val from = gestureFrom ?: return
         val id = layoutId ?: return
         val size = saved.layouts.getValue(id).size
-        val others = history.current.getValue(id).filterKeys { it !in from }
+        val others = history.current.rects.getValue(id).filterKeys { it !in from }
         val result = SkinSnap.move(SkinSnap.bounds(from.values), others, size, dx, dy, snap && !free)
         guides = result.guides
         live = withLayout(id, from.mapValues { (_, r) -> r.copy(x = r.x + result.dx, y = r.y + result.dy) })
@@ -369,7 +388,7 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         return percent()
     }
 
-    /** The drag or pinch ends: what it did is one undo step. */
+    /** The drag, pinch or colour being picked ends: what it did is one undo step. */
     fun endGesture() {
         live?.let { history.push(it) }
         cancelGesture()
@@ -419,6 +438,59 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         history.push(withLayout(id, original.getValue(id)))
     }
 
+    /**
+     * Paints [part] of [target] ([ids]: the controls it paints) in [color], live until [endGesture] (a colour being
+     * dragged on the picker is one undo step). A part drawn by an image file of its own loses the image: a colour
+     * and an image are one fill, and the image would hide the colour (issue 786).
+     */
+    fun paint(target: SkinTarget, ids: List<String>, part: SkinPart, color: Int) {
+        val id = layoutId ?: return
+        val l = layout ?: return
+        val base = history.current
+        val look = SkinPainter.paint(base.looks.getValue(id), l, target, ids, part, color)
+        live = base.copy(looks = base.looks + (id to look), images = dropImages(base.images, SkinPainter.files(id, l, ids, part)))
+    }
+
+    /** The icon on a toggled quick action, light or dark: one undo step. */
+    fun tone(tone: SkinIconTone) {
+        val id = layoutId ?: return
+        val l = layout ?: return
+        val base = history.current
+        history.push(base.copy(looks = base.looks + (id to SkinPainter.tone(base.looks.getValue(id), l, tone))))
+        cancelGesture()
+    }
+
+    /** The files of [staged] (path in the skin to the staged texture's name) replace those images: one undo step. */
+    fun texture(staged: Map<String, String>) {
+        val base = history.current
+        history.push(base.copy(images = base.images + staged.filterKeys { knownImage(it) }.mapValues { SkinImageEdit.Staged(it.value) }))
+        cancelGesture()
+    }
+
+    /** [part] of [ids] goes back to its colour: its image (a texture, or the skin's own) is dropped. One undo step. */
+    fun removeTexture(target: SkinTarget, ids: List<String>, part: SkinPart) {
+        val id = layoutId ?: return
+        val l = layout ?: return
+        if (target is SkinTarget.Controls && part.imageIndex == null) return
+        val base = history.current
+        history.push(base.copy(images = dropImages(base.images, SkinPainter.files(id, l, ids, part))))
+        cancelGesture()
+    }
+
+    /** Whether the skin draws [path] (in the skin) as an image, after the edits. */
+    fun hasImage(path: String): Boolean = when (images[path]) {
+        SkinImageEdit.Removed -> false
+        is SkinImageEdit.Staged -> true
+        null -> path in existing
+    }
+
+    /** Whether any file drawing [part] of [ids] is an image (so a colour there replaces it). */
+    fun textured(ids: List<String>, part: SkinPart): Boolean {
+        val id = layoutId ?: return false
+        val l = layout ?: return false
+        return SkinPainter.files(id, l, ids, part).any { hasImage(it) }
+    }
+
     fun undo() {
         cancelGesture()
         history.undo()
@@ -434,8 +506,12 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         now.filter { (id, r) -> original.getValue(layout)[id] != r }
     }.filterValues { it.isNotEmpty() }
 
-    /** [json], the skin's skin.json, with the edited rects written in. */
-    fun json(json: String): String = SkinEditJson.patch(json, edits())
+    /** The colours of the layouts whose colours changed; [SkinLook.colors] holds only the controls that changed. */
+    fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks.filter { (id, look) -> look != originalLooks.getValue(id) }
+        .mapValues { (id, look) -> look.copy(colors = look.colors.filter { (e, c) -> originalLooks.getValue(id).colors[e] != c }) }
+
+    /** [json], the skin's skin.json, with the edited rects and colours written in. */
+    fun json(json: String): String = SkinEditJson.patch(json, edits(), lookEdits())
 
     private fun current(): Map<String, SkinRect> = rects.getValue(layoutId!!)
 
@@ -447,9 +523,26 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         if (live) this.live = withLayout(id, scaled) else history.push(withLayout(id, scaled))
     }
 
-    /** The committed rects with [changed] put into layout [id]. */
-    private fun withLayout(id: SkinLayoutId, changed: Map<String, SkinRect>): SkinRects =
-        history.current + (id to history.current.getValue(id) + changed)
+    /** The committed state with [changed] put into layout [id]'s rects. */
+    private fun withLayout(id: SkinLayoutId, changed: Map<String, SkinRect>): SkinEditState {
+        val now = history.current
+        return now.copy(rects = now.rects + (id to now.rects.getValue(id) + changed))
+    }
+
+    /** [images] with [files] drawn in colours: a skin's own image is marked gone, a texture staged this session dropped. */
+    private fun dropImages(images: SkinImageEdits, files: List<String>): SkinImageEdits {
+        val out = images.toMutableMap()
+        files.forEach { path -> if (path in existing) out[path] = SkinImageEdit.Removed else out.remove(path) }
+        return out
+    }
+
+    /** Whether [path] is an image file of a layout and an element (or the background, the frame) [saved] has. */
+    private fun knownImage(path: String): Boolean {
+        val layoutId = SkinLayoutId.byId(path.substringBefore('/')) ?: return false
+        val l = saved.layouts[layoutId] ?: return false
+        val file = path.substringAfter('/')
+        return file == l.background.imageFile || file == l.frame?.imageFile || l.elements.any { file in it.imageFiles }
+    }
 
     private companion object {
         /** [base] with the rects of [draft] that name a layout and an element [base] has. */
@@ -457,16 +550,24 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
             val d = draft[layout].orEmpty()
             rects.mapValues { (id, r) -> d[id] ?: r }
         }
+
+        /** [base] with [draft]'s colours for the layouts and controls [base] has. */
+        fun mergeLooks(base: Map<SkinLayoutId, SkinLook>, draft: Map<SkinLayoutId, SkinLook>?): Map<SkinLayoutId, SkinLook> =
+            if (draft == null) base else base.mapValues { (layout, look) ->
+                val d = draft[layout] ?: return@mapValues look
+                SkinLook(d.background, d.frame?.takeIf { look.frame != null } ?: look.frame, look.colors.mapValues { (id, c) -> d.colors[id] ?: c })
+            }
     }
 }
 
-/** Writes the editor's rects into a skin.json, every other key as it was (issue 784). */
+/** Writes the editor's rects and colours into a skin.json, every other key as it was (issues 784, 786). */
 object SkinEditJson {
     /**
-     * [json] with each element of [edits] given its rect in whole units: at least 1 wide and tall, inside its layout.
+     * [json] with each element of [edits] given its rect in whole units: at least 1 wide and tall, inside its layout;
+     * and each layout of [looks] given its background, frame and controls' colours (a key left out when unset).
      * Elements and layouts the file does not have are skipped.
      */
-    fun patch(json: String, edits: SkinRects): String {
+    fun patch(json: String, edits: SkinRects, looks: Map<SkinLayoutId, SkinLook> = emptyMap()): String {
         val root = JSONObject(json.removePrefix("\uFEFF"))
         val layouts = root.getJSONObject("layouts")
         for ((layoutId, rects) in edits) {
@@ -486,6 +587,43 @@ object SkinEditJson {
                 e.put("height", height)
             }
         }
+        for ((layoutId, look) in looks) {
+            val layout = layouts.optJSONObject(layoutId.id) ?: continue
+            val bg = layout.optJSONObject("background") ?: JSONObject()
+            put(bg, "color", look.background)
+            if (bg.length() > 0) layout.put("background", bg) else layout.remove("background")
+            val frame = layout.optJSONObject("frame")
+            if (frame != null && look.frame != null) {
+                val f = look.frame
+                val colors = JSONObject()
+                put(colors, "frame", f.frame)
+                put(colors, "icons", f.icons)
+                put(colors, "active", f.active)
+                f.activeIcon?.let { colors.put("activeIcon", it.id) }
+                if (colors.length() > 0) frame.put("colors", colors) else frame.remove("colors")
+            }
+            val elements = layout.optJSONArray("elements") ?: continue
+            for (i in 0 until elements.length()) {
+                val e = elements.getJSONObject(i)
+                val parts = look.colors[e.optString("id")] ?: continue
+                val type = SkinElementType.byId(e.optString("type"))
+                val colors = JSONObject()
+                // The type's order, and only the parts it takes.
+                type?.colorParts?.forEach { part -> put(colors, part, parts[part]) }
+                if (colors.length() > 0) e.put("colors", colors) else e.remove("colors")
+            }
+        }
         return root.toString(2) + "\n"
+    }
+
+    /** [argb] as the format writes a colour: `#RRGGBB`, or `#RRGGBBAA` when it is not opaque. */
+    fun color(argb: Int): String {
+        val rgb = SkinColorMath.hex(argb)
+        val alpha = argb ushr 24
+        return if (alpha == 0xFF) rgb else rgb + "%02X".format(alpha)
+    }
+
+    private fun put(obj: JSONObject, key: String, argb: Int?) {
+        if (argb == null) obj.remove(key) else obj.put(key, color(argb))
     }
 }

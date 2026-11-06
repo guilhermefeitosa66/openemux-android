@@ -177,30 +177,50 @@ class SkinStore(private val base: File) {
 
     /**
      * The editor's Save (issue 784): [json] becomes the player's skin [id]'s skin.json. It must read as a skin for
-     * [console] first; the images stay as they are. A failing save leaves the skin as it was.
+     * [console] first. [images] (issue 786) are the image edits: a staged texture copied into place, a removed image
+     * deleted. A failing save leaves skin.json as it was: the new images go in first and only show once it names them.
      */
-    fun saveEdits(console: Console, id: String, json: String) {
+    fun saveEdits(console: Console, id: String, json: String, images: SkinImageEdits = emptyMap()) {
         val dir = own(console, id)
         checkConsole(SkinFormat.parse(json), console)
+        val stage = stageDir(console, id)
+        placeImages(dir, stage, images)
         writeJson(dir, json)
+        removeImages(dir, images)
     }
 
     /**
-     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images) with [json] as its skin.json,
-     * named [name]; [id] is left as it was. Returns the new skin's ref.
+     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images, with [images] applied) with
+     * [json] as its skin.json, named [name]; [id] is left as it was. Returns the new skin's ref.
      */
-    fun saveAsNew(console: Console, id: String, json: String, name: String): String {
+    fun saveAsNew(console: Console, id: String, json: String, name: String, images: SkinImageEdits = emptyMap()): String {
         val dir = own(console, id)
         checkConsole(SkinFormat.parse(json), console)
-        return build(console, name) { tmp -> copyTree(dir, tmp); json }
+        val stage = stageDir(console, id)
+        return build(console, name) { tmp ->
+            copyTree(dir, tmp)
+            placeImages(tmp, stage, images)
+            removeImages(tmp, images)
+            json
+        }
     }
 
     /**
      * Keeps [json], the editor's unsaved skin.json for the player's skin [id], beside it as a hidden file, so work in
-     * progress survives the app being closed (issue 784).
+     * progress survives the app being closed (issue 784); with [images], its image edits too (issue 786).
      */
-    fun saveDraft(console: Console, id: String, json: String) {
+    fun saveDraft(console: Console, id: String, json: String, images: SkinImageEdits = emptyMap()) {
         own(console, id)
+        val list = File(stageDir(console, id), IMAGES)
+        if (images.isEmpty()) {
+            if (!isLink(list)) list.delete()
+        } else {
+            val text = JSONObject().apply {
+                images.forEach { (path, edit) -> put(path, if (edit is SkinImageEdit.Staged) STAGED + edit.name else REMOVED) }
+            }.toString(2)
+            stageDir(console, id).let { if (isLink(it)) throw SkinStoreException("draft of $id is a link") else it.mkdirs() }
+            writeAtomic(list, text)
+        }
         writeAtomic(draftFile(console, id), json)
     }
 
@@ -214,9 +234,94 @@ class SkinStore(private val base: File) {
         return json
     }
 
-    /** Forgets the draft of the player's skin [id] (saved, discarded or deleted). */
-    fun dropDraft(console: Console, id: String) {
-        if (safeName(id)) draftFile(console, id).takeIf { !isLink(it) }?.delete()
+    /**
+     * The image edits of the draft of the player's skin [id] (issue 786): each path a layout's file, each staged
+     * texture one that is still there; anything else is left out. Empty for none.
+     */
+    fun draftImages(console: Console, id: String): SkinImageEdits {
+        if (!safeName(id)) return emptyMap()
+        val stage = stageDir(console, id)
+        val list = File(stage, IMAGES)
+        if (isLink(stage) || isLink(list) || !list.isFile) return emptyMap()
+        val json = runCatching { JSONObject(list.readText()) }.getOrNull() ?: return emptyMap()
+        return json.keys().asSequence().toList().mapNotNull { path ->
+            val value = json.optString(path)
+            val edit = when {
+                !imagePath(path) -> null
+                value == REMOVED -> SkinImageEdit.Removed
+                value.startsWith(STAGED) -> value.removePrefix(STAGED).takeIf { stagedFile(stage, it) != null }?.let { SkinImageEdit.Staged(it) }
+                else -> null
+            }
+            edit?.let { path to it }
+        }.toMap()
+    }
+
+    /**
+     * Keeps [png], a texture the editor made for the player's skin [id], until a Save puts it in place (issue 786):
+     * returns its name in the draft folder.
+     */
+    fun stageTexture(console: Console, id: String, png: ByteArray): String {
+        own(console, id)
+        val stage = stageDir(console, id)
+        if (isLink(stage)) throw SkinStoreException("draft of $id is a link")
+        if (!stage.isDirectory && !stage.mkdirs()) throw IOException("could not make ${stage.name}")
+        val name = "t-" + java.util.UUID.randomUUID().toString().replace("-", "") + ".png"
+        val tmp = File(stage, "$name.tmp")
+        java.io.FileOutputStream(tmp).use { it.write(png); it.fd.sync() }
+        if (!tmp.renameTo(File(stage, name))) {
+            tmp.delete()
+            throw IOException("could not stage $name")
+        }
+        return name
+    }
+
+    /** The staged texture [name] of the player's skin [id], or null when there is none by that name. */
+    fun staged(console: Console, id: String, name: String): File? =
+        if (safeName(id)) stagedFile(stageDir(console, id), name) else null
+
+    /**
+     * Forgets the draft of the player's skin [id] (saved, discarded or deleted); its staged textures too, unless
+     * [keepTextures] (an undo may bring one back while the editor is open).
+     */
+    fun dropDraft(console: Console, id: String, keepTextures: Boolean = false) {
+        if (!safeName(id)) return
+        draftFile(console, id).takeIf { !isLink(it) }?.delete()
+        val stage = stageDir(console, id)
+        if (keepTextures) File(stage, IMAGES).takeIf { !isLink(stage) && !isLink(it) }?.delete() else deleteTree(stage)
+    }
+
+    /** Where the draft's textures wait for a Save: a hidden folder beside the skin, never listed as one. */
+    private fun stageDir(console: Console, id: String) = File(root(console), ".$id$STAGE")
+
+    /** Copies each staged texture of [images] from [stage] over its path in [dir]; a missing one fails the save. */
+    private fun placeImages(dir: File, stage: File, images: SkinImageEdits) {
+        if (images.values.any { it is SkinImageEdit.Staged } && isLink(stage)) throw SkinStoreException("draft is a link")
+        images.forEach { (path, edit) ->
+            if (edit !is SkinImageEdit.Staged) return@forEach
+            val target = target(dir, path)
+            val from = stagedFile(stage, edit.name) ?: throw IOException("texture ${edit.name} is gone")
+            target.parentFile?.mkdirs()
+            val tmp = File(target.parentFile, target.name + ".tmp")
+            from.copyTo(tmp, overwrite = true)
+            if (!tmp.renameTo(target)) {
+                tmp.delete()
+                throw IOException("could not write $path")
+            }
+        }
+    }
+
+    /** Deletes each removed image of [images] from [dir]. */
+    private fun removeImages(dir: File, images: SkinImageEdits) {
+        images.forEach { (path, edit) -> if (edit == SkinImageEdit.Removed) target(dir, path).delete() }
+    }
+
+    /** [path] in [dir], refused unless it is a layout's image file and no link stands in its way. */
+    private fun target(dir: File, path: String): File {
+        if (!imagePath(path)) throw SkinStoreException("not an image of the skin: $path")
+        val folder = File(dir, path.substringBefore('/'))
+        val file = File(folder, path.substringAfter('/'))
+        if (isLink(folder) || isLink(file)) throw SkinStoreException("$path is a link")
+        return file
     }
 
     private fun draftFile(console: Console, id: String) = File(root(console), ".$id$DRAFT")
@@ -392,6 +497,22 @@ class SkinStore(private val base: File) {
         private const val PKG_PREFIX = "pkg:"
         private const val MAX_ID = 40
         private const val DRAFT = ".draft.json"
+        private const val STAGE = ".draft"
+        private const val IMAGES = "images.json"
+        private const val STAGED = "staged:"
+        private const val REMOVED = "removed"
+        private val STAGED_NAME = Regex("t-[0-9a-f]{32}\\.png")
+        private val IMAGE_FILE = Regex("[a-z0-9]+(-[a-z0-9]+)*\\.png")
+
+        /** Whether [path] is `<layout>/<file>.png`: a layout's folder and a plain image name, nothing more. */
+        internal fun imagePath(path: String): Boolean {
+            val parts = path.split('/')
+            return parts.size == 2 && SkinLayoutId.byId(parts[0]) != null && IMAGE_FILE.matches(parts[1])
+        }
+
+        /** The staged texture [name] in [stage]: a name the store gives, a real file, no link. */
+        internal fun stagedFile(stage: File, name: String): File? =
+            File(stage, name).takeIf { STAGED_NAME.matches(name) && !isLink(stage) && !isLink(it) && it.isFile }
         const val MAX_NAME = 60
 
         fun ref(kind: StoredSkinKind, name: String) = (if (kind == StoredSkinKind.OWN) OWN_PREFIX else PKG_PREFIX) + name

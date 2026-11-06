@@ -1,9 +1,16 @@
 package com.openemux.mobile.ui
 
+import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -80,11 +87,26 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Library
+import com.openemux.mobile.data.EditedSkinSource
+import com.openemux.mobile.data.SkinApply
+import com.openemux.mobile.data.SkinContrastCheck
 import com.openemux.mobile.data.SkinEditJson
 import com.openemux.mobile.data.SkinEditorModel
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
+import com.openemux.mobile.data.SkinFill
 import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinImageEdit
+import com.openemux.mobile.data.SkinPainter
+import com.openemux.mobile.data.SkinPalettes
+import com.openemux.mobile.data.SkinPart
+import com.openemux.mobile.data.SkinScope
+import com.openemux.mobile.data.SkinTarget
+import com.openemux.mobile.data.SkinTemplate
+import com.openemux.mobile.data.SkinTextureFit
+import com.openemux.mobile.data.SkinTextureFrame
+import com.openemux.mobile.data.look
+import com.openemux.mobile.data.withLook
 import com.openemux.mobile.data.SkinGrid
 import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
@@ -100,6 +122,7 @@ import com.openemux.mobile.data.SnapKind
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.rects
 import com.openemux.mobile.launch.OpenEmuxSkinRenderer
+import com.openemux.mobile.launch.PreviewSkinSource
 import com.openemux.mobile.launch.SkinFit
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
@@ -130,6 +153,10 @@ private val StageMuted = Color(0xFFA9A7B5)
 private const val NUDGE = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
 private const val SNAP = "M4 9h16M4 15h16M9 4v16M15 4v16"
 private const val MINUS = "M5 12h14"
+private const val FRAME_ICON = "M3 5h18v14H3zM7 9h10v6H7z"
+
+/** The longest side a texture is drawn at for the stage while it is being framed (issue 786). */
+private const val PREVIEW_TEXTURE = 400f
 
 private const val TAG = "SkinEditor"
 
@@ -170,8 +197,28 @@ internal fun guideText(guide: SnapGuide, other: String?, res: (Int, String?) -> 
 internal fun orientationName(orientation: SkinOrientation): Int =
     if (orientation == SkinOrientation.PORTRAIT) R.string.editor_upright else R.string.editor_sideways
 
-/** The preview of one layout: its page and each control, drawn by the game's renderer at [scale] of its units. */
-private class EditorArt(val layout: SkinLayoutId, val page: ImageBitmap, val elements: Map<String, ImageBitmap>)
+/**
+ * The preview of one layout: its page and each control, drawn by the game's renderer at [scale] of its units. [pageKey]
+ * and [keys] are what each was drawn from (colours and image edits, issue 786): only what changed is drawn again.
+ */
+private class EditorArt(
+    val layout: SkinLayoutId, val page: ImageBitmap, val elements: Map<String, ImageBitmap>,
+    val pageKey: Any? = null, val keys: Map<String, Any?> = emptyMap(),
+)
+
+/** What the paint panel is open on (issue 786): the selection's controls, the background or the frame. */
+private data class PanelOpen(
+    val kind: PanelKind, val tab: PaintTab, val part: SkinPart, val scope: SkinScope = SkinScope.ONE, val palettes: Boolean = false,
+)
+
+private enum class PanelKind { CONTROLS, BACKGROUND, FRAME }
+
+/** A picture being framed as a texture: decoded small enough for the parts it fills. */
+private class TextureSession(val source: Bitmap, val name: String, val width: Int, val height: Int, val frame: SkinTextureFrame = SkinTextureFrame())
+
+private const val PREFS = "openemux"
+private const val PREF_PALETTE = "skin_editor_palette"
+private const val PREF_RECENT = "skin_editor_recent"
 
 private class Loaded(val pkg: SkinPackage, val json: String)
 
@@ -217,6 +264,12 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     var leaving by remember { mutableStateOf(false) }
     var naming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var panel by remember { mutableStateOf<PanelOpen?>(null) }
+    var texture by remember { mutableStateOf<TextureSession?>(null) }
+    var overrides by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
+    val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+    var palette by remember { mutableStateOf(SkinPalettes.byId(prefs.getString(PREF_PALETTE, null))) }
+    var recent by remember { mutableStateOf(SkinPalettes.recentFrom(prefs.getString(PREF_RECENT, null))) }
     val drafts = remember { Mutex() }
     val form = currentSkinForm()
     val orientation = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) SkinOrientation.LANDSCAPE else SkinOrientation.PORTRAIT
@@ -228,8 +281,11 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         val read = withContext(Dispatchers.IO) {
             runCatching {
                 val (pkg, json) = store.template(console, target.id)
-                val draft = store.draft(console, target.id)?.let { runCatching { SkinFormat.parse(it).rects() }.getOrNull() }
-                Triple(pkg, json, draft)
+                val draftJson = store.draft(console, target.id)
+                val draft = draftJson?.let { runCatching { SkinFormat.parse(it) }.getOrNull() }
+                // No draft: textures left staged by an editor that never saved are of no use any more.
+                val images = if (draft != null) store.draftImages(console, target.id) else emptyMap<String, SkinImageEdit>().also { store.dropDraft(console, target.id) }
+                Triple(pkg, json, Triple(draft, images, pkg.source.files))
             }.onFailure { Log.e(TAG, "${target.id} not opened in the editor", it) }.getOrNull()
         }
         if (read == null) {
@@ -237,7 +293,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             onClose()
             return@LaunchedEffect
         }
-        val m = SkinEditorModel(read.first.skin, read.third)
+        val (draft, images, files) = read.third
+        val m = SkinEditorModel(read.first.skin, draft?.rects(), draft?.layouts?.mapValues { it.value.look() }, images, files)
         m.show(form, orientation)
         loaded = Loaded(read.first, read.second)
         model = m
@@ -246,28 +303,47 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     LaunchedEffect(model, form, orientation) {
         model?.show(form, orientation)
         tool = Tool.NONE
+        panel = null
+        texture = null
+        overrides = emptyMap()
         tick++
     }
     val layoutId = tick.let { model?.layoutId }
-    LaunchedEffect(loaded, layoutId) {
+    val paintKey = tick.let { model?.let { mm -> mm.layoutId?.let { mm.looks[it] } to mm.images } } to overrides
+    LaunchedEffect(loaded, layoutId, paintKey) {
         val pkg = loaded?.pkg ?: return@LaunchedEffect
+        val mm = model ?: return@LaunchedEffect
         val id = layoutId ?: return@LaunchedEffect
-        if (art?.layout == id) return@LaunchedEffect
+        val look = mm.looks[id] ?: return@LaunchedEffect
+        val images = mm.images
+        val shown = overrides
+        val before = art?.takeIf { it.layout == id }
         art = withContext(Dispatchers.IO) {
             runCatching {
                 val renderer = OpenEmuxSkinRenderer(context)
-                val layout = pkg.skin.layouts.getValue(id)
+                val layout = pkg.skin.layouts.getValue(id).withLook(look)
+                // The skin as edited: its colours, its image edits, and the textures being framed.
+                val source = PreviewSkinSource(EditedSkinSource(pkg.source, images) { store.staged(console, target.id, it) }, shown)
+                val view = SkinPackage(pkg.skin.copy(layouts = pkg.skin.layouts + (id to layout)), source)
+                fun edits(files: List<String>) = files.map { "${id.id}/$it" }.map { it to (images[it] to shown[it]) }
                 val scale = minOf(1f, PREVIEW_LONG / maxOf(layout.size.width, layout.size.height))
-                val page = renderer.previewPage(pkg, id, scale).asImageBitmap()
+                val pageKey = listOf(look.background, look.frame, edits(listOfNotNull(layout.background.imageFile, layout.frame?.imageFile)))
+                val page = if (before != null && before.pageKey == pageKey) before.page else renderer.previewPage(view, id, scale).asImageBitmap()
+                val keys = layout.elements.associate { e ->
+                    e.id to listOf(e.colors, if (e.type == SkinElementType.ACTION) look.frame else null, edits(e.imageFiles))
+                }
                 // Drawn at twice the size, so a control grown to 200 % stays sharp.
                 val elements = layout.elements.associate { e ->
-                    val w = (e.rect.width * scale * 2f).roundToInt().coerceIn(1, 1024)
-                    val h = (e.rect.height * scale * 2f).roundToInt().coerceIn(1, 1024)
-                    e.id to renderer.previewElement(pkg, id, e, w, h).asImageBitmap()
+                    val kept = before?.elements?.get(e.id)?.takeIf { before.keys[e.id] == keys[e.id] }
+                    e.id to (kept ?: run {
+                        val w = (e.rect.width * scale * 2f).roundToInt().coerceIn(1, 1024)
+                        val h = (e.rect.height * scale * 2f).roundToInt().coerceIn(1, 1024)
+                        renderer.previewElement(view, id, e, w, h).asImageBitmap()
+                    })
                 }
-                EditorArt(id, page, elements)
+                EditorArt(id, page, elements, pageKey, keys)
             }.onFailure { Log.e(TAG, "${target.id}: no preview of ${id.id}", it) }.getOrNull()
-        }
+        } ?: before
     }
 
     /** The model changed; with [commit], the draft on disk follows it. */
@@ -277,11 +353,13 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         if (!commit || busy) return
         val m = model ?: return
         val json = loaded?.json ?: return
-        val edits = if (m.dirty) m.edits() else null
+        val text = if (m.dirty) m.json(json) else null
+        val images = m.images
         scope.launch(Dispatchers.IO) {
             drafts.withLock {
                 runCatching {
-                    if (edits != null) store.saveDraft(console, target.id, SkinEditJson.patch(json, edits)) else store.dropDraft(console, target.id)
+                    // Not dirty (undone back to the skin): the staged textures stay, a redo may bring one back.
+                    if (text != null) store.saveDraft(console, target.id, text, images) else store.dropDraft(console, target.id, keepTextures = true)
                 }
             }
         }
@@ -306,12 +384,13 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         val l = loaded ?: return
         if (busy) return
         val text = m.json(l.json)
+        val images = m.images
         busy = true
         scope.launch {
             val reread = withContext(Dispatchers.IO) {
                 drafts.withLock {
                     runCatching {
-                        store.saveEdits(console, target.id, text)
+                        store.saveEdits(console, target.id, text, images)
                         store.dropDraft(console, target.id)
                         if (andClose) null else store.template(console, target.id)
                     }
@@ -326,7 +405,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             onChanged()
             val (pkg, json) = reread.getOrNull() ?: return@launch onClose()
             loaded = Loaded(pkg, json)
-            model = SkinEditorModel(pkg.skin).also { it.snap = m.snap; it.show(form, orientation) }
+            model = SkinEditorModel(pkg.skin, existing = pkg.source.files).also { it.snap = m.snap; it.show(form, orientation) }
             art = null
         }
     }
@@ -336,12 +415,13 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         val l = loaded ?: return
         if (busy) return
         val text = m.json(l.json)
+        val images = m.images
         busy = true
         scope.launch {
             val ref = withContext(Dispatchers.IO) {
                 runCatching { library.migrateSkins() }
                 drafts.withLock {
-                    runCatching { store.saveAsNew(console, target.id, text, name).also { store.dropDraft(console, target.id) } }.getOrNull()
+                    runCatching { store.saveAsNew(console, target.id, text, name, images).also { store.dropDraft(console, target.id) } }.getOrNull()
                 }
             }
             busy = false
@@ -357,9 +437,167 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         }
     }
 
+    // ---- The paint panel (issue 786). ----
+
+    /** What [p] paints now: its target and the controls it is open on (the selection's, none for the background or frame). */
+    fun panelTarget(p: PanelOpen): Pair<SkinTarget, List<String>>? {
+        val mm = model ?: return null
+        val l = mm.layout ?: return null
+        return when (p.kind) {
+            PanelKind.BACKGROUND -> SkinTarget.Background to emptyList()
+            PanelKind.FRAME -> if (l.frame != null) SkinTarget.Frame to emptyList() else null
+            PanelKind.CONTROLS -> {
+                val ids = mm.selection?.ids ?: return null
+                (SkinTarget.of(l, ids) ?: return null) to ids
+            }
+        }
+    }
+
+    /** The controls a colour or texture goes on, by [p]'s Apply to. */
+    fun painted(p: PanelOpen): List<String> {
+        val (t, ids) = panelTarget(p) ?: return emptyList()
+        val l = model?.layout ?: return emptyList()
+        return if (t is SkinTarget.Controls) SkinApply.targets(l, ids, p.scope, p.part) else ids
+    }
+
+    /** The images a texture of [p] fills: path in the skin and the template's image (its exact size and kind). */
+    fun textureTargets(p: PanelOpen): List<Pair<String, com.openemux.mobile.data.TemplateImage>> {
+        val mm = model ?: return emptyList()
+        val l = mm.layout ?: return emptyList()
+        val id = mm.layoutId ?: return emptyList()
+        if (!p.part.texturable || p.part == SkinPart.ICONS) return emptyList()
+        val files = SkinPainter.files(id, l, painted(p), p.part).toSet()
+        return SkinTemplate.images(l).filter { !it.keypadPage && "${id.id}/${it.file}" in files }.map { "${id.id}/${it.file}" to it }
+    }
+
+    /** The texture being framed goes into the skin (staged until Save), one undo step; then [after]. */
+    fun commitTexture(after: () -> Unit = {}) {
+        val t = texture ?: return after()
+        val p = panel
+        val mm = model
+        texture = null
+        if (p == null || mm == null || busy) {
+            overrides = emptyMap()
+            return after()
+        }
+        val targets = textureTargets(p)
+        busy = true
+        scope.launch {
+            val staged = withContext(Dispatchers.IO) {
+                runCatching {
+                    val r = OpenEmuxSkinRenderer(context)
+                    targets.associate { (path, img) ->
+                        val b = r.texture(t.source, img.kind, img.element, img.width, img.height, t.frame)
+                        try {
+                            path to store.stageTexture(console, target.id, r.png(b))
+                        } finally {
+                            b.recycle()
+                        }
+                    }
+                }.onFailure { Log.e(TAG, "${target.id}: texture not kept", it) }.getOrNull()
+            }
+            busy = false
+            if (staged == null) toast(R.string.skins_error) else mm.texture(staged)
+            overrides = emptyMap()
+            changed(commit = true)
+            after()
+        }
+    }
+
+    fun openPanel(kind: PanelKind, tab: PaintTab) {
+        commitTexture {
+            val l = model?.layout
+            val ids = model?.selection?.ids.orEmpty()
+            val parts = when (kind) {
+                PanelKind.BACKGROUND -> SkinTarget.Background.parts
+                PanelKind.FRAME -> SkinTarget.Frame.parts
+                PanelKind.CONTROLS -> l?.let { SkinTarget.of(it, ids) }?.let { t -> if (t is SkinTarget.Frame) listOf(SkinPart.ICONS) + t.parts else t.parts }.orEmpty()
+            }
+            val part = parts.firstOrNull() ?: return@commitTexture
+            panel = PanelOpen(kind, tab, part)
+            tool = Tool.NONE
+            tick++
+        }
+    }
+
+    fun closePanel() {
+        commitTexture {
+            panel = null
+            tick++
+        }
+    }
+
+    fun paint(color: Int, commit: Boolean) {
+        val p = panel ?: return
+        val mm = model ?: return
+        val (t, _) = panelTarget(p) ?: return
+        // A colour and a picture are one fill: the colour replaces the picture being framed.
+        texture = null
+        mm.paint(t, painted(p), p.part, color)
+        if (commit) {
+            mm.endGesture()
+            recent = SkinPalettes.recent(recent, color)
+            prefs.edit().putString(PREF_RECENT, SkinPalettes.recentText(recent)).apply()
+        }
+        changed(commit)
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        val p = panel
+        if (uri == null || p == null) return@rememberLauncherForActivityResult
+        val targets = textureTargets(p)
+        val w = targets.maxOfOrNull { it.second.width } ?: 256
+        val h = targets.maxOfOrNull { it.second.height } ?: 256
+        scope.launch {
+            val picked = withContext(Dispatchers.IO) { runCatching { decodePicture(context, uri, w, h) }.getOrNull() }
+            if (picked == null) toast(R.string.editor_image_unreadable) else texture = picked
+        }
+    }
+
+    // The texture as framed, drawn small on every part it fills while the panel is open: the stage shows it live.
+    val bake = remember { Mutex() }
+    LaunchedEffect(texture, panel?.part, panel?.scope, panel?.kind, layoutId) {
+        val t = texture
+        val p = panel
+        if (t == null || p == null) {
+            if (overrides.isNotEmpty()) overrides = emptyMap()
+            return@LaunchedEffect
+        }
+        val targets = textureTargets(p)
+        bake.withLock {
+            overrides = withContext(Dispatchers.Default) {
+                val r = OpenEmuxSkinRenderer(context)
+                targets.associate { (path, img) ->
+                    val k = minOf(1f, PREVIEW_TEXTURE / maxOf(img.width, img.height))
+                    path to r.texture(t.source, img.kind, img.element, (img.width * k).roundToInt(), (img.height * k).roundToInt(), t.frame)
+                }
+            }
+        }
+    }
+
+    // A new selection retargets the panel: a picture being framed goes in first; with none left, the panel closes.
+    val selectedIds = tick.let { model?.selection?.ids }
+    LaunchedEffect(selectedIds) {
+        val p = panel ?: return@LaunchedEffect
+        if (p.kind != PanelKind.CONTROLS) return@LaunchedEffect
+        commitTexture {
+            val now = panel ?: return@commitTexture
+            val target = panelTarget(now)?.first
+            panel = when {
+                target == null -> null
+                now.part in target.parts || (target is SkinTarget.Frame && now.part == SkinPart.ICONS) -> now
+                else -> now.copy(part = target.parts.first(), scope = SkinScope.ONE)
+            }
+            tick++
+        }
+    }
+
     BackHandler {
         val m = model
+        val p = panel
         when {
+            p?.palettes == true -> panel = p.copy(palettes = false)
+            p != null -> closePanel()
             tool != Tool.NONE -> tool = Tool.NONE
             m?.selection != null -> { m.clearSelection(); changed() }
             else -> leave()
@@ -382,7 +620,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
 
     Box(
         Modifier.fillMaxSize().onPreviewKeyEvent { e ->
-            // With a control selected, the D-pad nudges it; with none, it moves the focus as anywhere else.
+            // With a control selected, the D-pad nudges it; with none (or the paint panel open), it moves the focus.
+            if (panel != null) return@onPreviewKeyEvent false
             val sel = model?.selection ?: return@onPreviewKeyEvent false
             val step = when (e.key) {
                 Key.DirectionUp -> 0 to -1
@@ -404,6 +643,39 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             layout == null -> NoLayout(target.name, stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation)))) { leave() }
             else -> Stage(
                 m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy,
+                panel = panel?.let { p -> paintView(context, m, layout, p, panelTarget(p), painted(p), palette, recent, texture, overrides, textureTargets(p).firstOrNull()?.first) }?.let { v ->
+                    v to PaintActions(
+                        onTab = { tab -> commitTexture { panel = panel?.copy(tab = tab); tick++ } },
+                        onPart = { part -> panel = panel?.copy(part = part); tick++ },
+                        onScope = { sc -> panel = panel?.copy(scope = sc); tick++ },
+                        onColor = { c, commit -> paint(c, commit) },
+                        onTone = { tone -> m.tone(tone); changed(commit = true) },
+                        onPalettes = { open -> panel = panel?.copy(palettes = open) },
+                        onPalette = { pal ->
+                            palette = pal
+                            prefs.edit().putString(PREF_PALETTE, pal.id).apply()
+                            panel = panel?.copy(palettes = false)
+                        },
+                        onPickImage = { runCatching { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) }.onFailure { toast(R.string.editor_image_unreadable) } },
+                        onFill = { fill -> texture = texture?.let { TextureSession(it.source, it.name, it.width, it.height, it.frame.copy(fill = fill)) } },
+                        onFrame = { x, y, f, _ ->
+                            if (x != 0f || y != 0f || f != 1f) texture = texture?.let { TextureSession(it.source, it.name, it.width, it.height, it.frame.moved(x, y, f)) }
+                        },
+                        onZoom = { z, _ ->
+                            if (!z.isNaN()) texture = texture?.let { TextureSession(it.source, it.name, it.width, it.height, it.frame.copy(zoom = z.coerceIn(SkinTextureFit.MIN_ZOOM, SkinTextureFit.MAX_ZOOM))) }
+                        },
+                        onRemoveTexture = {
+                            texture = null
+                            panel?.let { p -> panelTarget(p)?.let { (t, _) -> m.removeTexture(t, painted(p), p.part) } }
+                            changed(commit = true)
+                        },
+                        onDone = { closePanel() },
+                    )
+                },
+                onColour = { openPanel(PanelKind.CONTROLS, PaintTab.COLOUR) },
+                onTexture = { openPanel(PanelKind.CONTROLS, PaintTab.TEXTURE) },
+                onBackground = { m.clearSelection(); openPanel(PanelKind.BACKGROUND, PaintTab.COLOUR) },
+                onFrame = layout.frame?.let { { m.clearSelection(); openPanel(PanelKind.FRAME, PaintTab.COLOUR) } },
                 title = target.name,
                 subtitle = stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
                 onChange = { commit -> changed(commit) },
@@ -454,6 +726,8 @@ private fun NoLayout(name: String, layout: String, onClose: () -> Unit) {
 @Composable
 private fun Stage(
     m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Boolean, busy: Boolean,
+    panel: Pair<PaintView, PaintActions>?,
+    onColour: () -> Unit, onTexture: () -> Unit, onBackground: () -> Unit, onFrame: (() -> Unit)?,
     title: String, subtitle: String,
     onChange: (Boolean) -> Unit, onResizing: (Boolean) -> Unit, onTool: (Tool) -> Unit, onSnapped: () -> Unit,
     onClose: () -> Unit, onSave: () -> Unit,
@@ -624,6 +898,24 @@ private fun Stage(
         val bottomY = maxOf(screenBottom - px(8f) - px(60f), topY + px(56f))
         val barWidth = with(density) { barW.toDp() }
 
+        if (panel != null) {
+            // Away from what is being edited: sideways, the other half of the window; upright, over the game's screen.
+            val focus = selBox ?: if (panel.first.target == SkinTarget.Frame) layout.frame?.rect else null
+            val sideways = w > h
+            if (sideways) {
+                val panelW = minOf(px(380f), w * 0.55f)
+                val onLeft = focus == null || fit.box(focus).let { it.x + it.w / 2f } > w / 2f
+                val x = if (onLeft) 0f else w - panelW
+                PaintPanel(
+                    panel.first, panel.second,
+                    Modifier.offset { IntOffset(x.roundToInt(), 0) }.width(with(density) { panelW.toDp() }).height(with(density) { h.toDp() }),
+                )
+            } else {
+                val panelH = maxOf(screenBottom, h * 0.42f).coerceAtMost(h * 0.6f)
+                PaintPanel(panel.first, panel.second, Modifier.fillMaxWidth().height(with(density) { panelH.toDp() }))
+            }
+            return@BoxWithConstraints
+        }
         Toolbar(
             title, subtitle, m.canUndo, m.canRedo, m.dirty && !busy,
             Modifier.offset { IntOffset(barX.roundToInt(), topY.roundToInt()) }.width(barWidth),
@@ -644,12 +936,13 @@ private fun Stage(
         val bottom = Modifier.offset { IntOffset(barX.roundToInt(), bottomY.roundToInt()) }
         when {
             m.selection == null -> Box(bottom.width(barWidth), contentAlignment = Alignment.Center) {
-                SnapBar(m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) })
+                SnapBar(m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) }, onBackground = onBackground, onFrame = onFrame)
             }
             tool == Tool.SIZE -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
             tool == Tool.NUDGE -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
             else -> ActionsBar(
-                m.percent() ?: 100, bottom.width(barWidth),
+                m.percent() ?: 100, bottom.width(barWidth), paintable = SkinTarget.of(layout, m.selection?.ids.orEmpty()) != null,
+                onColour = onColour, onTexture = onTexture,
                 onSize = { onTool(Tool.SIZE) }, onNudge = { onTool(Tool.NUDGE) }, onReset = { m.reset(); onChange(true) },
             )
         }
@@ -717,7 +1010,7 @@ private fun Toolbar(
 
 /** With nothing selected: the Snap toggle and More (Reset layout). */
 @Composable
-private fun SnapBar(snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit) {
+private fun SnapBar(snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit, onBackground: () -> Unit, onFrame: (() -> Unit)?) {
     var more by remember { mutableStateOf(false) }
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -732,6 +1025,18 @@ private fun SnapBar(snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit
         Box {
             BarIcon(Icons.Dots, stringResource(R.string.editor_more), filled = true) { more = true }
             DropdownMenu(more, { more = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.editor_background), style = Type.Body) },
+                    leadingIcon = { Icon(Icons.Image, Oe.Text, 18.dp) },
+                    onClick = { more = false; onBackground() },
+                )
+                onFrame?.let { open ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.editor_screen_frame), style = Type.Body) },
+                        leadingIcon = { Icon(FRAME_ICON, Oe.Text, 18.dp) },
+                        onClick = { more = false; open() },
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.editor_reset_layout), style = Type.Body) },
                     leadingIcon = { Icon(Icons.Reset, Oe.Text, 18.dp) },
@@ -754,10 +1059,21 @@ private fun ToolButton(label: String, modifier: Modifier, onClick: () -> Unit, t
     }
 }
 
-/** For a selection: Size (its percentage), Nudge, Reset. Colour and Texture come with issue 786. */
+/** For a selection: Colour and Texture (issue 786; not for a quick action on a layout with no frame), Size (its percentage), Nudge, Reset. */
 @Composable
-private fun ActionsBar(percent: Int, modifier: Modifier, onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit) {
+private fun ActionsBar(
+    percent: Int, modifier: Modifier, paintable: Boolean, onColour: () -> Unit, onTexture: () -> Unit,
+    onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit,
+) {
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically) {
+        if (paintable) {
+            ToolButton(stringResource(R.string.editor_colour), Modifier.weight(1f), onColour) {
+                Canvas(Modifier.size(22.dp)) {
+                    listOf(0xFFC4B5FD, 0xFF8B5CF6, 0xFF6D28D9, 0xFFA78BFA).forEachIndexed { i, c -> drawArc(Color(c), -90f + i * 90f, 90f, true) }
+                }
+            }
+            ToolButton(stringResource(R.string.editor_texture), Modifier.weight(1f), onTexture) { Icon(Icons.Image, BarText, 22.dp) }
+        }
         ToolButton(stringResource(R.string.editor_size), Modifier.weight(1f), onSize) {
             Text(stringResource(R.string.editor_percent, percent), style = Type.Body.copy(color = Lilac, fontSize = 15.sp, fontWeight = FontWeight.Bold))
         }
@@ -832,4 +1148,63 @@ private fun LeaveDialog(name: String, onDismiss: () -> Unit, onSave: () -> Unit,
             }
         }
     }
+}
+
+/** The paint panel's view of [p] (issue 786): everything it shows, read from the model. */
+private fun paintView(
+    context: Context, m: SkinEditorModel, layout: SkinLayout, p: PanelOpen, at: Pair<SkinTarget, List<String>>?, painted: List<String>,
+    palette: com.openemux.mobile.data.SkinPalette, recent: List<Int>, texture: TextureSession?, overrides: Map<String, Bitmap>, first: String?,
+): PaintView? {
+    val (target, ids) = at ?: return null
+    val sel = m.selection
+    val scopes = if (target is SkinTarget.Controls) {
+        SkinApply.scopes(layout, ids, p.part).map { sc ->
+            sc to when (sc) {
+                SkinScope.ONE -> if (sel is SkinSelection.Group) context.getString(groupName(sel.group)) else context.getString(R.string.editor_apply_one)
+                SkinScope.GROUP -> layout.elements.firstOrNull { it.id == ids.first() }?.group?.let { context.getString(groupName(it)) }.orEmpty()
+                SkinScope.ALL -> context.getString(allName(target.type))
+            }
+        }
+    } else emptyList()
+    val textured = m.textured(painted, p.part)
+    return PaintView(
+        target = target,
+        editing = when (target) {
+            SkinTarget.Background -> context.getString(R.string.editor_background)
+            SkinTarget.Frame -> context.getString(R.string.editor_screen_frame)
+            is SkinTarget.Controls -> null
+        },
+        tab = p.tab,
+        part = p.part,
+        scopes = scopes,
+        scope = p.scope,
+        color = SkinPainter.colorOf(layout, painted, p.part),
+        presets = palette,
+        recent = recent,
+        contrast = contrastFor(p.part, SkinContrastCheck.issues(layout, target, painted)),
+        replacesImage = p.part.texturable && textured,
+        tone = layout.frame?.colors?.activeIcon,
+        palettes = p.palettes,
+        textured = textured,
+        texture = texture?.let { t -> TextureDraft(t.name, t.width, t.height, first?.let { overrides[it] }?.asImageBitmap()) },
+        fill = texture?.frame?.fill ?: SkinFill.STRETCH,
+        zoom = texture?.frame?.zoom ?: 1f,
+    )
+}
+
+/**
+ * The picture at [uri] decoded for a texture of at most [w] x [h] (subsampled, never whole when it is a big photo), with
+ * the name the picker shows; null when it is not an image this device decodes.
+ */
+private fun decodePicture(context: Context, uri: Uri, w: Int, h: Int): TextureSession? {
+    val resolver = context.contentResolver
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    val sample = SkinTextureFit.sample(bounds.outWidth, bounds.outHeight, w, h)
+    val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) } ?: return null
+    val name = runCatching {
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    }.getOrNull() ?: uri.lastPathSegment.orEmpty()
+    return TextureSession(bitmap, name, bounds.outWidth, bounds.outHeight)
 }
