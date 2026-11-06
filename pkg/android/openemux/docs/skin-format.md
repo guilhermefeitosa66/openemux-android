@@ -62,7 +62,7 @@ the element's colours, shape and label.
 | `background.png` | the whole layout, behind everything (the layout's `size`) |
 | `frame.png` | the bezel around the game screen, where the quick actions sit (the frame's rect) |
 | `<id>.png` | a button, a keypad key or a quick action |
-| `<id>.png`, `<id>-ball.png` | a D-pad: the pad, and the ball that moves like a stick |
+| `<id>.png`, `<id>-ball.png` | a D-pad: the pad, and the ball that moves like a stick (`dpad2.png`, `dpad2-ball.png` for a second D-pad) |
 | `<id>-base.png`, `<id>-knob.png` | an analog stick: the base, and the knob that moves |
 
 `<id>` is the element's `id` (below), so the usual names are `dpad.png`, `dpad-ball.png`, `stick-base.png`,
@@ -155,7 +155,7 @@ Quick actions (`action` elements) use these colours; they have none of their own
 |---|---|---|---|
 | `id` | string | yes | Unique in the layout; lowercase letters, digits and single hyphens (`a`, `stick2`, `key-star`). Also the base name of the element's images. |
 | `type` | string | yes | `button`, `dpad`, `stick`, `action` or `keypad` (below). |
-| `bind` | string | yes, except `dpad` | The input it presses (below). A D-pad's is `dpad`, and may be left out. |
+| `bind` | string | yes, except `dpad` | The input it presses (below). A D-pad's is `dpad`, and may be left out; a second D-pad's is `dpad2`. |
 | `group` | string | no | The group the editor moves it with (`face`, `dpad`, `shoulders-left`, `center`…). Free text; elements with the same value move together. |
 | `x`, `y`, `width`, `height` | numbers | yes | The element's rect (see Rect). |
 | `shape` | string | no | `circle`, `pill` or `rect`: the outline drawn when the element has no image. |
@@ -198,10 +198,12 @@ actions:
 | Mega Drive, 32X, Mega-CD: `c`, `z`, `mode` | C, Z, Mode |
 | Saturn: `c`, `z` | C, Z (its `l`, `r` are the Saturn's own shoulders) |
 | Famicom Disk System: `disk` | turns the disk over (pressing nothing on other consoles) |
+| Lynx: `option1`, `option2` | Option 1, Option 2 (pressing nothing on other consoles) |
+| Neo Geo Pocket: `a`, `b` | the Neo Geo Pocket's A (on the left) and B |
 | any `action` name below | that quick action |
 
 The console's own names mean the console's own buttons: on N64 `a` and `b` are the N64's A and B, on the Mega Drive
-(and the 32X, the Mega-CD and the Saturn) `a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button.
+(and the 32X, the Mega-CD and the Saturn) `a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button, on the Neo Geo Pocket `a` its A (on the left) and `b` its B.
 
 **`action`**: `quickSave`, `quickLoad`, `turbo`, `slowMotion`, `fastForward` (held), `toggleFastForward`,
 `screenshot`, `menu`, `restart` (also `reset`), `screens` (NDS: the next screen layout). In RetroAchievements hardcore
@@ -209,7 +211,8 @@ the speed keys (`slowMotion`, `fastForward`, `toggleFastForward`) are drawn dimm
 
 **`stick`**: `analogStick` (the left stick), `rightAnalogStick`.
 
-**`dpad`**: `dpad`.
+**`dpad`**: `dpad` (the D-pad), `dpad2` (the console's second D-pad: the Virtual Boy's right pad, which presses
+Beetle VB's L2 up, L3 down, R2 left and R3 right; on a console with one D-pad it is drawn and presses nothing).
 
 **`keypad`**: `keypad0` … `keypad9`, `keypadStar`, `keypadHash`.
 
@@ -247,7 +250,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
 for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
 read from that folder. The skins the app ships for some consoles (issue 770: GG, SG1000, S32X, MCD, SATURN, PCE,
-PCECD, FDS) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
+PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
 wins over them, and one the app cannot draw falls back to the drawn skin.
 
 - **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window
@@ -269,6 +272,32 @@ wins over them, and one the app cannot draw falls back to the drawn skin.
   and does nothing (the skin has no page per NDS layout). In RetroAchievements hardcore the speed keys are dimmed and do
   nothing.
 - The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout.
+
+## Import and export
+
+The skin list's **Import .zip** (Settings → a console → Controller skins) takes a zip in this format, or a Delta or
+Manic EMU package, and **Download as template** (a skin of your own → its sheet) gives one back.
+
+- **Download as template** writes the skin's own `skin.json` unchanged, a `README.txt` listing every file at its size,
+  and **one image per element in every layout the skin has** (the ones this device cannot edit too), all under one
+  folder named after the skin. An image the skin has at the right size is copied as is, one at another size is
+  scaled to it, and a missing one is drawn the way the game draws it (colours, shape, label). Sizes: the element's
+  rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
+  a stick's `-knob` image half its shorter side (rounded half up).
+- **Import** refuses, before writing anything, a file that is not a zip, a zip with neither `skin.json` nor a
+  package's `info.json`, a `skin.json` the reader refuses, a skin for another console (also a Delta package whose
+  `gameTypeIdentifier` names one), a zip with an entry whose name starts with `/`, contains `\` or a `..` segment,
+  and anything over the limits: 128 MiB per file or in all once read, 16 MiB per image, 2,000 entries.
+- A skin in this format goes in as **a new skin** (the name typed replaces `name`) or **over one of the player's
+  skins**, which keeps its folder (so a console using it keeps using it) and its name. Bundled skins are never a
+  target. Only `skin.json` and the images it names are kept. **A layout whose folder is missing from the zip is
+  dropped** from `layouts` (and `forms`), so deleting a template's `fold-*` folders stops the skin offering folds;
+  a zip with no layout folder at all keeps every layout (a skin drawn from its colours). An image the zip lacks is
+  the replaced skin's, when it had one; else the element is drawn from its colours.
+- The skin is built in a hidden folder, read back with this reader, and only then renamed into place (a replaced
+  skin moved aside until then): a zip that fails at any point leaves the list as it was.
+- A package is copied as it is to `<name>.deltaskin` (or `.manicskin`, when the picked file was one) and shows under
+  Imported. A package whose game type the app does not know goes to the console whose list is open.
 
 ## Writing
 

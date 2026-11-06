@@ -136,6 +136,12 @@
         <item quantity="one">%d arquivo ignorado.</item>
         <item quantity="other">%d arquivos ignorados.</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="one">%d jogo já está na sua biblioteca.</item>
+        <item quantity="other">%d jogos já estão na sua biblioteca.</item>
+    </plurals>
+    <string name="import_unsupported">O OpenEmux não pode importar %1$s: nenhum console roda arquivos .%2$s.</string>
+    <string name="import_open_with_label">Importar para o OpenEmux</string>
     <string name="settings_import_none">Nenhuma ROM reconhecida.</string>
     <string name="settings_import_view">Ver</string>
     <string name="settings_import_formats">Formatos aceitos</string>
@@ -309,4 +315,40 @@
     <string name="skins_delete_title">Apagar %1$s?</string>
     <string name="skins_delete_body">A skin e as imagens dela saem deste aparelho.</string>
     <string name="skins_error">Não foi possível alterar a skin.</string>
+    <string name="skins_create_copy">Criar cópia e editar</string>
+    <string name="skins_create_copy_title">Dê um nome à sua cópia</string>
+    <string name="skins_create_copy_lead">As skins do app ficam como estão. A cópia mantém todos os layouts, e você pode renomeá-la depois.</string>
+    <string name="skins_create_copy_save">Criar cópia</string>
+    <string name="skins_bundled_copy_name">Cópia de %1$s</string>
+    <string name="skins_template">Baixar como modelo</string>
+    <string name="skins_template_sub">Um .zip com todos os layouts: celular, tablet, dobrável</string>
+    <string name="skins_template_title">Baixar como modelo</string>
+    <string name="skins_template_lead">%1$s em um .zip, com todos os layouts que tem (celular, tablet e dobrável), inclusive os que este aparelho não edita.</string>
+    <string name="skins_template_step1">Salve o .zip</string>
+    <string name="skins_template_step1_desc">Escolha uma pasta, ou um drive na nuvem que o seu computador acesse.</string>
+    <string name="skins_template_step2">Edite as imagens</string>
+    <string name="skins_template_step2_desc">Descompacte, redesenhe qualquer PNG no seu editor e compacte a pasta de novo.</string>
+    <string name="skins_template_step3">Importe de volta</string>
+    <string name="skins_template_step3_desc">Skins do controle › Importar .zip. Escolha um nome novo ou substitua esta skin.</string>
+    <string name="skins_template_note">Mantenha os nomes e os tamanhos dos arquivos. Uma imagem que faltar usa a da skin. Apague uma pasta inteira (por exemplo, fold) e a skin deixa de oferecer aquela tela.</string>
+    <string name="skins_template_save">Salvar .zip</string>
+    <string name="skins_template_saving">Salvando…</string>
+    <string name="skins_template_saved">Modelo salvo</string>
+    <string name="skins_import">Importar .zip</string>
+    <string name="skins_import_title">Importar skin</string>
+    <string name="skins_import_ready">Pronta para importar</string>
+    <string name="skins_import_save_as">Salvar como</string>
+    <string name="skins_import_new">Uma skin nova</string>
+    <string name="skins_import_replace">Substituir uma das suas skins</string>
+    <string name="skins_import_replace_sub">As imagens e posições dela são sobrescritas</string>
+    <string name="skins_import_bundled_note">As skins inclusas não aparecem aqui: elas não podem ser substituídas.</string>
+    <string name="skins_import_package">Uma skin do Delta ou do Manic EMU: ela entra em Importadas, como está.</string>
+    <string name="skins_import_action">Importar</string>
+    <string name="skins_import_done">Skin importada</string>
+    <string name="skins_import_other_console">Esta skin é de %1$s. Abra as skins de %1$s para importá-la.</string>
+    <string name="skins_import_not_skin">Este arquivo não é uma skin.</string>
+    <string name="skins_import_broken">Não foi possível ler esta skin (%1$s).</string>
+    <string name="skins_import_too_large">Este arquivo é grande demais para importar.</string>
+    <string name="skins_import_unsafe">Este zip tem arquivos fora da pasta dele, então não foi importado.</string>
+    <string name="skins_close">Fechar</string>
 </resources>

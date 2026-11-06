@@ -18,7 +18,8 @@ import kotlin.math.floor
 import kotlin.math.min
 
 /**
- * The skins the app ships in OpenEmux's own format (issue 770: the Sega, NEC and Famicom Disk System consoles), read
+ * The skins the app ships in OpenEmux's own format (issue 770: the Sega, NEC and Famicom Disk System consoles; issue
+ * 771: the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy), read
  * by the app's own reader: the six layouts, every image at its element's size, a Dark twin with the same layout, and
  * every control pressing what the drawn skin's presses for that console.
  */
@@ -38,9 +39,9 @@ class OwnFormatBundledSkinsTest {
         data.readInt() to data.readInt()
     }
 
-    @Test fun theEightConsolesShipInTheOwnFormat() {
+    @Test fun theConsolesShipInTheOwnFormat() {
         val ids = packages(SkinVariant.CONSOLE).map { it.name.removeSuffix(".zip") }
-        assertEquals(listOf("FDS", "GG", "MCD", "PCE", "PCECD", "S32X", "SATURN", "SG1000"), ids)
+        assertEquals(listOf("A2600", "A7800", "FDS", "GG", "LYNX", "MCD", "NGP", "PCE", "PCECD", "S32X", "SATURN", "SG1000", "VB", "VECTREX", "WS"), ids)
         assertEquals(ids, packages(SkinVariant.DARK).map { it.name.removeSuffix(".zip") })
     }
 
@@ -121,7 +122,7 @@ class OwnFormatBundledSkinsTest {
                 val where = "${file.name} ${id.id}"
                 val pressed = layout.elements.flatMap { e ->
                     when (e.type) {
-                        SkinElementType.DPAD -> listOf("up", "down", "left", "right")
+                        SkinElementType.DPAD -> OpenEmuxBinds.dpad(console, e.bind).also { assertNotNull("$where ${e.id}", it) }!!
                         SkinElementType.BUTTON -> if (e.bind == "menu") emptyList() else {
                             val bind = SkinBinds.bind(console, e.bind, hardcore = false)
                             assertNotNull("$where ${e.id}", bind)
@@ -133,6 +134,28 @@ class OwnFormatBundledSkinsTest {
                 }
                 assertEquals(where, drawn, pressed.toSet())
             }
+        }
+    }
+
+    @Test fun theVirtualBoysRightPadIsTheSecondDpad() {
+        val pkg = read(File(assets, "${SkinVariant.CONSOLE.assetDir}/VB.zip"))
+        for ((id, layout) in pkg.skin.layouts) {
+            val pads = layout.elements.filter { it.type == SkinElementType.DPAD }
+            assertEquals(id.id, listOf("dpad" to "dpad", "dpad2" to "dpad2"), pads.map { it.id to it.bind })
+            // Side by side, the second on the right, as the controller has them.
+            assertTrue(id.id, pads[1].rect.x > pads[0].rect.x + pads[0].rect.width)
+            assertEquals(listOf("dpad2.png", "dpad2-ball.png"), pkg.images(id, pads[1]).map { it!!.substringAfter('/') })
+        }
+    }
+
+    @Test fun theAtari7800Reads1OnTheLeftAnd2OnTheRight() {
+        // RT-458: the ProLine's 1, the button 2600 games read, lower left on B; 2 upper right on A.
+        val pkg = read(File(assets, "${SkinVariant.CONSOLE.assetDir}/A7800.zip"))
+        for ((id, layout) in pkg.skin.layouts) {
+            val one = layout.elements.single { it.label == "1" }
+            val two = layout.elements.single { it.label == "2" }
+            assertEquals(id.id, "b" to "a", one.bind to two.bind)
+            assertTrue(id.id, one.rect.x < two.rect.x && one.rect.y > two.rect.y)
         }
     }
 

@@ -26,6 +26,13 @@ layout with plain placeholder art, every image at its exact size, so repainting 
 | PC Engine | [`PCE-template.zip`](PCE-template.zip) |
 | PC Engine CD | [`PCECD-template.zip`](PCECD-template.zip) |
 | Famicom Disk System | [`FDS-template.zip`](FDS-template.zip) |
+| Atari 2600 | [`A2600-template.zip`](A2600-template.zip) |
+| Atari 7800 | [`A7800-template.zip`](A7800-template.zip) |
+| Lynx | [`LYNX-template.zip`](LYNX-template.zip) |
+| Neo Geo Pocket | [`NGP-template.zip`](NGP-template.zip) |
+| WonderSwan | [`WS-template.zip`](WS-template.zip) |
+| Vectrex | [`VECTREX-template.zip`](VECTREX-template.zip) |
+| Virtual Boy | [`VB-template.zip`](VB-template.zip) |
 
 The other consoles have no template yet (their bundled skins come in later batches). [`ASSET-PLAN.md`](ASSET-PLAN.md)
 lists, for all 31 consoles the app runs, the elements a skin has, so the art can be planned before a template exists.
@@ -160,7 +167,13 @@ own names:
 
 ## Installing
 
-Until the app can import a zip (the skin list's "Import .zip"), copy the folder to the device:
+Zip the skin's folder and import it: Settings → the console → Controller skins → "Import .zip", as a new skin (with
+a name) or over one of your skins. A zip for another console, a broken `skin.json` or a zip with paths that leave its
+folder is refused, and nothing is written. Only `skin.json` and the images it names are kept (this README and
+`sources/` are not), and a layout whose folder is missing from the zip is no longer offered. "Download as template" in
+one of your skins' sheet gives the zip back, with an image for every element, to repaint again.
+
+Or copy the folder to the device by hand:
 
 1. Copy the skin's folder into `Android/data/com.openemux.mobile/files/skins/<console>/`, so that
    `files/skins/GBA/my-skin/skin.json` exists (with a USB cable, a file manager, or

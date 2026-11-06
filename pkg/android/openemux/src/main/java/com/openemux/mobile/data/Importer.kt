@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -74,13 +76,24 @@ val KNOWN_BIOS = listOf(
 
 private val DISC_SHEETS = setOf("cue", "chd", "pbp", "iso", "cso", "rvz", "gcm", "ciso")
 
-data class ImportResult(val imported: Int, val skipped: Int, val names: List<String> = emptyList())
+data class ImportResult(
+    val imported: Int,
+    val skipped: Int,
+    val names: List<String> = emptyList(),
+    /** Games left alone because a file of that name was already in the console's folder. */
+    val duplicates: Int = 0,
+    /** The consoles that received a game or already had it, in the order met: the library opens on the first. */
+    val consoles: List<Console> = emptyList(),
+)
 
 /** One entry the user picked: a document with a display name. */
 private data class Picked(val uri: Uri, val name: String, val size: Long)
 
 class Importer(private val context: Context, private val library: Library) {
     private val resolver get() = context.contentResolver
+
+    /** One copy at a time: Settings › Import and "Open with"/"Share" may overlap, and share the `.part` names. */
+    private val copying = Mutex()
 
     /**
      * Extensions in this batch that more than one console takes, with the
@@ -95,12 +108,17 @@ class Importer(private val context: Context, private val library: Library) {
         ambiguitiesOf(walkTree(tree))
     }
 
+    /** The name the sender gives [uri], or its last path segment when it gives none. */
+    suspend fun displayName(uri: Uri): String = withContext(Dispatchers.IO) {
+        runCatching { describe(uri)?.name }.getOrNull() ?: uri.lastPathSegment.orEmpty()
+    }
+
     suspend fun importRoms(uris: List<Uri>, choices: Map<String, Console> = emptyMap()): ImportResult = withContext(Dispatchers.IO) {
-        importPicked(uris.mapNotNull { describe(it) }, choices)
+        copying.withLock { importPicked(uris.mapNotNull { describe(it) }, choices) }
     }
 
     suspend fun importRomTree(tree: Uri, choices: Map<String, Console> = emptyMap()): ImportResult = withContext(Dispatchers.IO) {
-        importPicked(walkTree(tree), choices)
+        copying.withLock { importPicked(walkTree(tree), choices) }
     }
 
     private fun ambiguitiesOf(files: List<Picked>): Map<String, List<Console>> {
@@ -167,54 +185,61 @@ class Importer(private val context: Context, private val library: Library) {
     private fun importPicked(files: List<Picked>, choices: Map<String, Console>): ImportResult {
         var imported = 0
         var skipped = 0
+        var duplicates = 0
+        val consoles = LinkedHashSet<Console>()
         val followers = cueTracks(files)
         val cueConsole = mutableMapOf<String, Console?>()
         // Sheets first, so their tracks know where to go.
         for (picked in files.sortedBy { if (it.name.endsWith(".cue", ignoreCase = true)) 0 else 1 }) {
-            val ext = picked.name.substringAfterLast('.', "").lowercase()
-            val ok = if (ext == "zip") {
-                val console = key(picked)?.let { consoleFor(it, choices) }
-                console != null && (resolver.openInputStream(picked.uri)?.use { extractZip(it, console) } ?: false)
-            } else {
-                val console = followers[picked.name]?.let { cueConsole[it] } ?: consoleFor(ext, choices)
-                if (ext == "cue") cueConsole[picked.name] = console
-                if (console == null) false
-                else resolver.openInputStream(picked.uri)?.use { copyInto(console, picked.name, it); true } ?: false
-            }
+            val ext = RomIntake.extensionOf(picked.name)
+            var console: Console? = null
+            // One unreadable file is that file's failure, not the whole batch's.
+            val placed = runCatching {
+                if (ext == "zip") {
+                    console = key(picked)?.let { consoleFor(it, choices) }
+                    console?.let { c -> resolver.openInputStream(picked.uri)?.use { extractZip(it, c) } }
+                } else {
+                    console = followers[picked.name]?.let { cueConsole[it] } ?: consoleFor(ext, choices)
+                    if (ext == "cue") cueConsole[picked.name] = console
+                    console?.let { c -> resolver.openInputStream(picked.uri)?.use { RomIntake.place(library.paths.roms(c), picked.name, it) } }
+                }
+            }.getOrNull()
+            if (placed != null) console?.let { consoles += it }
             // A disc's track files are part of the game, not games of their own.
-            if (ok && picked.name !in followers) imported++ else if (!ok) skipped++
+            when {
+                placed == null -> skipped++
+                picked.name in followers -> Unit
+                placed == RomIntake.Placed.COPIED -> imported++
+                else -> duplicates++
+            }
         }
-        return ImportResult(imported, skipped)
+        return ImportResult(imported, skipped, duplicates = duplicates, consoles = consoles.toList())
     }
 
-    private fun extractZip(input: InputStream, console: Console): Boolean {
-        var any = false
+    /** COPIED when any entry was new, DUPLICATE when every one was already there, null when none fits [console]. */
+    private fun extractZip(input: InputStream, console: Console): RomIntake.Placed? {
+        var result: RomIntake.Placed? = null
         ZipInputStream(input).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 if (entry.isDirectory) continue
                 val name = entry.name.substringAfterLast('/')
-                val ext = name.substringAfterLast('.', "").lowercase()
+                val ext = RomIntake.extensionOf(name)
                 // Disc tracks travel with their sheet even where .bin is not a game of its own.
                 if (ext !in console.extensions && !(ext == "bin" && "cue" in console.extensions)) continue
-                copyInto(console, name, zip)
-                any = true
+                val placed = RomIntake.place(library.paths.roms(console), name, zip)
+                if (result != RomIntake.Placed.COPIED) result = placed
             }
         }
-        return any
+        return result
     }
 
-    private fun copyInto(console: Console, name: String, input: InputStream) {
-        val dir = library.paths.roms(console).apply { mkdirs() }
-        val target = File(dir, name.replace('/', '_'))
-        val tmp = File(dir, ".${target.name}.part")
-        tmp.outputStream().use { input.copyTo(it) }
-        tmp.renameTo(target)
-    }
-
-    private fun describe(uri: Uri): Picked? =
-        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
+    private fun describe(uri: Uri): Picked? {
+        // A file:// path (rare: other apps may not send them since Android 7) has no provider to ask.
+        if (uri.scheme == "file") return uri.path?.let(::File)?.takeIf { it.isFile }?.let { Picked(uri, it.name, it.length()) }
+        return resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
             ?.use { c -> if (c.moveToFirst()) Picked(uri, c.getString(0) ?: return null, if (c.isNull(1)) -1 else c.getLong(1)) else null }
+    }
 
     private fun walkTree(tree: Uri): List<Picked> {
         val out = mutableListOf<Picked>()

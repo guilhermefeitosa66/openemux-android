@@ -340,6 +340,20 @@ class SkinFormatTest {
         val withBind = json().apply { element(0).put("bind", "dpad") }.toString()
         assertEquals("dpad", SkinFormat.parse(withBind).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].bind)
         assertEquals("dpad", SkinFormat.parse(SkinFormat.toJson(full)).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].bind)
+        // Only the D-pad's own bind is left out on writing.
+        assertFalse("\"bind\": \"dpad\"" in SkinFormat.toJson(full))
+    }
+
+    @Test fun aSecondDpadKeepsItsBind() {
+        val second = json().apply { element(0).put("bind", "dpad2") }.toString()
+        val skin = SkinFormat.parse(second)
+        assertEquals("dpad2", skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].bind)
+        // Written back with its bind, so it reads as the second D-pad again.
+        assertTrue("\"bind\": \"dpad2\"" in SkinFormat.toJson(skin))
+        assertEquals(skin, SkinFormat.parse(SkinFormat.toJson(skin)))
+        // A button's name is still not a D-pad's.
+        refused(SkinError.BIND_NOT_FOR_TYPE, "layouts.phone-portrait.elements[0].bind") { element(0).put("bind", "a") }
+        refused(SkinError.BIND_NOT_FOR_TYPE, "layouts.phone-portrait.elements[1].bind") { element(1).put("bind", "dpad2") }
     }
 
     @Test fun aColourPartSetToNullReadsAsLeftOut() {
@@ -369,7 +383,7 @@ class SkinFormatTest {
     }
 
     @Test fun eachTypeTakesItsOwnBinds() {
-        assertEquals(setOf("dpad"), SkinFormat.bindsFor(SkinElementType.DPAD))
+        assertEquals(setOf("dpad", "dpad2"), SkinFormat.bindsFor(SkinElementType.DPAD))
         assertEquals(setOf("analogStick", "rightAnalogStick"), SkinFormat.bindsFor(SkinElementType.STICK))
         assertEquals(12, SkinFormat.bindsFor(SkinElementType.KEYPAD).size)
         assertTrue("keypadStar" in SkinFormat.bindsFor(SkinElementType.KEYPAD) && "keypad0" in SkinFormat.bindsFor(SkinElementType.KEYPAD))

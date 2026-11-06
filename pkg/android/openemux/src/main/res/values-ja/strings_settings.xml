@@ -128,6 +128,11 @@
     <plurals name="settings_import_skipped">
         <item quantity="other">%d 個のファイルをスキップしました。</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="other">%d 本のゲームはすでにライブラリにあります。</item>
+    </plurals>
+    <string name="import_unsupported">%1$s は読み込めません。.%2$s ファイルに対応するゲーム機がありません。</string>
+    <string name="import_open_with_label">OpenEmux に読み込む</string>
     <string name="settings_import_none">ROM が認識されませんでした。</string>
     <string name="settings_import_view">表示</string>
     <string name="settings_import_formats">対応形式</string>
@@ -298,4 +303,40 @@
     <string name="skins_delete_title">%1$s を削除しますか？</string>
     <string name="skins_delete_body">スキンとその画像がこの端末から削除されます。</string>
     <string name="skins_error">スキンを変更できませんでした。</string>
+    <string name="skins_create_copy">コピーを作成して編集</string>
+    <string name="skins_create_copy_title">コピーの名前</string>
+    <string name="skins_create_copy_lead">同梱のスキンはそのまま残ります。コピーにはすべてのレイアウトが含まれ、名前はあとで変更できます。</string>
+    <string name="skins_create_copy_save">コピーを作成</string>
+    <string name="skins_bundled_copy_name">%1$s のコピー</string>
+    <string name="skins_template">テンプレートとしてダウンロード</string>
+    <string name="skins_template_sub">すべてのレイアウト(スマホ、タブレット、折りたたみ)を含む .zip</string>
+    <string name="skins_template_title">テンプレートとしてダウンロード</string>
+    <string name="skins_template_lead">%1$s を .zip で保存します。このデバイスで編集できないものも含め、すべてのレイアウト(スマホ、タブレット、折りたたみ)が入ります。</string>
+    <string name="skins_template_step1">.zip を保存</string>
+    <string name="skins_template_step1_desc">フォルダ、またはパソコンから開けるクラウドを選びます。</string>
+    <string name="skins_template_step2">画像を編集</string>
+    <string name="skins_template_step2_desc">解凍して好きな PNG を描き直し、フォルダをもう一度圧縮します。</string>
+    <string name="skins_template_step3">取り込み直す</string>
+    <string name="skins_template_step3_desc">コントローラースキン › .zip を読み込む。新しい名前を付けるか、このスキンと置き換えます。</string>
+    <string name="skins_template_note">ファイル名とサイズはそのままにしてください。消した画像はスキンの画像が使われます。フォルダごと(例: fold)消すと、その画面には対応しなくなります。</string>
+    <string name="skins_template_save">.zip を保存</string>
+    <string name="skins_template_saving">保存中…</string>
+    <string name="skins_template_saved">テンプレートを保存しました</string>
+    <string name="skins_import">.zip を読み込む</string>
+    <string name="skins_import_title">スキンを読み込む</string>
+    <string name="skins_import_ready">読み込めます</string>
+    <string name="skins_import_save_as">保存先</string>
+    <string name="skins_import_new">新しいスキン</string>
+    <string name="skins_import_replace">自分のスキンと置き換える</string>
+    <string name="skins_import_replace_sub">画像と配置が上書きされます</string>
+    <string name="skins_import_bundled_note">同梱スキンは表示されません: 置き換えできません。</string>
+    <string name="skins_import_package">Delta または Manic EMU のスキンです: そのまま「インポート済み」に入ります。</string>
+    <string name="skins_import_action">読み込む</string>
+    <string name="skins_import_done">スキンを読み込みました</string>
+    <string name="skins_import_other_console">このスキンは %1$s 用です。%1$s のスキン画面から読み込んでください。</string>
+    <string name="skins_import_not_skin">このファイルはスキンではありません。</string>
+    <string name="skins_import_broken">このスキンを読み込めません(%1$s)。</string>
+    <string name="skins_import_too_large">ファイルが大きすぎて読み込めません。</string>
+    <string name="skins_import_unsafe">この zip にはフォルダ外のファイルが含まれているため、読み込みませんでした。</string>
+    <string name="skins_close">閉じる</string>
 </resources>

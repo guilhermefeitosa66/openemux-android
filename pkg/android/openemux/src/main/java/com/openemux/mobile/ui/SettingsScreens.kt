@@ -74,7 +74,6 @@ import com.openemux.mobile.data.AchievementsState
 import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.BiosImportReport
-import com.openemux.mobile.data.ImportResult
 import com.openemux.mobile.data.KNOWN_BIOS
 import com.openemux.mobile.data.LoginResult
 import com.openemux.mobile.data.RaLogin
@@ -943,62 +942,19 @@ private fun AchievementsAccount(state: AchievementsState) {
 fun ImportScreen() {
     GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back), "L1 R1" to stringResource(R.string.settings_hint_tabs)))
     val a = LocalActions.current
-    val scope = rememberCoroutineScope()
-    var result by remember { mutableStateOf<ImportResult?>(null) }
-    var working by remember { mutableStateOf(false) }
+    val flow = rememberImportFlow()
+    val result = flow.result
+    val working = flow.working
     val context = LocalContext.current
 
-    // Extensions several consoles take, still to be answered, and the import waiting on them.
-    var asking by remember { mutableStateOf<List<Pair<String, List<Console>>>>(emptyList()) }
-    var choices by remember { mutableStateOf<Map<String, Console>>(emptyMap()) }
-    var pendingImport by remember { mutableStateOf<(suspend (Map<String, Console>) -> ImportResult)?>(null) }
-
-    fun finish(block: suspend (Map<String, Console>) -> ImportResult, picked: Map<String, Console>) {
-        scope.launch {
-            result = runCatching { block(picked) }.getOrDefault(ImportResult(0, 0))
-            a.app.library.scan()
-            working = false
-        }
-    }
-    fun run(ambiguities: suspend () -> Map<String, List<Console>>, block: suspend (Map<String, Console>) -> ImportResult) {
-        working = true
-        scope.launch {
-            val open = runCatching { ambiguities() }.getOrDefault(emptyMap())
-            if (open.isEmpty()) finish(block, emptyMap())
-            else { choices = emptyMap(); pendingImport = block; asking = open.toList() }
-        }
-    }
     val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) run({ a.app.importer.ambiguities(uris) }) { a.app.importer.importRoms(uris, it) }
+        if (uris.isNotEmpty()) flow.files(uris)
     }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) run({ a.app.importer.ambiguitiesInTree(uri) }) { a.app.importer.importRomTree(uri, it) }
+        if (uri != null) flow.run({ a.app.importer.ambiguitiesInTree(uri) }, { a.app.importer.importRomTree(uri, it) })
     }
 
-    asking.firstOrNull()?.let { (ext, candidates) ->
-        OeSheet({ asking = emptyList(); pendingImport = null; working = false }) {
-            SheetBarIcons()
-            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-                Text(stringResource(R.string.settings_import_ext_title, ext), style = Type.Title.copy(fontSize = 22.sp))
-                Text(
-                    stringResource(R.string.settings_import_ext_question, ext),
-                    style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                )
-                Card {
-                    candidates.forEachIndexed { i, c ->
-                        ListRow(
-                            c.fullName, divider = i > 0, minHeight = 56.dp, leading = { ConsoleIcon(c) },
-                            onClick = {
-                                choices = choices + (ext to c)
-                                asking = asking.drop(1)
-                                if (asking.isEmpty()) pendingImport?.let { finish(it, choices) }
-                            },
-                        )
-                    }
-                }
-            }
-        }
-    }
+    ImportConsoleSheet(flow)
 
     MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().holdFocusAtEnd(FocusDirection.Down).verticalScroll(rememberScrollState())) {
         Text(stringResource(R.string.settings_import), style = Type.Display, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp))
@@ -1019,7 +975,7 @@ fun ImportScreen() {
             }
         }
         result?.let { r ->
-            val ok = r.imported > 0
+            val ok = r.imported > 0 || r.duplicates > 0
             Row(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
                     .background(if (ok) Oe.OkBg else Oe.WarnBg).padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1027,9 +983,7 @@ fun ImportScreen() {
             ) {
                 Icon(if (ok) Icons.Check else Icons.Alert, if (ok) Oe.OkText else Oe.WarnText, 20.dp, stroke = 2.4f)
                 Text(
-                    if (ok) countString(R.plurals.settings_import_games, r.imported, r.imported) +
-                        if (r.skipped > 0) " " + countString(R.plurals.settings_import_skipped, r.skipped, r.skipped) else ""
-                    else stringResource(R.string.settings_import_none),
+                    importMessage(r),
                     style = Type.Body.copy(fontSize = 14.sp, color = if (ok) Oe.OkText else Oe.WarnText),
                     modifier = Modifier.weight(1f),
                 )

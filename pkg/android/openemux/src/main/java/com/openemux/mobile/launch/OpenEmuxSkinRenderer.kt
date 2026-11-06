@@ -24,6 +24,9 @@ import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinPackage
 import com.openemux.mobile.data.SkinRect
 import com.openemux.mobile.data.SkinShape
+import com.openemux.mobile.data.SkinTemplate
+import com.openemux.mobile.data.TemplateImage
+import com.openemux.mobile.data.TemplateImageKind
 import com.openemux.mobile.ui.Icons
 import com.retroarch.R
 import java.io.File
@@ -78,6 +81,40 @@ class OpenEmuxSkinRenderer(context: Context) {
         return File(outDir, "skin.cfg").apply { writeText(cfg.toString()) }
     }
 
+    /**
+     * One image of [pkg]'s template (issue 787, data/SkinTemplate.kt) as PNG bytes at its exact size: the skin's own
+     * file as it is when it already has that size, scaled to it when not, and drawn the way the game draws the element
+     * without an image (its colours, shape, label or glyph) when the skin has none or it cannot be read.
+     */
+    fun templateImage(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage): ByteArray {
+        val path = pkg.image(id, image.file)
+        val own = path?.let { p -> runCatching { pkg.source.open(p)?.use { it.readBytes() } }.getOrNull() }
+        if (own != null && SkinTemplate.pngSize(own) == image.width to image.height) return own
+        val box = RectF(0f, 0f, image.width.toFloat(), image.height.toFloat())
+        val bitmap = path?.let { image(pkg, it, box) } ?: placeholder(pkg, id, image, box)
+        return try {
+            java.io.ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    /** [image] with no file of its own, as the game draws it. */
+    private fun placeholder(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage, box: RectF): Bitmap {
+        val layout = pkg.skin.layouts.getValue(id)
+        val e = image.element
+        return when (image.kind) {
+            TemplateImageKind.BACKGROUND -> blank(box).also { it.eraseColor(layout.background.color ?: DEFAULT_BACKGROUND) }
+            TemplateImageKind.FRAME -> blank(box).also { it.eraseColor(layout.frame?.colors?.frame ?: DEFAULT_FRAME) }
+            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> shape(e!!, box)
+            TemplateImageKind.ACTION -> glyph(OpenEmuxBinds.action(pkg.skin.console, e!!.bind, false)?.icon, box, layout.frame?.colors?.icons ?: DEFAULT_ICONS)
+            TemplateImageKind.DPAD -> cross(box, e!!.colors["pad"] ?: DEFAULT_PAD)
+            TemplateImageKind.DPAD_BALL -> disc(box, e!!.colors["ball"] ?: DEFAULT_BALL)
+            TemplateImageKind.STICK_BASE -> disc(box, e!!.colors["base"] ?: DEFAULT_BASE)
+            TemplateImageKind.STICK_KNOB -> disc(box, e!!.colors["knob"] ?: DEFAULT_KNOB)
+        }
+    }
+
     /** The page's own image: the background, the frame, and the game's screens cut out of them. */
     private fun page(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, plan: PagePlan, w: Int, h: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -118,10 +155,10 @@ class OpenEmuxSkinRenderer(context: Context) {
                 val pad = image(pkg, files[0], box) ?: cross(box, element.colors["pad"] ?: DEFAULT_PAD)
                 val travel = plan.travel.rect()
                 val ball = ball(pkg, files[1], travel, element.colors["ball"] ?: DEFAULT_BALL)
-                listOf(
-                    OverlayDesc("nul", box, image = pad),
-                    OverlayDesc("dpad_area", travel, dpad = listOf("up", "down", "left", "right"), reach = plan.reach, knob = ball),
-                )
+                // A second D-pad on a console with none is drawn, ball at rest, and presses nothing.
+                val area = plan.binds?.let { OverlayDesc("dpad_area", travel, dpad = it, reach = plan.reach, knob = ball) }
+                    ?: OverlayDesc("nul", travel, image = ball)
+                listOf(OverlayDesc("nul", box, image = pad), area)
             }
             is ElementPlan.Stick -> {
                 val base = image(pkg, files[0], box) ?: disc(box, element.colors["base"] ?: DEFAULT_BASE)
