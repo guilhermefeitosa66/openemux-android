@@ -176,7 +176,7 @@ class SkinStore(private val base: File) {
         own(console, id)
         val file = draftFile(console, id)
         val tmp = File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(json)
+        writeSynced(tmp, json)
         if (!tmp.renameTo(file)) {
             tmp.delete()
             throw IOException("could not write the draft of $id")
@@ -356,7 +356,7 @@ class SkinStore(private val base: File) {
     private fun writeJson(dir: File, text: String) {
         val target = File(dir, SkinFormat.SKIN_JSON)
         val tmp = File(dir, SkinFormat.SKIN_JSON + ".tmp")
-        tmp.writeText(text)
+        writeSynced(tmp, text)
         if (!tmp.renameTo(target)) {
             tmp.delete()
             throw IOException("could not write ${target.path}")
@@ -427,6 +427,17 @@ class SkinStore(private val base: File) {
                 if (phone) add(SkinForm.PHONE)
                 if (tablet) add(SkinForm.TABLET)
                 if (phone && tablet) add(SkinForm.FOLD)
+            }
+        }
+
+        /**
+         * Writes [text] to [file] and waits for it to reach the disk, so the rename that follows never puts an empty
+         * skin.json in place when the device loses power or the app is killed right after a save.
+         */
+        internal fun writeSynced(file: File, text: String) {
+            java.io.FileOutputStream(file).use { out ->
+                out.write(text.toByteArray(Charsets.UTF_8))
+                out.fd.sync()
             }
         }
 

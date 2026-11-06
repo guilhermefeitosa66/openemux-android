@@ -1,6 +1,7 @@
 package com.openemux.mobile.ui
 
 import android.content.res.Configuration
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -122,10 +123,14 @@ private val BarText = Color(0xFFE6E4EE)
 private val BarOff = Color(0xFF5E5C6A)
 private val Field = Color(0xFF26262E)
 private val Lilac = Color(0xFFD4C4FF)
+private val StageText = Color(0xFFF2F1F6)
+private val StageMuted = Color(0xFFA9A7B5)
 
 private const val NUDGE = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
 private const val SNAP = "M4 9h16M4 15h16M9 4v16M15 4v16"
 private const val MINUS = "M5 12h14"
+
+private const val TAG = "SkinEditor"
 
 /** The longest side the preview is drawn at: big layouts are drawn smaller, the stage scales them anyway. */
 private const val PREVIEW_LONG = 1600f
@@ -218,12 +223,13 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     fun toast(res: Int) = Toast.makeText(context, res, Toast.LENGTH_SHORT).show()
 
     LaunchedEffect(target.id) {
+        Log.i(TAG, "editing ${console.id}/${target.id}")
         val read = withContext(Dispatchers.IO) {
             runCatching {
                 val (pkg, json) = store.template(console, target.id)
                 val draft = store.draft(console, target.id)?.let { runCatching { SkinFormat.parse(it).rects() }.getOrNull() }
                 Triple(pkg, json, draft)
-            }.getOrNull()
+            }.onFailure { Log.e(TAG, "${target.id} not opened in the editor", it) }.getOrNull()
         }
         if (read == null) {
             toast(R.string.skins_error)
@@ -259,7 +265,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                     e.id to renderer.previewElement(pkg, id, e, w, h).asImageBitmap()
                 }
                 EditorArt(id, page, elements)
-            }.getOrNull()
+            }.onFailure { Log.e(TAG, "${target.id}: no preview of ${id.id}", it) }.getOrNull()
         }
     }
 
@@ -434,8 +440,8 @@ private fun NoLayout(name: String, layout: String, onClose: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(name, style = Type.Title.copy(fontSize = 22.sp), textAlign = TextAlign.Center)
-        Text(stringResource(R.string.editor_no_layout, layout), style = Type.Small.copy(fontSize = 14.sp), textAlign = TextAlign.Center)
+        Text(name, style = Type.Title.copy(color = StageText, fontSize = 22.sp), textAlign = TextAlign.Center)
+        Text(stringResource(R.string.editor_no_layout, layout), style = Type.Small.copy(color = StageMuted, fontSize = 14.sp), textAlign = TextAlign.Center)
         SecondaryButton(stringResource(R.string.editor_close), onClose, Modifier.widthIn(min = 200.dp), icon = Icons.Close)
     }
 }
@@ -463,8 +469,9 @@ private fun Stage(
         Canvas(
             Modifier.fillMaxSize().pointerInput(fit, layout.size) {
                 awaitEachGesture {
-                    val model = latest.value
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    // Read after the touch: a Save between two gestures puts a new model in place.
+                    val model = latest.value
                     val handleAt = currentHandle(model, fit, px(8f))
                     val onHandle = handleAt != null && (down.position - handleAt).getDistance() <= px(24f)
                     val hit = if (onHandle) null else
@@ -626,13 +633,15 @@ private fun Stage(
                 Modifier.offset { IntOffset(barX.roundToInt(), ((topY + bottomY) / 2f - px(10f)).roundToInt()) }.width(barWidth),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(stringResource(R.string.editor_hint_tap), style = Type.Small.copy(fontSize = 14.sp), textAlign = TextAlign.Center)
-                Text(stringResource(R.string.editor_hint_drag), style = Type.Small.copy(fontSize = 14.sp), textAlign = TextAlign.Center)
+                Text(stringResource(R.string.editor_hint_tap), style = Type.Small.copy(color = StageMuted, fontSize = 14.sp), textAlign = TextAlign.Center)
+                Text(stringResource(R.string.editor_hint_drag), style = Type.Small.copy(color = StageMuted, fontSize = 14.sp), textAlign = TextAlign.Center)
             }
         }
         val bottom = Modifier.offset { IntOffset(barX.roundToInt(), bottomY.roundToInt()) }
         when {
-            m.selection == null -> SnapBar(m.snap, bottom, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) })
+            m.selection == null -> Box(bottom.width(barWidth), contentAlignment = Alignment.Center) {
+                SnapBar(m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) })
+            }
             tool == Tool.SIZE -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
             tool == Tool.NUDGE -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
             else -> ActionsBar(
@@ -687,8 +696,8 @@ private fun Toolbar(
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         BarIcon(Icons.Close, stringResource(R.string.editor_close), onClick = onClose)
         Column(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(12.dp)).background(Field).padding(horizontal = 10.dp), verticalArrangement = Arrangement.Center) {
-            Text(title, style = Type.Small.copy(fontSize = 11.sp, lineHeight = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = Type.Body.copy(fontSize = 13.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = Type.Small.copy(color = StageMuted, fontSize = 11.sp, lineHeight = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = Type.Body.copy(color = StageText, fontSize = 13.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         BarIcon(Icons.Undo, stringResource(R.string.editor_undo), enabled = canUndo, onClick = onUndo)
         BarIcon(Icons.Undo, stringResource(R.string.editor_redo), enabled = canRedo, mirrored = true, onClick = onRedo)
