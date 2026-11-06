@@ -29,7 +29,7 @@ class SkinEditPaintTest {
 
     private fun model(
         looks: Map<SkinLayoutId, SkinLook>? = null, images: SkinImageEdits = emptyMap(), orientation: SkinOrientation = SkinOrientation.PORTRAIT,
-    ) = SkinEditorModel(skin, null, looks, images, files).also { it.show(SkinForm.PHONE, orientation) }
+    ) = SkinEditorModel(skin, looks = looks, images = images, existing = files).also { it.show(SkinForm.PHONE, orientation) }
 
     private fun SkinEditorModel.element(id: String) = layout!!.elements.first { it.id == id }
 

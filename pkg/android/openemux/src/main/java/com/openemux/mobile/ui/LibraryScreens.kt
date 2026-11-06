@@ -1781,7 +1781,7 @@ private fun ModalPadButtons() {
     val swallow = {}
     GamepadButtons(
         hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.detail_cancel)),
-        l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow,
+        l1 = swallow, r1 = swallow, x = swallow, y = swallow, select = swallow, start = swallow, l2 = swallow, r2 = swallow,
     )
 }
 

@@ -42,7 +42,7 @@
     <string name="editor_light">明るい</string>
     <string name="editor_dark">暗い</string>
     <string name="editor_active_note">オフ: アイコンの色。\nオン（ターボ、早送り）: この背景。</string>
-    <string name="editor_editing">編集中</string>
+    <string name="editor_paint_editing">編集中</string>
     <string name="editor_background">背景</string>
     <string name="editor_screen_frame">画面フレーム</string>
     <string name="editor_choose_image">画像を選択</string>

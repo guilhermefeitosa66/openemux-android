@@ -211,6 +211,9 @@ class GamepadActions(
     val y: (() -> Unit)? = null,
     val select: (() -> Unit)? = null,
     val start: (() -> Unit)? = null,
+    /** The triggers: only the skin editor uses them (issue 785, resize). */
+    val l2: (() -> Unit)? = null,
+    val r2: (() -> Unit)? = null,
     /** Read when the bar shows, so a hint can follow the focus. */
     val hints: () -> List<Pair<String, String>> = { emptyList() },
     /** False while the screen part these buttons belong to does not hold focus: the ones below answer. */
@@ -251,9 +254,11 @@ fun GamepadButtons(
     y: (() -> Unit)? = null,
     select: (() -> Unit)? = null,
     start: (() -> Unit)? = null,
+    l2: (() -> Unit)? = null,
+    r2: (() -> Unit)? = null,
     enabled: Boolean = true,
 ) {
-    val latest = rememberUpdatedState(listOf(l1, r1, x, y, select, start))
+    val latest = rememberUpdatedState(listOf(l1, r1, x, y, select, start, l2, r2))
     val on = rememberUpdatedState(enabled)
     val shown = rememberUpdatedState(hints)
     LaunchedEffect(enabled, hints) { GamepadBus.refresh() }
@@ -263,6 +268,7 @@ fun GamepadButtons(
         val actions = GamepadActions(
             l1 = slot(0, l1 != null), r1 = slot(1, r1 != null), x = slot(2, x != null),
             y = slot(3, y != null), select = slot(4, select != null), start = slot(5, start != null),
+            l2 = slot(6, l2 != null), r2 = slot(7, r2 != null),
             hints = { shown.value }, enabled = { on.value },
         )
         GamepadBus.push(actions)

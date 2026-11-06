@@ -14,7 +14,9 @@ import android.graphics.Typeface
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.PathParser
+import androidx.core.graphics.createBitmap
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFrameColors
@@ -52,30 +54,38 @@ class OpenEmuxSkinRenderer(context: Context) {
      * Writes [pkg]'s [layouts] (the form's portrait and landscape, LayoutChoice.Use) for [console], played on [coreId],
      * into [outDir], the window [width] x [height] less the [cutout]. [first] is the page that opens (ownPages), with
      * the layouts' keypad pages when both have one (keypadPages); [hardcore] dims the speed keys and leaves them out.
+     * [ndsLayouts] (the saved portrait and landscape NDS layouts, on the core that follows the page shown) draws one page
+     * per screen layout and orientation when both layouts have screen-layout pages (ndsPages), named and linked as a
+     * package's with one art per layout, the [tablet]'s cycle; [wroteNdsLayouts] says whether it did.
      */
     fun render(
         pkg: SkinPackage, layouts: LayoutChoice.Use, console: Console,
         width: Int, height: Int, outDir: File, cutout: Int = 0, hardcore: Boolean = false, first: String? = null,
-        coreId: String? = null,
+        coreId: String? = null, ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, tablet: Boolean = false,
     ): File {
         outDir.mkdirs()
         val portraitW = minOf(width, height)
         val portraitH = maxOf(width, height) - cutout
-        val keypad = keypadPages(pkg.skin, layouts)
-        Log.i(TAG, "drawing ${pkg.skin.name} (${layouts.portrait.id}, ${layouts.landscape.id}${if (keypad) ", keypad pages" else ""})")
-        val pages = ownPages(keypad, first)
+        val nds = ndsLayouts?.takeIf { console == Console.NDS && ndsPages(pkg.skin, layouts) }
+        wroteNdsLayouts = nds != null
+        val keypad = nds == null && keypadPages(pkg.skin, layouts)
+        val kind = if (nds != null) ", screen-layout pages" else if (keypad) ", keypad pages" else ""
+        Log.i(TAG, "drawing ${pkg.skin.name} (${layouts.portrait.id}, ${layouts.landscape.id}$kind)")
+        val pages = ownPages(keypad, first, nds, tablet)
         val cfg = StringBuilder("overlays = ${pages.size}\n")
         pages.forEachIndexed { i, page ->
             val id = if (page.portrait) layouts.portrait else layouts.landscape
-            val layout = pkg.skin.layouts.getValue(id)
+            val base = pkg.skin.layouts.getValue(id)
+            // A screen-layout page is drawn as a layout of its own, its images in its folder.
+            val layout = page.screen?.let(base::screenPage) ?: base
             val w = if (page.portrait) portraitW else portraitH
             val h = if (page.portrait) portraitH else portraitW
-            val plan = planPage(console, layout, w, h, hardcore, coreId, page.keypad, page.toggle)
-            val prefix = "oe-${page.name}"
+            val plan = planPage(console, layout, w, h, hardcore, coreId, page.keypad, page.toggle, page.screensNext)
+            val prefix = "oe-${page.name.replace('@', '-')}"
             val image = "$prefix.png"
-            val bitmap = page(pkg, id, layout, plan, w, h, page.keypad)
+            val bitmap = page(pkg, id, layout, plan, w, h, page.keypad, page.screen)
             val elements = layout.elements(page.keypad)
-            val descs = plan.elements.flatMap { descs(pkg, id, layout, elements[it.index], it, page.keypad) }
+            val descs = plan.elements.flatMap { descs(pkg, id, layout, elements[it.index], it, page.keypad, page.screen) }
             OverlayWriter.saveImages(outDir, image, bitmap, descs, prefix)
             bitmap.recycle()
             val viewport = plan.viewport.rect()
@@ -86,6 +96,10 @@ class OpenEmuxSkinRenderer(context: Context) {
         }
         return File(outDir, "skin.cfg").apply { writeText(cfg.toString()) }
     }
+
+    /** Whether the last [render] drew one page per NDS screen layout. */
+    var wroteNdsLayouts = false
+        private set
 
     /**
      * One image of [pkg]'s template (issue 787, data/SkinTemplate.kt) as PNG bytes at its exact size: the skin's own
@@ -109,19 +123,40 @@ class OpenEmuxSkinRenderer(context: Context) {
      * The skin editor's stage (issue 784): layout [id]'s background and frame at [scale] times its units, the game's
      * screens cut out, as the game draws them.
      */
-    fun previewPage(pkg: SkinPackage, id: SkinLayoutId, scale: Float): Bitmap {
-        val layout = pkg.skin.layouts.getValue(id)
+    fun previewPage(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, scale: Float): Bitmap {
         val w = (layout.size.width * scale).roundToInt().coerceAtLeast(1)
         val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
-        return page(pkg, id, layout, planPage(pkg.skin.console, layout.copy(elements = emptyList()), w, h, false), w, h, false)
+        // The frame is drawn on its own (previewFrame) and the screens over the page, so both follow the screen area
+        // as it moves (issue 785).
+        val plan = planPage(pkg.skin.console, layout.copy(elements = emptyList(), frame = null), w, h, false)
+        return page(pkg, id, layout.copy(elements = emptyList(), frame = null, screens = emptyList()), plan, w, h, false)
+    }
+
+    /**
+     * The editor's frame of [layout] alone (issue 785), at [scale] times its units: its image or its colour, the game's
+     * screens cut out of it. Null for a layout without a frame.
+     */
+    fun previewFrame(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, scale: Float): Bitmap? {
+        val frame = layout.frame ?: return null
+        val w = (frame.rect.width * scale).roundToInt().coerceAtLeast(1)
+        val h = (frame.rect.height * scale).roundToInt().coerceAtLeast(1)
+        val bitmap = createBitmap(w, h)
+        val canvas = Canvas(bitmap)
+        val box = RectF(0f, 0f, w.toFloat(), h.toFloat())
+        val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
+        if (!drawn) canvas.drawRect(box, fill(frame.colors.frame ?: DEFAULT_FRAME))
+        val clear = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
+        layout.screens.forEach { r ->
+            canvas.drawRect(RectF((r.x - frame.rect.x) * scale, (r.y - frame.rect.y) * scale, (r.x + r.width - frame.rect.x) * scale, (r.y + r.height - frame.rect.y) * scale), clear)
+        }
+        return bitmap
     }
 
     /**
      * [element] of layout [id] drawn alone on a [w] x [h] bitmap the way the game draws it at rest: its image or its
      * colours, a D-pad with its ball, a stick with its knob (issue 784).
      */
-    fun previewElement(pkg: SkinPackage, id: SkinLayoutId, element: SkinElement, w: Int, h: Int): Bitmap {
-        val layout = pkg.skin.layouts.getValue(id)
+    fun previewElement(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, w: Int, h: Int): Bitmap {
         val alone = element.copy(rect = SkinRect(0f, 0f, w.toFloat(), h.toFloat()))
         val page = SkinLayout(com.openemux.mobile.data.SkinSize(w, h), listOf(alone.rect), layout.background, layout.frame, listOf(alone))
         val plan = planPage(pkg.skin.console, page, w, h, false).elements.single()
@@ -183,7 +218,9 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     /** [image] with no file of its own, as the game draws it. */
     private fun placeholder(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage, box: RectF): Bitmap {
-        val layout = pkg.skin.layouts.getValue(id)
+        val base = pkg.skin.layouts.getValue(id)
+        // A screen-layout page's image in the page's colours.
+        val layout = image.screenPage?.let(base::screenPage) ?: base
         val e = image.element
         return when (image.kind) {
             TemplateImageKind.BACKGROUND -> blank(box).also { it.eraseColor(layout.background(image.keypadPage).color ?: DEFAULT_BACKGROUND) }
@@ -197,16 +234,21 @@ class OpenEmuxSkinRenderer(context: Context) {
         }
     }
 
-    /** The page's own image: the background ([keypad]: the keypad page's), the frame, and the game's screens cut out of them. */
-    private fun page(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, plan: PagePlan, w: Int, h: Int, keypad: Boolean): Bitmap {
+    /**
+     * The page's own image: the background ([keypad]: the keypad page's), the frame, and the game's screens cut out of
+     * them. On [screen], a screen-layout page ([layout] is its screenPage), its background and frame are in its folder.
+     */
+    private fun page(
+        pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, plan: PagePlan, w: Int, h: Int, keypad: Boolean, screen: String? = null,
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(layout.background(keypad).color ?: DEFAULT_BACKGROUND)
         val whole = plan.fit.box(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height.toFloat())).rect()
-        pkg.background(id, keypad)?.let { draw(canvas, pkg, it, whole) }
+        (if (screen != null) pkg.screenBackground(id, screen) else pkg.background(id, keypad))?.let { draw(canvas, pkg, it, whole) }
         layout.frame?.let { frame ->
             val box = plan.fit.box(frame.rect).rect()
-            val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
+            val drawn = (if (screen != null) pkg.screenFrame(id, screen) else pkg.frame(id))?.let { draw(canvas, pkg, it, box) } == true
             if (!drawn) canvas.drawRect(box, fill(frame.colors.frame ?: DEFAULT_FRAME))
         }
         val clear = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
@@ -214,11 +256,15 @@ class OpenEmuxSkinRenderer(context: Context) {
         return bitmap
     }
 
-    /** The descs [plan] makes of [element] (on the [keypad] page or the controls): its images and its touch area. */
+    /**
+     * The descs [plan] makes of [element] (on the [keypad] page, the [screen]-layout page or the controls): its images
+     * and its touch area.
+     */
     private fun descs(
         pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, plan: ElementPlan, keypad: Boolean,
+        screen: String? = null,
     ): List<OverlayDesc> {
-        val files = pkg.images(id, element, keypad)
+        val files = if (screen != null) pkg.screenImages(id, screen, element) else pkg.images(id, element, keypad)
         val box = plan.box.rect()
         return when (plan) {
             is ElementPlan.Button -> {
@@ -237,7 +283,7 @@ class OpenEmuxSkinRenderer(context: Context) {
                 val lit = plan.lit?.let { state ->
                     OverlayDesc("nul", RectF(box), lit = OverlayLit(state, tile(plan.icon, box, frame, art?.copy(Bitmap.Config.ARGB_8888, false))))
                 }
-                listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, image = icon), lit)
+                listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, next = plan.next, image = icon), lit)
             }
             is ElementPlan.Dpad -> {
                 val pad = image(pkg, files[0], box) ?: cross(box, element.colors["pad"] ?: DEFAULT_PAD)

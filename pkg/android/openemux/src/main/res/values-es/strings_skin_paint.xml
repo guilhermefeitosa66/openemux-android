@@ -42,7 +42,7 @@
     <string name="editor_light">Claro</string>
     <string name="editor_dark">Oscuro</string>
     <string name="editor_active_note">Desactivado: color del icono.\nActivado (turbo, avance rápido): este fondo.</string>
-    <string name="editor_editing">Editando</string>
+    <string name="editor_paint_editing">Editando</string>
     <string name="editor_background">Fondo</string>
     <string name="editor_screen_frame">Marco de la pantalla</string>
     <string name="editor_choose_image">Elegir imagen</string>

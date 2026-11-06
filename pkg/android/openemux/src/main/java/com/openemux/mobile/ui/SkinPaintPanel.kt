@@ -222,7 +222,7 @@ internal fun PaintPanel(view: PaintView, actions: PaintActions, modifier: Modifi
         }
         view.editing?.let {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.editor_editing), style = Type.Small.copy(color = TextOff, fontSize = 12.sp))
+                Text(stringResource(R.string.editor_paint_editing), style = Type.Small.copy(color = TextOff, fontSize = 12.sp))
                 Text(it, style = Type.Body.copy(color = TextOn, fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             }
         }

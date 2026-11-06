@@ -41,8 +41,14 @@ enum class SkinError {
     BAD_COLOR,
     UNKNOWN_COLOR_PART,
     BAD_SHAPE,
-    /** Not one game screen (two for the NDS). */
+    /** Not one game screen (two for the NDS), or not as many as a screen-layout page shows. */
     BAD_SCREENS,
+    /** A screen-layout page other than `top`, `bottom` and `side`. */
+    UNKNOWN_SCREEN_LAYOUT,
+    /** Screen-layout pages in a skin for a console other than the NDS. */
+    SCREEN_LAYOUTS_NOT_NDS,
+    /** Screen-layout pages without all three of `top`, `bottom` and `side`. */
+    INCOMPLETE_SCREEN_LAYOUTS,
 }
 
 /** A skin [SkinFormat] refused: [error] is what is wrong, [path] where (`layouts.phone-portrait.elements[2].bind`). */
@@ -120,6 +126,23 @@ class SkinPackage(val skin: OpenEmuxSkin, val source: SkinSource) {
     /** [element]'s images on the page shown: in the keypad page's folder ([keypadPage]) or the layout's. */
     fun images(layout: SkinLayoutId, element: SkinElement, keypadPage: Boolean): List<String?> =
         if (keypadPage) element.imageFiles.map { keypadImage(layout, it) } else images(layout, element)
+
+    /** The path of [file] in the folder of [layout]'s screen-layout page [page], or null when the package lacks it. */
+    fun screenImage(layout: SkinLayoutId, page: String, file: String): String? = image(layout, "$page/$file")
+
+    /** Screen-layout page [page]'s background image: its own when it has a background, in its folder; else the layout's. */
+    fun screenBackground(layout: SkinLayoutId, page: String): String? {
+        val own = skin.layouts[layout]?.screenLayouts?.get(page)?.background ?: return background(layout)
+        return screenImage(layout, page, own.imageFile)
+    }
+
+    /** Screen-layout page [page]'s frame image, in its folder; null when it has no frame or the package lacks it. */
+    fun screenFrame(layout: SkinLayoutId, page: String): String? =
+        skin.layouts[layout]?.screenLayouts?.get(page)?.frame?.let { screenImage(layout, page, it.imageFile) }
+
+    /** [element]'s images on screen-layout page [page], in its folder. */
+    fun screenImages(layout: SkinLayoutId, page: String, element: SkinElement): List<String?> =
+        element.imageFiles.map { screenImage(layout, page, it) }
 }
 
 /**
@@ -212,12 +235,7 @@ object SkinFormat {
         val sizeJson = json.obj("size", "$path.size")
         val size = SkinSize(sizeJson.int("width", "$path.size.width"), sizeJson.int("height", "$path.size.height"))
         if (size.width <= 0 || size.height <= 0) throw SkinFormatException(SkinError.BAD_SIZE, "$path.size")
-        val screensJson = json.array("screens", "$path.screens")
-        val screenCount = if (console == Console.NDS) 2 else 1
-        if (screensJson.length() != screenCount) {
-            throw SkinFormatException(SkinError.BAD_SCREENS, "$path.screens", "${screensJson.length()}, $screenCount expected")
-        }
-        val screens = (0 until screensJson.length()).map { rect(screensJson.obj(it, "$path.screens[$it]"), "$path.screens[$it]", size) }
+        val screens = screens(json, path, size, if (console == Console.NDS) 2 else 1)
         val background = background(json, path) ?: SkinBackground()
         val frame = json.optObj("frame", "$path.frame")?.let { frame(it, "$path.frame", size) }
         val elements = elements(json.optArray("elements", "$path.elements") ?: JSONArray(), path, size)
@@ -227,7 +245,40 @@ object SkinFormat {
                 imageOwners(elements, path),
         )
         val keypad = json.optObj("keypad", "$path.keypad")?.let { keypad(it, "$path.keypad", size) }
-        return SkinLayout(size, screens, background, frame, elements, keypad)
+        val pages = json.optObj("screenLayouts", "$path.screenLayouts")?.let { screenLayouts(it, "$path.screenLayouts", size, console) }
+        return SkinLayout(size, screens, background, frame, elements, keypad, pages.orEmpty())
+    }
+
+    /** The [count] game screens of the page at [path]. */
+    private fun screens(json: JSONObject, path: String, size: SkinSize, count: Int): List<SkinRect> {
+        val screensJson = json.array("screens", "$path.screens")
+        if (screensJson.length() != count) {
+            throw SkinFormatException(SkinError.BAD_SCREENS, "$path.screens", "${screensJson.length()}, $count expected")
+        }
+        return (0 until screensJson.length()).map { rect(screensJson.obj(it, "$path.screens[$it]"), "$path.screens[$it]", size) }
+    }
+
+    /** An NDS layout's screen-layout pages: all of `top`, `bottom` and `side`, in that order, and no other. */
+    private fun screenLayouts(json: JSONObject, path: String, size: SkinSize, console: Console): Map<String, SkinScreenPage> {
+        if (console != Console.NDS) throw SkinFormatException(SkinError.SCREEN_LAYOUTS_NOT_NDS, path, console.id)
+        val keys = json.keys().asSequence().toList()
+        keys.firstOrNull { it !in SkinScreenPage.SCREENS }?.let { throw SkinFormatException(SkinError.UNKNOWN_SCREEN_LAYOUT, "$path.$it", it) }
+        SkinScreenPage.IDS.firstOrNull { it !in keys }?.let { throw SkinFormatException(SkinError.INCOMPLETE_SCREEN_LAYOUTS, "$path.$it", "missing") }
+        return SkinScreenPage.SCREENS.entries.associate { (id, count) -> id to screenPage(json.obj(id, "$path.$id"), "$path.$id", size, count) }
+    }
+
+    /** One screen-layout page: its [count] screens, and optionally its own background, frame and controls. */
+    private fun screenPage(json: JSONObject, path: String, size: SkinSize, count: Int): SkinScreenPage {
+        val screens = screens(json, path, size, count)
+        // An empty background object is no background: the layout's stays, as when it is left out.
+        val background = background(json, path)?.takeIf { it.color != null || it.image != null }
+        val frame = json.optObj("frame", "$path.frame")?.let { frame(it, "$path.frame", size) }
+        val elements = elements(json.optArray("elements", "$path.elements") ?: JSONArray(), path, size)
+        unique(
+            listOfNotNull(background?.let { it.imageFile to "$path.background" }, frame?.let { it.imageFile to "$path.frame" }) +
+                imageOwners(elements, path),
+        )
+        return SkinScreenPage(screens, background, frame, elements)
     }
 
     /** A layout's keypad page: controls of its own and, optionally, its own background; its images in its own folder. */
@@ -364,6 +415,9 @@ object SkinFormat {
         if (!ID.matches(it)) throw SkinFormatException(SkinError.BAD_ID, path, it)
     }
 
+    /** One layout as its entry in a skin.json's `layouts` (the editor adding a layout, issue 785). */
+    fun layoutText(layout: SkinLayout): String = StringBuilder().also { emit(it, layoutJson(layout), "") }.toString()
+
     /** [skin] as a skin.json: keys in a fixed order, two-space indents, optional keys left out when unset. */
     fun toJson(skin: OpenEmuxSkin): String {
         val root = linkedMapOf<String, Any>(
@@ -380,20 +434,7 @@ object SkinFormat {
         put("size", mapOf("width" to layout.size.width, "height" to layout.size.height))
         put("screens", layout.screens.map { rectJson(it) })
         backgroundJson(layout.background)?.let { put("background", it) }
-        layout.frame?.let { frame ->
-            put("frame", buildMap {
-                putAll(rectJson(frame.rect))
-                val c = frame.colors
-                val colors = buildMap {
-                    c.frame?.let { put("frame", colorJson(it)) }
-                    c.icons?.let { put("icons", colorJson(it)) }
-                    c.active?.let { put("active", colorJson(it)) }
-                    c.activeIcon?.let { put("activeIcon", it.id) }
-                }
-                if (colors.isNotEmpty()) put("colors", colors)
-                frame.image?.let { put("image", it) }
-            })
-        }
+        layout.frame?.let { put("frame", frameJson(it)) }
         put("elements", layout.elements.map { elementJson(it) })
         layout.keypad?.let { page ->
             put("keypad", buildMap {
@@ -401,6 +442,29 @@ object SkinFormat {
                 put("elements", page.elements.map { elementJson(it) })
             })
         }
+        if (layout.screenLayouts.isNotEmpty()) {
+            put("screenLayouts", layout.screenLayouts.mapValues { (_, page) ->
+                buildMap {
+                    put("screens", page.screens.map { rectJson(it) })
+                    page.background?.let(::backgroundJson)?.let { put("background", it) }
+                    page.frame?.let { put("frame", frameJson(it)) }
+                    put("elements", page.elements.map { elementJson(it) })
+                }
+            })
+        }
+    }
+
+    private fun frameJson(frame: SkinFrame): Map<String, Any> = buildMap {
+        putAll(rectJson(frame.rect))
+        val c = frame.colors
+        val colors = buildMap {
+            c.frame?.let { put("frame", colorJson(it)) }
+            c.icons?.let { put("icons", colorJson(it)) }
+            c.active?.let { put("active", colorJson(it)) }
+            c.activeIcon?.let { put("activeIcon", it.id) }
+        }
+        if (colors.isNotEmpty()) put("colors", colors)
+        frame.image?.let { put("image", it) }
     }
 
     /** A background's keys, or null when it sets none. */

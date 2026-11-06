@@ -42,7 +42,7 @@
     <string name="editor_light">Light</string>
     <string name="editor_dark">Dark</string>
     <string name="editor_active_note">Off: icon colour.\nOn (turbo, fast-forward): this background.</string>
-    <string name="editor_editing">Editing</string>
+    <string name="editor_paint_editing">Editing</string>
     <string name="editor_background">Background</string>
     <string name="editor_screen_frame">Screen frame</string>
     <string name="editor_choose_image">Choose image</string>

@@ -42,7 +42,7 @@
     <string name="editor_light">வெளிர்</string>
     <string name="editor_dark">அடர்</string>
     <string name="editor_active_note">அணைப்பில்: ஐகான் நிறம்.\nஇயக்கத்தில் (டர்போ, வேகமாக முன்னே): இந்தப் பின்னணி.</string>
-    <string name="editor_editing">திருத்துகிறது</string>
+    <string name="editor_paint_editing">திருத்துகிறது</string>
     <string name="editor_background">பின்னணி</string>
     <string name="editor_screen_frame">திரைச் சட்டகம்</string>
     <string name="editor_choose_image">படத்தைத் தேர்வுசெய்</string>

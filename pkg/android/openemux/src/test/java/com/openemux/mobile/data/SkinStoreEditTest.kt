@@ -66,6 +66,34 @@ class SkinStoreEditTest {
         assertEquals(before, File(dir, "skin.json").readText())
     }
 
+    /** A skin with a phone-portrait and a tablet-portrait layout, each with its image folder (issue 785). */
+    private fun twoForms(id: String): File = File(store.root(Console.SFC), id).apply {
+        mkdirs()
+        val both = OpenEmuxSkin(Console.SFC, id, mapOf(SkinLayoutId.PHONE_PORTRAIT to layout, SkinLayoutId.TABLET_PORTRAIT to layout))
+        File(this, SkinFormat.SKIN_JSON).writeText(SkinFormat.toJson(both))
+        listOf("phone-portrait", "tablet-portrait").forEach { File(this, "$it/a.png").apply { parentFile!!.mkdirs() }.writeBytes(byteArrayOf(1)) }
+    }
+
+    private fun phoneOnly(id: String) =
+        SkinEditJson.patch(File(store.root(Console.SFC), "$id/skin.json").readText(), emptyMap(), removed = setOf(SkinLayoutId.TABLET_PORTRAIT))
+
+    @Test fun saveDeletesTheFoldersOfTheLayoutsTheSkinNoLongerHas() {
+        val dir = twoForms("two")
+        store.saveEdits(Console.SFC, "two", phoneOnly("two"))
+        assertFalse(File(dir, "tablet-portrait").exists())
+        assertTrue(File(dir, "phone-portrait/a.png").isFile)
+        assertEquals(listOf(SkinForm.PHONE), SkinFormat.readFolder(dir).skin.forms)
+    }
+
+    @Test fun saveAsNewLeavesOutTheFoldersOfTheLayoutsItDropped() {
+        val dir = twoForms("two")
+        store.saveAsNew(Console.SFC, "two", phoneOnly("two"), "Phone only")
+        val copy = File(store.root(Console.SFC), "phone-only")
+        assertFalse(File(copy, "tablet-portrait").exists())
+        assertTrue(File(copy, "phone-portrait/a.png").isFile)
+        assertTrue(File(dir, "tablet-portrait/a.png").isFile)
+    }
+
     @Test fun saveAsNewCopiesTheImagesAndLeavesTheOriginal() {
         val dir = own("mine")
         val ref = store.saveAsNew(Console.SFC, "mine", moved("mine", 50), "  Moved  ")

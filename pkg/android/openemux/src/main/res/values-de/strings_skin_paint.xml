@@ -42,7 +42,7 @@
     <string name="editor_light">Hell</string>
     <string name="editor_dark">Dunkel</string>
     <string name="editor_active_note">Aus: Symbolfarbe.\nAn (Turbo, Vorspulen): dieser Hintergrund.</string>
-    <string name="editor_editing">Bearbeitung</string>
+    <string name="editor_paint_editing">Bearbeitung</string>
     <string name="editor_background">Hintergrund</string>
     <string name="editor_screen_frame">Bildschirmrahmen</string>
     <string name="editor_choose_image">Bild wählen</string>

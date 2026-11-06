@@ -122,7 +122,8 @@ data class SkinElement(
 
 /**
  * One layout: its pixel space, the game's one or two screens, the background, the frame and the controls; [keypad] its
- * keypad page, when the skin has one.
+ * keypad page, when the skin has one; [screenLayouts] its NDS screen-layout pages by id ([SkinScreenPage.IDS] order),
+ * empty when it has none.
  */
 data class SkinLayout(
     val size: SkinSize,
@@ -131,6 +132,7 @@ data class SkinLayout(
     val frame: SkinFrame? = null,
     val elements: List<SkinElement> = emptyList(),
     val keypad: SkinKeypadPage? = null,
+    val screenLayouts: Map<String, SkinScreenPage> = emptyMap(),
 ) {
     /** The controls of the page shown: the layout's own, or its keypad page's ([keypadPage]). */
     fun elements(keypadPage: Boolean): List<SkinElement> = if (keypadPage) keypad?.elements.orEmpty() else elements
@@ -141,6 +143,38 @@ data class SkinLayout(
      */
     fun background(keypadPage: Boolean): SkinBackground =
         keypad?.background?.takeIf { keypadPage }?.let { it.copy(color = it.color ?: background.color) } ?: background
+
+    /**
+     * The screen-layout page [id] as a layout of its own: this one's size, the page's screens, frame and controls, and
+     * its background (its colour left out is this one's) or, when it has none, this one's. Null when there is no such
+     * page ("stacked", the layout itself, included).
+     */
+    fun screenPage(id: String): SkinLayout? = screenLayouts[id]?.let { page ->
+        val bg = page.background?.let { it.copy(color = it.color ?: background.color) } ?: background
+        SkinLayout(size, page.screens, bg, page.frame, page.elements)
+    }
+}
+
+/**
+ * One of an NDS layout's screen-layout pages (docs/skin-format.md): the art for the DS screens shown one way, which the
+ * `screens` key steps to and the core's screen layout follows. The layout's size, with [screens] (one, or two side by
+ * side), a [frame] and controls of its own; [background] null keeps the layout's (colour and image). Its images are in
+ * the layout's folder of the page's id (`phone-portrait/top/`). The layout itself is the default page, both screens one
+ * over the other.
+ */
+data class SkinScreenPage(
+    val screens: List<SkinRect>,
+    val background: SkinBackground? = null,
+    val frame: SkinFrame? = null,
+    val elements: List<SkinElement> = emptyList(),
+) {
+    companion object {
+        /** How many screens each page shows, by id (data/Skin.kt's NdsLayouts ids), in the cycle's order. */
+        val SCREENS = linkedMapOf("top" to 1, "bottom" to 1, "side" to 2)
+
+        /** The page ids, in the cycle's order: a layout that has pages has all of them. */
+        val IDS: List<String> = SCREENS.keys.toList()
+    }
 }
 
 /**

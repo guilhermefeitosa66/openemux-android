@@ -178,33 +178,44 @@ class SkinStore(private val base: File) {
     /**
      * The editor's Save (issue 784): [json] becomes the player's skin [id]'s skin.json. It must read as a skin for
      * [console] first. [images] (issue 786) are the image edits: a staged texture copied into place, a removed image
-     * deleted. A failing save leaves skin.json as it was: the new images go in first and only show once it names them.
+     * deleted; the folders of layouts [json] no longer has go with their images (issue 785). A failing save leaves
+     * skin.json as it was: the new images go in first and only show once it names them.
      */
     fun saveEdits(console: Console, id: String, json: String, images: SkinImageEdits = emptyMap()) {
         val dir = own(console, id)
-        checkConsole(SkinFormat.parse(json), console)
+        val skin = SkinFormat.parse(json)
+        checkConsole(skin, console)
         images.keys.forEach { target(dir, it) }
         val stage = stageDir(console, id)
         placeImages(dir, stage, images)
         writeJson(dir, json)
         removeImages(dir, images)
+        dropLayoutFolders(dir, skin)
     }
 
     /**
-     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images, with [images] applied) with
-     * [json] as its skin.json, named [name]; [id] is left as it was. Returns the new skin's ref.
+     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images with [images] applied, but those
+     * of layouts [json] no longer has) with [json] as its skin.json, named [name]; [id] is left as it was. Returns the
+     * new skin's ref.
      */
     fun saveAsNew(console: Console, id: String, json: String, name: String, images: SkinImageEdits = emptyMap()): String {
         val dir = own(console, id)
-        checkConsole(SkinFormat.parse(json), console)
+        val skin = SkinFormat.parse(json)
+        checkConsole(skin, console)
         images.keys.forEach { target(dir, it) }
         val stage = stageDir(console, id)
         return build(console, name) { tmp ->
             copyTree(dir, tmp)
             placeImages(tmp, stage, images)
             removeImages(tmp, images)
+            dropLayoutFolders(tmp, skin)
             json
         }
+    }
+
+    /** Deletes the image folders in [dir] of the layouts [skin] does not offer. */
+    private fun dropLayoutFolders(dir: File, skin: OpenEmuxSkin) {
+        SkinLayoutId.entries.filter { it !in skin.layouts }.forEach { deleteTree(File(dir, it.id)) }
     }
 
     /**
