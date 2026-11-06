@@ -3,24 +3,20 @@
   python3 tools/skins/build.py [--variant <id>] [CONSOLE ...]
   python3 tools/skins/build.py --templates [CONSOLE ...]   # the templates for skin creators (tools/skins/templates)
 
-Every console is built in each of its variants: its own colours (src/main/assets/skins/<console>.<ext>), the
-Dark variant (src/main/assets/skins/dark/<console>.<ext>), the same layout in a black and dark grey palette,
-and each official colour it was sold in (issue 720: src/main/assets/skins/<colour>/<console>.<ext>). The
-colour variants' art is lossy WebP, a tenth of the PNG's size; the console's own and Dark stay PNG. The
-picker's list (src/main/assets/skins/variants.json: per console, its variants in order with the colours of
-their swatch) is written on every run.
+Every console is built in each of its variants: its own colours (src/main/assets/skins/<console>.zip), the Dark
+variant (src/main/assets/skins/dark/<console>.zip), the same layout in a black and dark grey palette, and each
+official colour it was sold in (issue 720: src/main/assets/skins/<colour>/<console>.zip). The picker's list
+(src/main/assets/skins/variants.json: per console, its variants in order with the colours of their swatch) is written
+on every run.
 
-The consoles in OWN_FORMAT (issues 770, 771, 772, 806: all but the DS) ship in OpenEmux's own skin format instead
-(docs/skin-format.md): src/main/assets/skins/<console>.zip, dark/<console>.zip and <colour>/<console>.zip, skin.json
-and the six layouts (phone, tablet, fold), one image per element cut out of the engine's art, a colour variant's in
-WebP. Needs Pillow as well.
+Every package is in OpenEmux's own skin format (docs/skin-format.md; issues 770, 771, 772, 806 and 808, which moved the
+last Delta package, the DS's): skin.json and the six layouts (phone, tablet, fold), one image per element cut out of
+the engine's art, a console with two screens with a page per screen layout. The console's own and Dark images are PNG,
+a colour variant's lossy WebP, a tenth of the size.
 
-The layout and the art have one source: the engine of the design canvas's
-Skin component (Skin.dc.html, between ENGINE START and ENGINE END). Each
-representation (phone and tablet, portrait and landscape) is rendered by
-headless Chrome from render.html, the game's screens are cut out
-(transparent), and info.json gets the frames the engine laid out. Needs
-Node, Google Chrome and ImageMagick.
+The layout and the art have one source: the engine of the design canvas's Skin component (Skin.dc.html, between ENGINE
+START and ENGINE END). Each layout is rendered by headless Chrome from render.html, the game's screens are cut out
+(transparent), and skin.json gets the frames the engine laid out. Needs Node, Google Chrome, ImageMagick and Pillow.
 """
 import functools
 import json
@@ -38,29 +34,22 @@ ASSETS = APP / "src/main/assets/skins"
 WORK = APP / "build/skins"
 CHROME = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
 
-# Delta's identifiers where Delta has the console, Manic EMU's otherwise (and then a .manicskin). Only the DS is still
-# bundled as a Delta package (issue 806 moved the others to OWN_FORMAT; issue 808 moves the DS).
-TYPES = {
-    "NDS": "com.rileytestut.delta.game.ds",
-}
 # The consoles bundled in OpenEmux's own skin format (issue 770), with no Delta or Manic identifier: each package is
 # <console>.zip, skin.json and the six layouts, the art cut into one image per element (build_own).
 # Issue 771 added the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy.
 # Issue 772 the consoles with a keypad, each layout with its keypad page (<layout>/keypad/, see keypad_page).
 # Issue 806 the eleven single-screen consoles that were Delta/Manic packages, in every variant they had: their colour
-# variants' images in WebP (see PNG_VARIANTS).
-OWN_FORMAT = ["FC", "SFC", "N64", "GBC", "GBA", "MD", "GB", "GC", "SMS", "PS", "PSP",
+# variants' images in WebP (see PNG_VARIANTS). Issue 808 the DS, the last that was a Delta package, each layout with
+# its screen-layout pages (<layout>/<page>/, see screen_page).
+OWN_FORMAT = ["NDS", "FC", "SFC", "N64", "GBC", "GBA", "MD", "GB", "GC", "SMS", "PS", "PSP",
               "GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS",
               "A2600", "A7800", "LYNX", "NGP", "WS", "VECTREX", "VB",
               "A5200", "CV", "INTV", "O2"]
-CONSOLES = list(TYPES) + OWN_FORMAT
-# The format's families: iphone/edgeToEdge for phones, ipad/standard for tablets; px per unit.
-REPS = [("phone", "iphone", "edgeToEdge", 3), ("tablet", "ipad", "standard", 2)]
+CONSOLES = OWN_FORMAT
 # The D-pad's circle: one image per console, stretched by the app over each D-pad's travel square.
 KNOB_UNITS, KNOB_SCALE = 100, 4
-# Consoles with two screens get one art per screen layout. The base representation is the two one over the other
-# (what Delta draws); the others go under its "layouts", a key of the app's own that other emulators ignore. In
-# OpenEmux's own format (issue 807) they are each layout's "screenLayouts" pages, in <layout>/<page>/ (screen_page).
+# Consoles with two screens get one art per screen layout: the layout itself draws the two one over the other, and
+# each other screen layout is one of its "screenLayouts" pages (issue 807), in <layout>/<page>/ (screen_page).
 SCREEN_LAYOUTS = {"NDS": ["top", "bottom", "side"]}
 # The palettes whose art stays PNG: the console's own colours and Dark (issue 718). Every other variant is one
 # of the console's official colours (issue 720), its art in lossy WebP: quality 90 and the alpha lossless, so the
@@ -110,15 +99,6 @@ def to_webp(folder, files):
     return names
 
 
-def renamed(value, names):
-    """[value] (info.json, or a piece of it) with every file name in [names] replaced by its new one."""
-    if isinstance(value, dict):
-        return {k: renamed(v, names) for k, v in value.items()}
-    if isinstance(value, list):
-        return [renamed(v, names) for v in value]
-    return names.get(value, value) if isinstance(value, str) else value
-
-
 def engine_layout(console, device, orient, screens=None, variant="console", keypad=False):
     script = (
         "global.window={};require(process.argv[1]);"
@@ -165,106 +145,6 @@ def check_fit(L, where):
         for it in L["items"]:
             if overlap(sc, it["frame"]):
                 raise SystemExit(f"{where}: a screen covers {it['inputs']}")
-
-
-def representation(console, device, orient, scale, folder, profile, files, screens=None, variant="console"):
-    """One representation's entry in info.json, its art rendered and cut; [screens] one of the console's layouts."""
-    L = engine_layout(console, device, orient, screens, variant)
-    where = f"{console} {variant} {device} {orient} {screens or ''}"
-    check_fit(L, where)
-    # A variant changes colours only: the same frames, screens and knobs as the console's own skin.
-    if variant != "console" and L != engine_layout(console, device, orient, screens):
-        raise SystemExit(f"{where}: the layout differs from the console's own skin")
-    suffix = f"_{screens}" if screens else ""
-    image = f"{device}_{orient}{suffix}.png"
-    query = f"&screens={screens}" if screens else ""
-    screenshot(console, device, orient, L["W"], L["H"], scale, folder / image, profile, query, variant)
-    cut_screens(folder / image, L["screens"], scale)
-    files.append(image)
-    # Each stick's knob, an image of its own the app moves with the thumb.
-    knobs = {}
-    for i, k in enumerate(L["knobs"]):
-        file = f"{device}_{orient}{suffix}_{k['name']}"
-        px = round(k["size"] * scale)
-        screenshot(console, device, orient, px // scale + 1, px // scale + 1, scale, folder / file, profile, f"&knob={i}{query}", variant)
-        subprocess.run(["convert", str(folder / file), "-crop", f"{px}x{px}+0+0", "+repage", str(folder / file)], check=True)
-        knobs[k["name"]] = file
-    files.extend(knobs.values())
-    items = []
-    knob = None
-    for it in L["items"]:
-        entry = {"inputs": it["inputs"], "frame": it["frame"]}
-        if it.get("extendedEdges"):
-            entry["extendedEdges"] = it["extendedEdges"]
-        if it.get("thumbstick"):
-            entry["thumbstick"] = dict(it["thumbstick"], name=knobs[it["thumbstick"]["name"]])
-        if it.get("knob"):
-            # Not in Delta's format: the app's own key for the D-pad's moving circle.
-            entry["knob"] = it["knob"]
-            knob = it["knob"]
-        items.append(entry)
-    rep = {
-        "assets": {"large": image},
-        "mappingSize": {"width": L["W"], "height": L["H"]},
-        "extendedEdges": {"top": 6, "bottom": 6, "left": 6, "right": 6},
-        "translucent": False,
-        "screens": [{"outputFrame": s} for s in L["screens"]],
-        "items": items,
-    }
-    return rep, L["name"], knob
-
-
-def build(console, profile, variant="console", label=None):
-    """[console]'s package in [variant]; [label] the name of a colour variant's colour."""
-    folder = WORK / variant / console
-    folder.mkdir(parents=True, exist_ok=True)
-    reps = {}
-    files = []
-    name = None
-    knob = None
-    for device, family, kind, scale in REPS:
-        for orient in ("portrait", "landscape"):
-            rep, name, k = representation(console, device, orient, scale, folder, profile, files, variant=variant)
-            knob = knob or k
-            layouts = SCREEN_LAYOUTS.get(console, [])
-            if layouts:
-                rep["layouts"] = {}
-                for layout in layouts:
-                    v = representation(console, device, orient, scale, folder, profile, files, layout, variant)[0]
-                    # Top only and bottom only draw the same art: one image serves both.
-                    same = next((o for o in rep["layouts"].values() if dict(o, assets=None) == dict(v, assets=None)), None)
-                    if same:
-                        files.remove(v["assets"]["large"])
-                        v["assets"] = same["assets"]
-                    rep["layouts"][layout] = v
-            reps.setdefault(family, {}).setdefault(kind, {})[orient] = rep
-    suffix = {"console": ""}.get(variant, f" {label or variant.capitalize()}")
-    info = {
-        "name": f"OpenEmux {name}{suffix}",
-        "identifier": f"openemux.skin.{console.lower()}" + ("" if variant == "console" else f".{variant}"),
-        "gameTypeIdentifier": TYPES[console],
-        "debug": False,
-        "representations": reps,
-    }
-    if knob:
-        screenshot(console, "phone", "portrait", KNOB_UNITS, KNOB_UNITS, KNOB_SCALE, folder / knob, profile,
-                   f"&dpadKnob={KNOB_UNITS}", variant)
-    if variant not in PNG_VARIANTS:
-        names = to_webp(folder, files + ([knob] if knob else []))
-        files = [names[f] for f in files]
-        knob = knob and names[knob]
-        info = renamed(info, names)
-    (folder / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False))
-    ext = ".manicskin" if TYPES[console].startswith("public.aoshuang") else ".deltaskin"
-    variant_dir(variant).mkdir(parents=True, exist_ok=True)
-    pkg = variant_dir(variant) / f"{console}{ext}"
-    with zipfile.ZipFile(pkg, "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(folder / "info.json", "info.json")
-        for file in files:
-            z.write(folder / file, file)
-        if knob:
-            z.write(folder / knob, knob)
-    print(f"{pkg.relative_to(APP)}  {pkg.stat().st_size // 1024} KB")
 
 
 # The templates for skin creators (issue 777): each console's bundled layout in OpenEmux's own skin format
@@ -788,11 +668,10 @@ def main():
     if unknown:
         raise SystemExit(f"unknown console: {', '.join(unknown)} (one of {', '.join(CONSOLES)})")
     sync_engine()
-    if templates or any(c in OWN_FORMAT for c in consoles):
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            raise SystemExit("--templates and the OpenEmux-format packages need Pillow: pip install pillow")
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        raise SystemExit("the packages and the templates need Pillow: pip install pillow")
     if templates:
         for c in consoles:
             build_template(c)
@@ -811,7 +690,7 @@ def main():
         for c in consoles:
             for v in cat[c]:
                 if only in (None, v["id"]):
-                    (build_own if c in OWN_FORMAT else build)(c, profile, v["id"], v["label"])
+                    build_own(c, profile, v["id"], v["label"])
 
 
 main()

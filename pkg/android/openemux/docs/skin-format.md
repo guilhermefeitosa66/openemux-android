@@ -4,8 +4,9 @@ This is the format of an OpenEmux controller skin: what the skin editor saves, w
 what the skin templates ship in. The app reads it with `data/SkinFormat.kt` (model in `data/OpenEmuxSkin.kt`); this
 document and that reader say the same thing, and a change to one is a change to the other.
 
-The app still reads skins in the Delta and Manic EMU package format (`.deltaskin`, `.manicskin`) as before. This is a
-separate format, OpenEmux's own.
+Every skin the app ships is in this format (issue 808 moved the last Delta package, the DS's). The app still reads the
+skins a player imports in the Delta and Manic EMU package format (`.deltaskin`, `.manicskin`) as before; that is a
+separate format.
 
 Format version: **1**.
 

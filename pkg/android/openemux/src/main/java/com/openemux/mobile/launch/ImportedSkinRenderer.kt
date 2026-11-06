@@ -507,8 +507,8 @@ class ImportedSkinRenderer {
         fun isOpenEmuxSkin(file: File) = SkinStore.isOwn(file)
 
         /**
-         * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as the
-         * consoles issue 770 added ship; the others are .deltaskin and .manicskin.
+         * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as every
+         * one is since issue 808 (the DS's was the last .deltaskin).
          */
         fun isOpenEmuxPackage(file: File) = file.name.endsWith(".zip", ignoreCase = true)
 

@@ -11,7 +11,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
-import java.util.zip.ZipFile
 
 class BundledSkinsTest {
     private val assets = File("src/main/assets")
@@ -70,80 +69,35 @@ class BundledSkinsTest {
         assertNull(ImportedSkinRenderer.bundledName(arrayOf("FC"), Console.FC))
     }
 
-    /** Every console the app ships a skin for has a Dark one, in the same format and with the same layout. */
-    @Test fun everyBundledSkinHasADarkTwinWithTheSameLayout() {
-        val own = packages(File(assets, SkinVariant.CONSOLE.assetDir))
-        assertTrue(own.isNotEmpty())
-        own.forEach { pkg ->
-            val dark = File(assets, "${SkinVariant.DARK.assetDir}/${pkg.name}")
-            assertTrue("no Dark skin for ${pkg.name}", dark.isFile)
-            val a = info(pkg)
-            val b = info(dark)
-            assertEquals(a.getString("gameTypeIdentifier"), b.getString("gameTypeIdentifier"))
-            assertEquals("${a.getString("name")} Dark", b.getString("name"))
-            assertEquals("${a.getString("identifier")}.dark", b.getString("identifier"))
-            assertEquals(pkg.name, a.getJSONObject("representations").toString(), b.getJSONObject("representations").toString())
-            assertEquals(pkg.name, entries(pkg), entries(dark))
-        }
-    }
-
-    private fun packages(dir: File) =
-        dir.listFiles { f -> f.isFile && (f.name.endsWith(".deltaskin") || f.name.endsWith(".manicskin")) }.orEmpty().sortedBy { it.name }
-
     private val catalog by lazy { File(assets, SkinCatalog.ASSET).readText() }
 
     /**
-     * Every official color the catalog lists for a console (issue 720) ships as a package with the console's own
-     * layout: the same representations, frames, screens and knobs, only the art in WebP instead of PNG.
+     * Every official color the catalog lists for a console (issue 720) ships as a package in OpenEmux's format, with a
+     * swatch, and a console that ships none lists nothing (its same layout is OwnFormatBundledSkinsTest's). Issue 808:
+     * every bundled package is a zip, the DS's included.
      */
-    @Test fun everyColorVariantInTheCatalogShipsWithTheConsolesLayout() {
+    @Test fun everyColorVariantInTheCatalogShips() {
         var colors = 0
         Console.entries.forEach { console ->
             val listed = SkinCatalog.parse(catalog, console)
-            val own = packages(File(assets, SkinVariant.CONSOLE.assetDir)).firstOrNull { it.name.substringBeforeLast('.') == console.id }
-            val ownFormat = File(assets, "${SkinVariant.CONSOLE.assetDir}/${console.id}.zip").isFile
-            if (own == null) {
-                // A console in OpenEmux's own format ships a zip per variant (OwnFormatBundledSkinsTest): the eleven
-                // issue 806 moved keep their official colours, the others (issues 770-772) come in their own and Dark.
-                if (!ownFormat) assertEquals("${console.id} in the catalog", emptyList<SkinVariant>(), listed.map { it.variant })
-                listed.drop(2).forEach { swatch ->
-                    assertTrue("no ${swatch.variant.id} skin for ${console.id}", File(assets, "${swatch.variant.assetDir}/${console.id}.zip").isFile)
-                    assertTrue("${swatch.variant.id}/${console.id} has no swatch", swatch.body != null && swatch.key != null)
-                    colors++
-                }
+            if (!File(assets, "${SkinVariant.CONSOLE.assetDir}/${console.id}.zip").isFile) {
+                assertEquals("${console.id} in the catalog", emptyList<SkinVariant>(), listed.map { it.variant })
                 return@forEach
             }
             assertEquals(console.id, listOf(SkinVariant.CONSOLE, SkinVariant.DARK), listed.take(2).map { it.variant })
             listed.drop(2).forEach { swatch ->
-                val v = swatch.variant
-                val pkg = File(assets, "${v.assetDir}/${own.name}")
-                assertTrue("no ${v.id} skin for ${own.name}", pkg.isFile)
-                val a = info(own)
-                val b = info(pkg)
-                assertEquals(a.getString("gameTypeIdentifier"), b.getString("gameTypeIdentifier"))
-                assertEquals("${a.getString("identifier")}.${v.id}", b.getString("identifier"))
-                assertTrue(b.getString("name"), b.getString("name").startsWith("${a.getString("name")} "))
-                assertEquals(
-                    "${v.id}/${own.name}", a.getJSONObject("representations").toString(),
-                    b.getJSONObject("representations").toString().replace(".webp", ".png"),
-                )
-                assertEquals("${v.id}/${own.name}", entries(own), entries(pkg).map { it.replace(".webp", ".png") }.toSortedSet())
-                assertTrue(entries(pkg).none { it.endsWith(".png") })
-                assertTrue("${v.id}/${own.name} has no swatch", swatch.body != null && swatch.key != null)
+                assertTrue("no ${swatch.variant.id} skin for ${console.id}", File(assets, "${swatch.variant.assetDir}/${console.id}.zip").isFile)
+                assertTrue("${swatch.variant.id}/${console.id} has no swatch", swatch.body != null && swatch.key != null)
                 colors++
             }
         }
         assertEquals(38, colors)
     }
 
-    /** No color package ships that the catalog does not list, so the picker shows every one the APK carries. */
-    @Test fun everyColorPackageIsInTheCatalog() {
-        SkinVariant.entries.filter { it.description == null }.forEach { v ->
-            packages(File(assets, v.assetDir)).forEach { pkg ->
-                val console = Console.entries.firstOrNull { it.id == pkg.name.substringBeforeLast('.') }
-                assertTrue("${v.id}/${pkg.name} is not in the catalog", console != null && SkinCatalog.parse(catalog, console).any { it.variant == v })
-            }
-        }
+    /** No package of any kind but OpenEmux's ships in any variant folder (issue 808: the DS's was the last). */
+    @Test fun noDeltaOrManicPackageShips() {
+        val left = assets.resolve("skins").walkTopDown().filter { it.isFile && (it.name.endsWith(".deltaskin") || it.name.endsWith(".manicskin")) }
+        assertEquals(emptyList<String>(), left.map { it.path }.toList())
     }
 
     /** Every id the catalog lists is one this build knows, so none is silently left out of the picker. */
@@ -157,8 +111,4 @@ class BundledSkinsTest {
             }
         }
     }
-
-    private fun info(pkg: File) = ZipFile(pkg).use { z -> JSONObject(z.getInputStream(z.getEntry("info.json")).bufferedReader().readText()) }
-
-    private fun entries(pkg: File) = ZipFile(pkg).use { z -> z.entries().asSequence().map { it.name }.toSortedSet() }
 }

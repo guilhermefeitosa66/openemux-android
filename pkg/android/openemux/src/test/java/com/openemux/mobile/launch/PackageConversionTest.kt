@@ -9,7 +9,6 @@ import com.openemux.mobile.data.SkinRect
 import com.openemux.mobile.data.SkinShape
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinTemplate
-import com.openemux.mobile.data.SkinVariant
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
@@ -30,7 +29,6 @@ import java.util.zip.ZipFile
  * planning into a skin the format's reader accepts.
  */
 class PackageConversionTest {
-    private val assets = File("src/main/assets")
 
     private fun frame(x: Number, y: Number, w: Number, h: Number) = JSONObject().put("x", x).put("y", y).put("width", w).put("height", h)
 
@@ -444,19 +442,17 @@ class PackageConversionTest {
     }
 
     /**
-     * Every Delta/Manic package the app ships, in every variant folder (the DS's, issue 806 having moved the others to
-     * OpenEmux's format), and the colour packages the eleven others shipped until then, kept as test files
-     * (src/test/resources/skins/packages/<variant>-<console>.<ext>): a Delta and a Manic package of each kind of
-     * controller, sticks included.
+     * The Delta/Manic packages the app shipped until issues 806 and 808 moved every bundled skin to OpenEmux's format,
+     * kept as test files (src/test/resources/skins/packages/<variant>-<console>.<ext>): a Delta and a Manic package of
+     * each kind of controller, sticks included, and the DS's with its art per screen layout.
      */
-    private fun packages(): List<Pair<String, File>> = SkinVariant.entries.flatMap { v ->
-        File(assets, v.assetDir).listFiles().orEmpty().filter { SkinStore.isPackage(it) }.map { v.id to it }
-    } + File("src/test/resources/skins/packages").listFiles().orEmpty().filter { SkinStore.isPackage(it) }.sortedBy { it.name }
-        .map { it.name.substringBefore('-') to it }
+    private fun packages(): List<Pair<String, File>> =
+        File("src/test/resources/skins/packages").listFiles().orEmpty().filter { SkinStore.isPackage(it) }.sortedBy { it.name }
+            .map { it.name.substringBefore('-') to it }
 
     @Test fun everyBundledPackagePlansIntoASkinTheFormatAccepts() {
         val packages = packages()
-        assertTrue(packages.size >= 15)
+        assertEquals(9, packages.size)
         assertEquals(
             listOf("FC", "GB", "GBA", "GBC", "GC", "N64", "NDS", "PSP", "SFC"),
             packages.map { it.second.nameWithoutExtension.substringAfter('-') }.distinct().sorted(),
