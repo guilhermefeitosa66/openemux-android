@@ -169,7 +169,8 @@ object PackageConversion {
         val own = artSize(asset)
         val s = own?.let { it.first / mw } ?: min(VECTOR_SCALE, MAX_VECTOR_SIDE / maxOf(mw, mh))
         val artW = own?.first ?: (mw * s).roundToInt()
-        val artH = own?.second ?: (mh * s).roundToInt()
+        // The package renderer stretches the art over the mapping size: an art of another shape is drawn that way too.
+        val artH = (mh * s).roundToInt()
         fun px(v: Double) = (v * s).roundToInt()
         fun rect(f: JSONObject) = PixelRect(px(f.getDouble("x")), px(f.getDouble("y")),
             px(f.getDouble("x") + f.getDouble("width")) - px(f.getDouble("x")), px(f.getDouble("y") + f.getDouble("height")) - px(f.getDouble("y")))
@@ -194,11 +195,9 @@ object PackageConversion {
         val items = rep.optJSONArray("items") ?: JSONArray()
         val boxes = (0 until items.length()).map { i ->
             val item = items.getJSONObject(i)
-            item.optJSONObject("frame")?.takeIf { item.opt("inputs") is JSONArray }?.let { box(it) }
+            item.optJSONObject("frame")?.takeIf { item.opt("inputs") is JSONArray }?.let(::packageBox)
         }
-        val ff = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
-            (0 until items.length()).firstOrNull { i -> (items.getJSONObject(i).opt("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true }
-        }
+        val ff = fastForwardItem(items)
         val slow = ff?.let { slowMotionLayout(boxes, it) }
         val defaultEdges = rep.optJSONObject("extendedEdges")
         val elements = mutableListOf<PlannedElement>()
@@ -295,11 +294,8 @@ object PackageConversion {
         return listOf(stick("analogStick"))
     }
 
-    /** The D-pad's ball across, as a share of its travel (OpenEmuxSkinRenderer's BALL_SHARE). */
-    const val BALL_OF_TRAVEL = 0.55f
-
-    private fun box(f: JSONObject) =
-        SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
+    /** The D-pad's ball across, as a share of its travel (the one OpenEmuxSkinRenderer draws it at). */
+    const val BALL_OF_TRAVEL = OpenEmuxSkinRenderer.BALL_SHARE
 
     private fun rect(b: SkinBox, s: Float): PixelRect {
         val l = (b.x * s).roundToInt()
@@ -323,11 +319,9 @@ object PackageConversion {
     fun distance(a: Int, b: Int): Int {
         val aa = a ushr 24
         val ba = b ushr 24
-        var d = abs(aa - ba)
-        for (shift in intArrayOf(16, 8, 0)) {
-            d = maxOf(d, abs(((a shr shift) and 0xFF) * aa - ((b shr shift) and 0xFF) * ba) / 255)
-        }
-        return d
+        // Per pixel of every control: no array of shifts to allocate on each call.
+        fun channel(shift: Int) = abs(((a shr shift) and 0xFF) * aa - ((b shr shift) and 0xFF) * ba) / 255
+        return maxOf(abs(aa - ba), channel(16), channel(8), channel(0))
     }
 
     /** The median colour of [colors], channel by channel (alpha included). */

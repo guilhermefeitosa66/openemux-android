@@ -179,7 +179,7 @@ class ImportedSkinRenderer {
         val art = place.rect(0.0, 0.0, mw.toDouble(), mh.toDouble())
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
         // Translucent skins sit over the game, so the picture shows through them.
-        if (rep.optBoolean("translucent", false)) paint.alpha = 0xB3
+        if (rep.optBoolean("translucent", false)) paint.alpha = PackageConversion.TRANSLUCENT_ALPHA
         canvas.drawBitmap(rasterize(zip, PackageConversion.assetName(rep.getJSONObject("assets")), art), null, art, paint)
         if (screen != null) canvas.drawRect(viewport, Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
 
@@ -188,20 +188,15 @@ class ImportedSkinRenderer {
         val items = rep.optJSONArray("items") ?: JSONArray()
         val boxes = (0 until items.length()).map { i ->
             val item = items.getJSONObject(i)
-            item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let { box(it) }
+            item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let(::packageBox)
         }
         // Slow motion goes right before fast forward, in a slot made among the keys beside it.
-        // The toggle wins over the hold key when a skin has both, whatever their order in the items.
-        val ff = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
-            (0 until items.length()).firstOrNull { i ->
-                (items.getJSONObject(i).get("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true
-            }
-        }
+        val ff = fastForwardItem(items)
         val slow = ff?.let { slowMotionLayout(boxes, it) }
         if (ff != null && slow != null) respace(bitmap, slow, boxes, ff, place)
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
-            val f = slow?.moved?.get(i) ?: box(item.getJSONObject("frame"))
+            val f = slow?.moved?.get(i) ?: packageBox(item.getJSONObject("frame"))
             val e = item.optJSONObject("extendedEdges") ?: defaultEdges
             fun edge(k: String) = e?.optDouble(k, 0.0)?.toFloat() ?: 0f
             val frame = place.rect(f)
@@ -447,9 +442,6 @@ class ImportedSkinRenderer {
     /** [b] grown by the item's extended edges ([edge] of "left", "top", "right", "bottom"), in mapping units. */
     private fun extended(b: SkinBox, edge: (String) -> Float) =
         SkinBox(b.x - edge("left"), b.y - edge("top"), b.w + edge("left") + edge("right"), b.h + edge("top") + edge("bottom"))
-
-    private fun box(f: JSONObject) =
-        SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
 
     companion object {
         /** The zip entry [name] names (at the root or in a folder), outside the __MACOSX copies; null when there is none. */

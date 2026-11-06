@@ -149,6 +149,9 @@ data class SkinListState(
 /** Whether [skin] can be used on a device of [form]: readable and with a layout for it. */
 fun madeFor(skin: StoredSkin, form: SkinForm) = !skin.broken && form in skin.forms
 
+/** Whether Duplicate can make an imported package [skin] a skin of the player's own: it reads and has art to convert (issue 797). */
+fun duplicable(skin: StoredSkin) = !skin.broken && skin.forms.isNotEmpty()
+
 /** The line a skin with no layout for [form] shows. */
 @StringRes
 fun notMadeFor(form: SkinForm): Int = when (form) {
@@ -361,7 +364,8 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                         ImportedRow(
                             skin, state.inUse(skin), madeFor(skin, form), stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
                             onPick = { library.useCustomSkin(console, skin.ref) },
-                            onMenu = { importedSheet = skin },
+                            // A package with nothing to convert (unreadable, no complete art) has no menu: Duplicate would fail.
+                            onMenu = if (duplicable(skin)) { { importedSheet = skin } } else null,
                         )
                     }
                 }
@@ -418,7 +422,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 importedSheet = null; library.useCustomSkin(console, skin.ref)
             }
             // Issue 797: a copy of the player's own, in OpenEmux's format; the package stays under Imported.
-            if (!skin.broken) ActionRow(Icons.Copy, stringResource(R.string.skins_duplicate)) {
+            if (duplicable(skin)) ActionRow(Icons.Copy, stringResource(R.string.skins_duplicate)) {
                 importedSheet = null
                 Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
                 val name = context.getString(R.string.skins_copy_name, skin.name).take(SkinStore.MAX_NAME)
@@ -555,7 +559,7 @@ private fun SkinCard(
 }
 
 @Composable
-private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, onPick: () -> Unit, onMenu: () -> Unit) {
+private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, onPick: () -> Unit, onMenu: (() -> Unit)?) {
     val menuLabel = stringResource(R.string.skins_actions, skin.name)
     // As on a skin card: Right goes from the row to its menu button, Left comes back.
     val rowFocus = remember { FocusRequester() }
@@ -563,9 +567,9 @@ private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, rea
     Row(
         Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Surface)
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
-            .focusRequester(rowFocus).focusProperties { right = menuFocus }
+            .focusRequester(rowFocus).focusProperties { if (onMenu != null) right = menuFocus }
             // A package not made for this device opens its sheet: Duplicate still works there.
-            .clickable(role = Role.RadioButton) { if (pickable) onPick() else onMenu() }
+            .clickable(enabled = pickable || onMenu != null, role = Role.RadioButton) { if (pickable) onPick() else onMenu?.invoke() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -580,7 +584,7 @@ private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, rea
                 !pickable -> Text(reason, style = Type.Small)
             }
         }
-        Box(
+        if (onMenu != null) Box(
             Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape)
                 .focusRequester(menuFocus).focusProperties { left = rowFocus }
                 .clickable(onClickLabel = menuLabel, role = Role.Button, onClick = onMenu).semantics { contentDescription = menuLabel },

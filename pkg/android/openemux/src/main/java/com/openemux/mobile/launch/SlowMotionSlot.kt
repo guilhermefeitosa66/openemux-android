@@ -1,5 +1,8 @@
 package com.openemux.mobile.launch
 
+import org.json.JSONArray
+import org.json.JSONObject
+
 /** A frame in a package skin's mapping units. */
 data class SkinBox(val x: Float, val y: Float, val w: Float, val h: Float) {
     val right get() = x + w
@@ -14,6 +17,20 @@ data class SlowMotionLayout(val slowMotion: SkinBox, val moved: Map<Int, SkinBox
 
 /** The package skins' fast-forward inputs, the toggle first: the item the slow-motion key goes right before. */
 val PACKAGE_FAST_FORWARD_INPUTS = listOf("toggleFastForward", "fastForward")
+
+/** A package item's frame ([f], mapping units) as a box. */
+fun packageBox(f: JSONObject) =
+    SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
+
+/**
+ * The index in a package's [items] of its fast-forward key (one input alone), or null: the toggle wins over the hold
+ * key when a skin has both, whatever their order in the items.
+ */
+fun fastForwardItem(items: JSONArray): Int? = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
+    (0 until items.length()).firstOrNull { i ->
+        (items.getJSONObject(i).opt("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true
+    }
+}
 
 /**
  * Where the slow-motion key goes on a package skin whose fast forward is item [ff] of [items] (the frames of the

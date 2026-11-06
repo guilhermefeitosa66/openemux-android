@@ -70,6 +70,8 @@ object PackageConverter {
         val sizes = PackageConversion.sizes(layout.layout)
         // Every control comes off the art before any is painted out, so none is lifted from a hole another left.
         val lifted = layout.elements.map { p -> p.sources.map { (it as? ImageSource.Art)?.let { a -> PackageConversion.lift(px, w, a.frame) } } }
+        // Slow motion's model is fast forward's frame, already lifted above.
+        val byFrame = layout.elements.flatMapIndexed { i, p -> p.sources.mapIndexedNotNull { k, s -> (s as? ImageSource.Art)?.let { it.frame to lifted[i][k]!! } } }.toMap()
         val results = layout.elements.mapIndexed { i, p ->
             val missing = mutableSetOf<String>()
             p.sources.forEachIndexed { k, source ->
@@ -78,7 +80,7 @@ object PackageConverter {
                 val image = when (source) {
                     is ImageSource.Art -> lifted[i][k]!!.takeIf { it.clean }?.let { bitmap(PackageConversion.place(it, iw, ih, source.dx, source.dy), iw, ih) }
                     is ImageSource.Entry -> entry(zip, source, iw, ih)
-                    is ImageSource.SlowMotion -> slowMotion(PackageConversion.lift(px, w, source.model), iw, ih)
+                    is ImageSource.SlowMotion -> slowMotion(byFrame[source.model] ?: PackageConversion.lift(px, w, source.model), iw, ih)
                 }
                 if (image == null) missing += file else save(image, File(folder, file))
             }
