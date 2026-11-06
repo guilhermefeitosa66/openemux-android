@@ -467,7 +467,7 @@ object SkinEditJson {
      * Elements and layouts the file does not have are skipped.
      */
     fun patch(json: String, edits: SkinRects): String {
-        val root = JSONObject(json.removePrefix("﻿"))
+        val root = JSONObject(json.removePrefix("\uFEFF"))
         val layouts = root.getJSONObject("layouts")
         for ((layoutId, rects) in edits) {
             val layout = layouts.optJSONObject(layoutId.id) ?: continue
