@@ -110,7 +110,7 @@ object GameSkin {
                 null
             }
             is LayoutChoice.Use ->
-                OpenEmuxSkinRenderer(context).render(pkg, choice, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, coreId)
+                OpenEmuxSkinRenderer(context).render(pkg, choice, console, size.short, size.long, outDir, size.cutout, hardcore, first, coreId)
         }
     }
 }

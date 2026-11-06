@@ -52,7 +52,7 @@ class OpenEmuxSkinRenderer(context: Context) {
      */
     fun render(
         pkg: SkinPackage, layouts: LayoutChoice.Use, console: Console,
-        width: Int, height: Int, outDir: File, cutout: Int = 0, tablet: Boolean = false, hardcore: Boolean = false, first: String? = null,
+        width: Int, height: Int, outDir: File, cutout: Int = 0, hardcore: Boolean = false, first: String? = null,
         coreId: String? = null,
     ): File {
         outDir.mkdirs()
@@ -148,7 +148,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             }
             is ElementPlan.Toggle -> {
                 val image = image(pkg, files[0], box) ?: shape(element, box)
-                listOf(plan.next?.let { OverlayDesc("overlay_next", box, next = it, image = image) } ?: OverlayDesc("nul", box, image = image))
+                listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = image))
             }
             is ElementPlan.Action -> {
                 val frame = layout.frame?.colors ?: SkinFrameColors()

@@ -106,7 +106,7 @@ class SkinPackage(val skin: OpenEmuxSkin, val source: SkinSource) {
     fun images(layout: SkinLayoutId, element: SkinElement): List<String?> = element.imageFiles.map { image(layout, it) }
 
     /** The path of [file] in [layout]'s keypad page folder, or null when the package lacks it. */
-    fun keypadImage(layout: SkinLayoutId, file: String): String? = "${layout.id}/${SkinKeypadPage.FOLDER}/$file".takeIf { it in source.files }
+    fun keypadImage(layout: SkinLayoutId, file: String): String? = image(layout, "${SkinKeypadPage.FOLDER}/$file")
 
     /**
      * The page's background image: the keypad page's own ([keypadPage]) when it names one, in its folder; else the
@@ -218,9 +218,7 @@ object SkinFormat {
             throw SkinFormatException(SkinError.BAD_SCREENS, "$path.screens", "${screensJson.length()}, $screenCount expected")
         }
         val screens = (0 until screensJson.length()).map { rect(screensJson.obj(it, "$path.screens[$it]"), "$path.screens[$it]", size) }
-        val background = json.optObj("background", "$path.background")?.let {
-            SkinBackground(it.optColor("color", "$path.background.color"), it.optImage("image", "$path.background.image"))
-        } ?: SkinBackground()
+        val background = background(json, path) ?: SkinBackground()
         val frame = json.optObj("frame", "$path.frame")?.let { frame(it, "$path.frame", size) }
         val elements = elements(json.optArray("elements", "$path.elements") ?: JSONArray(), path, size)
         // Each image file with the key that names it, so a clash points at the second one.
@@ -235,12 +233,15 @@ object SkinFormat {
     /** A layout's keypad page: controls of its own and, optionally, its own background; its images in its own folder. */
     private fun keypad(json: JSONObject, path: String, size: SkinSize): SkinKeypadPage {
         // An empty background object is no background: the layout's stays, as when it is left out.
-        val background = json.optObj("background", "$path.background")?.let {
-            SkinBackground(it.optColor("color", "$path.background.color"), it.optImage("image", "$path.background.image"))
-        }?.takeIf { it.color != null || it.image != null }
+        val background = background(json, path)?.takeIf { it.color != null || it.image != null }
         val elements = elements(json.array("elements", "$path.elements"), path, size)
         unique(listOfNotNull(background?.let { it.imageFile to "$path.background" }) + imageOwners(elements, path))
         return SkinKeypadPage(elements, background)
+    }
+
+    /** The `background` object of the page at [path], or null when it has none. */
+    private fun background(json: JSONObject, path: String): SkinBackground? = json.optObj("background", "$path.background")?.let {
+        SkinBackground(it.optColor("color", "$path.background.color"), it.optImage("image", "$path.background.image"))
     }
 
     /** The elements of a page at [path], their ids unique in it. */

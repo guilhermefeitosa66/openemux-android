@@ -314,8 +314,8 @@ those four ship packages of their own (with a keypad page), so their copy is the
 for a console added later with no package. The copy has the six layouts, each the drawn skin laid out
 for a reference window of its form (Phone 1080 × 2340, Tablet 1600 × 2560 at density 2, Fold 1812 × 2178 at 2.625),
 with its colours, shapes, labels and binds, and `background.png` (with the console's name), `dpad.png`,
-`dpad-ball.png` and `menu.png` painted as the game draws them. What the format has no room for: the keypad key and the
-hide key are left out; the keypad keys get a place of their own (upright, a grid between the clusters, or two rows of six
+`dpad-ball.png` and `menu.png` painted as the game draws them. The copy has no keypad page (the format's since issue
+772) and no hide key: the keypad key and the hide key are left out, and the keypad keys get a place of their own (upright, a grid between the clusters, or two rows of six
 under them when the column is too narrow; sideways, under the face buttons, the pills moving to the left).
 
 ## Import and export
