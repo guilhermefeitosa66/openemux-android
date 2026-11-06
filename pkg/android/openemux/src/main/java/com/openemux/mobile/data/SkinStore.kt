@@ -1,5 +1,6 @@
 package com.openemux.mobile.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -144,6 +145,104 @@ class SkinStore(private val base: File) {
         if (dir.exists()) throw IOException("could not delete $id")
     }
 
+    /**
+     * Imports [zip], a skin in OpenEmux's own format for [console] (issue 787): as a new skin called [name], or, with
+     * [replace], over the player's skin of that id, which keeps its id (so a console using it goes on using it) and
+     * its name. Returns the skin's ref.
+     *
+     * Only skin.json and the images it names are taken from the zip, for the layouts whose folder the zip has
+     * ([SkinImport.offered]); an image the zip lacks is the replaced skin's, if
+     * it had one. The skin is built in a hidden folder, read back, and only then put in place (a replaced one moved
+     * aside until the new one is in): a zip that fails at any point leaves the list as it was.
+     */
+    fun importOwn(console: Console, zip: File, name: String?, replace: String? = null): String {
+        SkinImport.guard(zip)
+        val pkg = SkinFormat.readZip(zip)
+        if (pkg.skin.console != console) throw SkinStoreException("a ${pkg.skin.console.id} skin, not ${console.id}")
+        val target = replace?.let { own(console, it) }
+        val finalName = if (target != null) {
+            runCatching { SkinFormat.readFolder(target).skin.name }.getOrDefault(pkg.skin.name)
+        } else {
+            cleanName(name ?: pkg.skin.name)
+        }
+        val id = target?.name ?: freeId(console, finalName)
+        val root = root(console)
+        val tmp = File(root, ".$id.tmp")
+        deleteTree(tmp)
+        try {
+            tmp.mkdirs()
+            val text = pkg.source.open(SkinFormat.SKIN_JSON)!!.use { String(it.readBytes(), Charsets.UTF_8) }.removePrefix("\uFEFF")
+            val kept = SkinImport.offered(pkg)
+            val json = JSONObject(text).put("name", finalName)
+            val layoutsJson = json.getJSONObject("layouts")
+            layoutsJson.keys().asSequence().toList().filter { key -> kept.none { it.id == key } }.forEach { layoutsJson.remove(it) }
+            json.put("forms", JSONArray(SkinImport.forms(kept).map { it.id }))
+            writeJson(tmp, json.toString(2) + "\n")
+            var budget = SkinImport.MAX_BYTES
+            for ((layoutId, layout) in pkg.skin.layouts.filterKeys { it in kept }) {
+                val files = listOf(layout.background.imageFile) + listOfNotNull(layout.frame?.imageFile) +
+                    layout.elements.flatMap { it.imageFiles }
+                for (file in files) {
+                    val out = File(tmp, "${layoutId.id}/$file")
+                    val copied = pkg.image(layoutId, file)?.let { path ->
+                        out.parentFile!!.mkdirs()
+                        pkg.source.open(path)!!.use { input ->
+                            out.outputStream().use { SkinImport.copyLimited(input, it, minOf(SkinImport.MAX_IMAGE, budget)) }
+                        }
+                    } ?: target?.let { File(it, "${layoutId.id}/$file") }?.takeIf { it.isFile && !isLink(it) }?.let { old ->
+                        out.parentFile!!.mkdirs()
+                        old.copyTo(out, overwrite = true).length()
+                    } ?: 0L
+                    budget -= copied
+                }
+            }
+            SkinFormat.readFolder(tmp)
+            val dest = File(root, id)
+            if (target == null) {
+                if (!tmp.renameTo(dest)) throw IOException("could not create $id")
+            } else {
+                val aside = File(root, ".$id.old")
+                deleteTree(aside)
+                if (!target.renameTo(aside)) throw IOException("could not move $id aside")
+                if (!tmp.renameTo(dest)) {
+                    aside.renameTo(dest)
+                    throw IOException("could not replace $id")
+                }
+                deleteTree(aside)
+            }
+        } finally {
+            deleteTree(tmp)
+        }
+        return ref(StoredSkinKind.OWN, id)
+    }
+
+    /**
+     * Imports [zip], a Delta or Manic EMU package (issue 787), as `<name>.<extension>` in [console]'s skins under a
+     * name no other file there has: it shows under Imported. Returns its ref.
+     */
+    fun importPackage(console: Console, zip: File, name: String, extension: String): String {
+        if (extension != SkinImport.DELTA && extension != SkinImport.MANIC) throw SkinStoreException("not a package: $extension")
+        SkinImport.guard(zip)
+        val root = root(console)
+        root.mkdirs()
+        val file = freeId(console, name, ".$extension")
+        val tmp = File(root, ".$file.tmp")
+        try {
+            zip.inputStream().use { input -> tmp.outputStream().use { SkinImport.copyLimited(input, it, SkinImport.MAX_BYTES) } }
+            if (!tmp.renameTo(File(root, file))) throw IOException("could not create $file")
+        } finally {
+            tmp.delete()
+        }
+        return ref(StoredSkinKind.IMPORTED, file)
+    }
+
+    /** The player's skin [id] as a template zip's pieces: its model and its own skin.json, for [SkinTemplate.write]. */
+    fun template(console: Console, id: String): Pair<SkinPackage, String> {
+        val dir = own(console, id)
+        val pkg = SkinFormat.readFolder(dir)
+        return pkg to File(dir, SkinFormat.SKIN_JSON).readText()
+    }
+
     /** The player's own folder [id] for [console], or [SkinStoreException] when it is anything else. */
     private fun own(console: Console, id: String): File {
         if (!safeName(id)) throw SkinStoreException("not a skin id: $id")
@@ -157,11 +256,14 @@ class SkinStore(private val base: File) {
         return dir
     }
 
-    /** The folder name for a new skin called [name]: its letters and digits, made unique with -2, -3... */
-    internal fun freeId(console: Console, name: String): String {
+    /**
+     * The folder name for a new skin called [name] (or, with [suffix], a package's file name): its letters and digits,
+     * made unique with -2, -3...
+     */
+    internal fun freeId(console: Console, name: String, suffix: String = ""): String {
         val slug = name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(MAX_ID).trim('-').ifEmpty { "skin" }
         val taken = root(console).list().orEmpty().map { it.lowercase() }.toSet()
-        return generateSequence(1) { it + 1 }.map { n -> if (n == 1) slug else "$slug-$n" }
+        return generateSequence(1) { it + 1 }.map { n -> (if (n == 1) slug else "$slug-$n") + suffix }
             .first { it !in taken && ".$it.tmp" !in taken }
     }
 

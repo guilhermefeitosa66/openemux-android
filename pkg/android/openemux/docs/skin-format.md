@@ -273,6 +273,32 @@ wins over them, and one the app cannot draw falls back to the drawn skin.
   nothing.
 - The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout.
 
+## Import and export
+
+The skin list's **Import .zip** (Settings → a console → Controller skins) takes a zip in this format, or a Delta or
+Manic EMU package, and **Download as template** (a skin of your own → its sheet) gives one back.
+
+- **Download as template** writes the skin's own `skin.json` unchanged, a `README.txt` listing every file at its size,
+  and **one image per element in every layout the skin has** (the ones this device cannot edit too), all under one
+  folder named after the skin. An image the skin has at the right size is copied as is, one at another size is
+  scaled to it, and a missing one is drawn the way the game draws it (colours, shape, label). Sizes: the element's
+  rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
+  a stick's `-knob` image half its shorter side (rounded half up).
+- **Import** refuses, before writing anything, a file that is not a zip, a zip with neither `skin.json` nor a
+  package's `info.json`, a `skin.json` the reader refuses, a skin for another console (also a Delta package whose
+  `gameTypeIdentifier` names one), a zip with an entry whose name starts with `/`, contains `\` or a `..` segment,
+  and anything over the limits: 128 MiB per file or in all once read, 16 MiB per image, 2,000 entries.
+- A skin in this format goes in as **a new skin** (the name typed replaces `name`) or **over one of the player's
+  skins**, which keeps its folder (so a console using it keeps using it) and its name. Bundled skins are never a
+  target. Only `skin.json` and the images it names are kept. **A layout whose folder is missing from the zip is
+  dropped** from `layouts` (and `forms`), so deleting a template's `fold-*` folders stops the skin offering folds;
+  a zip with no layout folder at all keeps every layout (a skin drawn from its colours). An image the zip lacks is
+  the replaced skin's, when it had one; else the element is drawn from its colours.
+- The skin is built in a hidden folder, read back with this reader, and only then renamed into place (a replaced
+  skin moved aside until then): a zip that fails at any point leaves the list as it was.
+- A package is copied as it is to `<name>.deltaskin` (or `.manicskin`, when the picked file was one) and shows under
+  Imported. A package whose game type the app does not know goes to the console whose list is open.
+
 ## Writing
 
 The app writes `skin.json` with its keys in the order of the tables above, two-space indents, optional keys left out
