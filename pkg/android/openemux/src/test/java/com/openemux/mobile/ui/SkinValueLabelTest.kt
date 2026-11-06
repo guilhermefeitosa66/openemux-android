@@ -72,6 +72,13 @@ class SkinValueLabelTest {
         assertNull(skinValue(state(choice(SkinVariant.CONSOLE), "dark")))
     }
 
+    @Test fun aBundledSkinToCopyIsEnoughToShowTheList() {
+        // Issue 798: a console with only its drawn skin still lists it, for "Create copy and edit".
+        val s = state(choice(SkinVariant.CONSOLE)).copy(convertible = setOf(SkinVariant.CONSOLE.id))
+        assertTrue(s.shown)
+        assertEquals(SkinValue.Label(R.string.settings_skin_console), skinValue(s))
+    }
+
     @Test fun oneSkinOfThePlayersIsEnoughToShowTheList() {
         val s = state(choice(SkinVariant.CONSOLE), own = listOf(own("mine")))
         assertTrue(s.shown)

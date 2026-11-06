@@ -1,6 +1,7 @@
 package com.openemux.mobile.launch
 
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.SkinForm
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinStore
@@ -43,15 +44,20 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(list, Console.GG, SkinVariant.DARK))
     }
 
-    @Test fun deltaAndManicPackagesAreConvertedAndTheDrawnSkinCannotYet() {
+    @Test fun deltaAndManicPackagesAreConverted() {
         val list = lister("skins" to arrayOf("SFC.deltaskin", "GB.manicskin", "N64.txt"))
         assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.SFC, SkinVariant.CONSOLE))
         assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.GB, SkinVariant.CONSOLE))
         assertNull(SkinConversion.kind(list, Console.N64, SkinVariant.CONSOLE))
-        assertNull(SkinConversion.kind(list, Console.A2600, SkinVariant.CONSOLE))
-        assertNull(SkinConversion.kind(lister(), Console.GG, SkinVariant.CONSOLE))
         assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(File("Mine.MANICSKIN")))
         assertNull(SkinConversion.kind(File("notes.txt")))
+    }
+
+    @Test fun aConsoleWithNoPackageConvertsItsDrawnSkin() {
+        val list = lister("skins" to arrayOf("SFC.deltaskin"))
+        assertEquals(SkinConversion.Kind.DRAWN, SkinConversion.kind(list, Console.O2, SkinVariant.CONSOLE))
+        assertEquals(SkinConversion.Kind.DRAWN, SkinConversion.kind(list, Console.O2, SkinVariant.DARK))
+        assertEquals(SkinConversion.Kind.DRAWN, SkinConversion.kind(lister(), Console.GG, SkinVariant.CONSOLE))
     }
 
     @Test fun aVariantWithNoPackageOfItsOwnFollowsTheConsolesOwn() {
@@ -63,7 +69,7 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
     }
 
-    @Test fun theAppsOwnAssetsAnswerForEveryConsoleWithAPackage() {
+    @Test fun theAppsOwnAssetsAnswerForEveryConsole() {
         val list = { dir: String -> File(assets, dir).list() }
         fun kind(k: SkinConversion.Kind) = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == k }.map { it.id }.sorted()
         // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more.
@@ -77,6 +83,39 @@ class SkinConversionTest {
         for (console in Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == SkinConversion.Kind.PACKAGE }) {
             for (variant in SkinVariant.entries) assertEquals("${console.id} ${variant.id}", SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, console, variant))
         }
+        // Issue 798: the consoles left on the drawn skin.
+        assertEquals(listOf("A5200", "CV", "INTV", "O2"), kind(SkinConversion.Kind.DRAWN))
+    }
+
+    @Test fun aDrawnSkinIsCopiedWithItsImagesAndNothingLeftInTheCache() {
+        val cache = File(base, "cache").apply { mkdirs() }
+        val painted = mutableListOf<String>()
+        val ref = SkinConversion.convertDrawn(store, Console.O2, "My Odyssey", cache) { art, file ->
+            painted += "${art.layout.id}/${art.file}"
+            file.writeBytes(byteArrayOf(art.width.toByte()))
+        }
+        val dir = store.file(Console.O2, ref)!!
+        val copy = SkinFormat.readFolder(dir)
+        assertEquals("My Odyssey", copy.skin.name)
+        assertEquals(DrawnSkinCopy.convert(Console.O2, "My Odyssey").skin, copy.skin)
+        assertEquals(painted.toSet() + SkinFormat.SKIN_JSON, copy.source.files)
+        assertEquals(24, painted.size)
+        val listed = store.list(Console.O2).single { it.ref == ref }
+        assertEquals(SkinForm.entries.toSet(), listed.forms)
+        assertEquals(emptyList<String>(), cache.list()!!.toList())
+    }
+
+    @Test fun aDrawnCopyCutShortLeavesNothing() {
+        val cache = File(base, "cache").apply { mkdirs() }
+        assertThrows(IllegalStateException::class.java) {
+            SkinConversion.convertDrawn(store, Console.CV, "Mine", cache) { _, _ -> throw IllegalStateException("disk full") }
+        }
+        assertEquals(emptyList<Any>(), store.list(Console.CV))
+        assertEquals(emptyList<String>(), cache.list()!!.toList())
+        // A cache that cannot hold the folder is refused before anything is written.
+        val file = File(base, "not-a-folder").apply { writeText("x") }
+        assertThrows(SkinStoreException::class.java) { SkinConversion.convertDrawn(store, Console.CV, "Mine", file) { _, _ -> } }
+        assertEquals(emptyList<Any>(), store.list(Console.CV))
     }
 
     @Test fun noPackageOrOneOfNeitherKindIsRefused() {

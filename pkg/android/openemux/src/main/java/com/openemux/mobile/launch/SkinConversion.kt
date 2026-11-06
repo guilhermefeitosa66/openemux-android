@@ -2,6 +2,7 @@ package com.openemux.mobile.launch
 
 import android.content.Context
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinStoreException
 import com.openemux.mobile.data.SkinVariant
@@ -12,8 +13,8 @@ import java.io.File
  * and edit" asks here whether a console's bundled skin can be made one, and has it made.
  *
  * The packages that already ship in OpenEmux's format (issue 770) are copied as they are; the Delta/Manic packages are
- * converted (issue 797, [PackageConverter]), and so is an imported one the player duplicates. The drawn skin comes in a
- * later part, a [Kind] of its own behind the same calls.
+ * converted (issue 797, [PackageConverter]), and so is an imported one the player duplicates; a console with no package
+ * at all plays the drawn skin, which is converted too (issue 798, [DrawnSkinCopy]).
  */
 object SkinConversion {
     /** How a bundled skin is made into the player's own. */
@@ -23,15 +24,18 @@ object SkinConversion {
 
         /** A Delta/Manic package (.deltaskin, .manicskin): converted, every control lifted off its art (issue 797). */
         PACKAGE,
+
+        /** No package: the console plays the app's drawn skin, converted into OpenEmux's format. */
+        DRAWN,
     }
 
     /**
      * How [console]'s bundled skin in [variant] can be made into the player's own, or null when it cannot yet. The
-     * package is the one the game plays: [variant]'s, or the console's own colors' when [variant] ships none for it.
-     * [list] lists an assets folder.
+     * package is the one the game plays: [variant]'s, or the console's own colors' when [variant] ships none for it;
+     * with none at all, the drawn skin. [list] lists an assets folder.
      */
     fun kind(list: (String) -> Array<String>?, console: Console, variant: SkinVariant): Kind? {
-        val (_, name) = ImportedSkinRenderer.bundledEntry(list, console, variant) ?: return null
+        val (_, name) = ImportedSkinRenderer.bundledEntry(list, console, variant) ?: return Kind.DRAWN
         return kind(File(name))
     }
 
@@ -44,7 +48,32 @@ object SkinConversion {
 
     /** A new skin of the player's own named [name], made from [console]'s bundled skin in [variant]: its ref. */
     fun convert(context: Context, store: SkinStore, console: Console, variant: SkinVariant, name: String): String =
-        convert(store, console, ImportedSkinRenderer.bundled(context, console, variant), name)
+        when (kind({ context.assets.list(it) }, console, variant)) {
+            Kind.DRAWN -> DrawnSkinArt(context).let { painter -> convertDrawn(store, console, name, context.cacheDir, painter::paint) }
+            else -> convert(store, console, ImportedSkinRenderer.bundled(context, console, variant), name)
+        }
+
+    /**
+     * A new skin of the player's own named [name], made from [console]'s drawn skin: its ref. The skin.json and the
+     * images ([paint] writes each [DrawnSkinCopy.Art] to its file) go in a folder of their own under [cache], which
+     * [SkinStore.create] reads back before copying, and which is gone afterwards whatever happens.
+     */
+    fun convertDrawn(store: SkinStore, console: Console, name: String, cache: File, paint: (DrawnSkinCopy.Art, File) -> Unit): String {
+        val copy = DrawnSkinCopy.convert(console, name)
+        val dir = File(cache, "drawn-skin-${console.id}-${System.nanoTime()}")
+        try {
+            if (!dir.mkdirs()) throw SkinStoreException("could not make ${dir.name}")
+            for (art in copy.art) {
+                val file = File(dir, "${art.layout.id}/${art.file}")
+                file.parentFile!!.mkdirs()
+                paint(art, file)
+            }
+            File(dir, SkinFormat.SKIN_JSON).writeText(SkinFormat.toJson(copy.skin))
+            return store.create(console, dir, name)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
 
     /** A new skin of the player's own named [name], made from [bundled] (the package copied out of the app): its ref. */
     fun convert(store: SkinStore, console: Console, bundled: File?, name: String): String {
@@ -52,7 +81,7 @@ object SkinConversion {
         return when (kind(file)) {
             Kind.OPENEMUX -> store.create(console, file, name)
             Kind.PACKAGE -> convertPackage(store, console, file, name)
-            null -> throw SkinStoreException("${file.name} cannot be converted")
+            Kind.DRAWN, null -> throw SkinStoreException("${file.name} cannot be converted")
         }
     }
 
