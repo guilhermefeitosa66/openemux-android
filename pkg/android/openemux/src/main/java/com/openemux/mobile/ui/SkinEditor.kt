@@ -307,9 +307,6 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     LaunchedEffect(model, form, orientation) {
         model?.show(form, orientation)
         tool = Tool.NONE
-        panel = null
-        texture = null
-        overrides = emptyMap()
         tick++
     }
     val layoutId = tick.let { model?.layoutId }
@@ -530,6 +527,11 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             panel = null
             tick++
         }
+    }
+
+    // Another rotation or form is another layout: a picture being framed goes in first, then the panel closes.
+    LaunchedEffect(layoutId) {
+        if (panel != null) closePanel()
     }
 
     fun paint(color: Int, commit: Boolean) {
