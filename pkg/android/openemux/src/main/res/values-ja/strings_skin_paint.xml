@@ -3,21 +3,17 @@
 <resources>
     <string name="editor_colour">カラー</string>
     <string name="editor_texture">テクスチャ</string>
-    <string name="editor_paint">塗る部分</string>
-    <string name="editor_part_background">背景</string>
+    <string name="editor_part_background">本体</string>
     <string name="editor_part_frame">フレーム</string>
     <string name="editor_part_icons">アイコン</string>
     <string name="editor_part_active">オン</string>
     <string name="editor_part_button">ボタン</string>
-    <string name="editor_part_letter">文字</string>
+    <string name="editor_part_relief">レリーフ</string>
+    <string name="editor_part_letter">ラベル</string>
     <string name="editor_part_pad">十字キー</string>
     <string name="editor_part_ball">ボール</string>
     <string name="editor_part_base">台座</string>
     <string name="editor_part_knob">ノブ</string>
-    <string name="editor_apply_one">このコントロール</string>
-    <string name="editor_apply_all_buttons">すべてのボタン</string>
-    <string name="editor_apply_all_dpads">すべての十字キー</string>
-    <string name="editor_apply_all_sticks">すべてのスティック</string>
     <string name="editor_palettes">パレット</string>
     <string name="editor_palettes_hint">カラー列を設定</string>
     <string name="editor_palette_in_row">✓ カラー列に使用中</string>
@@ -34,7 +30,7 @@
     <string name="editor_recent">最近使った色</string>
     <string name="editor_saturation">彩度と明るさ</string>
     <string name="editor_hue">色相</string>
-    <string name="editor_contrast_letter">コントラストが低いため、文字が読みにくい可能性があります。</string>
+    <string name="editor_contrast_letter">コントラストが低く、ラベルが読みにくいかもしれません。</string>
     <string name="editor_contrast_icons">コントラストが低いため、フレーム上のアイコンが見えにくい可能性があります。</string>
     <string name="editor_contrast_active">コントラストが低いため、オンのときアイコンが見えにくい可能性があります。</string>
     <string name="editor_replaces_image">ここで色を選ぶと、この部分の画像は置き換えられます。</string>
@@ -43,7 +39,7 @@
     <string name="editor_dark">暗い</string>
     <string name="editor_active_note">オフ: アイコンの色。\nオン（ターボ、早送り）: この背景。</string>
     <string name="editor_paint_editing">編集中</string>
-    <string name="editor_background">背景</string>
+    <string name="editor_background">本体</string>
     <string name="editor_screen_frame">画面フレーム</string>
     <string name="editor_choose_image">画像を選択</string>
     <string name="editor_choose_another">別の画像を選択</string>

@@ -6,7 +6,7 @@
     <string name="editor_undo">撤销</string>
     <string name="editor_redo">重做</string>
     <string name="editor_save">保存</string>
-    <string name="editor_snap">吸附</string>
+    <string name="editor_snap">网格</string>
     <string name="editor_more">更多</string>
     <string name="editor_reset_layout">重置布局</string>
     <string name="editor_hint_tap">点按一个按键来修改它。</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">右移</string>
     <string name="editor_percent">%1$d%%</string>
     <string name="editor_tap_again">再点一次选单个</string>
+    <string name="editor_tap_again_label">再点一次选择标签</string>
     <string name="editor_group_face">动作键</string>
     <string name="editor_group_dpad">方向键</string>
     <string name="editor_group_center">开始和选择</string>

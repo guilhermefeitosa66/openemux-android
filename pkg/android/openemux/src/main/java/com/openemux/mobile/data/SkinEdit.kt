@@ -160,13 +160,22 @@ object SkinResize {
 
 /**
  * The parts of a layout that are not controls, in [SkinRects] under ids a skin's own (`[a-z0-9-]`) can never take:
- * each game screen and the frame (issue 785).
+ * each game screen and the frame (issue 785), and a control's label once it has a place of its own.
  */
 object SkinArea {
     const val FRAME = "@frame"
     private const val SCREEN = "@screen"
+    private const val LABEL = "#label"
 
     fun screen(index: Int) = "$SCREEN$index"
+
+    /** The key of control [id]'s label. */
+    fun label(id: String) = "$id$LABEL"
+
+    fun isLabel(key: String) = key.endsWith(LABEL)
+
+    /** The control whose label [key] is, or null for any other key. */
+    fun labelOwner(key: String): String? = key.takeIf(::isLabel)?.removeSuffix(LABEL)
 
     /** The screen [id] names, or null for any other id. */
     fun screenIndex(id: String): Int? = id.takeIf { it.startsWith(SCREEN) }?.removePrefix(SCREEN)?.toIntOrNull()
@@ -185,9 +194,16 @@ object SkinArea {
     }
 }
 
-/** What the editor has selected: a whole group (the face buttons), one control, or the screen area. */
+/**
+ * What the editor has selected: a whole group (the face buttons), one control, one control's label, the screen area,
+ * or one of the two things that are painted and never moved, the screen's frame and the console's body.
+ */
 sealed class SkinSelection {
+    /** The controls it paints. */
     abstract val ids: List<String>
+
+    /** Whether it can be dragged, nudged and resized. */
+    open val movable: Boolean get() = true
 
     data class Group(val group: String, override val ids: List<String>) : SkinSelection()
 
@@ -195,8 +211,25 @@ sealed class SkinSelection {
         override val ids: List<String> get() = listOf(id)
     }
 
+    /** The label of control [id], moved and sized on its own. */
+    data class Label(val id: String) : SkinSelection() {
+        override val ids: List<String> get() = listOf(id)
+    }
+
     /** The game screens with their frame and its quick actions (issue 785, [SkinArea.ids]). */
     data class Screen(override val ids: List<String>) : SkinSelection()
+
+    /** The screen's frame, with the quick actions on it: its colours only. */
+    data object Frame : SkinSelection() {
+        override val ids: List<String> get() = emptyList()
+        override val movable: Boolean get() = false
+    }
+
+    /** The console's body, behind everything: its colour and its texture only. */
+    data object Body : SkinSelection() {
+        override val ids: List<String> get() = emptyList()
+        override val movable: Boolean get() = false
+    }
 }
 
 object SkinSelect {
@@ -214,13 +247,20 @@ object SkinSelect {
     }
 
     /**
-     * A tap on [id] with [current] selected: the first tap on a grouped control takes its group, a tap on a member of
-     * the selected group (or of the selected control's group) takes that one control.
+     * A tap on [id] with [current] selected, each tap going one step in: the first tap on a grouped control takes its
+     * group, the next that one control, the next its label (when it has one), and one more starts over. A lone
+     * control goes straight to itself, then its label.
      */
     fun tap(layout: SkinLayout, current: SkinSelection?, id: String): SkinSelection {
+        val element = layout.elements.firstOrNull { it.id == id } ?: return first(layout, id)
         val members = members(layout, id)
-        val within = current != null && members.size > 1 && current.ids.all { it in members }
-        return if (within) SkinSelection.One(id) else first(layout, id)
+        return when {
+            current is SkinSelection.One && current.id == id -> if (SkinLabels.has(element)) SkinSelection.Label(id) else first(layout, id)
+            current is SkinSelection.Label && current.id == id -> first(layout, id)
+            // Its group, or another control of it (or that one's label), is selected: this one control.
+            current != null && current.movable && current.ids.isNotEmpty() && members.size > 1 && current.ids.all { it in members } -> SkinSelection.One(id)
+            else -> first(layout, id)
+        }
     }
 
     /** What a drag on [id] moves: the current selection when [id] is in it, else what a first tap would select. */
@@ -233,12 +273,14 @@ object SkinSelect {
      */
     fun step(layout: SkinLayout, current: SkinSelection?, by: Int): SkinSelection? {
         if (layout.elements.isEmpty()) return null
-        if (current is SkinSelection.One) {
-            val members = members(layout, current.id)
-            if (members.size > 1) return SkinSelection.One(members[Math.floorMod(members.indexOf(current.id) + by, members.size)])
+        // A label steps as its control does.
+        val one = (current as? SkinSelection.One)?.id ?: (current as? SkinSelection.Label)?.id
+        if (one != null) {
+            val members = members(layout, one)
+            if (members.size > 1) return SkinSelection.One(members[Math.floorMod(members.indexOf(one) + by, members.size)])
         }
         val units = units(layout)
-        val at = units.indexOf(current)
+        val at = units.indexOf(if (current is SkinSelection.Label) first(layout, current.id) else current)
         val next = if (at < 0) (if (by > 0) 0 else units.size - 1) else Math.floorMod(at + by, units.size)
         return units[next]
     }
@@ -248,7 +290,8 @@ object SkinSelect {
         null -> null
         is SkinSelection.Group -> SkinSelection.One(current.ids.first())
         is SkinSelection.One -> first(layout, current.id)
-        is SkinSelection.Screen -> current
+        is SkinSelection.Label -> first(layout, current.id)
+        is SkinSelection.Screen, SkinSelection.Frame, SkinSelection.Body -> current
     }
 
     /** The groups and lone controls of [layout], each once, in layout order. */
@@ -294,16 +337,26 @@ typealias SkinRects = Map<SkinLayoutId, Map<String, SkinRect>>
 
 fun OpenEmuxSkin.rects(): SkinRects = layouts.mapValues { (_, l) -> l.rects() }
 
-/** The rects of [SkinLayout.elements], of each screen and of the frame ([SkinArea]). */
+/**
+ * The rects of [SkinLayout.elements], of each screen and of the frame ([SkinArea]), and of each label that has a place
+ * of its own ([SkinElement.labelOffset]): one left on its control's face follows the control and needs none.
+ */
 fun SkinLayout.rects(): Map<String, SkinRect> = buildMap {
     elements.forEach { put(it.id, it.rect) }
     screens.forEachIndexed { i, r -> put(SkinArea.screen(i), r) }
     frame?.let { put(SkinArea.FRAME, it.rect) }
+    elements.filter { it.labelOffset != null && SkinLabels.has(it) }.forEach { put(SkinArea.label(it.id), SkinLabels.box(it)) }
 }
 
-/** [this] with the rects of [rects] put back: elements by id, screens and frame by their [SkinArea] ids. */
+/**
+ * [this] with the rects of [rects] put back: elements by id (a control resized keeps its proportions,
+ * [SkinElement.at]), their labels, screens and frame by their [SkinArea] ids.
+ */
 fun SkinLayout.withRects(rects: Map<String, SkinRect>): SkinLayout = copy(
-    elements = elements.map { e -> rects[e.id]?.let { e.copy(rect = it) } ?: e },
+    elements = elements.map { e ->
+        val placed = rects[e.id]?.let(e::at) ?: e
+        rects[SkinArea.label(e.id)]?.let { SkinLabels.placed(placed, it) } ?: placed
+    },
     screens = screens.mapIndexed { i, r -> rects[SkinArea.screen(i)] ?: r },
     frame = frame?.let { f -> rects[SkinArea.FRAME]?.let { f.copy(rect = it) } ?: f },
 )
@@ -343,7 +396,10 @@ class SkinEditorModel(
         SkinEditState(
             ids.associateWith { id ->
                 val d = start?.get(id).orEmpty()
-                base(id).rects().mapValues { (k, r) -> d[k] ?: r }
+                val b = base(id)
+                // The draft's rects for what the skin has, and the labels the draft gave a place of their own.
+                b.rects().mapValues { (k, r) -> d[k] ?: r } +
+                    d.filterKeys { k -> SkinArea.labelOwner(k)?.let { owner -> b.elements.any { it.id == owner && SkinLabels.has(it) } } == true }
             },
             ids.associateWith { id -> mergeLook(base(id).look(), looks?.get(id)) },
             images.filterKeys { it.substringBefore('/') in ids.map(SkinLayoutId::id) && knownImage(it) },
@@ -446,21 +502,81 @@ class SkinEditorModel(
         return true
     }
 
-    /** The topmost control under ([x], [y]), within [slop] of its box; null for none. With the screen area selected, a
-     * touch inside it is on the screen area. */
+    /** The topmost control under ([x], [y]), within [slop] of its box or of its label's (a word printed beside a key
+     * is the key too); null for none. With the screen area selected, a touch inside it is on the screen area. */
     fun hit(x: Float, y: Float, slop: Float = 0f): String? {
         val l = layout ?: return null
         (selection as? SkinSelection.Screen)?.let { sel ->
             val box = SkinSnap.bounds(sel.ids.mapNotNull { current()[it] })
             if (box.holds(x, y)) return sel.ids.first()
         }
-        return l.elements.lastOrNull { it.rect.holds(x, y, slop) }?.id
+        return l.elements.lastOrNull { it.rect.holds(x, y, slop) || (SkinLabels.has(it) && SkinLabels.box(it).holds(x, y, slop)) }?.id
+    }
+
+    /**
+     * Whether control [id] stays where the skin has it: a quick action on a layout with a frame is part of the frame,
+     * painted with it and never moved.
+     */
+    fun fixed(id: String): Boolean {
+        val l = layout ?: return false
+        return l.frame != null && l.elements.any { it.id == id && it.type == SkinElementType.ACTION }
     }
 
     fun tap(id: String) {
         val l = layout ?: return
         if (selection is SkinSelection.Screen && id in selection!!.ids) return
-        selection = SkinSelect.tap(l, selection, id)
+        selection = if (fixed(id)) SkinSelection.Frame else SkinSelect.tap(controls(l), selection, id)
+    }
+
+    /**
+     * [l] as far as selecting goes: without the quick actions that stay on its frame ([fixed]), so none of them is ever
+     * selected to move, on its own or with a group it shares with other controls.
+     */
+    private fun controls(l: SkinLayout): SkinLayout =
+        if (l.frame == null) l else l.copy(elements = l.elements.filter { it.type != SkinElementType.ACTION })
+
+    /**
+     * A tap at ([x], [y]) (the layout's units), within [slop] of a control: the control under it ([tap]); else the
+     * frame around the screen; else, with nothing selected, the console's body. A tap on the body or on the game's
+     * screen with something selected lets go of it.
+     */
+    fun tapAt(x: Float, y: Float, slop: Float = 0f) {
+        val l = layout ?: return
+        hit(x, y, slop)?.let { return tap(it) }
+        val onScreen = l.screens.any { it.holds(x, y) }
+        selection = when {
+            !onScreen && l.frame?.rect?.holds(x, y) == true -> SkinSelection.Frame
+            onScreen || selection != null -> null
+            x >= 0f && y >= 0f && x <= l.size.width && y <= l.size.height -> SkinSelection.Body
+            else -> null
+        }
+    }
+
+    /** More › Background and Screen frame: the body, or the frame (when the layout has one), selected. */
+    fun selectBody() {
+        if (layout == null) return
+        tryMode(false)
+        selection = SkinSelection.Body
+    }
+
+    fun selectFrame() {
+        if (layout?.frame == null) return
+        tryMode(false)
+        selection = SkinSelection.Frame
+    }
+
+    /**
+     * The selection's box in the layout: its controls with the labels that move with them, one label, the frame, or
+     * (the body) the whole layout. Null with nothing selected.
+     */
+    fun box(): SkinRect? {
+        val l = layout ?: return null
+        return when (selection) {
+            null -> null
+            SkinSelection.Body -> SkinRect(0f, 0f, l.size.width.toFloat(), l.size.height.toFloat())
+            SkinSelection.Frame -> l.frame?.rect
+            else -> moving().values.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
+        }
     }
 
     /** More › Screen area: the screens, frame and quick actions selected together ([SkinArea.ids]). */
@@ -503,24 +619,38 @@ class SkinEditorModel(
         selection = null
     }
 
-    /** Gamepad: the next (+1) or previous (-1) control or group. */
+    /**
+     * Gamepad: the next (+1) or previous (-1) control or group. The quick actions on a frame are one stop, the frame,
+     * where the first of them is in the layout; a layout with nothing to stop at keeps its selection.
+     */
     fun step(by: Int) {
         val l = layout ?: return
-        selection = SkinSelect.step(l, selection, by)
+        val controls = controls(l)
+        // One control of a group (or its label) steps to the group's next control.
+        val one = (selection as? SkinSelection.One)?.id ?: (selection as? SkinSelection.Label)?.id
+        if (one != null && SkinSelect.members(controls, one).size > 1) {
+            selection = SkinSelect.step(controls, selection, by)
+            return
+        }
+        val stops = l.elements.map { if (fixed(it.id)) SkinSelection.Frame else SkinSelect.first(controls, it.id) }.distinct()
+        if (stops.isEmpty()) return
+        val at = stops.indexOf((selection as? SkinSelection.Label)?.let { SkinSelect.first(controls, it.id) } ?: selection)
+        selection = stops[if (at < 0) (if (by > 0) 0 else stops.size - 1) else Math.floorMod(at + by, stops.size)]
     }
 
     /** Gamepad: a group to its first control and back. */
     fun toggle() {
         val l = layout ?: return
-        selection = SkinSelect.toggle(l, selection)
+        selection = SkinSelect.toggle(controls(l), selection)
     }
 
-    /** A drag starts on [id]: what it moves becomes the selection. */
-    fun beginMove(id: String) {
-        val l = layout ?: return
-        val sel = SkinSelect.dragged(l, selection, id)
-        selection = sel
-        gestureFrom = current().filterKeys { it in sel.ids }
+    /** A drag starts on [id]: what it moves becomes the selection. False for a control that stays put ([fixed]). */
+    fun beginMove(id: String): Boolean {
+        val l = layout ?: return false
+        if (fixed(id)) return false
+        selection = SkinSelect.dragged(controls(l), selection, id)
+        gestureFrom = moving()
+        return true
     }
 
     /** The drag is [dx], [dy] from where it began; [free] (Snap off, or a second finger down) skips the snapping. */
@@ -529,16 +659,17 @@ class SkinEditorModel(
         val id = layoutId ?: return
         val size = base(id).size
         // Controls snap to controls only: the screens and the frame are not targets (as before issue 785).
-        val others = history.current.rects.getValue(id).filterKeys { it !in from && !SkinArea.isArea(it) }
+        val others = history.current.rects.getValue(id).filterKeys { it !in from && !SkinArea.isArea(it) && !SkinArea.isLabel(it) }
         val result = SkinSnap.move(SkinSnap.bounds(from.values), others, size, dx, dy, snap && !free)
         guides = result.guides
-        live = withLayout(id, from.mapValues { (_, r) -> r.copy(x = r.x + result.dx, y = r.y + result.dy) })
+        live = withLayout(id, from.mapValues { (_, r) -> r.copy(x = r.x + result.dx, y = r.y + result.dy) }, label = selection is SkinSelection.Label)
     }
 
-    /** A pinch or the corner handle starts on the selection. */
-    fun beginResize() {
-        val sel = selection ?: return
-        gestureFrom = current().filterKeys { it in sel.ids }
+    /** A pinch or the corner handle starts on the selection. False when it has no size to change (the frame, the body). */
+    fun beginResize(): Boolean {
+        if (selection?.movable != true) return false
+        gestureFrom = moving().takeIf { it.isNotEmpty() } ?: return false
+        return true
     }
 
     /**
@@ -547,7 +678,7 @@ class SkinEditorModel(
      */
     fun resizeBy(factor: Float): Int? {
         val from = gestureFrom ?: return null
-        val ref = selection?.ids?.first() ?: return null
+        val ref = ref() ?: return null
         val saved = savedRect(ref) ?: return null
         val target = SkinResize.step(SkinResize.percent(saved, from.getValue(ref)) * factor)
         resizeTo(from, ref, saved, target, live = true)
@@ -567,41 +698,48 @@ class SkinEditorModel(
         guides = emptyList()
     }
 
-    /** The selection's first control's size as a percentage of its saved size; null with nothing selected. */
+    /**
+     * The selection's first control's (or its label's) size as a percentage of its saved size; null with nothing
+     * selected, or something that has no size to change.
+     */
     fun percent(): Int? {
-        val ref = selection?.ids?.first() ?: return null
+        val ref = ref() ?: return null
         val saved = savedRect(ref) ?: return null
-        return SkinResize.percent(saved, current()[ref] ?: return null)
+        return SkinResize.percent(saved, moving()[ref] ?: return null)
     }
 
     /** The Size tool: one step larger (+1) or smaller (-1). */
     fun sizeStep(by: Int) {
-        val ref = selection?.ids?.first() ?: return
+        val ref = ref() ?: return
         val saved = savedRect(ref) ?: return
         val now = percent() ?: return
         val target = SkinResize.step((SkinResize.step(now.toFloat()) + by * SkinResize.STEP).toFloat())
-        resizeTo(current().filterKeys { it in selection!!.ids }, ref, saved, target, live = false)
+        resizeTo(moving(), ref, saved, target, live = false)
     }
 
     /** Moves the selection one grid step per unit of [stepsX], [stepsY]. */
     fun nudge(stepsX: Int, stepsY: Int) {
-        val sel = selection ?: return
         val id = layoutId ?: return
-        val moved = SkinSnap.nudge(current().filterKeys { it in sel.ids }, base(id).size, stepsX, stepsY)
-        history.push(withLayout(id, moved))
+        val from = moving().takeIf { it.isNotEmpty() } ?: return
+        history.push(withLayout(id, SkinSnap.nudge(from, base(id).size, stepsX, stepsY), label = selection is SkinSelection.Label))
     }
 
-    /** The selection back to its saved place and size. */
+    /**
+     * The selection back to its saved place and size; a label the skin leaves on its control's face goes back there
+     * (its control keeps drawing it: an image the move replaced comes back with undo, not with this).
+     */
     fun reset() {
-        val sel = selection ?: return
         val id = layoutId ?: return
-        history.push(withLayout(id, base(id).rects().filterKeys { it in sel.ids }))
+        val keys = moving().keys.takeIf { it.isNotEmpty() } ?: return
+        val saved = base(id).rects()
+        history.push(withLayout(id, saved.filterKeys { it in keys }, gone = keys - saved.keys))
     }
 
     /** The whole layout being edited back to how the skin has it. */
     fun resetLayout() {
         val id = layoutId ?: return
-        history.push(withLayout(id, base(id).rects()))
+        val saved = base(id).rects()
+        history.push(withLayout(id, saved, gone = current().keys - saved.keys))
     }
 
     /**
@@ -626,10 +764,19 @@ class SkinEditorModel(
         cancelGesture()
     }
 
-    /** The files of [staged] (path in the skin to the staged texture's name) replace those images: one undo step. */
+    /**
+     * The files of [staged] (path in the skin to the staged texture's name) replace those images: one undo step. A
+     * texture on a button, a key or the D-pad is its face alone ([SkinArt.FACE]): the relief and the label stay the
+     * app's to draw, so they are still painted and moved afterwards.
+     */
     fun texture(staged: Map<String, String>) {
         val base = history.current
-        history.push(base.copy(images = base.images + staged.filterKeys { knownImage(it) }.mapValues { SkinImageEdit.Staged(it.value) }))
+        val known = staged.filterKeys { knownImage(it) }
+        val looks = base.looks.mapValues { (id, look) ->
+            val faces = base(id).elements.filter { it.type.raised && "${id.id}/${it.imageFiles[0]}" in known }.associate { it.id to SkinArt.FACE }
+            if (faces.isEmpty()) look else look.copy(art = look.art + faces)
+        }
+        history.push(base.copy(looks = looks, images = base.images + known.mapValues { SkinImageEdit.Staged(it.value) }))
         cancelGesture()
     }
 
@@ -677,7 +824,10 @@ class SkinEditorModel(
      * controls that changed. A layout switched on is written whole by [addedLayouts], colours included.
      */
     fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks.filter { (id, look) -> id in originalLooks && look != originalLooks.getValue(id) }
-        .mapValues { (id, look) -> look.copy(colors = look.colors.filter { (e, c) -> originalLooks.getValue(id).colors[e] != c }) }
+        .mapValues { (id, look) ->
+            val was = originalLooks.getValue(id)
+            look.copy(colors = look.colors.filter { (e, c) -> was.colors[e] != c }, art = look.art.filter { (e, a) -> was.art[e] != a })
+        }
 
     /** The layouts offered now that the skin had not, with their current rects and colours. */
     fun addedLayouts(): Map<SkinLayoutId, SkinLayout> =
@@ -693,18 +843,58 @@ class SkinEditorModel(
 
     private fun current(): Map<String, SkinRect> = rects.getValue(layoutId!!)
 
-    private fun savedRect(id: String): SkinRect? = layoutId?.let { base(it).rects()[id] }
+    /** [key]'s rect in the skin; a label the skin leaves on its control's face is where that puts it. */
+    private fun savedRect(key: String): SkinRect? {
+        val saved = layoutId?.let(::base) ?: return null
+        return saved.rects()[key] ?: SkinArea.labelOwner(key)?.let { owner -> saved.elements.firstOrNull { it.id == owner } }?.let(SkinLabels::box)
+    }
+
+    /** The key the selection's size is read from: its first control, or the label it is. */
+    private fun ref(): String? = when (val sel = selection) {
+        null -> null
+        is SkinSelection.Label -> SkinArea.label(sel.id)
+        else -> sel.ids.firstOrNull()?.takeIf { sel.movable }
+    }
+
+    /**
+     * What the selection moves, by key: its controls and the labels that have a place of their own (a label on its
+     * control's face follows it anyway); for a label, the label alone, from where it is drawn now. Empty for the frame
+     * and the body, which never move.
+     */
+    private fun moving(): Map<String, SkinRect> {
+        val now = current()
+        return when (val sel = selection) {
+            null, SkinSelection.Frame, SkinSelection.Body -> emptyMap()
+            is SkinSelection.Label -> {
+                val key = SkinArea.label(sel.id)
+                val box = now[key] ?: layout?.elements?.firstOrNull { it.id == sel.id }?.let(SkinLabels::box)
+                box?.let { mapOf(key to it) }.orEmpty()
+            }
+            else -> now.filterKeys { it in sel.ids || SkinArea.labelOwner(it) in sel.ids }
+        }
+    }
 
     private fun resizeTo(from: Map<String, SkinRect>, ref: String, saved: SkinRect, target: Int, live: Boolean) {
         val id = layoutId ?: return
         val scaled = SkinResize.scale(from, saved, ref, target, base(id).size)
-        if (live) this.live = withLayout(id, scaled) else history.push(withLayout(id, scaled))
+        val state = withLayout(id, scaled, label = selection is SkinSelection.Label)
+        if (live) this.live = state else history.push(state)
     }
 
-    /** The committed state with [changed] put into layout [id]'s rects. */
-    private fun withLayout(id: SkinLayoutId, changed: Map<String, SkinRect>): SkinEditState {
+    /**
+     * The committed state with [changed] put into layout [id]'s rects and the keys of [gone] taken out. With [label]
+     * (a label moved, nudged or sized on its own), a control whose image holds its label ([SkinArt.FULL]) loses that
+     * image: it is drawn from its colours, with the label where it now is. Putting things back (Reset) takes no image
+     * away.
+     */
+    private fun withLayout(
+        id: SkinLayoutId, changed: Map<String, SkinRect>, gone: Set<String> = emptySet(), label: Boolean = false,
+    ): SkinEditState {
         val now = history.current
-        return now.copy(rects = now.rects + (id to now.rects.getValue(id) + changed))
+        val owners = if (label) changed.keys.mapNotNull(SkinArea::labelOwner) else emptyList()
+        val images = if (owners.isEmpty()) now.images else
+            dropImages(now.images, SkinPainter.files(id, base(id).withLook(now.looks.getValue(id)), owners, SkinPart.LETTER))
+        return now.copy(rects = now.rects + (id to (now.rects.getValue(id) - gone) + changed), images = images)
     }
 
     /** [images] with [files] drawn in colours: a skin's own image is marked gone, a texture staged this session dropped. */
@@ -744,7 +934,10 @@ class SkinEditorModel(
 
         /** [base] with [draft]'s colours for the controls [base] has (null: [base] as it is). */
         private fun mergeLook(base: SkinLook, draft: SkinLook?): SkinLook = if (draft == null) base else
-            SkinLook(draft.background, draft.frame?.takeIf { base.frame != null } ?: base.frame, base.colors.mapValues { (id, c) -> draft.colors[id] ?: c })
+            SkinLook(
+                draft.background, draft.frame?.takeIf { base.frame != null } ?: base.frame,
+                base.colors.mapValues { (id, c) -> draft.colors[id] ?: c }, base.art.mapValues { (id, a) -> draft.art[id] ?: a },
+            )
     }
 }
 
@@ -781,7 +974,25 @@ object SkinEditJson {
             layout.optJSONArray("elements")?.let { elements ->
                 for (i in 0 until elements.length()) {
                     val e = elements.getJSONObject(i)
-                    rects[e.optString("id")]?.let { put(e, it) }
+                    val id = e.optString("id")
+                    rects[id]?.let { r ->
+                        // What is measured in the layout's units follows the control's width (SkinElement.at).
+                        val k = e.optDouble("width").takeIf { it > 0.0 }?.let { r.width / it } ?: 1.0
+                        put(e, r)
+                        // Only a control resized: one that only moved keeps these as the file has them, to the digit.
+                        if (kotlin.math.abs(k - 1.0) > 1e-4) {
+                            SCALED.forEach { key -> if (e.has(key)) e.put(key, tenth(e.getDouble(key) * k)) }
+                            e.optJSONObject("labelOffset")?.let { o -> o.put("x", tenth(o.optDouble("x", 0.0) * k)).put("y", tenth(o.optDouble("y", 0.0) * k)) }
+                        }
+                    }
+                    rects[SkinArea.label(id)]?.let { box ->
+                        // The label's centre from the control's, as the editor has both; its height is the type size.
+                        val at = rects[id] ?: SkinRect(e.getDouble("x").toFloat(), e.getDouble("y").toFloat(), e.getDouble("width").toFloat(), e.getDouble("height").toFloat())
+                        e.put("labelSize", tenth(box.height.toDouble()))
+                        e.put("labelOffset", JSONObject()
+                            .put("x", tenth((box.x + box.width / 2f - (at.x + at.width / 2f)).toDouble()))
+                            .put("y", tenth((box.y + box.height / 2f - (at.y + at.height / 2f)).toDouble())))
+                    }
                 }
             }
             layout.optJSONArray("screens")?.let { screens ->
@@ -813,6 +1024,7 @@ object SkinEditJson {
             val elements = layout.optJSONArray("elements") ?: continue
             for (i in 0 until elements.length()) {
                 val e = elements.getJSONObject(i)
+                look.art[e.optString("id")]?.let { art -> if (art == SkinArt.FULL) e.remove("art") else e.put("art", art.id) }
                 val parts = look.colors[e.optString("id")] ?: continue
                 val type = SkinElementType.byId(e.optString("type"))
                 val colors = JSONObject()
@@ -834,4 +1046,10 @@ object SkinEditJson {
     private fun put(obj: JSONObject, key: String, argb: Int?) {
         if (argb == null) obj.remove(key) else obj.put(key, color(argb))
     }
+
+    /** The keys of an element measured in the layout's units, which follow its width when it is resized. */
+    private val SCALED = listOf("radius", "depth", "labelSize")
+
+    /** [v] to a tenth of a unit, a whole number written as one. */
+    private fun tenth(v: Double): Number = (Math.round(v * 10.0) / 10.0).let { if (it == Math.rint(it)) it.toInt() else it }
 }

@@ -302,8 +302,8 @@
     <string name="skins_broken">Não pode ser lida</string>
     <string name="skins_actions">Ações de %1$s</string>
     <string name="skins_use">Usar</string>
-    <string name="skins_use_as_is">Usar como está</string>
     <string name="skins_bundled_locked">As skins do app nunca mudam.</string>
+    <string name="skins_bundled_copies">%1$s e %2$s criam uma cópia sua.</string>
     <string name="skins_imported_locked">As skins importadas ficam como estão. Duplicar cria uma cópia sua.</string>
     <string name="skins_copy_working">Criando a cópia…</string>
     <string name="skins_rename">Renomear</string>
@@ -312,16 +312,12 @@
     <string name="skins_save">Salvar</string>
     <string name="skins_duplicate">Duplicar</string>
     <string name="skins_copy_name">%1$s (cópia)</string>
+    <string name="skins_edited_name">%1$s - editada</string>
     <string name="skins_delete">Apagar</string>
     <string name="skins_delete_sub">O console volta para %1$s</string>
     <string name="skins_delete_title">Apagar %1$s?</string>
     <string name="skins_delete_body">A skin e as imagens dela saem deste aparelho.</string>
     <string name="skins_error">Não foi possível alterar a skin.</string>
-    <string name="skins_create_copy">Criar cópia e editar</string>
-    <string name="skins_create_copy_title">Dê um nome à sua cópia</string>
-    <string name="skins_create_copy_lead">As skins do app ficam como estão. A cópia mantém todos os layouts, e você pode renomeá-la depois.</string>
-    <string name="skins_create_copy_save">Criar cópia</string>
-    <string name="skins_bundled_copy_name">Cópia de %1$s</string>
     <string name="skins_template">Baixar como modelo</string>
     <string name="skins_template_sub">Um .zip com todos os layouts: celular, tablet, dobrável</string>
     <string name="skins_template_title">Baixar como modelo</string>

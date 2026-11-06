@@ -52,6 +52,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -69,7 +70,10 @@ import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.SkinCatalog
 import com.openemux.mobile.data.SkinForm
 import com.openemux.mobile.data.SkinImport
+import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinImportTooLarge
+import com.openemux.mobile.data.SkinOrientation
+import com.openemux.mobile.data.SkinPackage
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinTemplate
 import com.openemux.mobile.data.SkinSwatch
@@ -142,6 +146,29 @@ data class SkinListState(
      * the list has something to pick or to do.
      */
     val shown: Boolean get() = bundled.options.size + own.size + imported.size > 1 || convertible.isNotEmpty()
+}
+
+/**
+ * [name] (cut to what a skin's name may be), or with a number after it, so that no skin called one of [taken] is
+ * called the same: a second Edit of one bundled skin makes "Red - edited 2", not another "Red - edited".
+ */
+fun freeSkinName(name: String, taken: Collection<String>): String {
+    fun cut(n: Int): String {
+        val tail = if (n == 1) "" else " $n"
+        return name.trim().take(SkinStore.MAX_NAME - tail.length).trim() + tail
+    }
+    return generateSequence(1) { it + 1 }.map(::cut).first { candidate -> taken.none { it.equals(candidate, ignoreCase = true) } }
+}
+
+/** The skin "Download as template" writes: one of the player's, or a bundled one (read from the app's own package). */
+private sealed interface TemplateOf {
+    val name: String
+
+    data class Own(val skin: StoredSkin) : TemplateOf {
+        override val name: String get() = skin.name
+    }
+
+    data class Bundled(val swatch: SkinSwatch, override val name: String) : TemplateOf
 }
 
 /** Whether [skin] can be used on a device of [form]: readable and with a layout for it. */
@@ -282,9 +309,11 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var bundledSheet by remember { mutableStateOf<SkinSwatch?>(null) }
     var importedSheet by remember { mutableStateOf<StoredSkin?>(null) }
     var renaming by remember { mutableStateOf<StoredSkin?>(null) }
-    var copying by remember { mutableStateOf<SkinSwatch?>(null) }
     var deleting by remember { mutableStateOf<StoredSkin?>(null) }
-    var templating by remember { mutableStateOf<StoredSkin?>(null) }
+    var templating by remember { mutableStateOf<TemplateOf?>(null) }
+    // Bumped when a skin's files change, so its miniature is drawn again.
+    var drawn by remember { mutableIntStateOf(0) }
+    val changed = { drawn++; onChanged() }
     var editing by remember { mutableStateOf<SkinEditTarget?>(null) }
     var saving by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf<PickedSkin?>(null) }
@@ -328,7 +357,29 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             // Migrated first: until then the console plays the first skin by name, which a copy or a delete would change.
             val ok = withContext(Dispatchers.IO) { runCatching { library.migrateSkins() }; runCatching(action).isSuccess }
             if (!ok) Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
-            onChanged()
+            changed()
+        }
+    }
+
+    /**
+     * A skin of the player's own made from the bundled [swatch], called [name] (numbered when one is called that
+     * already). With [edit], it is used at once and opens in the editor (issue 784): the bundled skin's Edit.
+     */
+    fun copyBundled(swatch: SkinSwatch, name: String, edit: Boolean) {
+        val free = freeSkinName(name, state.own.map { it.name })
+        Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
+        scope.launch {
+            val ref = withContext(Dispatchers.IO) {
+                runCatching { library.migrateSkins() }
+                runCatching { SkinConversion.convert(context, library.skins, console, swatch.variant, free) }.getOrNull()
+            }
+            if (ref == null) {
+                Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
+            } else if (edit) {
+                library.useCustomSkin(console, ref)
+                SkinStore.parse(ref)?.let { (_, id) -> editing = SkinEditTarget(id, free, inUse = true) }
+            }
+            changed()
         }
     }
 
@@ -338,7 +389,8 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 CardGrid(state.own) { skin ->
                     val (body, key) = storedColors(skin)
                     SkinCard(
-                        skin.name, body, key, skin.forms, state.inUse(skin), madeFor(skin, form),
+                        skin.name, body, key, rememberSkinThumbnail(console, SkinThumbSource.Own(skin.file).takeIf { !skin.broken }, drawn),
+                        skin.forms, state.inUse(skin), madeFor(skin, form),
                         reason = stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
                         onPick = { library.useCustomSkin(console, skin.ref) },
                         onMenu = { ownSheet = skin },
@@ -350,7 +402,8 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             CardGrid(state.bundled.options) { swatch ->
                 val (body, key) = swatchColors(swatch)
                 SkinCard(
-                    stringResource(swatch.variant.label), body, key, SkinForm.entries.toSet(), state.inUse(swatch), true, "",
+                    stringResource(swatch.variant.label), body, key, rememberSkinThumbnail(console, SkinThumbSource.Bundled(swatch.variant)),
+                    SkinForm.entries.toSet(), state.inUse(swatch), true, "",
                     onPick = { library.useBundledSkin(console, swatch.variant.id) },
                     onMenu = { bundledSheet = swatch },
                 )
@@ -375,8 +428,10 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
 
     ownSheet?.let { skin ->
         val back = state.bundledPick?.variant?.label?.let { stringResource(it) }.orEmpty()
-        SkinActionsSheet(skin.name, storedColors(skin), skin.forms, state.inUse(skin), onClose = { ownSheet = null }) {
-            if (!state.inUse(skin) && madeFor(skin, form)) ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
+        val thumb = rememberSkinThumbnail(console, SkinThumbSource.Own(skin.file).takeIf { !skin.broken }, drawn)
+        SkinActionsSheet(skin.name, storedColors(skin), thumb, skin.forms, state.inUse(skin), onClose = { ownSheet = null }) {
+            // Always there for a skin this device can play, the one in use too: the first thing a skin is for.
+            if (madeFor(skin, form)) ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
                 ownSheet = null; library.useCustomSkin(console, skin.ref)
             }
             if (!skin.broken) {
@@ -389,7 +444,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                     store { library.skins.duplicate(console, skin.id, context.getString(R.string.skins_copy_name, skin.name).take(SkinStore.MAX_NAME)) }
                 }
                 ActionRow(Icons.Download, stringResource(R.string.skins_template), sub = stringResource(R.string.skins_template_sub)) {
-                    ownSheet = null; templating = skin
+                    ownSheet = null; templating = TemplateOf.Own(skin)
                 }
             }
             ActionRow(
@@ -399,28 +454,46 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
         }
     }
     bundledSheet?.let { swatch ->
-        SkinActionsSheet(stringResource(swatch.variant.label), swatchColors(swatch), SkinForm.entries.toSet(), state.inUse(swatch), onClose = { bundledSheet = null }) {
+        val label = stringResource(swatch.variant.label)
+        val edit = stringResource(R.string.skins_edit)
+        val duplicate = stringResource(R.string.skins_duplicate)
+        val copies = state.convertible(swatch)
+        val thumb = rememberSkinThumbnail(console, SkinThumbSource.Bundled(swatch.variant))
+        SkinActionsSheet(label, swatchColors(swatch), thumb, SkinForm.entries.toSet(), state.inUse(swatch), onClose = { bundledSheet = null }) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Lock, Oe.Muted, 18.dp)
-                Text(stringResource(R.string.skins_bundled_locked), style = Type.Small)
+                Column {
+                    Text(stringResource(R.string.skins_bundled_locked), style = Type.Small)
+                    if (copies) Text(stringResource(R.string.skins_bundled_copies, edit, duplicate), style = Type.Small)
+                }
             }
             HorizontalDivider(color = Oe.Divider, thickness = 1.dp)
-            if (state.convertible(swatch)) ActionRow(Icons.Pencil, stringResource(R.string.skins_create_copy)) {
-                bundledSheet = null; copying = swatch
-            }
-            ActionRow(Icons.Check, stringResource(R.string.skins_use_as_is)) {
+            ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
                 bundledSheet = null; library.useBundledSkin(console, swatch.variant.id)
+            }
+            if (copies) {
+                // A bundled skin never changes: Edit makes a copy of the player's own, uses it and opens it in the editor.
+                ActionRow(Icons.Pencil, edit) {
+                    bundledSheet = null; copyBundled(swatch, context.getString(R.string.skins_edited_name, label), edit = true)
+                }
+                ActionRow(Icons.Copy, duplicate) {
+                    bundledSheet = null; copyBundled(swatch, context.getString(R.string.skins_copy_name, label), edit = false)
+                }
+                // Only a package has images to hand over: the drawn skin of a console with none is drawn by the app.
+                if (thumb != null) ActionRow(Icons.Download, stringResource(R.string.skins_template), sub = stringResource(R.string.skins_template_sub)) {
+                    bundledSheet = null; templating = TemplateOf.Bundled(swatch, "${console.displayName} $label")
+                }
             }
         }
     }
     importedSheet?.let { skin ->
-        SkinActionsSheet(skin.name, storedColors(skin), skin.forms, state.inUse(skin), onClose = { importedSheet = null }) {
+        SkinActionsSheet(skin.name, storedColors(skin), null, skin.forms, state.inUse(skin), onClose = { importedSheet = null }) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Lock, Oe.Muted, 18.dp)
                 Text(stringResource(R.string.skins_imported_locked), style = Type.Small)
             }
             HorizontalDivider(color = Oe.Divider, thickness = 1.dp)
-            if (!state.inUse(skin) && madeFor(skin, form)) ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
+            if (madeFor(skin, form)) ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
                 importedSheet = null; library.useCustomSkin(console, skin.ref)
             }
             // Issue 797: a copy of the player's own, in OpenEmux's format; the package stays under Imported.
@@ -438,35 +511,12 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             store { library.skins.rename(console, skin.id, name) }
         }
     }
-    copying?.let { swatch ->
-        val label = stringResource(swatch.variant.label)
-        NameSkinSheet(
-            stringResource(R.string.skins_create_copy_title), stringResource(R.string.skins_bundled_copy_name, label).take(SkinStore.MAX_NAME),
-            stringResource(R.string.skins_create_copy_save), lead = stringResource(R.string.skins_create_copy_lead), onClose = { copying = null },
-        ) { name ->
-            copying = null
-            // The copy is used at once and opens in the editor (issue 784).
-            scope.launch {
-                val ref = withContext(Dispatchers.IO) {
-                    runCatching { library.migrateSkins() }
-                    runCatching { SkinConversion.convert(context, library.skins, console, swatch.variant, name) }.getOrNull()
-                }
-                if (ref == null) {
-                    Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
-                } else {
-                    library.useCustomSkin(console, ref)
-                    SkinStore.parse(ref)?.let { (_, id) -> editing = SkinEditTarget(id, name.trim(), inUse = true) }
-                }
-                onChanged()
-            }
-        }
-    }
     editing?.let { target ->
-        SkinEditor(library, console, target, onChanged = onChanged, onClose = { editing = null })
+        SkinEditor(library, console, target, onChanged = changed, onClose = { editing = null })
     }
-    templating?.let { skin ->
-        TemplateSheet(skin.name, saving, onClose = { if (!saving) templating = null }) {
-            saveTemplate.launch(SkinTemplate.fileName(skin.name))
+    templating?.let { of ->
+        TemplateSheet(of.name, saving, onClose = { if (!saving) templating = null }) {
+            saveTemplate.launch(SkinTemplate.fileName(of.name))
         }
     }
     importing?.let { picked ->
@@ -487,7 +537,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 }
                 writing = false
                 Toast.makeText(context, if (ok) R.string.skins_import_done else R.string.skins_error, Toast.LENGTH_SHORT).show()
-                onChanged()
+                changed()
             }
         }
     }
@@ -536,7 +586,7 @@ private fun <T> CardGrid(items: List<T>, card: @Composable (T) -> Unit) {
 
 @Composable
 private fun SkinCard(
-    name: String, body: Color, key: Color, forms: Set<SkinForm>, inUse: Boolean, pickable: Boolean, reason: String,
+    name: String, body: Color, key: Color, thumb: ImageBitmap?, forms: Set<SkinForm>, inUse: Boolean, pickable: Boolean, reason: String,
     onPick: () -> Unit, onMenu: () -> Unit,
 ) {
     val menuLabel = stringResource(R.string.skins_actions, name)
@@ -552,7 +602,9 @@ private fun SkinCard(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        MiniSkin(body, key, Modifier.fillMaxWidth().height(78.dp).alpha(if (pickable) 1f else DIMMED_ALPHA))
+        // The skin itself on this device, the way it is held: taller than wide upright.
+        val tall = currentSkinOrientation() == SkinOrientation.PORTRAIT
+        SkinThumb(thumb, body, key, Modifier.fillMaxWidth().height(if (tall && thumb != null) 190.dp else 78.dp).alpha(if (pickable) 1f else DIMMED_ALPHA))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = Type.Section, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -611,14 +663,15 @@ private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, rea
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SkinActionsSheet(
-    name: String, colors: Pair<Color, Color>, forms: Set<SkinForm>, inUse: Boolean, onClose: () -> Unit,
+    name: String, colors: Pair<Color, Color>, thumb: ImageBitmap?, forms: Set<SkinForm>, inUse: Boolean, onClose: () -> Unit,
     rows: @Composable () -> Unit,
 ) {
     OeSheet(onClose) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                MiniSkin(colors.first, colors.second, Modifier.width(132.dp).height(66.dp))
+                val tall = thumb != null && thumb.height > thumb.width
+                SkinThumb(thumb, colors.first, colors.second, if (tall) Modifier.width(66.dp).height(132.dp) else Modifier.width(132.dp).height(66.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(name, style = Type.Title.copy(fontSize = 22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     FormBadges(forms)
@@ -731,12 +784,23 @@ private fun pickSkin(context: Context, console: Console, uri: Uri): PickedSkin {
     return PickedSkin(file, name, check)
 }
 
-/** Writes the player's skin [skin] of [console] as a template zip into the document [uri]. */
-private fun writeTemplate(context: Context, library: Library, console: Console, skin: StoredSkin, uri: Uri) {
-    val (pkg, json) = library.skins.template(console, skin.id)
+/** Writes the skin [of] of [console] (one of the player's, or a bundled one) as a template zip into the document [uri]. */
+private fun writeTemplate(context: Context, library: Library, console: Console, of: TemplateOf, uri: Uri) {
+    val (pkg, json) = when (of) {
+        is TemplateOf.Own -> library.skins.template(console, of.skin.id)
+        is TemplateOf.Bundled -> bundledTemplate(context, console, of.swatch)
+    }
     val renderer = OpenEmuxSkinRenderer(context)
     val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("cannot write $uri")
     out.use { SkinTemplate.write(it, pkg.skin, json) { id, image -> renderer.templateImage(pkg, id, image) } }
+}
+
+/** The bundled skin [swatch] of [console] as a template zip's pieces: its package's model and its own skin.json. */
+private fun bundledTemplate(context: Context, console: Console, swatch: SkinSwatch): Pair<SkinPackage, String> {
+    val file = ImportedSkinRenderer.bundled(context, console, swatch.variant)?.takeIf(ImportedSkinRenderer::isOpenEmuxPackage)
+        ?: throw IOException("${console.id} ships no package in ${swatch.variant.id}")
+    val pkg = SkinFormat.readZip(file)
+    return pkg to pkg.source.open(SkinFormat.SKIN_JSON)!!.use { it.bufferedReader().readText() }
 }
 
 /** "Download as template": what the zip holds and how it comes back, and the button that saves it. */

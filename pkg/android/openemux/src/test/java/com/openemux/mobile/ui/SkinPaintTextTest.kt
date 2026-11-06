@@ -48,11 +48,11 @@ class SkinPaintTextTest {
         assertEquals(SkinContrast.entries.size, SkinContrast.entries.map { contrastText(it) }.toSet().size)
     }
 
-    @Test fun allNamesWhatItPaints() {
-        assertEquals(R.string.editor_apply_all_buttons, allName(SkinElementType.BUTTON))
-        assertEquals(R.string.editor_apply_all_buttons, allName(SkinElementType.KEYPAD))
-        assertEquals(R.string.editor_apply_all_dpads, allName(SkinElementType.DPAD))
-        assertEquals(R.string.editor_apply_all_sticks, allName(SkinElementType.STICK))
+    @Test fun theReliefHasItsNameAndNoWarningOfItsOwn() {
+        assertEquals(R.string.editor_part_relief, partName(SkinPart.RELIEF))
+        // Nothing is read on a relief: painting it shows whatever warning there is, or none.
+        assertEquals(SkinContrast.LETTER, contrastFor(SkinPart.RELIEF, setOf(SkinContrast.LETTER)))
+        assertNull(contrastFor(SkinPart.RELIEF, emptySet()))
     }
 
     @Test fun theWarningShownIsThePartsOwnPair() {

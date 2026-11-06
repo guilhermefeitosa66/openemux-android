@@ -15,8 +15,9 @@ the engine's art, a console with two screens with a page per screen layout. The 
 a colour variant's lossy WebP, a tenth of the size.
 
 The layout and the art have one source: the engine of the design canvas's Skin component (Skin.dc.html, between ENGINE
-START and ENGINE END). Each layout is rendered by headless Chrome from render.html, the game's screens are cut out
-(transparent), and skin.json gets the frames the engine laid out. Needs Node, Google Chrome, ImageMagick and Pillow.
+START and ENGINE END). Each layout is rendered by headless Chrome from render.html in three layers (the console's
+body, the bezel, the controls), so the background holds the body alone and each control its whole self, relief
+included; skin.json gets the frames the engine laid out. Needs Node, Google Chrome, ImageMagick and Pillow.
 """
 import functools
 import json
@@ -48,6 +49,15 @@ OWN_FORMAT = ["NDS", "FC", "SFC", "N64", "GBC", "GBA", "MD", "GB", "GC", "SMS", 
 CONSOLES = OWN_FORMAT
 # The D-pad's circle: one image per console, stretched by the app over each D-pad's travel square.
 KNOB_UNITS, KNOB_SCALE = 100, 4
+# The layers a page is rendered in, side by side in one screenshot (render.html?layers=): the console's body, the bezel,
+# and every control alone in a cell of a grid, each cut into its own images (own_page).
+LAYERS = ("body", "frame", "sprites")
+# How many times a page is rendered before the build gives up on a screenshot that came out incomplete or never
+# came, and how long Chrome gets for one.
+SHOTS = 3
+SHOT_SECONDS = 90
+# The page Chrome renders: the engine's parts as HTML.
+RENDER = "render.html"
 # Consoles with two screens get one art per screen layout: the layout itself draws the two one over the other, and
 # each other screen layout is one of its "screenLayouts" pages (issue 807), in <layout>/<page>/ (screen_page).
 SCREEN_LAYOUTS = {"NDS": ["top", "bottom", "side"]}
@@ -63,10 +73,17 @@ def variant_dir(variant):
     return ASSETS if variant == "console" else ASSETS / variant
 
 
+def write_changed(path, text):
+    """[text] into [path] unless it is there already: runs side by side (one per group of consoles) all write the same
+    engine and the same catalog, and none of them may find the file half written by another."""
+    if not path.is_file() or path.read_text() != text:
+        path.write_text(text)
+
+
 def sync_engine():
     src = (HERE / "Skin.dc.html").read_text()
     engine = src.split("// ENGINE START")[1].split("// ENGINE END")[0]
-    (HERE / "engine.js").write_text(engine + "\nwindow.OE = OE;\n")
+    write_changed(HERE / "engine.js", engine + "\nwindow.OE = OE;\n")
 
 
 def engine(expr, *args):
@@ -85,7 +102,7 @@ def catalog():
 def write_catalog(cat):
     """skins/variants.json, what the app's picker lists: per console, each variant's id and its swatch's colours."""
     out = {c: [{"id": v["id"], "body": v["body"], "key": v["key"]} for v in vs] for c, vs in cat.items() if c in CONSOLES}
-    (ASSETS / "variants.json").write_text(json.dumps(out, indent=1) + "\n")
+    write_changed(ASSETS / "variants.json", json.dumps(out, indent=1) + "\n")
 
 
 def to_webp(folder, files):
@@ -114,20 +131,21 @@ def engine_layout(console, device, orient, screens=None, variant="console", keyp
 
 
 def screenshot(console, device, orient, w, h, scale, out, profile, query="", variant="console"):
-    url = f"file://{HERE / 'render.html'}?console={console}&device={device}&orient={orient}&variant={variant}{query}"
-    subprocess.run([
-        CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}",
-        f"--force-device-scale-factor={scale}", f"--window-size={w},{h}", "--default-background-color=00000000",
-        "--virtual-time-budget=4000", f"--screenshot={out}", url,
-    ], check=True, capture_output=True)
-
-
-def cut_screens(png, screens, scale):
-    args = ["convert", str(png), "-alpha", "set"]
-    for s in screens:
-        x, y, w, h = (round(s[k] * scale) for k in ("x", "y", "width", "height"))
-        args += ["-region", f"{w}x{h}+{x}+{y}", "-alpha", "transparent", "+region"]
-    subprocess.run(args + [str(png)], check=True)
+    """One page of the renderer as a PNG. Headless Chrome now and then never comes back (seen with several builds
+    running side by side): each try gets [SHOT_SECONDS], and the page is asked for again up to [SHOTS] times."""
+    url = f"file://{HERE / RENDER}?console={console}&device={device}&orient={orient}&variant={variant}{query}"
+    for attempt in range(SHOTS):
+        try:
+            subprocess.run([
+                CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}",
+                f"--force-device-scale-factor={scale}", f"--window-size={w},{h}", "--default-background-color=00000000",
+                "--run-all-compositor-stages-before-draw", "--virtual-time-budget=4000", f"--screenshot={out}", url,
+            ], check=True, capture_output=True, timeout=SHOT_SECONDS)
+            return
+        except subprocess.TimeoutExpired:
+            print(f"{console} {variant} {device} {orient}{query}: Chrome did not answer in {SHOT_SECONDS} s "
+                  f"(screenshot {attempt + 1} of {SHOTS})", file=sys.stderr)
+    raise SystemExit(f"{console} {variant} {device} {orient}{query}: no screenshot after {SHOTS} tries")
 
 
 def check_fit(L, where):
@@ -227,8 +245,15 @@ def kebab(name):
     return "".join(f"-{ch.lower()}" if ch.isupper() else ch for ch in name)
 
 
+def num(v):
+    """[v] to a tenth, a whole number as an int: 7.5, 9."""
+    v = round(v + 0.0, 1)
+    return int(v) if v == int(v) else v
+
+
 def element(it, scale, W, H, taken):
-    """An engine item as an element of the format; [taken] the ids already used in the layout."""
+    """An engine item as an element of the format; [taken] the ids already used in the layout. Its rect is what its
+    image covers (the engine's art: the key turned, with its relief under it), its frame when the engine gives none."""
     inputs, look = it["inputs"], it.get("look") or {}
     if isinstance(inputs, dict):
         first = inputs["up"]
@@ -254,14 +279,35 @@ def element(it, scale, W, H, taken):
     out = {"id": eid, "type": kind, "bind": bind}
     if look.get("group"):
         out["group"] = look["group"]
-    out.update(px_rect(it["frame"], scale, W, H))
+    out.update(px_rect(it.get("art") or it["frame"], scale, W, H))
     if look.get("shape"):
         out["shape"] = look["shape"]
+    if look.get("radius"):
+        out["radius"] = num(look["radius"] * scale)
+    if look.get("rotation"):
+        out["rotation"] = look["rotation"]
+    if look.get("depth"):
+        out["depth"] = num(look["depth"] * scale)
     if look.get("label"):
         out["label"] = look["label"]
+    if look.get("labelSize") and kind != "stick":
+        out["labelSize"] = num(look["labelSize"] * scale)
+    if look.get("labelOffset"):
+        out["labelOffset"] = {k: num(look["labelOffset"][k] * scale) for k in ("x", "y")}
     if look.get("colors") and kind != "action":
-        out["colors"] = {k: color(v) for k, v in look["colors"].items()}
+        # No relief colour: the app shades a relief from its face, so a button repainted in the editor takes its relief
+        # along, and the editor's Relief holds a colour only once the player picks one.
+        out["colors"] = {k: color(v) for k, v in look["colors"].items() if k != "relief"}
+    if look.get("labelBeside"):
+        # The label is printed beside the control, so the control's image leaves it out: the app draws it.
+        out["art"] = "key"
     return out
+
+
+def frame_json(L, scale, W, H):
+    """The engine's bezel as the format's frame: its rect, its corners and its colours."""
+    return dict(px_rect(L["frame"], scale, W, H), radius=num(L["frame"]["radius"] * scale),
+                colors={"frame": color(L["colors"]["bezel"]), "icons": color(L["colors"]["icons"])})
 
 
 def skin_layout(L, scale, K=None, S=None):
@@ -273,8 +319,7 @@ def skin_layout(L, scale, K=None, S=None):
         "size": {"width": W, "height": H},
         "screens": [px_rect(s, scale, W, H) for s in L["screens"]],
         "background": {"color": color(L["colors"]["body"])},
-        "frame": dict(px_rect(L["frame"], scale, W, H),
-                      colors={"frame": color(L["colors"]["bezel"]), "icons": color(L["colors"]["icons"])}),
+        "frame": frame_json(L, scale, W, H),
         "elements": [element(it, scale, W, H, taken) for it in L["items"]],
     }
     if K is not None:
@@ -292,8 +337,7 @@ def screen_page(L, P, scale, W, H):
     taken = set()
     return {"screens": [px_rect(s, scale, W, H) for s in P["screens"]],
             "background": {"color": color(P["colors"]["body"])},
-            "frame": dict(px_rect(P["frame"], scale, W, H),
-                          colors={"frame": color(P["colors"]["bezel"]), "icons": color(P["colors"]["icons"])}),
+            "frame": frame_json(P, scale, W, H),
             "elements": [element(it, scale, W, H, taken) for it in P["items"]]}
 
 
@@ -303,7 +347,7 @@ def page_layout(layout, page):
 
 def keypad_page(L, K, scale, W, H):
     """The keypad page of a layout ([L]) from the engine's [K]: the same size, screens and bezel, controls of its own,
-    and a background of its own (the controls' labels are painted in the layout's), in <layout>/keypad/."""
+    and a background of its own, in <layout>/keypad/."""
     if (K["W"], K["H"], K["screens"], K["frame"]) != (L["W"], L["H"], L["screens"], L["frame"]):
         raise SystemExit(f"{L['name']}: the keypad page moves the screen or the bezel")
     taken = set()
@@ -539,12 +583,14 @@ def zip_folder(folder, out, root=""):
 def own_layout(console, device, orient, variant, folder, profile, ball):
     """One layout of [console]'s package in OpenEmux's own format: its skin.json entry, and its images in [folder].
 
-    The engine renders the layout twice: the art without the quick actions' icons (background.png, the game's screens
-    cut out), and only the controls on a transparent page. Each element's image is the second render cut at the
-    element's rect, so drawn over the background it lands on the same pixels and a dimmed quick action is not drawn
-    twice. frame.png is the bezel cut out of the background; the D-pad's ball the engine's circle at the ball's size,
-    a stick's knob the engine's knob. A console with a keypad has its keypad page rendered the same way, into
-    [folder]/keypad/, and one with two screens each screen-layout page into [folder]/<page>/."""
+    The engine renders the layout in three layers, side by side in one screenshot: the console's body (background.png:
+    no bezel, no control, no label beside one), the bezel on a transparent page (frame.png, cut at its rect, the game's
+    screens cut out of it) and every control alone in a cell of a grid, cut at its rect. That rect holds the whole
+    control (its relief under it, a turned key's corners) and nothing of its neighbours, so moving it in the editor
+    leaves nothing of it behind and takes nothing along. A label printed beside a control (START under its key) is in
+    no image: the app draws it from the element's label. The D-pad's ball is the engine's circle at the ball's size, a stick's knob the
+    engine's knob. A console with a keypad has its keypad page rendered the same way, into [folder]/keypad/, and one
+    with two screens each screen-layout page into [folder]/<page>/."""
     L = template_layout(console, device, orient, variant)
     K = template_layout(console, device, orient, variant, keypad=True) if has_keypad(console) else None
     where = f"{console} {variant} {device} {orient}"
@@ -580,29 +626,64 @@ def own_page(console, device, orient, variant, folder, profile, ball, L, layout,
     W, H = layout["size"]["width"], layout["size"]["height"]
     query = "&keypad=1" if keypad else f"&screens={page}" if page else ""
     bg = folder / ("keypad/background.png" if keypad else f"{page}/background.png" if page else "background.png")
-    controls = folder.parent / f"{folder.name}{'-keypad' if keypad else f'-{page}' if page else ''}-controls.png"
-    screenshot(console, device, orient, L["W"], L["H"], scale, bg, profile, "&layer=background" + query, variant)
-    cut_screens(bg, L["screens"], scale)
-    screenshot(console, device, orient, L["W"], L["H"], scale, controls, profile, "&layer=controls" + query, variant)
-    art, keys = Image.open(bg).convert("RGBA"), Image.open(controls).convert("RGBA")
-    controls.unlink()
-    if art.size != (W, H) or keys.size != (W, H):
-        raise SystemExit(f"{where}: rendered {art.size}, the layout is {W} x {H}")
+    shot = folder.parent / f"{folder.name}{'-keypad' if keypad else f'-{page}' if page else ''}-layers.png"
+    # The sprites' grid, in the engine's units: a cell holds the largest control and a unit of margin, the columns
+    # fill a page's width, and the screenshot is as tall as the grid needs.
+    shown = page_layout(layout, page) if page else layout["keypad"] if keypad else layout
+    cell_w = math.ceil(max(e["width"] for e in shown["elements"]) / scale) + 1
+    cell_h = math.ceil(max(e["height"] for e in shown["elements"]) / scale) + 1
+    cols = max(1, L["W"] // cell_w)
+    rows = math.ceil(len(shown["elements"]) / cols)
+    high = max(L["H"], rows * cell_h)
+    grid = f"&layers={','.join(LAYERS)}&cell={cell_w}x{cell_h}&cols={cols}&height={high}"
+
+    def sprite(sheet, e):
+        """[e]'s image: its cell of the grid, at its size."""
+        n = shown["elements"].index(e)
+        x, y = 2 * W + (n % cols) * cell_w * scale, (n // cols) * cell_h * scale
+        return sheet.crop((x, y, x + e["width"], y + e["height"]))
+
+    def wrong(sheet):
+        """What is wrong with a screenshot, or None: headless Chrome now and then hands one over before every tile is
+        painted, which shows as a hole in the body or a control with no art."""
+        if sheet.size != (W * len(LAYERS), half_up(high * scale)):
+            return f"rendered {sheet.size}, {len(LAYERS)} layers of {W} x {half_up(high * scale)} expected"
+        if sheet.crop((0, 0, W, H)).getextrema()[3][0] != 255:
+            return "the body does not cover the page"
+        if not sheet.crop((W, 0, 2 * W, H)).getbbox():
+            return "no bezel"
+        return next((f"{e['id']} has no art" for e in shown["elements"] if not sprite(sheet, e).getbbox()), None)
+
+    for attempt in range(SHOTS):
+        screenshot(console, device, orient, L["W"] * len(LAYERS), high, scale, shot, profile, grid + query, variant)
+        sheet = Image.open(shot).convert("RGBA")
+        shot.unlink()
+        problem = wrong(sheet)
+        if problem is None:
+            break
+        print(f"{where}: {problem} (screenshot {attempt + 1} of {SHOTS})", file=sys.stderr)
+    else:
+        raise SystemExit(f"{where}: {problem}")
+    art, bezel = (sheet.crop((W * i, 0, W * (i + 1), H)) for i in range(2))
     sticks = 0
     for file, (w, h), _, e in images(layout, keypad, page):
         base = file.rsplit("/", 1)[-1]
         if base == "background.png":
             continue
         if base == "frame.png":
-            f = (page_layout(layout, page) if page else layout)["frame"]
-            img = art.crop((f["x"], f["y"], f["x"] + w, f["y"] + h))
+            shown = page_layout(layout, page) if page else layout
+            f = shown["frame"]
+            img = bezel.crop((f["x"], f["y"], f["x"] + w, f["y"] + h))
+            # The game's picture shows through the bezel.
+            for sc in shown["screens"]:
+                img.paste((0, 0, 0, 0), (sc["x"] - f["x"], sc["y"] - f["y"], sc["x"] - f["x"] + sc["width"], sc["y"] - f["y"] + sc["height"]))
         elif base.endswith("-ball.png"):
             img = ball.resize((w, h), Image.LANCZOS)
         elif base.endswith("-knob.png"):
             img = knob_image(console, device, orient, variant, folder, profile, L, scale, sticks, query).resize((w, h), Image.LANCZOS)
             sticks += 1
         else:
-            img = keys.crop((e["x"], e["y"], e["x"] + w, e["y"] + h))
+            img = sprite(sheet, e)
         img.save(folder / file, optimize=True)
     art.save(bg, optimize=True)
 

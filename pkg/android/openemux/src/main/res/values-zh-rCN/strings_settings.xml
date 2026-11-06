@@ -290,8 +290,8 @@
     <string name="skins_broken">无法读取</string>
     <string name="skins_actions">%1$s 的操作</string>
     <string name="skins_use">使用</string>
-    <string name="skins_use_as_is">直接使用</string>
     <string name="skins_bundled_locked">内置皮肤永远不会被修改。</string>
+    <string name="skins_bundled_copies">“%1$s”和“%2$s”会创建你自己的副本。</string>
     <string name="skins_imported_locked">导入的皮肤保持原样。复制会生成一份属于你的副本。</string>
     <string name="skins_copy_working">正在创建副本…</string>
     <string name="skins_rename">重命名</string>
@@ -300,16 +300,12 @@
     <string name="skins_save">保存</string>
     <string name="skins_duplicate">复制</string>
     <string name="skins_copy_name">%1$s（副本）</string>
+    <string name="skins_edited_name">%1$s - 已编辑</string>
     <string name="skins_delete">删除</string>
     <string name="skins_delete_sub">主机将改回 %1$s</string>
     <string name="skins_delete_title">删除 %1$s？</string>
     <string name="skins_delete_body">该皮肤及其图片将从此设备中移除。</string>
     <string name="skins_error">无法更改皮肤。</string>
-    <string name="skins_create_copy">创建副本并编辑</string>
-    <string name="skins_create_copy_title">为副本命名</string>
-    <string name="skins_create_copy_lead">内置皮肤保持原样。副本保留所有布局，之后也可以重命名。</string>
-    <string name="skins_create_copy_save">创建副本</string>
-    <string name="skins_bundled_copy_name">%1$s 副本</string>
     <string name="skins_template">下载为模板</string>
     <string name="skins_template_sub">包含所有布局的 .zip:手机、平板、折叠屏</string>
     <string name="skins_template_title">下载为模板</string>

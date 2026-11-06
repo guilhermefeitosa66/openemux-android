@@ -302,8 +302,8 @@
     <string name="skins_broken">Nicht lesbar</string>
     <string name="skins_actions">Aktionen für %1$s</string>
     <string name="skins_use">Verwenden</string>
-    <string name="skins_use_as_is">So verwenden</string>
     <string name="skins_bundled_locked">Mitgelieferte Skins ändern sich nie.</string>
+    <string name="skins_bundled_copies">„%1$s“ und „%2$s“ legen eine eigene Kopie an.</string>
     <string name="skins_imported_locked">Importierte Skins bleiben, wie sie sind. Duplizieren macht eine eigene Kopie daraus.</string>
     <string name="skins_copy_working">Kopie wird erstellt…</string>
     <string name="skins_rename">Umbenennen</string>
@@ -312,16 +312,12 @@
     <string name="skins_save">Speichern</string>
     <string name="skins_duplicate">Duplizieren</string>
     <string name="skins_copy_name">%1$s (Kopie)</string>
+    <string name="skins_edited_name">%1$s - bearbeitet</string>
     <string name="skins_delete">Löschen</string>
     <string name="skins_delete_sub">Die Konsole wechselt zurück zu %1$s</string>
     <string name="skins_delete_title">%1$s löschen?</string>
     <string name="skins_delete_body">Der Skin und seine Bilder werden von diesem Gerät entfernt.</string>
     <string name="skins_error">Der Skin konnte nicht geändert werden.</string>
-    <string name="skins_create_copy">Kopie erstellen und bearbeiten</string>
-    <string name="skins_create_copy_title">Kopie benennen</string>
-    <string name="skins_create_copy_lead">Mitgelieferte Skins bleiben, wie sie sind. Die Kopie behält alle Layouts, und du kannst sie später umbenennen.</string>
-    <string name="skins_create_copy_save">Kopie erstellen</string>
-    <string name="skins_bundled_copy_name">%1$s Kopie</string>
     <string name="skins_template">Als Vorlage herunterladen</string>
     <string name="skins_template_sub">Eine .zip mit allen Layouts: Smartphone, Tablet, Faltbar</string>
     <string name="skins_template_title">Als Vorlage herunterladen</string>

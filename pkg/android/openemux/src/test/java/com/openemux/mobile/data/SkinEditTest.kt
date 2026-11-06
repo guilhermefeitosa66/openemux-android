@@ -148,7 +148,6 @@ class SkinEditTest {
         assertEquals(group, SkinSelect.tap(layout, null, "a"))
         assertEquals(SkinSelection.One("a"), SkinSelect.tap(layout, group, "a"))
         assertEquals(SkinSelection.One("b"), SkinSelect.tap(layout, SkinSelection.One("a"), "b"))
-        assertEquals(SkinSelection.One("a"), SkinSelect.tap(layout, SkinSelection.One("a"), "a"))
         assertEquals(group, SkinSelect.tap(layout, SkinSelection.One("start"), "a"))
         assertEquals(SkinSelection.One("dpad"), SkinSelect.tap(layout, null, "dpad"))
         assertEquals(SkinSelection.One("start"), SkinSelect.tap(layout, group, "start"))
@@ -393,5 +392,434 @@ class SkinEditTest {
         // The editor moves the layout's own controls; the pages are kept as they were.
         assertEquals(SkinRect(100f, 1000f, 200f, 200f), read.elements.first { it.id == "a" }.rect)
         assertEquals(pages, read.screenLayouts)
+    }
+
+    // A label of its own: selected, moved and sized apart from its control.
+
+    /** Start as the consoles print it: the word under its key, 30 tall, 60 under the key's centre (450, 1625). */
+    private val word = start.copy(label = "START", labelSize = 30f, labelOffset = SkinPoint(0f, 60f))
+    private val wordBox = SkinRect(393f, 1670f, 114f, 30f)
+    private val worded = skin.copy(layouts = skin.layouts.mapValues { (_, l) -> l.copy(elements = listOf(dpad, a, b, word)) })
+    private val wordedLayout = worded.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+    private val face = SkinSelection.Group("face", listOf("a", "b"))
+
+    private fun wordedModel() = SkinEditorModel(worded).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
+
+    private fun SkinEditorModel.element(id: String) = layout!!.elements.first { it.id == id }
+    private fun SkinEditorModel.now() = rects.getValue(SkinLayoutId.PHONE_PORTRAIT)
+
+    private fun near(expected: SkinRect, actual: SkinRect?) {
+        assertEquals("$actual", expected.x, actual!!.x, 0.01f)
+        assertEquals("$actual", expected.y, actual.y, 0.01f)
+        assertEquals("$actual", expected.width, actual.width, 0.01f)
+        assertEquals("$actual", expected.height, actual.height, 0.01f)
+    }
+
+    @Test fun aLabelsKeyNamesItsControl() {
+        assertEquals("a#label", SkinArea.label("a"))
+        assertTrue(SkinArea.isLabel("a#label"))
+        assertFalse(SkinArea.isLabel("a"))
+        assertEquals("key-1", SkinArea.labelOwner("key-1#label"))
+        assertNull(SkinArea.labelOwner("a"))
+        assertNull(SkinArea.labelOwner(SkinArea.FRAME))
+        // Neither a control's id nor one of the screen area's.
+        assertFalse(SkinArea.isArea(SkinArea.label("a")))
+        assertNull(SkinArea.screenIndex(SkinArea.label("a")))
+        assertFalse(SkinArea.isLabel(SkinArea.screen(0)))
+    }
+
+    @Test fun whatIsPaintedAndNeverMovedSaysSo() {
+        listOf(SkinSelection.Frame, SkinSelection.Body).forEach {
+            assertFalse(it.movable)
+            assertTrue(it.ids.isEmpty())
+        }
+        listOf(SkinSelection.One("a"), SkinSelection.Label("a"), face, SkinSelection.Screen(listOf("@screen0"))).forEach { assertTrue("$it", it.movable) }
+        // A label's colour is its control's "letter": it paints that control.
+        assertEquals(listOf("a"), SkinSelection.Label("a").ids)
+    }
+
+    @Test fun eachTapGoesOneStepInThenStartsOver() {
+        val taps = generateSequence(SkinSelect.tap(layout, null, "a")) { SkinSelect.tap(layout, it, "a") }.take(5).toList()
+        assertEquals(listOf(face, SkinSelection.One("a"), SkinSelection.Label("a"), face, SkinSelection.One("a")), taps)
+        // With a label selected, another control of its group is that one control.
+        assertEquals(SkinSelection.One("b"), SkinSelect.tap(layout, SkinSelection.Label("a"), "b"))
+        // A lone control: itself, its label, itself.
+        assertEquals(SkinSelection.One("start"), SkinSelect.tap(wordedLayout, null, "start"))
+        assertEquals(SkinSelection.Label("start"), SkinSelect.tap(wordedLayout, SkinSelection.One("start"), "start"))
+        assertEquals(SkinSelection.One("start"), SkinSelect.tap(wordedLayout, SkinSelection.Label("start"), "start"))
+    }
+
+    @Test fun aControlWithNoLabelOfItsOwnHasNoLabelStep() {
+        // Start has no label here and the D-pad's arrows are not one: a tap on the one selected starts over.
+        assertEquals(SkinSelection.One("start"), SkinSelect.tap(layout, SkinSelection.One("start"), "start"))
+        assertEquals(SkinSelection.One("dpad"), SkinSelect.tap(layout, SkinSelection.One("dpad"), "dpad"))
+        val plain = layout.copy(elements = listOf(dpad, a, b.copy(label = " "), start))
+        assertEquals(face, SkinSelect.tap(plain, SkinSelection.One("b"), "b"))
+        // The frame, the body and the screen area are no step into a group.
+        listOf(SkinSelection.Frame, SkinSelection.Body, SkinSelection.Screen(listOf("@screen0")), SkinSelection.Screen(emptyList())).forEach {
+            assertEquals("$it", face, SkinSelect.tap(layout, it, "a"))
+        }
+        // Another control's label selected says nothing about this one, nor does a label about a control that is gone.
+        assertEquals(SkinSelection.One("start"), SkinSelect.tap(layout, SkinSelection.Label("a"), "start"))
+        assertEquals(SkinSelection.One("nope"), SkinSelect.tap(layout, SkinSelection.Label("nope"), "nope"))
+    }
+
+    @Test fun aLabelStepsTogglesAndDragsAsItsControlDoes() {
+        assertEquals(SkinSelection.One("b"), SkinSelect.step(layout, SkinSelection.Label("a"), 1))
+        assertEquals(SkinSelection.One("a"), SkinSelect.step(layout, SkinSelection.Label("b"), -1))
+        // A lone control's label: on to the next unit, as from the control.
+        assertEquals(SkinSelection.One("dpad"), SkinSelect.step(wordedLayout, SkinSelection.Label("start"), 1))
+        assertEquals(face, SkinSelect.step(wordedLayout, SkinSelection.Label("start"), -1))
+        assertEquals(face, SkinSelect.toggle(layout, SkinSelection.Label("a")))
+        assertEquals(SkinSelection.One("start"), SkinSelect.toggle(wordedLayout, SkinSelection.Label("start")))
+        // The frame and the body have nothing to toggle.
+        assertSame(SkinSelection.Frame, SkinSelect.toggle(layout, SkinSelection.Frame))
+        assertSame(SkinSelection.Body, SkinSelect.toggle(layout, SkinSelection.Body))
+        // A drag on the control whose label is selected moves the label; on another, what a first tap would take.
+        assertEquals(SkinSelection.Label("a"), SkinSelect.dragged(layout, SkinSelection.Label("a"), "a"))
+        assertEquals(face, SkinSelect.dragged(layout, SkinSelection.Label("a"), "b"))
+        assertEquals(face, SkinSelect.dragged(layout, SkinSelection.Frame, "a"))
+    }
+
+    @Test fun aLabelWithAPlaceOfItsOwnHasARectOfItsOwn() {
+        assertEquals(wordBox, wordedLayout.rects()["start#label"])
+        // One left on its control's face follows the control and needs none.
+        assertEquals(setOf("dpad", "a", "b", "start", "@screen0", "start#label"), wordedLayout.rects().keys)
+        // Nor does a place with no label to put there: a key with no word, a D-pad.
+        val odd = layout.copy(elements = listOf(dpad.copy(label = "+", labelOffset = SkinPoint(0f, 10f)), start.copy(labelOffset = SkinPoint(0f, 60f))))
+        assertTrue(odd.rects().keys.none(SkinArea::isLabel))
+        // Put back, the layout is the same.
+        assertEquals(wordedLayout, wordedLayout.withRects(wordedLayout.rects()))
+    }
+
+    @Test fun rectsPutBackScaleAControlAndPlaceItsLabel() {
+        val raised = layout.copy(elements = listOf(a.copy(radius = 8f, depth = 12f)))
+        // Twice as wide: its relief and its corners twice as large.
+        val big = SkinRect(600f, 1200f, 200f, 200f)
+        assertEquals(a.copy(rect = big, radius = 16f, depth = 24f), raised.withRects(mapOf("a" to big)).elements.single())
+        // Only moved: as it was.
+        assertEquals(a.copy(rect = SkinRect(0f, 0f, 100f, 100f), radius = 8f, depth = 12f), raised.withRects(mapOf("a" to SkinRect(0f, 0f, 100f, 100f))).elements.single())
+        // A label's rect: its height is the type size, its centre (700, 1410) is said from the control's (700, 1300).
+        val place = SkinRect(660f, 1400f, 80f, 20f)
+        assertEquals(a.copy(radius = 8f, depth = 12f, labelSize = 20f, labelOffset = SkinPoint(0f, 110f)), raised.withRects(mapOf("a#label" to place)).elements.single())
+        // Both: from the control where it now is, and the label's own size rather than the scaled one.
+        val sized = layout.copy(elements = listOf(a.copy(labelSize = 30f, labelOffset = SkinPoint(5f, 5f))))
+        assertEquals(a.copy(rect = big, labelSize = 20f, labelOffset = SkinPoint(0f, 110f)), sized.withRects(mapOf("a" to big, "a#label" to place)).elements.single())
+        // A label's rect with no control to put it on is nothing.
+        assertEquals(raised, raised.withRects(mapOf("ghost#label" to place)))
+    }
+
+    @Test fun hitAlsoFindsAControlByTheWordPrintedBesideIt() {
+        val m = wordedModel()
+        // On the word, under the key and to its left: outside the key itself.
+        assertEquals("start", m.hit(395f, 1690f))
+        assertNull(m.hit(385f, 1690f))
+        assertEquals("start", m.hit(385f, 1690f, slop = 10f))
+        // Between the key and its word there is nothing.
+        assertNull(m.hit(450f, 1660f))
+        // A key with no word has nothing beside it to hit.
+        assertNull(model().hit(395f, 1690f))
+    }
+
+    @Test fun aThirdTapSelectsTheLabelAndTheBoxFollowsTheSelection() {
+        val m = wordedModel()
+        assertNull(m.box())
+        m.tap("a")
+        assertEquals(SkinRect(550f, 1250f, 200f, 200f), m.box())
+        m.tap("a")
+        assertEquals(a.rect, m.box())
+        m.tap("a")
+        assertEquals(SkinSelection.Label("a"), m.selection)
+        // On its control's face, where it is drawn; nothing is edited by selecting it.
+        near(SkinLabels.box(a), m.box())
+        assertEquals(100, m.percent())
+        assertFalse(m.dirty)
+        m.tap("a")
+        assertEquals(face, m.selection)
+        // A lone key with its word: the box holds both, then the word alone.
+        m.tap("start")
+        assertEquals(SkinRect(393f, 1600f, 114f, 100f), m.box())
+        m.tap("start")
+        assertEquals(SkinSelection.Label("start"), m.selection)
+        assertEquals(wordBox, m.box())
+        assertEquals(100, m.percent())
+        // With no layout shown there is no box.
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        assertNull(m.box())
+    }
+
+    @Test fun aLabelMovedOnItsOwnGetsARectOfItsOwn() {
+        val m = model()
+        m.tap("a"); m.tap("a"); m.tap("a")
+        m.nudge(1, 0)
+        val box = SkinLabels.box(a)
+        assertEquals(box.copy(x = box.x + 50f), m.now()["a#label"])
+        // The control stays; its label is one grid step to the right of where it was, as large as it was.
+        assertEquals(a.rect, m.element("a").rect)
+        assertEquals(50f, m.element("a").labelOffset!!.x, 0.01f)
+        assertEquals(0f, m.element("a").labelOffset!!.y, 0.01f)
+        assertEquals(42f, m.element("a").labelSize!!, 0.01f)
+        assertEquals(mapOf(SkinLayoutId.PHONE_PORTRAIT to setOf("a#label")), m.edits().mapValues { it.value.keys })
+        // Still the label: the next nudge goes on from there.
+        assertEquals(SkinSelection.Label("a"), m.selection)
+        m.nudge(0, -1)
+        assertEquals(-50f, m.element("a").labelOffset!!.y, 0.01f)
+        m.undo(); m.undo()
+        assertFalse(m.dirty)
+        assertNull(m.element("a").labelOffset)
+    }
+
+    @Test fun aDraggedLabelStaysInsideTheLayoutAndSnapsLikeAControl() {
+        val m = model()
+        m.tap("b"); m.tap("b"); m.tap("b")
+        assertTrue(m.beginMove("b"))
+        assertEquals(SkinSelection.Label("b"), m.selection)
+        m.moveBy(5000f, 5000f, free = true)
+        m.endGesture()
+        val box = m.now().getValue("b#label")
+        assertEquals(900f, box.x + box.width, 0.01f)
+        assertEquals(1800f, box.y + box.height, 0.01f)
+        assertEquals(b.rect, m.element("b").rect)
+        // Far from its control, a touch on it is still on that control.
+        assertEquals("b", m.hit(890f, 1780f))
+        // Dropped 3 from its own control's centre line (600): the control pulls its label onto it, as it would another control.
+        m.beginMove("b")
+        m.moveBy(600f - (box.x + box.width / 2f) + 3f, -400f)
+        assertTrue("${m.guides}", SnapGuide(SnapAxis.X, 600f, SnapKind.ALIGN, "b") in m.guides)
+        m.endGesture()
+        assertEquals(0f, m.element("b").labelOffset!!.x, 0.01f)
+    }
+
+    @Test fun aLabelIsSizedOnItsOwnAndResetGivesItBackItsPlace() {
+        val m = wordedModel()
+        m.tap("start"); m.tap("start")
+        m.sizeStep(1)
+        assertEquals(105, m.percent())
+        // About its own centre, 60 under the key's: the key is as it was.
+        assertEquals(word.rect, m.element("start").rect)
+        assertEquals(31.5f, m.element("start").labelSize!!, 0.01f)
+        assertEquals(60f, m.element("start").labelOffset!!.y, 0.01f)
+        assertTrue(m.beginResize())
+        assertEquals(200, m.resizeBy(2f))
+        m.endGesture()
+        assertEquals(60f, m.element("start").labelSize!!, 0.01f)
+        // Reset: the place and the size the skin gave it.
+        m.reset()
+        assertFalse(m.dirty)
+        assertEquals(wordBox, m.now()["start#label"])
+    }
+
+    @Test fun resetPutsALabelBackOnItsControlsFace() {
+        val m = model()
+        m.tap("a"); m.tap("a"); m.tap("a")
+        // Nothing moved yet: nothing to put back, no undo step.
+        m.reset()
+        assertFalse(m.canUndo)
+        m.nudge(1, 1)
+        assertTrue("a#label" in m.now())
+        // The skin gave it no place of its own: it has none again.
+        m.reset()
+        assertFalse(m.dirty)
+        assertFalse("a#label" in m.now())
+        assertEquals(SkinSelection.Label("a"), m.selection)
+        // Its group's reset takes the label back too, and so does the layout's.
+        m.nudge(1, 1)
+        m.tap("a")
+        assertEquals(face, m.selection)
+        m.reset()
+        assertFalse(m.dirty)
+        m.tap("a"); m.tap("a")
+        m.nudge(1, 1)
+        m.clearSelection()
+        m.resetLayout()
+        assertFalse(m.dirty)
+    }
+
+    @Test fun aControlMovedTakesItsWordWithIt() {
+        val m = wordedModel()
+        // A drag on the lone key: the key and its word together.
+        assertTrue(m.beginMove("start"))
+        assertEquals(SkinSelection.One("start"), m.selection)
+        m.moveBy(0f, -100f, free = true)
+        m.endGesture()
+        assertEquals(SkinRect(400f, 1500f, 100f, 50f), m.now()["start"])
+        assertEquals(wordBox.copy(y = 1570f), m.now()["start#label"])
+        // The word is where it was from its key.
+        assertEquals(word.copy(rect = SkinRect(400f, 1500f, 100f, 50f)), m.element("start"))
+        // Against the layout's bottom edge it is the word that stops, and the key with it.
+        m.beginMove("start")
+        m.moveBy(0f, 5000f, free = true)
+        m.endGesture()
+        assertEquals(1700f, m.now().getValue("start").y, 0f)
+        assertEquals(1770f, m.now().getValue("start#label").y, 0f)
+        // Twice the size: the word twice as large, about the middle of the two.
+        m.undo(); m.undo()
+        m.beginResize()
+        assertEquals(200, m.resizeBy(2f))
+        m.endGesture()
+        assertEquals(60f, m.element("start").labelSize!!, 0.01f)
+        assertEquals(120f, m.element("start").labelOffset!!.y, 0.01f)
+    }
+
+    @Test fun aGroupMovedTakesItsMembersWordsWithIt() {
+        val select = SkinElement("select", SkinElementType.BUTTON, "select", SkinRect(250f, 1600f, 100f, 50f), group = "center")
+        val centre = layout.copy(elements = listOf(a, select, word.copy(group = "center")))
+        val m = SkinEditorModel(OpenEmuxSkin(Console.SFC, "Mine", mapOf(SkinLayoutId.PHONE_PORTRAIT to centre))).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
+        m.tap("select")
+        assertEquals(SkinSelection.Group("center", listOf("select", "start")), m.selection)
+        // The group's box holds the word under Start.
+        assertEquals(SkinRect(250f, 1600f, 257f, 100f), m.box())
+        m.nudge(0, -1)
+        assertEquals(setOf("select", "start", "start#label"), m.edits().getValue(SkinLayoutId.PHONE_PORTRAIT).keys)
+        assertEquals(wordBox.copy(y = 1620f), m.now()["start#label"])
+        assertEquals(word.copy(group = "center", rect = SkinRect(400f, 1550f, 100f, 50f)), m.element("start"))
+        m.reset()
+        assertFalse(m.dirty)
+    }
+
+    @Test fun controlsDoNotSnapToALabel() {
+        val m = wordedModel()
+        m.tap("a"); m.tap("a")
+        m.beginMove("a")
+        // A's top edge 3 from the word's (1670) and out of the pull of every control's lines: the grid, no guide.
+        m.moveBy(0f, 423f)
+        assertTrue("${m.guides}", m.guides.none { it.axis == SnapAxis.Y })
+        assertEquals(1675f, m.element("a").rect.y, 0f)
+        m.cancelGesture()
+    }
+
+    @Test fun aGestureSaysWhetherItBegan() {
+        val m = model()
+        // Nothing selected: no size to change.
+        assertFalse(m.beginResize())
+        assertTrue(m.beginMove("a"))
+        assertTrue(m.beginResize())
+        m.cancelGesture()
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        assertFalse(m.beginMove("a"))
+        assertFalse(m.beginResize())
+        assertFalse(m.fixed("a"))
+    }
+
+    @Test fun aDraftsLabelPlacesAreKeptForTheLabelsTheSkinHas() {
+        val place = SkinRect(660f, 1400f, 80f, 20f)
+        val m = model(mapOf(SkinLayoutId.PHONE_PORTRAIT to mapOf("a#label" to place, "start#label" to place, "dpad#label" to place, "ghost#label" to place)))
+        // Start has no label and the D-pad's arrows are not one: only A's place is a label's.
+        assertEquals(setOf("dpad", "a", "b", "start", "@screen0", "a#label"), m.now().keys)
+        assertTrue(m.dirty)
+        assertEquals(20f, m.element("a").labelSize)
+        assertEquals(SkinPoint(0f, 110f), m.element("a").labelOffset)
+        // Written to the draft's skin.json and resumed from it, as the editor does: the label is where it was left.
+        val back = SkinEditorModel.fromDraft(skin, SkinFormat.parse(m.json(SkinFormat.toJson(skin)))).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
+        assertTrue("a#label" in back.now())
+        assertEquals(20f, back.element("a").labelSize)
+        assertEquals(0f, back.element("a").labelOffset!!.x, 0.01f)
+        assertEquals(110f, back.element("a").labelOffset!!.y, 0.01f)
+        assertTrue(back.dirty)
+    }
+
+    @Test fun theSessionWritesAMovedLabelIntoSkinJson() {
+        val m = model()
+        m.tap("a"); m.tap("a"); m.tap("a")
+        m.nudge(1, 2)
+        val read = SkinFormat.parse(m.json(SkinFormat.toJson(skin))).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.first { it.id == "a" }
+        // Its control where it was; the label's size and its place from the control's centre, to a tenth of a unit.
+        assertEquals(a.copy(labelSize = 42f, labelOffset = SkinPoint(50f, 100f)), read)
+    }
+
+    @Test fun aResizedControlIsWrittenWithItsProportions() {
+        val shaped = skin.copy(layouts = mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(elements = listOf(a.copy(group = null, radius = 8f, depth = 12f), word))))
+        val m = SkinEditorModel(shaped).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
+        m.tap("a")
+        m.sizeStep(1)
+        assertEquals(12.6f, m.element("a").depth, 0.01f)
+        assertEquals(8.4f, m.element("a").radius!!, 0.01f)
+        m.tap("start")
+        m.sizeStep(-1); m.sizeStep(-1)
+        val read = SkinFormat.parse(m.json(SkinFormat.toJson(shaped))).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.associateBy { it.id }
+        // What the file says is what the editor showed, to the tenth of a unit it is written in.
+        assertEquals(105f, read.getValue("a").rect.width, 0f)
+        assertEquals(12.6f, read.getValue("a").depth, 0f)
+        assertEquals(8.4f, read.getValue("a").radius)
+        assertEquals(90f, read.getValue("start").rect.width, 0f)
+        assertEquals(27f, read.getValue("start").labelSize)
+        assertEquals(m.element("start").labelOffset!!.y, read.getValue("start").labelOffset!!.y, 0.5f)
+    }
+
+    @Test fun patchScalesWhatFollowsAControlsWidth() {
+        val shaped = skin.copy(layouts = mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(elements = listOf(
+            a.copy(radius = 8f, depth = 12f, labelSize = 30f, labelOffset = SkinPoint(4f, -66f)), b.copy(depth = 12.25f, radius = 0.25f), start,
+        ))))
+        val json = SkinFormat.toJson(shaped)
+        fun elements(vararg edits: Pair<String, SkinRect>) =
+            JSONObject(SkinEditJson.patch(json, mapOf(SkinLayoutId.PHONE_PORTRAIT to edits.toMap()))).getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("elements")
+        val e = elements("a" to SkinRect(600f, 1200f, 105f, 105f), "b" to SkinRect(0f, 0f, 100f, 100f), "start" to SkinRect(400f, 1500f, 200f, 100f))
+        // 105 % of its width: each to a tenth of a unit.
+        val ea = e.getJSONObject(0)
+        assertEquals(8.4, ea.getDouble("radius"), 1e-9)
+        assertEquals(12.6, ea.getDouble("depth"), 1e-9)
+        assertEquals(31.5, ea.getDouble("labelSize"), 1e-9)
+        assertEquals(4.2, ea.getJSONObject("labelOffset").getDouble("x"), 1e-9)
+        assertEquals(-69.3, ea.getJSONObject("labelOffset").getDouble("y"), 1e-9)
+        // Only moved: nothing is touched, not even rounded.
+        assertEquals(12.25, e.getJSONObject(1).getDouble("depth"), 0.0)
+        assertEquals(0.25, e.getJSONObject(1).getDouble("radius"), 0.0)
+        // A control that sets none of them gets none, however it is resized.
+        val es = e.getJSONObject(2)
+        assertEquals(200, es.getInt("width"))
+        assertFalse(es.has("radius") || es.has("depth") || es.has("labelSize") || es.has("labelOffset"))
+        // Twice the width: whole numbers, written as whole numbers.
+        val twice = SkinEditJson.patch(json, mapOf(SkinLayoutId.PHONE_PORTRAIT to mapOf("a" to SkinRect(600f, 1200f, 200f, 200f))))
+        listOf("\"radius\": 16", "\"depth\": 24", "\"labelSize\": 60", "\"x\": 8", "\"y\": -132").forEach { assertTrue(it, Regex(Regex.escape(it) + "[,\n]").containsMatchIn(twice)) }
+        // It still reads as the skin it was, resized.
+        val read = SkinFormat.parse(twice).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0]
+        assertEquals(shaped.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[0].at(SkinRect(600f, 1200f, 200f, 200f)), read)
+    }
+
+    @Test fun patchLeavesAloneWhatItCannotScale() {
+        // Hand-written: a label's place with only one of its two numbers, and a control with no width to scale from.
+        val text = JSONObject(SkinFormat.toJson(skin)).apply {
+            val elements = getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("elements")
+            elements.getJSONObject(1).put("depth", 10).put("labelOffset", JSONObject().put("y", 10))
+            elements.getJSONObject(2).put("depth", 10).remove("width")
+            elements.getJSONObject(3).put("depth", 10).put("width", 0)
+        }.toString()
+        val rects = mapOf("a" to SkinRect(600f, 1200f, 200f, 200f), "b" to SkinRect(0f, 0f, 200f, 200f), "start" to SkinRect(0f, 0f, 200f, 100f))
+        val e = JSONObject(SkinEditJson.patch(text, mapOf(SkinLayoutId.PHONE_PORTRAIT to rects))).getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("elements")
+        assertEquals(20, e.getJSONObject(1).getInt("depth"))
+        assertEquals(0, e.getJSONObject(1).getJSONObject("labelOffset").getInt("x"))
+        assertEquals(20, e.getJSONObject(1).getJSONObject("labelOffset").getInt("y"))
+        // The rect is written; the relief keeps the depth it had.
+        assertEquals(200, e.getJSONObject(2).getInt("width"))
+        assertEquals(10, e.getJSONObject(2).getInt("depth"))
+        assertEquals(200, e.getJSONObject(3).getInt("width"))
+        assertEquals(10, e.getJSONObject(3).getInt("depth"))
+    }
+
+    @Test fun patchWritesALabelsRectAsItsSizeAndItsPlaceFromTheControl() {
+        val json = SkinFormat.toJson(skin)
+        fun start(vararg edits: Pair<String, SkinRect>) = JSONObject(SkinEditJson.patch(json, mapOf(SkinLayoutId.PHONE_PORTRAIT to edits.toMap())))
+            .getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("elements").getJSONObject(3)
+        // The word under the key: its height is the type size, its centre is said from the key's, as the file has it.
+        val under = start("start#label" to wordBox)
+        assertEquals(30, under.getInt("labelSize"))
+        assertEquals(0, under.getJSONObject("labelOffset").getInt("x"))
+        assertEquals(60, under.getJSONObject("labelOffset").getInt("y"))
+        assertEquals(1600, under.getInt("y"))
+        // The key moved in the same edit: from where it now is.
+        val both = start("start" to SkinRect(400f, 1500f, 100f, 50f), "start#label" to wordBox)
+        assertEquals(160, both.getJSONObject("labelOffset").getInt("y"))
+        assertEquals(1500, both.getInt("y"))
+        // To a tenth of a unit.
+        val fine = start("start#label" to SkinRect(393.04f, 1670.26f, 114f, 30.44f))
+        assertEquals(30.4, fine.getDouble("labelSize"), 1e-9)
+        assertEquals(0.0, fine.getJSONObject("labelOffset").getDouble("x"), 1e-9)
+        assertEquals(60.5, fine.getJSONObject("labelOffset").getDouble("y"), 1e-9)
+        // A label of a control the file does not have is skipped, like the control.
+        val none = SkinEditJson.patch(json, mapOf(SkinLayoutId.PHONE_PORTRAIT to mapOf("ghost#label" to wordBox)))
+        assertFalse("labelSize" in none || "labelOffset" in none)
+        // What is written reads as the layout the editor showed.
+        val read = SkinFormat.parse(SkinEditJson.patch(SkinFormat.toJson(worded), mapOf(SkinLayoutId.PHONE_PORTRAIT to mapOf("start#label" to wordBox.copy(x = 293f, y = 1700f)))))
+        assertEquals(word.copy(labelOffset = SkinPoint(-100f, 90f)), read.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements[3])
     }
 }

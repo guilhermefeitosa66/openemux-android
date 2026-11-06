@@ -4,12 +4,15 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
@@ -17,11 +20,16 @@ import androidx.core.graphics.PathParser
 import androidx.core.graphics.createBitmap
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinArt
+import com.openemux.mobile.data.SkinColorMath
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFrameColors
 import com.openemux.mobile.data.SkinFill
+import com.openemux.mobile.data.SkinLabelKind
+import com.openemux.mobile.data.SkinLabels
 import com.openemux.mobile.data.SkinPaintDefaults
+import com.openemux.mobile.data.SkinShapes
 import com.openemux.mobile.data.SkinTextureFit
 import com.openemux.mobile.data.SkinTextureFrame
 import com.openemux.mobile.data.SkinLayout
@@ -35,6 +43,7 @@ import com.openemux.mobile.data.TemplateImageKind
 import com.openemux.mobile.ui.Icons
 import com.retroarch.R
 import java.io.File
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
@@ -42,13 +51,19 @@ import kotlin.math.roundToInt
  * same kind of skin.cfg [ImportedSkinRenderer] writes for a package: a portrait and a landscape page, each the form's
  * layout of that orientation fitted to the window (OpenEmuxSkinLayouts.kt decides where everything goes).
  *
- * The page's image is the background and the frame, with the game's screens cut out of it; every element is a desc of
- * its own with its own image, the element's file when the skin has one and its colours, shape and label when not. The
- * D-pad's ball and a stick's knob are the images the engine moves with the thumb.
+ * The page's image is the background and the frame, with the game's screens cut out of it, and the labels printed
+ * beside their controls; every element is a desc of its own with its own image, the element's file when the skin has
+ * one and its colours, shape and label when not. The D-pad's ball and a stick's knob are the images the engine moves
+ * with the thumb.
+ *
+ * A control drawn from its colours is a face over a relief ([SkinElement.depth] of it showing under the face), shaded
+ * from its one colour the way the bundled art is (tools/skins), so a control repainted in the editor still sits among
+ * the ones left as they were.
  */
 class OpenEmuxSkinRenderer(context: Context) {
 
-    private val inter: Typeface = ResourcesCompat.getFont(context, R.font.inter_bold) ?: Typeface.DEFAULT_BOLD
+    /** The labels' typeface: the one the bundled art is lettered in (tools/skins: Space Grotesk, bold). */
+    private val lettering: Typeface = ResourcesCompat.getFont(context, R.font.grotesk_bold) ?: Typeface.DEFAULT_BOLD
 
     /**
      * Writes [pkg]'s [layouts] (the form's portrait and landscape, LayoutChoice.Use) for [console], played on [coreId],
@@ -144,7 +159,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         val canvas = Canvas(bitmap)
         val box = RectF(0f, 0f, w.toFloat(), h.toFloat())
         val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
-        if (!drawn) canvas.drawRect(box, fill(frame.colors.frame ?: DEFAULT_FRAME))
+        if (!drawn) drawFrame(canvas, frame, box, scale)
         val clear = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
         layout.screens.forEach { r ->
             canvas.drawRect(RectF((r.x - frame.rect.x) * scale, (r.y - frame.rect.y) * scale, (r.x + r.width - frame.rect.x) * scale, (r.y + r.height - frame.rect.y) * scale), clear)
@@ -153,17 +168,46 @@ class OpenEmuxSkinRenderer(context: Context) {
     }
 
     /**
+     * Layout [id] of [pkg] as the game shows it at rest, no larger than [max] px on its longer side, the game's
+     * screens dark: the skin list's miniature of the skin on this device.
+     */
+    fun thumbnail(pkg: SkinPackage, id: SkinLayoutId, max: Int): Bitmap {
+        val layout = pkg.skin.layouts.getValue(id)
+        val scale = minOf(1f, max / maxOf(layout.size.width, layout.size.height).toFloat())
+        val w = (layout.size.width * scale).roundToInt().coerceAtLeast(1)
+        val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
+        val plan = planPage(pkg.skin.console, layout, w, h, false)
+        val out = createBitmap(w, h)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        canvas.drawColor(SCREEN)
+        page(pkg, id, layout, plan, w, h, false).let { canvas.drawBitmap(it, 0f, 0f, null); it.recycle() }
+        for (element in plan.elements) {
+            for (desc in descs(pkg, id, layout, layout.elements[element.index], element, false)) {
+                for (art in listOfNotNull(desc.image, desc.knob)) {
+                    canvas.drawBitmap(art, null, desc.rect, paint)
+                    art.recycle()
+                }
+                desc.lit?.bitmap?.recycle()
+            }
+        }
+        return out
+    }
+
+    /**
      * [element] of layout [id] drawn alone on a [w] x [h] bitmap the way the game draws it at rest: its image or its
-     * colours, a D-pad with its ball, a stick with its knob (issue 784).
+     * colours, a D-pad with its ball, a stick with its knob (issue 784). A button's or a key's label the app draws is
+     * left out: the editor draws it as a piece of its own ([previewLabel]), so it moves with the finger.
      */
     fun previewElement(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, w: Int, h: Int): Bitmap {
-        val alone = element.copy(rect = SkinRect(0f, 0f, w.toFloat(), h.toFloat()))
+        // Its relief and its corners at the bitmap's scale too.
+        val alone = element.at(SkinRect(0f, 0f, w.toFloat(), h.toFloat()))
         val page = SkinLayout(com.openemux.mobile.data.SkinSize(w, h), listOf(alone.rect), layout.background, layout.frame, listOf(alone))
         val plan = planPage(pkg.skin.console, page, w, h, false).elements.single()
         val out = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-        for (desc in descs(pkg, id, layout, alone, plan, false)) {
+        for (desc in descs(pkg, id, layout, alone, plan, false, labels = false)) {
             for (art in listOfNotNull(desc.image, desc.knob)) {
                 canvas.drawBitmap(art, null, desc.rect, paint)
                 art.recycle()
@@ -175,18 +219,20 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     /**
      * A texture (issue 786): [source] filling a [w] x [h] image of [kind] as [frame] places it, clipped to the shape
-     * the game draws the part in (a button's or a key's outline, the D-pad's cross, a disc for a ball, a stick's base
-     * and its knob; the whole box for the background and the frame) and, on a labelled button or key ([element]), its
-     * letter drawn over it in its "letter" colour, the way the game draws one with no image.
+     * the game draws the part in (a button's or a key's face, the D-pad's cross, a disc for a ball, a stick's base
+     * and its knob; the whole box for the background and the frame). On a button, a key or the D-pad ([element]) it is
+     * the face alone, where the face is in the control ([SkinArt.FACE]): the relief under it and the label over it
+     * stay the app's to draw, in their own colours.
      */
     fun texture(source: Bitmap, kind: TemplateImageKind, element: SkinElement?, w: Int, h: Int, frame: SkinTextureFrame): Bitmap {
         val box = RectF(0f, 0f, w.coerceAtLeast(1).toFloat(), h.coerceAtLeast(1).toFloat())
         val out = blank(box)
         val c = Canvas(out)
+        // Opaque white: only the outline matters, a translucent colour must not fade the texture.
+        val white = fill(0xFFFFFFFF.toInt())
         val mask = when (kind) {
-            // Opaque white like the others: only the outline matters, a translucent button colour must not fade the texture.
-            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> element?.let { shape(it.copy(label = null, colors = it.colors + ("button" to 0xFFFFFFFF.toInt())), box) }
-            TemplateImageKind.DPAD -> cross(box, 0xFFFFFFFF.toInt())
+            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> element?.at(box.skin())?.let { e -> blank(box).also { drawFace(Canvas(it), e, faceOf(e, box)) { white } } }
+            TemplateImageKind.DPAD -> element?.at(box.skin())?.let { e -> blank(box).also { drawCross(Canvas(it), faceOf(e, box), 0f, white) } }
             TemplateImageKind.DPAD_BALL, TemplateImageKind.STICK_BASE, TemplateImageKind.STICK_KNOB -> disc(box, 0xFFFFFFFF.toInt())
             else -> null
         }
@@ -206,9 +252,22 @@ class OpenEmuxSkinRenderer(context: Context) {
         } else {
             drawOn(c)
         }
-        if (element != null && (kind == TemplateImageKind.BUTTON || kind == TemplateImageKind.KEYPAD)) {
-            element.label?.takeIf { it.isNotBlank() }?.let { drawLabel(c, it, box, element.colors["letter"] ?: DEFAULT_LETTER) }
-        }
+        return out
+    }
+
+    /**
+     * [element]'s label alone, as the editor shows and moves it: on a bitmap [scale] px per unit of the layout, the
+     * label's centre in its middle. The bitmap is wider than the label's box by [LABEL_ROOM] of the type size on every
+     * side, since the box is only about as wide as the lettering ([SkinLabels.box]). Null when it has no label.
+     */
+    fun previewLabel(element: SkinElement, scale: Float): Bitmap? {
+        if (!SkinLabels.has(element)) return null
+        val box = SkinLabels.box(element)
+        val room = box.height * LABEL_ROOM
+        val w = ((box.width + 2f * room) * scale).roundToInt().coerceIn(1, 1024)
+        val h = ((box.height + 2f * room) * scale).roundToInt().coerceIn(1, 1024)
+        val out = createBitmap(w, h)
+        drawLabel(Canvas(out), element, w / 2f, h / 2f, scale)
         return out
     }
 
@@ -224,10 +283,19 @@ class OpenEmuxSkinRenderer(context: Context) {
         val e = image.element
         return when (image.kind) {
             TemplateImageKind.BACKGROUND -> blank(box).also { it.eraseColor(layout.background(image.keypadPage).color ?: DEFAULT_BACKGROUND) }
-            TemplateImageKind.FRAME -> blank(box).also { it.eraseColor(layout.frame?.colors?.frame ?: DEFAULT_FRAME) }
-            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> shape(e!!, box)
+            TemplateImageKind.FRAME -> blank(box).also { b -> layout.frame?.let { drawFrame(Canvas(b), it, box, 1f) } ?: b.eraseColor(DEFAULT_FRAME) }
+            // What the element's image is to hold (SkinElement.art): the app draws the rest over the image it gets back.
+            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> blank(box).also { b ->
+                val c = Canvas(b)
+                drawControl(c, e!!, box, relief = e.art != SkinArt.FACE)
+                if (e.art == SkinArt.FULL && SkinLabels.has(e)) drawLabelIn(c, e, box)
+            }
             TemplateImageKind.ACTION -> glyph(OpenEmuxBinds.action(pkg.skin.console, e!!.bind, false)?.icon, box, layout.frame?.colors?.icons ?: DEFAULT_ICONS)
-            TemplateImageKind.DPAD -> cross(box, e!!.colors["pad"] ?: DEFAULT_PAD)
+            TemplateImageKind.DPAD -> blank(box).also { b ->
+                val c = Canvas(b)
+                drawPad(c, e!!, box, relief = e.art != SkinArt.FACE)
+                if (e.art == SkinArt.FULL) drawArrows(c, e, box)
+            }
             TemplateImageKind.DPAD_BALL -> disc(box, e!!.colors["ball"] ?: DEFAULT_BALL)
             TemplateImageKind.STICK_BASE -> disc(box, e!!.colors["base"] ?: DEFAULT_BASE)
             TemplateImageKind.STICK_KNOB -> disc(box, e!!.colors["knob"] ?: DEFAULT_KNOB)
@@ -249,11 +317,27 @@ class OpenEmuxSkinRenderer(context: Context) {
         layout.frame?.let { frame ->
             val box = plan.fit.box(frame.rect).rect()
             val drawn = (if (screen != null) pkg.screenFrame(id, screen) else pkg.frame(id))?.let { draw(canvas, pkg, it, box) } == true
-            if (!drawn) canvas.drawRect(box, fill(frame.colors.frame ?: DEFAULT_FRAME))
+            if (!drawn) drawFrame(canvas, frame, box, plan.fit.s)
+        }
+        // A label printed beside its control (START under its key) does not fit in the control's own image: it is
+        // part of the page. One that only reaches past the control's edge is drawn here and in the control's image,
+        // which covers its own share of it.
+        for (e in layout.elements(keypad)) {
+            if (!SkinLabels.has(e) || SkinLabels.box(e).within(e.rect)) continue
+            val file = if (screen != null) pkg.screenImages(id, screen, e)[0] else pkg.images(id, e, keypad)[0]
+            if (!SkinLabels.drawn(e, file != null)) continue
+            val at = SkinLabels.centre(e)
+            drawLabel(canvas, e, plan.fit.ox + at.x * plan.fit.s, plan.fit.oy + at.y * plan.fit.s, plan.fit.s)
         }
         val clear = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
         layout.screens.forEach { canvas.drawRect(plan.fit.box(it).rect(), clear) }
         return bitmap
+    }
+
+    /** [frame] from its colour over [box], its corners rounded by its radius at [scale] px per unit. */
+    private fun drawFrame(canvas: Canvas, frame: com.openemux.mobile.data.SkinFrame, box: RectF, scale: Float) {
+        val corner = (frame.radius * scale).coerceAtMost(minOf(box.width(), box.height()) / 2f)
+        canvas.drawRoundRect(box, corner, corner, fill(frame.colors.frame ?: DEFAULT_FRAME))
     }
 
     /**
@@ -262,19 +346,14 @@ class OpenEmuxSkinRenderer(context: Context) {
      */
     private fun descs(
         pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, plan: ElementPlan, keypad: Boolean,
-        screen: String? = null,
+        screen: String? = null, labels: Boolean = true,
     ): List<OverlayDesc> {
         val files = if (screen != null) pkg.screenImages(id, screen, element) else pkg.images(id, element, keypad)
         val box = plan.box.rect()
         return when (plan) {
-            is ElementPlan.Button -> {
-                val image = image(pkg, files[0], box) ?: shape(element, box)
-                listOf(OverlayDesc(plan.bind ?: "nul", box, image = image))
-            }
-            is ElementPlan.Toggle -> {
-                val image = image(pkg, files[0], box) ?: shape(element, box)
-                listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = image))
-            }
+            is ElementPlan.Button -> listOf(OverlayDesc(plan.bind ?: "nul", box, image = control(pkg, files[0], element, box, labels)))
+            is ElementPlan.Toggle ->
+                listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = control(pkg, files[0], element, box, labels)))
             is ElementPlan.Action -> {
                 val frame = layout.frame?.colors ?: SkinFrameColors()
                 val art = image(pkg, files[0], box)
@@ -286,7 +365,7 @@ class OpenEmuxSkinRenderer(context: Context) {
                 listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, next = plan.next, image = icon), lit)
             }
             is ElementPlan.Dpad -> {
-                val pad = image(pkg, files[0], box) ?: cross(box, element.colors["pad"] ?: DEFAULT_PAD)
+                val pad = pad(pkg, files[0], element, box)
                 val travel = plan.travel.rect()
                 val ball = ball(pkg, files[1], travel, element.colors["ball"] ?: DEFAULT_BALL)
                 // A second D-pad on a console with none is drawn, ball at rest, and presses nothing.
@@ -340,44 +419,194 @@ class OpenEmuxSkinRenderer(context: Context) {
         null
     }
 
-    /** A button or keypad key with no image: its shape in its "button" colour, its label in its "letter" colour. */
-    private fun shape(element: SkinElement, box: RectF): Bitmap {
+    /**
+     * A button or a keypad key on a [box]-sized bitmap: its image ([file]) when the skin has one, with what the image
+     * leaves to the app ([SkinElement.art]: the relief under a face, the label over a key), else all of it from its
+     * colours. Without [label], the label the app would draw is left out.
+     */
+    private fun control(pkg: SkinPackage, file: String?, element: SkinElement, box: RectF, label: Boolean = true): Bitmap {
         val out = blank(box)
         val c = Canvas(out)
         val r = RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
-        val paint = fill(element.colors["button"] ?: DEFAULT_BUTTON)
-        when (element.shape ?: if (element.type == SkinElementType.KEYPAD) SkinShape.RECT else SkinShape.CIRCLE) {
-            SkinShape.CIRCLE -> c.drawOval(r, paint)
-            SkinShape.PILL -> c.drawRoundRect(r, r.height() / 2f, r.height() / 2f, paint)
-            SkinShape.RECT -> minOf(r.width(), r.height()).let { c.drawRoundRect(r, it * 0.16f, it * 0.16f, paint) }
+        val art = file?.let { decode(pkg, it, r.width(), r.height()) }
+        if (art == null) {
+            drawControl(c, element, r)
+        } else {
+            if (element.art == SkinArt.FACE) drawControl(c, element, r, face = false)
+            c.drawBitmap(art, null, r, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+            art.recycle()
         }
-        element.label?.takeIf { it.isNotBlank() }?.let { drawLabel(c, it, r, element.colors["letter"] ?: DEFAULT_LETTER) }
+        if (label && SkinLabels.has(element) && SkinLabels.drawn(element, art != null)) drawLabelIn(c, element, r)
         return out
     }
 
-    /** A button's [label] centred in [r] in [color]; a long one (START) shrinks to fit the width. */
-    private fun drawLabel(c: Canvas, label: String, r: RectF, color: Int) {
-        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color; typeface = inter; textAlign = Paint.Align.CENTER
-            textSize = r.height() * 0.42f
-        }
-        val width = text.measureText(label)
-        if (width > r.width() * 0.8f) text.textSize *= r.width() * 0.8f / width
-        c.drawText(label, r.centerX(), r.centerY() - (text.descent() + text.ascent()) / 2f, text)
-    }
-
-    /** A D-pad with no image: a cross in its "pad" colour, arms a third of its size wide. */
-    private fun cross(box: RectF, color: Int): Bitmap {
+    /** The D-pad on a [box]-sized bitmap, as [control] draws a button: its image, or its cross, and its four arrows. */
+    private fun pad(pkg: SkinPackage, file: String?, element: SkinElement, box: RectF): Bitmap {
         val out = blank(box)
         val c = Canvas(out)
-        val w = out.width.toFloat()
-        val h = out.height.toFloat()
-        val paint = fill(color)
-        val arm = minOf(w, h) / 3f
-        val corner = arm * 0.2f
-        c.drawRoundRect(RectF((w - arm) / 2f, 0f, (w + arm) / 2f, h), corner, corner, paint)
-        c.drawRoundRect(RectF(0f, (h - arm) / 2f, w, (h + arm) / 2f), corner, corner, paint)
+        val r = RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
+        val art = file?.let { decode(pkg, it, r.width(), r.height()) }
+        if (art == null) {
+            drawPad(c, element, r)
+        } else {
+            if (element.art == SkinArt.FACE) drawPad(c, element, r, face = false)
+            c.drawBitmap(art, null, r, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+            art.recycle()
+        }
+        if (SkinLabels.drawn(element, art != null)) drawArrows(c, element, r)
         return out
+    }
+
+    /** How far down [r] the face of [e] ends: [r] stands for the element's whole rect, relief included. */
+    private fun faceOf(e: SkinElement, r: RectF) = RectF(r.left, r.top, r.right, r.top + r.height() * e.face.height / e.rect.height)
+
+    /**
+     * A button or a key from its colours over [r] (the element's rect): its [relief], the face's own shape straight
+     * under it, and its [face], lit from above like the bundled art when it has a relief (flat when it has none, as a
+     * skin without one has always been drawn).
+     */
+    private fun drawControl(c: Canvas, e: SkinElement, r: RectF, relief: Boolean = true, face: Boolean = true) {
+        val top = faceOf(e, r)
+        val depth = r.height() - top.height()
+        if (relief && depth > 0f) {
+            val paint = fill(SkinPaintDefaults.relief(e))
+            drawFace(c, e, RectF(top.left, top.top + depth, top.right, top.bottom + depth)) { paint }
+        }
+        if (!face) return
+        val color = SkinPaintDefaults.face(e)
+        drawFace(c, e, top) { own ->
+            fill(color).apply {
+                if (e.depth > 0f) shader = when {
+                    e.type == SkinElementType.KEYPAD ->
+                        LinearGradient(0f, own.top, 0f, own.bottom, SkinColorMath.lighten(color, 0.1f), color, Shader.TileMode.CLAMP)
+                    shapeOf(e) == SkinShape.CIRCLE -> RadialGradient(
+                        own.left + own.width() * 0.38f, own.top + own.height() * 0.3f, hypot(own.width() * 0.62f, own.height() * 0.7f),
+                        intArrayOf(SkinColorMath.lighten(color, 0.22f), color, SkinColorMath.darken(color, 0.14f)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP,
+                    )
+                    else -> LinearGradient(0f, own.top, 0f, own.bottom, SkinColorMath.lighten(color, 0.12f), SkinColorMath.darken(color, 0.08f), Shader.TileMode.CLAMP)
+                }
+            }
+        }
+    }
+
+    private fun shapeOf(e: SkinElement) = e.shape ?: if (e.type == SkinElementType.KEYPAD) SkinShape.RECT else SkinShape.CIRCLE
+
+    /**
+     * [e]'s outline in [top] (the box its face takes on the canvas), turned as [e] is about the box's centre; [paint]
+     * gets the outline's own box, before the turn, to shade it.
+     */
+    private fun drawFace(c: Canvas, e: SkinElement, top: RectF, paint: (RectF) -> Paint) {
+        val (w, h) = SkinShapes.unturned(top.width(), top.height(), e.rotation)
+        val own = RectF(top.centerX() - w / 2f, top.centerY() - h / 2f, top.centerX() + w / 2f, top.centerY() + h / 2f)
+        val k = top.width() / e.rect.width
+        c.save()
+        c.rotate(e.rotation, top.centerX(), top.centerY())
+        when (shapeOf(e)) {
+            SkinShape.CIRCLE -> c.drawOval(own, paint(own))
+            SkinShape.PILL -> (minOf(w, h) / 2f).let { c.drawRoundRect(own, it, it, paint(own)) }
+            SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * 0.16f)).coerceAtMost(minOf(w, h) / 2f).let { c.drawRoundRect(own, it, it, paint(own)) }
+        }
+        c.restore()
+    }
+
+    /** [e]'s label on a canvas where [r] stands for the element's rect. */
+    private fun drawLabelIn(c: Canvas, e: SkinElement, r: RectF) {
+        val k = r.width() / e.rect.width
+        val at = SkinLabels.centre(e)
+        drawLabel(c, e, r.left + (at.x - e.rect.x) * k, r.top + (at.y - e.rect.y) * k, k)
+    }
+
+    /**
+     * [e]'s label centred on ([cx], [cy]) at [k] px per unit of the layout, in its "letter" colour: typed in the art's
+     * typeface, or the glyph the console prints there (the PlayStation's shapes, an arrow, the menu's lines). With no
+     * size of its own a typed one takes a share of the face and shrinks to fit its width; one left on a turned key is
+     * turned with it.
+     */
+    private fun drawLabel(c: Canvas, e: SkinElement, cx: Float, cy: Float, k: Float) {
+        val label = e.label?.takeIf { it.isNotBlank() } ?: return
+        val color = SkinPaintDefaults.letter(e)
+        val kind = SkinLabels.kind(label)
+        c.save()
+        if (e.labelOffset == null) c.rotate(e.rotation, cx, cy)
+        if (kind == SkinLabelKind.TEXT) {
+            val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color; typeface = lettering; textAlign = Paint.Align.CENTER; letterSpacing = SkinLabels.spacing(e)
+            }
+            val own = e.labelSize
+            if (own != null) {
+                text.textSize = own * k
+            } else {
+                val (w, h) = e.face.let { SkinShapes.unturned(it.width, it.height, e.rotation) }
+                text.textSize = h * k * 0.42f
+                val wide = text.measureText(label)
+                if (wide > w * k * SkinLabels.FIT) text.textSize *= w * k * SkinLabels.FIT / wide
+            }
+            c.drawText(label, cx, cy - (text.descent() + text.ascent()) / 2f, text)
+        } else {
+            val size = SkinLabels.size(e) * k
+            val (path, turn, stroke) = when (kind) {
+                SkinLabelKind.ARROW -> Triple(ARROW, SkinLabels.ARROWS.getValue(label), 0f)
+                SkinLabelKind.MENU -> Triple(MENU, 0f, 2f)
+                else -> Triple(SYMBOLS.getValue(label), 0f, 2.2f)
+            }
+            c.rotate(turn, cx, cy)
+            drawPath(c, path, cx, cy, size, color, stroke)
+        }
+        c.restore()
+    }
+
+    /** A 24-unit [path] drawn [size] across, centred on ([cx], [cy]): filled, or with [stroke] units of line. */
+    private fun drawPath(c: Canvas, data: String, cx: Float, cy: Float, size: Float, color: Int, stroke: Float) {
+        val path: Path = PathParser.createPathFromPathData(data)
+        path.transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(cx - size / 2f, cy - size / 2f) })
+        c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            if (stroke > 0f) {
+                style = Paint.Style.STROKE; strokeWidth = stroke * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+            }
+        })
+    }
+
+    /**
+     * The D-pad from its colours over [r] (the element's rect): its [relief], the cross straight under itself, and its
+     * [face] in its "pad" colour.
+     */
+    private fun drawPad(c: Canvas, e: SkinElement, r: RectF, relief: Boolean = true, face: Boolean = true) {
+        val top = faceOf(e, r)
+        val depth = r.height() - top.height()
+        if (relief && depth > 0f) drawCross(c, top, depth, fill(SkinPaintDefaults.relief(e)))
+        if (face) drawCross(c, top, 0f, fill(SkinPaintDefaults.face(e)))
+    }
+
+    /**
+     * A cross in [top] (the box the D-pad's face takes), [down] px lower: arms [ARM] of its size wide, as the bundled
+     * art draws them.
+     */
+    private fun drawCross(c: Canvas, top: RectF, down: Float, paint: Paint) {
+        val size = minOf(top.width(), top.height())
+        val arm = size * ARM
+        val corner = arm * 0.22f
+        val cx = top.centerX()
+        val cy = top.centerY() + down
+        c.drawRoundRect(RectF(cx - arm / 2f, cy - size / 2f, cx + arm / 2f, cy + size / 2f), corner, corner, paint)
+        c.drawRoundRect(RectF(cx - size / 2f, cy - arm / 2f, cx + size / 2f, cy + arm / 2f), corner, corner, paint)
+    }
+
+    /** The D-pad's four arrows, one near the tip of each arm, in its "letter" colour, over [r] (the element's rect). */
+    private fun drawArrows(c: Canvas, e: SkinElement, r: RectF) {
+        val top = faceOf(e, r)
+        val size = minOf(top.width(), top.height())
+        val arm = size * ARM
+        val reach = size / 2f - arm * 0.55f
+        val color = SkinPaintDefaults.letter(e)
+        for ((dx, dy, turn) in listOf(Triple(0f, -1f, 0f), Triple(0f, 1f, 180f), Triple(-1f, 0f, 270f), Triple(1f, 0f, 90f))) {
+            val x = top.centerX() + dx * reach
+            val y = top.centerY() + dy * reach
+            c.save()
+            c.rotate(turn, x, y)
+            drawPath(c, ARROW, x, y, arm * 0.36f, color, 0f)
+            c.restore()
+        }
     }
 
     /**
@@ -475,20 +704,36 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     private fun SkinBox.rect() = RectF(x, y, right, bottom)
 
+    private fun RectF.skin() = SkinRect(left, top, width(), height())
+
     companion object {
         private const val TAG = "OpenEmuxSkin"
 
         /** The D-pad's ball across, as a share of its travel's box. */
         internal const val BALL_SHARE = 0.55f
 
+        /** A D-pad's arm across, as a share of the pad (tools/skins: the engine's cross). */
+        private const val ARM = 0.34f
+
+        /** The room [previewLabel] leaves around a label's box, as a share of its type size. */
+        internal const val LABEL_ROOM = 0.75f
+
+        /** The game's screen in a miniature of the skin. */
+        private const val SCREEN = 0xFF050507.toInt()
+
+        /** The glyphs a label may be (data/SkinLabels.kt), as the bundled art draws them: 24-unit paths. */
+        private const val ARROW = "M12 5l7.5 12h-15z"
+        private const val MENU = "M5 7h14M5 12h14M5 17h14"
+        private val SYMBOLS = mapOf(
+            SkinLabels.TRIANGLE to "M12 5l7 12H5z", SkinLabels.CIRCLE to "M5.5 12a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0",
+            SkinLabels.CROSS to "M6.5 6.5l11 11M17.5 6.5l-11 11", SkinLabels.SQUARE to "M6 6h12v12H6z",
+        )
+
         // A part left unset, with no image, in the app's Dark skin family (data/SkinPaint.kt, which the editor's
         // contrast check reads too).
         private const val DEFAULT_BACKGROUND = SkinPaintDefaults.BACKGROUND
         private const val DEFAULT_FRAME = SkinPaintDefaults.FRAME
         private const val DEFAULT_ICONS = SkinPaintDefaults.ICONS
-        private const val DEFAULT_BUTTON = SkinPaintDefaults.BUTTON
-        private const val DEFAULT_LETTER = SkinPaintDefaults.LETTER
-        private const val DEFAULT_PAD = SkinPaintDefaults.PAD
         private const val DEFAULT_BALL = SkinPaintDefaults.BALL
         private const val DEFAULT_BASE = SkinPaintDefaults.BASE
         private const val DEFAULT_KNOB = SkinPaintDefaults.KNOB

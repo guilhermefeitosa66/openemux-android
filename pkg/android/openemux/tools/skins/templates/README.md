@@ -89,7 +89,7 @@ that element from its colours, shape and label in `skin.json` instead, so a skin
 
 | File | Size | What it is |
 |---|---|---|
-| `background.png` | the layout's `size` | the whole layout, behind everything |
+| `background.png` | the layout's `size` | the console's body, behind everything: no control and no word beside one |
 | `frame.png` | the frame's rect | the bezel around the game screen, where the quick actions sit |
 | `<id>.png` | the element's rect | a button, a quick action or a keypad key |
 | `dpad.png` | the D-pad's rect | the D-pad |
@@ -117,7 +117,11 @@ a layout. The keys are documented in [`docs/skin-format.md`](../../../docs/skin-
 - **`layouts.<id>.frame`**: the bezel's rect and its colours: `frame` (the bezel), `icons` (the quick actions'
   icons), `active` (a toggled action's background) and `activeIcon` (`light` or `dark`).
 - **`layouts.<id>.elements`**: the controls. Each has an `id`, a `type`, a `bind`, a `group` and its rect, and,
-  for when it has no image, a `shape` (`circle`, `pill`, `rect`), a `label` and its `colors`.
+  for when it has no image, a `shape` (`circle`, `pill`, `rect`), a `label` and its `colors`. A button's rect is the
+  whole button: its face and, under it, `depth` px of relief (the `relief` colour), so paint the relief into its image
+  too. A word printed beside a control (`START` under its key) is not painted anywhere: it is the element's `label`,
+  placed by `labelOffset` and sized by `labelSize`, and `"art": "key"` tells the app to draw it over your image. Paint a
+  label of your own into an image only where the element says nothing of `art`.
 
 Moving a control means changing its `x` and `y`, and resizing it its `width` and `height` (then repaint its image at
 the new size). A rect must stay inside its layout.

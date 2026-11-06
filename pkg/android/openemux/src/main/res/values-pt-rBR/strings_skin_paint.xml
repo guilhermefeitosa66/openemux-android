@@ -3,21 +3,17 @@
 <resources>
     <string name="editor_colour">Cor</string>
     <string name="editor_texture">Textura</string>
-    <string name="editor_paint">Pintar</string>
-    <string name="editor_part_background">Fundo</string>
+    <string name="editor_part_background">Corpo</string>
     <string name="editor_part_frame">Moldura</string>
     <string name="editor_part_icons">Ícones</string>
     <string name="editor_part_active">Ativo</string>
     <string name="editor_part_button">Botão</string>
-    <string name="editor_part_letter">Letra</string>
+    <string name="editor_part_relief">Relevo</string>
+    <string name="editor_part_letter">Label</string>
     <string name="editor_part_pad">Direcional</string>
     <string name="editor_part_ball">Bola</string>
     <string name="editor_part_base">Base</string>
     <string name="editor_part_knob">Pino</string>
-    <string name="editor_apply_one">Este controle</string>
-    <string name="editor_apply_all_buttons">Todos os botões</string>
-    <string name="editor_apply_all_dpads">Todos os direcionais</string>
-    <string name="editor_apply_all_sticks">Todos os analógicos</string>
     <string name="editor_palettes">Paletas</string>
     <string name="editor_palettes_hint">define a fileira de cores</string>
     <string name="editor_palette_in_row">✓ Na fileira de cores</string>
@@ -34,7 +30,7 @@
     <string name="editor_recent">Recentes</string>
     <string name="editor_saturation">Saturação e brilho</string>
     <string name="editor_hue">Matiz</string>
-    <string name="editor_contrast_letter">Pouco contraste: a letra pode ficar difícil de ler.</string>
+    <string name="editor_contrast_letter">Pouco contraste: a label pode ficar difícil de ler.</string>
     <string name="editor_contrast_icons">Pouco contraste: os ícones podem ficar difíceis de ver na moldura.</string>
     <string name="editor_contrast_active">Pouco contraste: o ícone pode ficar difícil de ver com a ação ligada.</string>
     <string name="editor_replaces_image">Uma cor aqui substitui a imagem da parte.</string>
@@ -43,7 +39,7 @@
     <string name="editor_dark">Escuro</string>
     <string name="editor_active_note">Desligado: cor do ícone.\nLigado (turbo, avanço rápido): este fundo.</string>
     <string name="editor_paint_editing">Editando</string>
-    <string name="editor_background">Fundo</string>
+    <string name="editor_background">Corpo</string>
     <string name="editor_screen_frame">Moldura da tela</string>
     <string name="editor_choose_image">Escolher imagem</string>
     <string name="editor_choose_another">Escolher outra</string>

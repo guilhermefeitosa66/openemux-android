@@ -320,13 +320,20 @@ class SkinStore(private val base: File) {
                 tmp.delete()
                 throw IOException("could not write $path")
             }
+            // The texture is a PNG: the same image kept as WebP (issue 806) would make it two files for one image.
+            webp(target).delete()
         }
     }
 
-    /** Deletes each removed image of [images] from [dir]. */
+    /** Deletes each removed image of [images] from [dir], whichever of PNG and WebP the skin keeps it in. */
     private fun removeImages(dir: File, images: SkinImageEdits) {
-        images.forEach { (path, edit) -> if (edit == SkinImageEdit.Removed) target(dir, path).delete() }
+        images.forEach { (path, edit) ->
+            if (edit == SkinImageEdit.Removed) target(dir, path).let { it.delete(); webp(it).delete() }
+        }
     }
+
+    /** [png] (an image's `<name>.png`) as the file the skin has when it keeps that image as WebP. */
+    private fun webp(png: File): File = File(png.parentFile, png.name.removeSuffix(SkinFormat.PNG) + SkinFormat.WEBP)
 
     /** [path] in [dir], refused unless it is a layout's image file and no link stands in its way. */
     private fun target(dir: File, path: String): File {

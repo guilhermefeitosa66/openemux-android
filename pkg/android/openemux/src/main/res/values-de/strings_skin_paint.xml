@@ -3,21 +3,17 @@
 <resources>
     <string name="editor_colour">Farbe</string>
     <string name="editor_texture">Textur</string>
-    <string name="editor_paint">Bemalen</string>
-    <string name="editor_part_background">Hintergrund</string>
+    <string name="editor_part_background">Gehäuse</string>
     <string name="editor_part_frame">Rahmen</string>
     <string name="editor_part_icons">Symbole</string>
     <string name="editor_part_active">Aktiv</string>
     <string name="editor_part_button">Taste</string>
-    <string name="editor_part_letter">Buchstabe</string>
+    <string name="editor_part_relief">Relief</string>
+    <string name="editor_part_letter">Beschriftung</string>
     <string name="editor_part_pad">Steuerkreuz</string>
     <string name="editor_part_ball">Kugel</string>
     <string name="editor_part_base">Sockel</string>
     <string name="editor_part_knob">Kappe</string>
-    <string name="editor_apply_one">Dieses Element</string>
-    <string name="editor_apply_all_buttons">Alle Tasten</string>
-    <string name="editor_apply_all_dpads">Alle Steuerkreuze</string>
-    <string name="editor_apply_all_sticks">Alle Sticks</string>
     <string name="editor_palettes">Paletten</string>
     <string name="editor_palettes_hint">legt die Farbreihe fest</string>
     <string name="editor_palette_in_row">✓ In der Farbreihe</string>
@@ -34,7 +30,7 @@
     <string name="editor_recent">Zuletzt</string>
     <string name="editor_saturation">Sättigung und Helligkeit</string>
     <string name="editor_hue">Farbton</string>
-    <string name="editor_contrast_letter">Wenig Kontrast: Der Buchstabe ist eventuell schwer lesbar.</string>
+    <string name="editor_contrast_letter">Wenig Kontrast: Die Beschriftung ist womöglich schwer zu lesen.</string>
     <string name="editor_contrast_icons">Wenig Kontrast: Die Symbole sind auf dem Rahmen eventuell schwer zu erkennen.</string>
     <string name="editor_contrast_active">Wenig Kontrast: Das Symbol ist bei aktiver Aktion eventuell schwer zu erkennen.</string>
     <string name="editor_replaces_image">Eine Farbe hier ersetzt das Bild dieses Teils.</string>
@@ -43,7 +39,7 @@
     <string name="editor_dark">Dunkel</string>
     <string name="editor_active_note">Aus: Symbolfarbe.\nAn (Turbo, Vorspulen): dieser Hintergrund.</string>
     <string name="editor_paint_editing">Bearbeitung</string>
-    <string name="editor_background">Hintergrund</string>
+    <string name="editor_background">Gehäuse</string>
     <string name="editor_screen_frame">Bildschirmrahmen</string>
     <string name="editor_choose_image">Bild wählen</string>
     <string name="editor_choose_another">Anderes wählen</string>

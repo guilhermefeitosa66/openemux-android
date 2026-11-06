@@ -302,8 +302,8 @@
     <string name="skins_broken">படிக்க முடியவில்லை</string>
     <string name="skins_actions">%1$s க்கான செயல்கள்</string>
     <string name="skins_use">பயன்படுத்து</string>
-    <string name="skins_use_as_is">அப்படியே பயன்படுத்து</string>
     <string name="skins_bundled_locked">உள்ளமைந்த ஸ்கின்கள் ஒருபோதும் மாறாது.</string>
+    <string name="skins_bundled_copies">%1$s, %2$s இரண்டும் உங்களுக்கான நகலை உருவாக்கும்.</string>
     <string name="skins_imported_locked">இறக்குமதி செய்த ஸ்கின்கள் அப்படியே இருக்கும். நகலெடுத்தால் உங்களுக்கான நகல் உருவாகும்.</string>
     <string name="skins_copy_working">நகல் உருவாக்கப்படுகிறது…</string>
     <string name="skins_rename">பெயர் மாற்று</string>
@@ -312,16 +312,12 @@
     <string name="skins_save">சேமி</string>
     <string name="skins_duplicate">நகலெடு</string>
     <string name="skins_copy_name">%1$s (நகல்)</string>
+    <string name="skins_edited_name">%1$s - திருத்தியது</string>
     <string name="skins_delete">நீக்கு</string>
     <string name="skins_delete_sub">கன்சோல் %1$s க்குத் திரும்பும்</string>
     <string name="skins_delete_title">%1$s ஐ நீக்கவா?</string>
     <string name="skins_delete_body">ஸ்கினும் அதன் படங்களும் இந்தச் சாதனத்திலிருந்து நீக்கப்படும்.</string>
     <string name="skins_error">ஸ்கினை மாற்ற முடியவில்லை.</string>
-    <string name="skins_create_copy">நகல் உருவாக்கித் திருத்து</string>
-    <string name="skins_create_copy_title">உங்கள் நகலுக்குப் பெயரிடுங்கள்</string>
-    <string name="skins_create_copy_lead">உள்ளமைந்த ஸ்கின்கள் அப்படியே இருக்கும். நகல் எல்லா அமைப்புகளையும் வைத்திருக்கும், பெயரைப் பின்னர் மாற்றலாம்.</string>
-    <string name="skins_create_copy_save">நகல் உருவாக்கு</string>
-    <string name="skins_bundled_copy_name">%1$s நகல்</string>
     <string name="skins_template">டெம்ப்ளேட்டாகப் பதிவிறக்கு</string>
     <string name="skins_template_sub">எல்லா லேஅவுட்களுடன் ஒரு .zip: போன், டேப்லெட், மடிக்கக்கூடியது</string>
     <string name="skins_template_title">டெம்ப்ளேட்டாகப் பதிவிறக்கு</string>

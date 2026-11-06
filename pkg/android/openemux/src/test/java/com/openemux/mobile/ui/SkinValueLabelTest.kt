@@ -106,4 +106,28 @@ class SkinValueLabelTest {
         assertEquals(R.string.skins_form_tablet, formLabel(SkinForm.TABLET))
         assertEquals(R.string.skins_form_fold, formLabel(SkinForm.FOLD))
     }
+
+    @Test fun aNewSkinsNameIsNeverOneTheListAlreadyHas() {
+        assertEquals("Red - edited", freeSkinName("Red - edited", emptyList()))
+        assertEquals("Red - edited", freeSkinName("  Red - edited ", listOf("Blue", "Red")))
+        // A second Edit of the same bundled skin: a number after the name, the first one free.
+        assertEquals("Red - edited 2", freeSkinName("Red - edited", listOf("Red - edited")))
+        assertEquals("Red - edited 3", freeSkinName("Red - edited", listOf("Red - edited", "Red - edited 2")))
+        assertEquals("Red - edited 2", freeSkinName("Red - edited", listOf("Red - edited 3", "Red - edited")))
+        // Two names that differ only by case are one name to whoever reads the list.
+        assertEquals("Red - edited 2", freeSkinName("Red - edited", listOf("RED - EDITED")))
+        assertEquals("red - edited 3", freeSkinName("red - edited", listOf("Red - Edited", "RED - EDITED 2")))
+    }
+
+    @Test fun aLongNameIsCutToMakeRoomForItsNumber() {
+        val max = SkinStore.MAX_NAME
+        assertEquals("x".repeat(max), freeSkinName("x".repeat(max + 10), emptyList()))
+        val second = freeSkinName("x".repeat(max + 10), listOf("x".repeat(max)))
+        assertEquals("x".repeat(max - 2) + " 2", second)
+        // Cut at a space: no two spaces before the number.
+        val spaced = "x".repeat(max - 3) + " yz"
+        assertEquals("x".repeat(max - 3) + " 2", freeSkinName(spaced, listOf(spaced)))
+        // What it gives is a name the store takes as it is.
+        assertEquals(second, SkinStore.cleanName(second))
+    }
 }

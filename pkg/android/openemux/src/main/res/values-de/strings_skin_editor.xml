@@ -6,7 +6,7 @@
     <string name="editor_undo">Rückgängig</string>
     <string name="editor_redo">Wiederholen</string>
     <string name="editor_save">Speichern</string>
-    <string name="editor_snap">Magnet</string>
+    <string name="editor_snap">Raster</string>
     <string name="editor_more">Mehr</string>
     <string name="editor_reset_layout">Layout zurücksetzen</string>
     <string name="editor_hint_tap">Tippe auf ein Bedienelement, um es zu ändern.</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">Nach rechts</string>
     <string name="editor_percent">%1$d %%</string>
     <string name="editor_tap_again">erneut tippen für eins</string>
+    <string name="editor_tap_again_label">erneut tippen für die Beschriftung</string>
     <string name="editor_group_face">Aktionstasten</string>
     <string name="editor_group_dpad">Steuerkreuz</string>
     <string name="editor_group_center">Start und Select</string>

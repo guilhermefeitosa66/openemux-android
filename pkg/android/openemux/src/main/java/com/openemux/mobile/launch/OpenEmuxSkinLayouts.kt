@@ -89,8 +89,9 @@ sealed interface ElementPlan {
     ) : ElementPlan
 
     /**
-     * A D-pad: [travel] is its ball's travel about the centre (the engine's desc rect), touched [reach] times its
-     * half-size on each side (left, top, right, bottom), which is the element's whole [box]. [binds] are its up, down,
+     * A D-pad: [travel] is its ball's travel about the centre of its cross (the engine's desc rect), touched [reach]
+     * times its half-size on each side (left, top, right, bottom), which is the cross ([box] without the relief under
+     * it). [binds] are its up, down,
      * left and right; null for a second D-pad on a console with none, drawn and pressing nothing.
      */
     data class Dpad(
@@ -146,7 +147,7 @@ fun planPage(
             }
             SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(keys, e.bind))
             SkinElementType.ACTION -> action(OpenEmuxBinds.action(console, e.bind, hardcore)!!)
-            SkinElementType.DPAD -> dpad(i, box, OpenEmuxBinds.dpad(console, e.bind, coreId))
+            SkinElementType.DPAD -> dpad(i, box, fit.box(e.face), OpenEmuxBinds.dpad(console, e.bind, coreId))
             SkinElementType.STICK -> stick(i, box, if (e.bind == "rightAnalogStick") "analog_right" else "analog_left")
         }
     }
@@ -207,12 +208,15 @@ fun keypadPages(skin: OpenEmuxSkin, layouts: LayoutChoice.Use): Boolean =
 fun ndsPages(skin: OpenEmuxSkin, layouts: LayoutChoice.Use): Boolean = skin.console == Console.NDS &&
     listOf(layouts.portrait, layouts.landscape).all { skin.layouts[it]?.screenLayouts?.keys?.containsAll(SkinScreenPage.IDS) == true }
 
-/** A D-pad over [box]: its ball travels [OverlayLines.DPAD_TRAVEL] of the half-size, and the whole box starts a touch. */
-private fun dpad(i: Int, box: SkinBox, binds: List<String>?): ElementPlan.Dpad {
-    val tx = box.w / 2f * OverlayLines.DPAD_TRAVEL
-    val ty = box.h / 2f * OverlayLines.DPAD_TRAVEL
-    val cx = box.x + box.w / 2f
-    val cy = box.y + box.h / 2f
+/**
+ * A D-pad drawn over [box], its cross in [face] (the box without the relief under the cross): its ball travels
+ * [OverlayLines.DPAD_TRAVEL] of the face's half-size about the face's centre, and the whole face starts a touch.
+ */
+private fun dpad(i: Int, box: SkinBox, face: SkinBox, binds: List<String>?): ElementPlan.Dpad {
+    val tx = face.w / 2f * OverlayLines.DPAD_TRAVEL
+    val ty = face.h / 2f * OverlayLines.DPAD_TRAVEL
+    val cx = face.x + face.w / 2f
+    val cy = face.y + face.h / 2f
     val reach = 1f / OverlayLines.DPAD_TRAVEL
     return ElementPlan.Dpad(i, box, SkinBox(cx - tx, cy - ty, 2f * tx, 2f * ty), floatArrayOf(reach, reach, reach, reach), binds)
 }

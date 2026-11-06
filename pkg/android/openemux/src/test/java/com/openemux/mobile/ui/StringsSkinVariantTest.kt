@@ -20,6 +20,9 @@ class StringsSkinVariantTest {
         "skins_form_missing" to listOf("%1\$s"),
         "skins_actions" to listOf("%1\$s"),
         "skins_copy_name" to listOf("%1\$s"),
+        // A bundled skin's Edit names its copy after it, and its sheet says which rows make one.
+        "skins_edited_name" to listOf("%1\$s"),
+        "skins_bundled_copies" to listOf("%1\$s", "%2\$s"),
         "skins_delete_sub" to listOf("%1\$s"),
         "skins_delete_title" to listOf("%1\$s"),
     ) + listOf(
@@ -27,7 +30,7 @@ class StringsSkinVariantTest {
         "blue", "purple", "clear", "clear_blue", "clear_pink",
     ).associate { "settings_skin_color_$it" to emptyList<String>() } + listOf(
         "title", "lead", "yours", "bundled", "imported", "in_use", "form_phone", "form_tablet", "form_fold",
-        "not_for_phones", "not_for_tablets", "not_for_folds", "broken", "use", "use_as_is", "bundled_locked", "rename",
+        "not_for_phones", "not_for_tablets", "not_for_folds", "broken", "use", "bundled_locked", "rename",
         "rename_title", "name_label", "save", "duplicate", "delete", "delete_body", "error",
     ).associate { "skins_$it" to emptyList<String>() }
 

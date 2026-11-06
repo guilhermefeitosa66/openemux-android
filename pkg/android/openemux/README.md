@@ -188,6 +188,18 @@ per element, any of them optional. `docs/skin-format.md` documents it;
 `data/OpenEmuxSkin.kt`. Both formats name inputs with one table,
 `launch/SkinBinds.kt`.
 
+In that format every image holds its own element and nothing else: the
+background is the console's body alone, and a button is its face over a relief
+(`depth` units of the same shape showing under it, in its `relief` colour, which
+follows the face's when unset), with a label the app can draw itself where
+`labelOffset` puts it (`START` under its key). That is what lets the skin editor
+move a control without leaving a copy of it behind, repaint a button with its
+relief, and select, move and paint a label on its own. A control drawn from its
+colours is shaded the way the bundled art is, so one repainted still sits among
+the ones left as they were. The skin list shows each skin as a miniature drawn
+from the skin itself for this device and the way it is held
+(`ui/SkinThumbnail.kt`), kept in memory and in the cache folder.
+
 Skin creators start from the templates in `tools/skins/templates/`: one zip
 per console with a bundled skin, in this format, with placeholder art at the
 exact sizes, and a guide (`tools/skins/templates/README.md`) to the files,
@@ -291,5 +303,3 @@ turns the request off. `-PopenemuxVersion=1.0.0` builds an "old" APK to see it.
 - Cheats (shown as coming soon).
 - Picking cores other than the ones `data/Console.kt` names; the setup
   downloads exactly those.
-- Skin editor, or importing a skin from the app; a skin is added by copying it
-  into `files/skins/<console>/`.

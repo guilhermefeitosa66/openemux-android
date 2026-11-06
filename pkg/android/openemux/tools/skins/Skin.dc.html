@@ -521,9 +521,12 @@ const OE = (() => {
     const H = fold ? (port ? 726 : 604) : tab ? (port ? 1280 : 800) : (port ? 746 : 360);
     const parts = [], items = [], screens = [], knobs = [];
     // [owner]: the index of the item the parts being added belong to (null: the background's); [act]: a quick action's.
-    let owner = null, act = false;
+    // [kind]: what a part with no owner is: the console's 'body', the screen's 'frame' (the bezel), a 'screen', or a
+    // 'label' printed beside a control. The packages cut each one from its own layer (render.html?layers=); a label
+    // beside a control is left out of them, the app draws it from the element's label (docs/skin-format.md, labelOffset).
+    let owner = null, act = false, kind = 'body';
     const own = () => { owner = items.length; };
-    const add = (style, extra) => { parts.push(Object.assign({ style, hasLabel: false, hasIcon: false, label: '', labelStyle: '', icon: '', iconStyle: '', iconFill: 'none', iconStroke: 'none', iconWidth: 0, el: owner, act }, extra || {})); };
+    const add = (style, extra) => { parts.push(Object.assign({ style, hasLabel: false, hasIcon: false, label: '', labelStyle: '', icon: '', iconStyle: '', iconFill: 'none', iconStroke: 'none', iconWidth: 0, el: owner, act, kind }, extra || {})); };
     const box = (x, y, w, h) => `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;box-sizing:border-box;`;
     const center = 'display:flex;align-items:center;justify-content:center;';
     const lbl = (label, ink, size, spacing) => ({ hasLabel: true, label, labelStyle: `font:700 ${r1(size)}px/1 'Space Grotesk',sans-serif;letter-spacing:${spacing || '.04em'};color:${ink};white-space:nowrap` });
@@ -531,6 +534,17 @@ const OE = (() => {
     // How the last item looks, for the OpenEmux-format templates (build.py --templates): its group, label, shape and
     // colour parts. The Delta packages leave it out.
     const look = (l) => { items[items.length - 1].look = l; };
+    // What the last item's image covers, when it is more than its frame: the box around the shape turned by [rot]
+    // degrees, and the relief [d] units under it. The packages cut the element's image there, so it holds the whole
+    // control and nothing of it is left in the background.
+    const art = (x, y, w, h, d, rot) => {
+      const t = (rot || 0) * Math.PI / 180, c = Math.abs(Math.cos(t)), s = Math.abs(Math.sin(t));
+      const bw = w * c + h * s, bh = w * s + h * c, cx = x + w / 2, cy = y + h / 2;
+      items[items.length - 1].art = { x: r1(cx - bw / 2), y: r1(cy - bh / 2), width: r1(bw), height: r1(bh + d) };
+    };
+    // A label printed beside the last item (under a centre key, under a face button): where its centre is from the
+    // centre of the item's art, and its type size, both in units.
+    const beside = (x, y, w, h, d, cx, cy, size) => ({ labelOffset: { x: r1(cx - (x + w / 2)), y: r1(cy - (y + (h + d) / 2)) }, labelSize: r1(size), labelBeside: true });
     const icon = (d, stroke, size, fill, width) => ({ hasIcon: true, icon: d, iconStroke: stroke, iconFill: fill || 'none', iconWidth: width == null ? 1.8 : width, iconStyle: `width:${size}px;height:${size}px;display:block` });
 
     // Body: matte plastic, lit from above; translucent and glossy shells get their own sheen.
@@ -566,13 +580,17 @@ const OE = (() => {
     const bw = cols * sw + 2 * pad, bh = rows * sh + pad + chin;
     const bx = (W - bw) / 2;
     const by = port ? m : (H - bh) / 2;
-    add(box(bx, by, bw, bh) + `border-radius:${tab ? 16 : 10}px;background:${S.bezel};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.06)}, 0 1px 0 ${alpha('#ffffff', S.dark ? 0.05 : 0.2)};`);
+    const bezelRadius = tab ? 16 : 10;
+    kind = 'frame';
+    add(box(bx, by, bw, bh) + `border-radius:${bezelRadius}px;background:${S.bezel};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.06)}, 0 1px 0 ${alpha('#ffffff', S.dark ? 0.05 : 0.2)};`);
+    kind = 'screen';
     for (let i = 0; i < rows * cols; i++) {
       const sx = bx + pad + (i % cols) * sw, sy = by + pad + Math.floor(i / cols) * sh;
       screens.push({ x: r1(sx), y: r1(sy), width: r1(sw), height: r1(sh) });
       add(box(sx, sy, sw, sh) + center + `border-radius:2px;background:#0B0C0E;`,
         opts.export ? {} : lbl(S.res, 'rgba(255,255,255,.28)', tab ? 14 : 11, '.12em'));
     }
+    kind = 'body';
 
     // The chin: save, load, turbo, fast forward, and on the NDS the screens key (its input is the app's own name,
     // which steps to the next layout's art; other emulators ignore it). The consoles whose skins were Delta/Manic
@@ -600,12 +618,16 @@ const OE = (() => {
         list.forEach((s, i) => {
           const x = left ? x0 + i * (w + g) : x1 - (list.length - i) * (w + g) + g;
           const rad = left ? `${h / 2}px ${h / 3}px ${h / 3}px ${h / 3}px` : `${h / 3}px ${h / 2}px ${h / 3}px ${h / 3}px`;
+          const d = 3, edge = darken(S.shoulder, 0.35), size = tab ? 16 : 13;
           own();
-          add(box(x, y, w, h) + center + `border-radius:${rad};background:linear-gradient(180deg, ${lighten(S.shoulder, 0.12)}, ${darken(S.shoulder, 0.08)});box-shadow:0 3px 0 ${darken(S.shoulder, 0.35)}, 0 6px 10px rgba(0,0,0,.25);`,
-            lbl(s.label, S.shoulderInk, tab ? 16 : 13));
+          add(box(x, y + d, w, h) + `border-radius:${rad};background:${edge};`);
+          add(box(x, y, w, h) + center + `border-radius:${rad};background:linear-gradient(180deg, ${lighten(S.shoulder, 0.12)}, ${darken(S.shoulder, 0.08)});`,
+            lbl(s.label, S.shoulderInk, size));
           item([s.input], x, y, w, h, left ? { top: 10, left: 12 } : { top: 10, right: 12 });
+          art(x, y, w, h, d);
           owner = null;
-          look({ group: left ? 'shoulders-left' : 'shoulders-right', label: s.label, shape: 'rect', colors: { button: S.shoulder, letter: S.shoulderInk } });
+          look({ group: left ? 'shoulders-left' : 'shoulders-right', label: s.label, shape: 'rect', radius: Math.round(h / 3 * 10) / 10, depth: d, labelSize: size,
+            colors: { button: S.shoulder, relief: edge, letter: S.shoulderInk } });
         });
       };
       draw(S.shoulders[0], l0, l1, true);
@@ -617,7 +639,7 @@ const OE = (() => {
       add(box(x, y, w, h) + center + `border-radius:${h / 2}px;background:${S.bar};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.08)};`, icon(ICON.menu, S.barIcon, tab ? 22 : 18, 'none', 2));
       item(['menu'], x, y, w, h);
       owner = null;
-      look({ group: 'menu', label: 'MENU', shape: 'pill', colors: { button: S.bar, letter: S.barIcon } });
+      look({ group: 'menu', label: '☰', shape: 'pill', labelSize: tab ? 22 : 18, colors: { button: S.bar, letter: S.barIcon } });
     }
 
     /** [spec]: a second D-pad's bind (dpad2) and inputs; the D-pad's own when left out. */
@@ -627,9 +649,9 @@ const OE = (() => {
       // The relief goes under the whole cross: both arms' edges first, then both faces over them,
       // so no edge shows across the middle.
       const rad = `border-radius:${t * 0.22}px;`;
-      const edge = rad + `background:${darken(c, 0.45)};box-shadow:0 8px 14px rgba(0,0,0,.3);`;
-      add(box(cx - t / 2, y0 + 4, t, size) + edge);
-      add(box(x0, cy - t / 2 + 4, size, t) + edge);
+      const depth = 4, edge = rad + `background:${darken(c, 0.45)};`;
+      add(box(cx - t / 2, y0 + depth, t, size) + edge);
+      add(box(x0, cy - t / 2 + depth, size, t) + edge);
       const face = rad + `background:${lighten(c, 0.05)};`;
       add(box(cx - t / 2, y0, t, size) + face);
       add(box(x0, cy - t / 2, size, t) + face);
@@ -642,10 +664,11 @@ const OE = (() => {
       const travel = size * DPAD_KNOB.travel;
       if (!opts.export) knobParts(S, size * DPAD_KNOB.radius * 2, size).forEach((k) => add(box(cx - travel, cy - travel, 2 * travel, 2 * travel) + k.style));
       item((spec && spec.inputs) || { up: 'up', down: 'down', left: 'left', right: 'right' }, x0, y0, size, size, { top: 12, bottom: 12, left: 12, right: 12 });
+      art(x0, y0, size, size, depth);
       owner = null;
       items[items.length - 1].knob = DPAD_KNOB.image;
       if (spec && spec.bind) items[items.length - 1].dpad = spec.bind;
-      look({ group: 'dpad', colors: { pad: S.dpad, ball: S.dpadMark } });
+      look({ group: 'dpad', depth, colors: { pad: lighten(c, 0.05), ball: S.dpadMark, relief: darken(c, 0.45), letter: S.dpadMark } });
     }
 
     // The knob is not painted into the art: it is an image of its own (the item's thumbstick), the size of
@@ -677,20 +700,28 @@ const OE = (() => {
       const ink = (f.inks && f.inks[key]) || (!S.dark && b.ink) || f.ink || '#FFFFFF';
       const w = b.w * k, h = (b.h || b.w) * k, x = cx + b.dx * k - w / 2, y = cy + b.dy * k - h / 2;
       const radius = b.shape === 'square' ? `${Math.min(w, h) * 0.24}px` : (b.shape === 'pill' ? `${Math.min(w, h) / 2}px` : '50%');
-      let style = box(x, y, w, h) + center + (b.rot ? `transform:rotate(${b.rot}deg);` : '') +
-        `border-radius:${radius};background:radial-gradient(circle at 38% 30%, ${lighten(c, 0.22)} 0%, ${c} 55%, ${darken(c, 0.14)} 100%);box-shadow:0 ${r1(3 * k)}px 0 ${darken(c, 0.42)}, 0 ${r1(7 * k)}px ${r1(12 * k)}px rgba(0,0,0,.32);`;
-      let extra = {};
-      if (b.symbol) extra = icon(ICON[b.symbol], f.symColor || PS_SYM[b.symbol], r1(Math.min(w, h) * 0.52), 'none', 2.2);
-      else if (b.arrow != null) { extra = icon(ICON.arrow, 'none', r1(w * 0.46), ink, 0); extra.iconStyle += `;transform:rotate(${b.arrow}deg)`; }
-      else if (b.label && S.labelPos !== 'below') extra = lbl(b.label, ink, Math.max(11, Math.min(w, h) * (b.fs || 0.36)));
+      // The relief is a part of its own, straight under the key whichever way the key is turned; no soft shadow.
+      const d = r1(3 * k), edge = darken(c, 0.42), turn = b.rot ? `transform:rotate(${b.rot}deg);` : '';
+      let style = box(x, y, w, h) + center + turn +
+        `border-radius:${radius};background:radial-gradient(circle at 38% 30%, ${lighten(c, 0.22)} 0%, ${c} 55%, ${darken(c, 0.14)} 100%);`;
+      let extra = {}, mark = ink, size = Math.max(11, Math.min(w, h) * (b.fs || 0.36));
+      const below = !!(b.label && S.labelPos === 'below');
+      if (b.symbol) { mark = f.symColor || PS_SYM[b.symbol]; size = r1(Math.min(w, h) * 0.52); extra = icon(ICON[b.symbol], mark, size, 'none', 2.2); }
+      else if (b.arrow != null) { size = r1(w * 0.46); extra = icon(ICON.arrow, 'none', size, ink, 0); extra.iconStyle += `;transform:rotate(${b.arrow}deg)`; }
+      else if (b.label && !below) extra = lbl(b.label, ink, size);
       own();
+      add(box(x, y + d, w, h) + turn + `border-radius:${radius};background:${edge};`);
       add(style, extra);
       owner = null;
-      if (b.label && S.labelPos === 'below') add(box(x - 10, y + h + 6 * k, w + 20, 16 * k) + center, lbl(b.label, S.labelInk, 14 * k));
+      if (below) { kind = 'label'; add(box(x - 10, y + h + 6 * k, w + 20, 16 * k) + center, lbl(b.label, S.labelInk, 14 * k)); kind = 'body'; }
       item([b.input], x, y, w, h);
+      art(x, y, w, h, d, b.rot);
       const text = b.symbol ? { tri: '△', circle: '○', cross: '✕', square: '□' }[b.symbol]
         : (b.arrow != null ? { 0: '▲', 90: '▶', 180: '▼', 270: '◀' }[b.arrow] : b.label);
-      look({ group: 'face', label: text, shape: b.shape === 'square' ? 'rect' : (b.shape || 'circle'), colors: { button: c, letter: ink } });
+      const shape = b.shape === 'square' ? 'rect' : (b.shape || 'circle');
+      look(Object.assign({ group: 'face', label: text, shape, depth: d, rotation: b.rot || undefined, radius: shape === 'rect' ? r1(Math.min(w, h) * 0.24) : undefined,
+        labelSize: r1(below ? 14 * k : size), colors: { button: c, relief: edge, letter: below ? S.labelInk : mark } },
+        below ? beside(x, y, w, h, d, x + w / 2, y + h + 14 * k, 14 * k) : {}));
     }
 
     /**
@@ -741,24 +772,35 @@ const OE = (() => {
         const x = x0 + c * (kw + g), y = y0 + r * (kh + g);
         const label = key === 'star' ? K.star : key === 'hash' ? K.hash : key;
         const input = 'keypad' + (key === 'star' ? 'Star' : key === 'hash' ? 'Hash' : key);
+        const d = r1(2.5 * kh / 46), edge = darken(K.color, 0.45), corner = r1(Math.min(kw, kh) * 0.2);
+        const size = Math.min(kw, kh) * (label.length > 1 ? 0.3 : 0.42);
         own();
-        add(box(x, y, kw, kh) + center + `border-radius:${r1(Math.min(kw, kh) * 0.2)}px;background:linear-gradient(180deg, ${lighten(K.color, 0.1)}, ${K.color});box-shadow:0 ${r1(2.5 * kh / 46)}px 0 ${darken(K.color, 0.45)};`,
-          lbl(label, K.ink, Math.min(kw, kh) * (label.length > 1 ? 0.3 : 0.42)));
+        add(box(x, y + d, kw, kh) + `border-radius:${corner}px;background:${edge};`);
+        add(box(x, y, kw, kh) + center + `border-radius:${corner}px;background:linear-gradient(180deg, ${lighten(K.color, 0.1)}, ${K.color});`,
+          lbl(label, K.ink, size));
         item([input], x, y, kw, kh);
+        art(x, y, kw, kh, d);
         owner = null;
-        look({ group: 'keypad', label, shape: 'rect', colors: { button: K.color, letter: K.ink } });
+        look({ group: 'keypad', label, shape: 'rect', radius: corner, depth: d, labelSize: r1(size), colors: { button: K.color, relief: edge, letter: K.ink } });
       }));
     }
 
     function centerKey(c, cx, cy) {
       if (kpOpen && c.keypadLabel) c = Object.assign({}, c, { label: c.keypadLabel });
       const w = tab ? 66 : 54, h = tab ? 22 : 18;
+      const d = 2, edge = darken(S.pill, 0.4), turn = S.pillRot ? `transform:rotate(${S.pillRot}deg);` : '', size = tab ? 12 : 10;
+      const x = cx - w / 2, y = cy - h / 2;
       own();
-      add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
+      add(box(x, y + d, w, h) + `border-radius:${h / 2}px;background:${edge};` + turn);
+      add(box(x, y, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});` + turn);
       owner = null;
-      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, tab ? 12 : 10, '.14em'));
-      item([c.input], cx - w / 2, cy - h / 2, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
-      look({ group: 'center', label: c.label, shape: 'pill', colors: { button: S.pill, letter: S.centerInk || S.labelInk } });
+      kind = 'label';
+      add(box(cx - 50, cy + h / 2 + 7, 100, 14) + center, lbl(c.label, S.centerInk || S.labelInk, size, '.14em'));
+      kind = 'body';
+      item([c.input], x, y, w, h, { top: 8, bottom: 18, left: 8, right: 8 });
+      art(x, y, w, h, d, S.pillRot);
+      look(Object.assign({ group: 'center', label: c.label, shape: 'pill', depth: d, rotation: S.pillRot || undefined,
+        colors: { button: S.pill, relief: edge, letter: S.centerInk || S.labelInk } }, beside(x, y, w, h, d, cx, cy + h / 2 + 14, size)));
     }
 
     function brand(cx, cy) {
@@ -819,7 +861,7 @@ const OE = (() => {
     }
 
     // The bezel and the page's colours, for the templates too.
-    const frame = { x: r1(bx), y: r1(by), width: r1(bw), height: r1(bh) };
+    const frame = { x: r1(bx), y: r1(by), width: r1(bw), height: r1(bh), radius: bezelRadius };
     const colors = { body: S.body, bezel: S.bezel, icons: S.chinIcon || alpha('#ffffff', 0.7) };
     return { W, H, parts, items, screens, knobs, name: S.name, aspect: S.aspect, frame, colors };
   }

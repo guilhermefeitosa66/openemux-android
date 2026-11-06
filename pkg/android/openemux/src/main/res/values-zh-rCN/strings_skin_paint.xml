@@ -3,21 +3,17 @@
 <resources>
     <string name="editor_colour">颜色</string>
     <string name="editor_texture">纹理</string>
-    <string name="editor_paint">上色部位</string>
-    <string name="editor_part_background">背景</string>
+    <string name="editor_part_background">机身</string>
     <string name="editor_part_frame">边框</string>
     <string name="editor_part_icons">图标</string>
     <string name="editor_part_active">开启</string>
     <string name="editor_part_button">按钮</string>
-    <string name="editor_part_letter">字母</string>
+    <string name="editor_part_relief">浮雕</string>
+    <string name="editor_part_letter">标签</string>
     <string name="editor_part_pad">方向键</string>
     <string name="editor_part_ball">球</string>
     <string name="editor_part_base">底座</string>
     <string name="editor_part_knob">摇杆头</string>
-    <string name="editor_apply_one">此控件</string>
-    <string name="editor_apply_all_buttons">所有按钮</string>
-    <string name="editor_apply_all_dpads">所有方向键</string>
-    <string name="editor_apply_all_sticks">所有摇杆</string>
     <string name="editor_palettes">调色板</string>
     <string name="editor_palettes_hint">设为颜色行</string>
     <string name="editor_palette_in_row">✓ 已在颜色行中</string>
@@ -34,7 +30,7 @@
     <string name="editor_recent">最近使用</string>
     <string name="editor_saturation">饱和度和亮度</string>
     <string name="editor_hue">色相</string>
-    <string name="editor_contrast_letter">对比度低：字母可能难以看清。</string>
+    <string name="editor_contrast_letter">对比度低：标签可能难以看清。</string>
     <string name="editor_contrast_icons">对比度低：边框上的图标可能难以看清。</string>
     <string name="editor_contrast_active">对比度低：操作开启时图标可能难以看清。</string>
     <string name="editor_replaces_image">在此选择颜色会替换该部位的图片。</string>
@@ -43,7 +39,7 @@
     <string name="editor_dark">深色</string>
     <string name="editor_active_note">关闭：图标颜色。\n开启（连发、快进）：此背景。</string>
     <string name="editor_paint_editing">正在编辑</string>
-    <string name="editor_background">背景</string>
+    <string name="editor_background">机身</string>
     <string name="editor_screen_frame">屏幕边框</string>
     <string name="editor_choose_image">选择图片</string>
     <string name="editor_choose_another">换一张</string>

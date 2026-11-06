@@ -126,6 +126,63 @@ class SkinStorePaintTest {
         assertFalse(File(dir, "phone-portrait/b.png").exists())
     }
 
+    /** The player's skin with A and B kept as WebP, as a copy of a bundled colour variant has them (issue 806). */
+    private fun ownWebp(id: String = "mine"): File = own(id).also { dir ->
+        File(dir, "phone-portrait/a.png").delete()
+        listOf("a", "b").forEach { File(dir, "phone-portrait/$it.webp").writeBytes(byteArrayOf(2)) }
+    }
+
+    private fun images(dir: File) = File(dir, "phone-portrait").list()!!.sorted()
+
+    @Test fun aTextureOrARemovalTakesTheWebpTheSkinKeptTheImageIn() {
+        val dir = ownWebp()
+        val t = store.stageTexture(Console.SFC, "mine", byteArrayOf(5, 6))
+        store.saveEdits(Console.SFC, "mine", json, mapOf("phone-portrait/b.png" to SkinImageEdit.Staged(t), "phone-portrait/a.png" to SkinImageEdit.Removed))
+        // The texture is a PNG: B's WebP would make it two files for one image; A is gone in the form it was in.
+        assertEquals(listOf("b.png"), images(dir))
+        assertArrayEquals(byteArrayOf(5, 6), File(dir, "phone-portrait/b.png").readBytes())
+        // One file per image: the skin still reads, and draws the texture.
+        assertEquals("phone-portrait/b.png", SkinFormat.readFolder(dir).image(SkinLayoutId.PHONE_PORTRAIT, "b.png"))
+    }
+
+    @Test fun anImageNoEditNamesKeepsItsWebp() {
+        val dir = ownWebp()
+        val t = store.stageTexture(Console.SFC, "mine", byteArrayOf(5, 6))
+        store.saveEdits(Console.SFC, "mine", json, mapOf("phone-portrait/b.png" to SkinImageEdit.Staged(t)))
+        assertEquals(listOf("a.webp", "b.png"), images(dir))
+        // A save that fails before the images are placed takes nothing away.
+        val other = ownWebp("other")
+        val missing = mapOf("phone-portrait/b.png" to SkinImageEdit.Staged("t-" + "0".repeat(32) + ".png"), "phone-portrait/a.png" to SkinImageEdit.Removed)
+        assertThrows(IOException::class.java) { store.saveEdits(Console.SFC, "other", json, missing) }
+        assertEquals(listOf("a.webp", "b.webp"), images(other))
+    }
+
+    @Test fun saveAsNewGivesTheCopyOneFilePerImageAndLeavesTheOriginalsWebp() {
+        val dir = ownWebp()
+        val t = store.stageTexture(Console.SFC, "mine", byteArrayOf(8))
+        val ref = store.saveAsNew(Console.SFC, "mine", json, "Painted", mapOf("phone-portrait/b.png" to SkinImageEdit.Staged(t), "phone-portrait/a.png" to SkinImageEdit.Removed))
+        val copy = File(store.root(Console.SFC), ref.removePrefix("own:"))
+        assertEquals(listOf("b.png"), images(copy))
+        assertArrayEquals(byteArrayOf(8), File(copy, "phone-portrait/b.png").readBytes())
+        assertEquals(listOf("a.webp", "b.webp"), images(dir))
+        SkinFormat.readFolder(copy)
+    }
+
+    @Test fun aLinkWhereTheWebpWouldBeIsTakenAwayNotFollowed() {
+        val dir = own()
+        val outside = Files.createTempDirectory("outside").toFile()
+        try {
+            File(outside, "b.webp").writeBytes(byteArrayOf(1))
+            Files.createSymbolicLink(File(dir, "phone-portrait/b.webp").toPath(), File(outside, "b.webp").toPath())
+            val t = store.stageTexture(Console.SFC, "mine", byteArrayOf(5))
+            store.saveEdits(Console.SFC, "mine", json, mapOf("phone-portrait/b.png" to SkinImageEdit.Staged(t)))
+            assertEquals(listOf("a.png", "b.png"), images(dir))
+            assertTrue(File(outside, "b.webp").exists())
+        } finally {
+            outside.deleteRecursively()
+        }
+    }
+
     @Test fun aDraftKeepsItsImageEditsAndTheStagedTexturesStayHidden() {
         own()
         val t = store.stageTexture(Console.SFC, "mine", byteArrayOf(9))
