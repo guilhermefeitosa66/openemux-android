@@ -15,6 +15,10 @@ private val SkinRect.cy get() = y + height / 2f
 private val SkinRect.right get() = x + width
 private val SkinRect.bottom get() = y + height
 
+/** Whether ([px], [py]) is inside the rect, or within [slop] of it. */
+private fun SkinRect.holds(px: Float, py: Float, slop: Float = 0f) =
+    px >= x - slop && px <= right + slop && py >= y - slop && py <= bottom + slop
+
 /** The alignment grid the editor shows and snaps to. */
 object SkinGrid {
     /** Grid cells across the layout's short side: 22 px on a 390-wide phone, as in the design. */
@@ -179,8 +183,6 @@ object SkinArea {
         add(FRAME)
         layout.elements.filter { it.type == SkinElementType.ACTION && frame.holds(it.rect.cx, it.rect.cy) }.forEach { add(it.id) }
     }
-
-    private fun SkinRect.holds(px: Float, py: Float) = px >= x && px <= right && py >= y && py <= bottom
 }
 
 /** What the editor has selected: a whole group (the face buttons), one control, or the screen area. */
@@ -376,6 +378,8 @@ class SkinEditorModel(
             cancelGesture()
             selection = null
             pressed = null
+            // The presses Try mode remembers name controls of the layout left.
+            recent = emptyList()
         }
         layoutId = next
     }
@@ -421,12 +425,9 @@ class SkinEditorModel(
         val l = layout ?: return null
         (selection as? SkinSelection.Screen)?.let { sel ->
             val box = SkinSnap.bounds(sel.ids.mapNotNull { current()[it] })
-            if (x >= box.x && x <= box.right && y >= box.y && y <= box.bottom) return sel.ids.first()
+            if (box.holds(x, y)) return sel.ids.first()
         }
-        return l.elements.lastOrNull { e ->
-            val r = e.rect
-            x >= r.x - slop && x <= r.right + slop && y >= r.y - slop && y <= r.bottom + slop
-        }?.id
+        return l.elements.lastOrNull { it.rect.holds(x, y, slop) }?.id
     }
 
     fun tap(id: String) {

@@ -94,7 +94,6 @@ import com.openemux.mobile.data.SkinPanels
 import com.openemux.mobile.data.SkinTry
 import com.openemux.mobile.data.TryWord
 import com.openemux.mobile.data.Library
-import com.openemux.mobile.data.SkinEditJson
 import com.openemux.mobile.data.SkinEditorModel
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
@@ -374,11 +373,12 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         if (!commit || busy) return
         val m = model ?: return
         val json = loaded?.json ?: return
-        val edits = if (m.dirty) m.edits() else null
+        // m.json, not the rect edits alone: a form switched on or off in the Layouts panel is part of the draft too.
+        val text = if (m.dirty) m.json(json) else null
         scope.launch(Dispatchers.IO) {
             drafts.withLock {
                 runCatching {
-                    if (edits != null) store.saveDraft(console, target.id, SkinEditJson.patch(json, edits)) else store.dropDraft(console, target.id)
+                    if (text != null) store.saveDraft(console, target.id, text) else store.dropDraft(console, target.id)
                 }
             }
         }
@@ -476,13 +476,15 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         ),
         l1 = { if (m?.trying == true) m.tryStep(-1) else m?.step(-1); changed() },
         r1 = { if (m?.trying == true) m.tryStep(1) else m?.step(1); changed() },
-        l2 = { m?.sizeStep(-1); changed(commit = true) },
-        r2 = { m?.sizeStep(1); changed(commit = true) },
+        // Try mode moves nothing: the buttons that would edit the layout rest until it ends.
+        l2 = { if (m?.trying != true) { m?.sizeStep(-1); changed(commit = true) } },
+        r2 = { if (m?.trying != true) { m?.sizeStep(1); changed(commit = true) } },
         x = { m?.toggle(); changed() },
         y = { m?.let { it.snap = !it.snap }; changed() },
-        select = { m?.undo(); changed(commit = true) },
+        select = { if (m?.trying != true) { m?.undo(); changed(commit = true) } },
         start = { if (m?.dirty == true) save(andClose = false) },
-        enabled = !leaving && !naming && dropping == null,
+        // The Layouts panel covers the stage: the stage's buttons rest while it is open, as the D-pad nudge does.
+        enabled = !leaving && !naming && dropping == null && !layoutsOpen,
     )
 
     Box(
