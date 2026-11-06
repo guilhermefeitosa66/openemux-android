@@ -80,6 +80,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Library
+import com.openemux.mobile.data.SkinEditJson
 import com.openemux.mobile.data.SkinEditorModel
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
@@ -272,13 +273,16 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     /** The model changed; with [commit], the draft on disk follows it. */
     fun changed(commit: Boolean = false) {
         tick++
-        if (!commit) return
+        // While a save runs, a draft queued behind it would outlive the save it raced and come back on the next Edit.
+        if (!commit || busy) return
         val m = model ?: return
         val json = loaded?.json ?: return
-        val text = if (m.dirty) m.json(json) else null
+        val edits = if (m.dirty) m.edits() else null
         scope.launch(Dispatchers.IO) {
             drafts.withLock {
-                runCatching { if (text != null) store.saveDraft(console, target.id, text) else store.dropDraft(console, target.id) }
+                runCatching {
+                    if (edits != null) store.saveDraft(console, target.id, SkinEditJson.patch(json, edits)) else store.dropDraft(console, target.id)
+                }
             }
         }
     }
@@ -322,7 +326,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             onChanged()
             val (pkg, json) = reread.getOrNull() ?: return@launch onClose()
             loaded = Loaded(pkg, json)
-            model = SkinEditorModel(pkg.skin).also { it.show(form, orientation) }
+            model = SkinEditorModel(pkg.skin).also { it.snap = m.snap; it.show(form, orientation) }
             art = null
         }
     }
@@ -330,6 +334,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     fun saveAsNew(name: String) {
         val m = model ?: return
         val l = loaded ?: return
+        if (busy) return
         val text = m.json(l.json)
         busy = true
         scope.launch {

@@ -174,13 +174,7 @@ class SkinStore(private val base: File) {
      */
     fun saveDraft(console: Console, id: String, json: String) {
         own(console, id)
-        val file = draftFile(console, id)
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        writeSynced(tmp, json)
-        if (!tmp.renameTo(file)) {
-            tmp.delete()
-            throw IOException("could not write the draft of $id")
-        }
+        writeAtomic(draftFile(console, id), json)
     }
 
     /** The draft of the player's skin [id], or null for none; one that no longer reads as a skin for [console] goes. */
@@ -264,6 +258,8 @@ class SkinStore(private val base: File) {
                     throw IOException("could not replace $id")
                 }
                 deleteTree(aside)
+                // The replaced skin's unsaved editor work no longer matches it (issue 784).
+                dropDraft(console, id)
             }
         } finally {
             deleteTree(tmp)
@@ -353,9 +349,11 @@ class SkinStore(private val base: File) {
     private fun withName(json: String, name: String): String =
         JSONObject(json.removePrefix("\uFEFF")).put("name", name).toString(2) + "\n"
 
-    private fun writeJson(dir: File, text: String) {
-        val target = File(dir, SkinFormat.SKIN_JSON)
-        val tmp = File(dir, SkinFormat.SKIN_JSON + ".tmp")
+    private fun writeJson(dir: File, text: String) = writeAtomic(File(dir, SkinFormat.SKIN_JSON), text)
+
+    /** [text] written beside [target], synced, then renamed over it: never a half-written [target]. */
+    private fun writeAtomic(target: File, text: String) {
+        val tmp = File(target.parentFile, target.name + ".tmp")
         writeSynced(tmp, text)
         if (!tmp.renameTo(target)) {
             tmp.delete()

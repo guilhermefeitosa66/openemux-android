@@ -6,6 +6,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -222,6 +223,14 @@ class SkinImportTest {
         assertArrayEquals(IMG_B, File(old, "phone-landscape/frame.png").readBytes())
         assertFalse(File(old, "phone-portrait/stale.png").exists())
         assertEquals(emptyList<String>(), leftovers())
+    }
+
+    @Test fun replacingASkinDropsItsEditorDraft() {
+        val dir = own("mine")
+        store.saveDraft(Console.SFC, "mine", File(dir, SkinFormat.SKIN_JSON).readText())
+        store.importOwn(Console.SFC, skinZip(), null, replace = "mine")
+        assertNull(store.draft(Console.SFC, "mine"))
+        assertFalse(File(store.root(Console.SFC), ".mine.draft.json").exists())
     }
 
     @Test fun replacingABrokenSkinTakesTheZipsName() {
