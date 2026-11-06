@@ -501,7 +501,8 @@ class SkinEditorModel(
         val from = gestureFrom ?: return
         val id = layoutId ?: return
         val size = base(id).size
-        val others = history.current.getValue(id).filterKeys { it !in from }
+        // Controls snap to controls only: the screens and the frame are not targets (as before issue 785).
+        val others = history.current.getValue(id).filterKeys { it !in from && !SkinArea.isArea(it) }
         val result = SkinSnap.move(SkinSnap.bounds(from.values), others, size, dx, dy, snap && !free)
         guides = result.guides
         live = withLayout(id, from.mapValues { (_, r) -> r.copy(x = r.x + result.dx, y = r.y + result.dy) })

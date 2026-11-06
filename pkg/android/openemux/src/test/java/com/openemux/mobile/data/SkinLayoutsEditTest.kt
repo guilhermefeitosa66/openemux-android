@@ -139,6 +139,15 @@ class SkinLayoutsEditTest {
         assertTrue(m.selection is SkinSelection.Group)
     }
 
+    @Test fun controlsDoNotSnapToTheScreenOrTheFrame() {
+        val m = model()
+        m.beginMove("a")
+        // Near the frame's bottom edge (720) and nothing else: no guide.
+        m.moveBy(0f, 720f - 1250f + 3f)
+        assertTrue(m.guides.none { it.other?.let(SkinArea::isArea) == true })
+        m.cancelGesture()
+    }
+
     @Test fun theScreenAreaNeedsALayoutWithAScreen() {
         val m = model()
         m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
@@ -257,6 +266,7 @@ class SkinLayoutsEditTest {
         assertEquals(listOf("a", "b", "a"), m.recent)
         m.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE)
         assertNull(m.pressed)
+        assertTrue(m.recent.isEmpty())
         m.tryMode(false)
         assertFalse(m.trying)
         assertTrue(m.recent.isEmpty())
