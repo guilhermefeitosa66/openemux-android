@@ -158,7 +158,6 @@ internal fun elementName(element: SkinElement, res: (Int) -> String): String =
         else -> element.id.uppercase()
     }
 
-/** What a guide line says it snapped to. */
 /**
  * The stage's subtitle: the layout being edited ([layout], "Phone · Portrait") and, on an NDS skin with screen-layout
  * pages, the page shown ([page], the layout itself: the screens one over the other), joined by [join]. The editor edits
@@ -167,6 +166,7 @@ internal fun elementName(element: SkinElement, res: (Int) -> String): String =
 internal fun editorSubtitle(layout: String, page: String?, join: (String, String) -> String): String =
     if (page == null) layout else join(layout, page)
 
+/** What a guide line says it snapped to. */
 internal fun guideText(guide: SnapGuide, other: String?, res: (Int, String?) -> String): String = when (guide.kind) {
     SnapKind.CENTER -> res(R.string.editor_guide_center, null)
     SnapKind.ALIGN -> res(R.string.editor_guide_align, other)
