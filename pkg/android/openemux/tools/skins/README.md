@@ -70,6 +70,10 @@ again) holds the `top`, `bottom` and `side` ones, each with its own art,
 screens and items, so the picture always takes the room the layout needs. Its
 chin has a fifth key, `screens`, which the app turns into the step to the next
 layout. The build stops when a screen would leave the art or cover a key.
+In OpenEmux's own format (issue 807) the same pages are each layout's
+`screenLayouts` (`screen_page`): `build_own` renders each one like a layout,
+with `render.html?screens=<page>`, into the layout's `top/`, `bottom/` and
+`side/` folders, and the DS template has them with placeholders.
 Intermediate images go to
 `build/skins/`. Needs Node, Google Chrome and ImageMagick.
 

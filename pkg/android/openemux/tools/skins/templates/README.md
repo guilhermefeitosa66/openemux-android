@@ -98,6 +98,7 @@ that element from its colours, shape and label in `skin.json` instead, so a skin
 | `stick-knob.png` | half the stick's side, square | the knob that moves with the thumb |
 | `keypad/background.png` | the layout's `size` | the keypad page, behind everything (consoles with a keypad) |
 | `keypad/<id>.png` | as above | the keypad page's controls: its keys, the toggle, the D-pad or stick, the quick actions |
+| `top/`, `bottom/`, `side/` | as above | the DS only: each screen-layout page's own `background.png`, `frame.png` and controls (below) |
 
 `<id>` is the element's `id` in `skin.json` (`a`, `start`, `l2`, `c-up`, `save`, `fast-forward`…): the file is
 named after it. The game's screens are left clear whatever the background has there. `README.txt` in each template
@@ -120,6 +121,17 @@ a layout. The keys are documented in [`docs/skin-format.md`](../../../docs/skin-
 
 Moving a control means changing its `x` and `y`, and resizing it its `width` and `height` (then repaint its image at
 the new size). A rect must stay inside its layout.
+
+### The DS's screen layouts
+
+The DS template's layouts each have three more pages under **`layouts.<id>.screenLayouts`**: `top` (the top screen
+only), `bottom` (the bottom screen only) and `side` (both, side by side). The layout itself is the default page,
+the two screens one over the other. In game the `screens` key steps through them, and the core shows the screens as
+the page does; the pause menu's screen layout switches to its page too. Each page has its own `screens` (one rect, or
+two for `side`), `background`, `frame` and `elements`, and its images are in the layout's folder of the page's id
+(`phone-portrait/side/a.png`), at the same sizes as the layout's. Keep a `screens` key on every page, or the player
+cannot step on. A skin with pages keeps all three in every layout (or drops `screenLayouts` altogether, and then the
+screens stay one over the other); the skin editor edits the default page and keeps the others as they are.
 
 ### Types and colour parts
 

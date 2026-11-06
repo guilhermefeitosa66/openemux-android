@@ -383,4 +383,15 @@ class SkinEditTest {
         assertEquals("A", a.getString("label"))
         assertFalse(out.getJSONObject("layouts").has("fold-portrait"))
     }
+
+    @Test fun patchKeepsAnNdsSkinsScreenLayoutPages() {
+        val two = listOf(SkinRect(0f, 0f, 450f, 350f), SkinRect(450f, 0f, 450f, 350f))
+        val pages = SkinScreenPage.SCREENS.mapValues { (_, n) -> SkinScreenPage(two.take(n), elements = listOf(a)) }
+        val ds = OpenEmuxSkin(Console.NDS, "DS", mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(screens = two, screenLayouts = pages)))
+        val out = SkinEditJson.patch(SkinFormat.toJson(ds), mapOf(SkinLayoutId.PHONE_PORTRAIT to mapOf("a" to SkinRect(100f, 1000f, 200f, 200f))))
+        val read = SkinFormat.parse(out).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        // The editor moves the layout's own controls; the pages are kept as they were.
+        assertEquals(SkinRect(100f, 1000f, 200f, 200f), read.elements.first { it.id == "a" }.rect)
+        assertEquals(pages, read.screenLayouts)
+    }
 }

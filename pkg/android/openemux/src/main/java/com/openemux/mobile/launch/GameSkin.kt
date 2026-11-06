@@ -52,11 +52,13 @@ object GameSkin {
         // the screens one over the other, which the package's own art draws.
         val packageNds = ndsLayouts?.takeIf { "desmume" in coreId.orEmpty() }
         val importer = ImportedSkinRenderer()
+        // Whether a skin in OpenEmux's own format drew one page per NDS screen layout.
+        var ownNds = false
         val user = SkinStore(base).file(console, custom)
         val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
         // A skin in OpenEmux's own format ([name]: its folder or zip), or null, logged, when it cannot be drawn here.
         fun ownFormatSkin(name: String, next: String, read: () -> SkinPackage) =
-            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold, coreId) }
+            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold, coreId, packageNds) { ownNds = it } }
                 .onFailure { e -> Log.e(OWN_TAG, "$name not drawn: falling back to the $next skin", e) }.getOrNull()
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
         val own = user?.takeIf { ownFormat }?.let { dir -> ownFormatSkin(dir.name, "bundled") { SkinFormat.readFolder(dir) } }
@@ -77,7 +79,7 @@ object GameSkin {
             }.onFailure { e -> Log.e("ImportedSkin", "falling back to the built-in skin", e) }.getOrNull()
         }
         if (packaged != null) {
-            val pages = packageNds?.takeIf { importer.wroteNdsLayouts }
+            val pages = packageNds?.takeIf { importer.wroteNdsLayouts || ownNds }
             // A package skin has no gamepad layout nor tabletop art: the drawn skin's go after its own.
             val file = runCatching {
                 SkinRenderer(context).render(
@@ -99,18 +101,22 @@ object GameSkin {
     /**
      * The skin [pkg] in OpenEmux's own format ([name]: its folder or zip) drawn for the window's form (the [fold]'s inner
      * screen, a [tablet] or a phone), or null, logged, when it has no layout for that form in either orientation.
+     * [ndsLayouts] draws its screen-layout pages when it has them; [wroteNds] hears whether it did.
      */
     private fun openEmux(
         context: Context, pkg: SkinPackage, name: String, console: Console, size: SkinSize, outDir: File, tablet: Boolean,
         hardcore: Boolean, first: String?, fold: Fold?, coreId: String?,
+        ndsLayouts: Pair<ScreenLayout, ScreenLayout>?, wroteNds: (Boolean) -> Unit,
     ): File? {
         return when (val choice = chooseLayouts(pkg.skin, skinForm(tablet, fold))) {
             is LayoutChoice.Missing -> {
                 Log.i(OWN_TAG, "$name has no ${choice.layout.id} layout: falling back")
                 null
             }
-            is LayoutChoice.Use ->
-                OpenEmuxSkinRenderer(context).render(pkg, choice, console, size.short, size.long, outDir, size.cutout, hardcore, first, coreId)
+            is LayoutChoice.Use -> OpenEmuxSkinRenderer(context).let { renderer ->
+                renderer.render(pkg, choice, console, size.short, size.long, outDir, size.cutout, hardcore, first, coreId, ndsLayouts, tablet)
+                    .also { wroteNds(renderer.wroteNdsLayouts) }
+            }
         }
     }
 }

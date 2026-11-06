@@ -4,6 +4,7 @@ import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinPackage
+import com.openemux.mobile.data.SkinScreenPage
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -183,5 +184,35 @@ class SkinTemplatesTest {
         // Creators download them from the repository; the APK carries only the bundled skins.
         val assets = File("src/main/assets").walkTopDown().filter { it.name.endsWith("-template.zip") }.toList()
         assertEquals(emptyList<File>(), assets)
+    }
+
+    /** Issue 807: the NDS template has every layout's screen-layout pages, each image there at its size. */
+    @Test fun theNdsTemplateHasEveryLayoutsScreenLayoutPages() {
+        val pkg = template("NDS")
+        for ((layoutId, layout) in pkg.skin.layouts) {
+            assertEquals(layoutId.id, SkinScreenPage.IDS, layout.screenLayouts.keys.toList())
+            for ((page, p) in layout.screenLayouts) {
+                val where = "${layoutId.id} $page"
+                assertEquals(where, layout.size.width to layout.size.height, pngSize(pkg, pkg.screenBackground(layoutId, page)!!))
+                assertEquals(where, p.frame!!.rect.width.toInt() to p.frame!!.rect.height.toInt(), pngSize(pkg, pkg.screenFrame(layoutId, page)!!))
+                assertEquals(where, SkinScreenPage.SCREENS.getValue(page), p.screens.size)
+                // The player can step on from every page.
+                assertTrue(where, p.elements.any { it.bind == "screens" })
+                for (e in p.elements) {
+                    pkg.screenImages(layoutId, page, e).forEach { path -> assertNotNull("$where ${e.id}", path) }
+                }
+                assertEquals(where, e0(pkg, layoutId, page).first, e0(pkg, layoutId, page).second)
+            }
+        }
+        // Played on a phone, both phone layouts have them: the game draws them.
+        assertTrue(ndsPages(pkg.skin, LayoutChoice.Use(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE)))
+        // No other template has any.
+        for (id in bundled().keys - "NDS") assertTrue(id, template(id).skin.layouts.values.all { it.screenLayouts.isEmpty() })
+    }
+
+    /** The first element's image size on [page], and the size its rect gives. */
+    private fun e0(pkg: SkinPackage, layoutId: SkinLayoutId, page: String): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+        val e = pkg.skin.layouts.getValue(layoutId).screenLayouts.getValue(page).elements.first { it.type == SkinElementType.BUTTON }
+        return pngSize(pkg, pkg.screenImages(layoutId, page, e)[0]!!) to (e.rect.width.toInt() to e.rect.height.toInt())
     }
 }

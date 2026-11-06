@@ -59,7 +59,8 @@ REPS = [("phone", "iphone", "edgeToEdge", 3), ("tablet", "ipad", "standard", 2)]
 # The D-pad's circle: one image per console, stretched by the app over each D-pad's travel square.
 KNOB_UNITS, KNOB_SCALE = 100, 4
 # Consoles with two screens get one art per screen layout. The base representation is the two one over the other
-# (what Delta draws); the others go under its "layouts", a key of the app's own that other emulators ignore.
+# (what Delta draws); the others go under its "layouts", a key of the app's own that other emulators ignore. In
+# OpenEmux's own format (issue 807) they are each layout's "screenLayouts" pages, in <layout>/<page>/ (screen_page).
 SCREEN_LAYOUTS = {"NDS": ["top", "bottom", "side"]}
 # The palettes whose art stays PNG: the console's own colours and Dark (issue 718). Every other variant is one
 # of the console's official colours (issue 720), its art in lossy WebP: quality 90 and the alpha lossless, so the
@@ -293,11 +294,22 @@ P_BODY, P_FRAME, P_KEY, P_LINE, P_INK, P_WELL, P_ACTION = "#E6E6E6", "#BDBDBD", 
 FONT = HERE / "SpaceGrotesk.ttf"
 
 
-def template_layout(console, device, orient, variant="console", keypad=False):
-    """The engine's layout of [console] on [device] in [orient] (its keypad page with [keypad]), with each item's look,
-    the bezel and the colours."""
+def template_layout(console, device, orient, variant="console", keypad=False, screens=None):
+    """The engine's layout of [console] on [device] in [orient] (its keypad page with [keypad], one of its screen
+    layouts with [screens]), with each item's look, the bezel and the colours."""
     return engine(f"OE.layout({json.dumps(console)},{json.dumps(device)},{json.dumps(orient)},"
-                  f"{{export:true,variant:{json.dumps(variant)},keypad:{json.dumps(keypad)}}})")
+                  f"{{export:true,variant:{json.dumps(variant)},keypad:{json.dumps(keypad)},screens:{json.dumps(screens)}||undefined}})")
+
+
+def screen_layouts(console, device, orient, variant="console", where=None):
+    """The engine's layout of each of [console]'s screen layouts (SCREEN_LAYOUTS), by page id; none for a console with
+    one screen. Each is checked as its layout is."""
+    pages = {}
+    for page in SCREEN_LAYOUTS.get(console, []):
+        P = template_layout(console, device, orient, variant, screens=page)
+        check_fit(P, f"{where or f'{console} {device} {orient}'} {page}")
+        pages[page] = P
+    return pages
 
 
 @functools.lru_cache(maxsize=None)
@@ -372,9 +384,9 @@ def element(it, scale, W, H, taken):
     return out
 
 
-def skin_layout(L, scale, K=None):
+def skin_layout(L, scale, K=None, S=None):
     """The format's layout from the engine's [L] at [scale] px per unit; [K], the engine's keypad page of the same
-    layout, adds the layout's keypad page."""
+    layout, adds the layout's keypad page; [S], the engine's screen layouts of it by page id, its screen-layout pages."""
     W, H = half_up(L["W"] * scale), half_up(L["H"] * scale)
     taken = set()
     out = {
@@ -387,8 +399,27 @@ def skin_layout(L, scale, K=None):
     }
     if K is not None:
         out["keypad"] = keypad_page(L, K, scale, W, H)
+    if S:
+        out["screenLayouts"] = {page: screen_page(L, P, scale, W, H) for page, P in S.items()}
     return out
 
+
+def screen_page(L, P, scale, W, H):
+    """One screen-layout page of a layout ([L]) from the engine's [P] (the same layout with the screens shown another
+    way): the same size, its own screens, bezel, controls and background, in <layout>/<page>/ (docs/skin-format.md)."""
+    if (P["W"], P["H"]) != (L["W"], L["H"]):
+        raise SystemExit(f"{L['name']}: a screen layout changes the layout's size")
+    taken = set()
+    return {"screens": [px_rect(s, scale, W, H) for s in P["screens"]],
+            "background": {"color": color(P["colors"]["body"])},
+            "frame": dict(px_rect(P["frame"], scale, W, H),
+                          colors={"frame": color(P["colors"]["bezel"]), "icons": color(P["colors"]["icons"])}),
+            "elements": [element(it, scale, W, H, taken) for it in P["items"]]}
+
+
+def page_layout(layout, page):
+    """Screen-layout page [page] of [layout] as a layout of its own: its size, screens, frame and controls."""
+    return dict(layout["screenLayouts"][page], size=layout["size"])
 
 def keypad_page(L, K, scale, W, H):
     """The keypad page of a layout ([L]) from the engine's [K]: the same size, screens and bezel, controls of its own,
@@ -400,15 +431,27 @@ def keypad_page(L, K, scale, W, H):
             "elements": [element(it, scale, W, H, taken) for it in K["items"]]}
 
 
-def images(layout, keypad=False):
+def images(layout, keypad=False, page=None):
     """Every image a layout's elements may have: file name, (width, height) in px, what it is, the element (or None).
-    With [keypad], its keypad page's: in its keypad/ folder, its own background and no frame (the layout's)."""
+    With [keypad], its keypad page's: in its keypad/ folder, its own background and no frame (the layout's). With
+    [page], that screen-layout page's: in its folder, its own background, frame and controls."""
+    if page:
+        P = page_layout(layout, page)
+        return [(f"{page}/background.png", (layout["size"]["width"], layout["size"]["height"]), f"the {page} page, behind everything", None),
+                (f"{page}/frame.png", (P["frame"]["width"], P["frame"]["height"]), f"the {page} page's bezel", None)] + \
+            element_images(P["elements"], f"{page}/")
     if keypad:
         out = [("keypad/background.png", (layout["size"]["width"], layout["size"]["height"]), "the keypad page, behind everything", None)]
         return out + element_images(layout["keypad"]["elements"], "keypad/")
     out = [("background.png", (layout["size"]["width"], layout["size"]["height"]), "the whole layout, behind everything", None),
            ("frame.png", (layout["frame"]["width"], layout["frame"]["height"]), "the bezel around the game screen", None)]
     return out + element_images(layout["elements"], "")
+
+
+def all_images(layout):
+    """Every image of a layout: its own, its keypad page's and its screen-layout pages'."""
+    return (images(layout) + (images(layout, True) if "keypad" in layout else [])
+            + [i for page in layout.get("screenLayouts", {}) for i in images(layout, page=page)])
 
 
 def element_images(elements, folder):
@@ -497,25 +540,28 @@ def placeholder(name, size, e, layout):
     return img.resize(size, Image.LANCZOS).quantize(64, method=Image.Quantize.FASTOCTREE)
 
 
-def layout_svg(layout_id, layout, keypad=False):
-    """One layout put together (its [keypad] page: that page's background and controls over the layout's frame): each
-    image a layer at its place, linked from the layout's folder, and a hidden guide layer with the screens, for
-    creators who paint the whole layout at once and export each layer to its file."""
+def layout_svg(layout_id, layout, keypad=False, page=None):
+    """One layout put together (its [keypad] page: that page's background and controls over the layout's frame; its
+    screen-layout [page]: that page's own): each image a layer at its place, linked from the layout's folder, and a
+    hidden guide layer with the screens, for creators who paint the whole layout at once and export each layer to its
+    file."""
     W, H = layout["size"]["width"], layout["size"]["height"]
+    shown = page_layout(layout, page) if page else layout
+    folder = f"{page}/" if page else ""
     def lay(name, body, hidden=False):
         style = ' style="display:none"' if hidden else ""
         return f'<g id="{name}" inkscape:groupmode="layer" inkscape:label="{name}"{style}>\n{body}</g>\n'
     def img(file, x, y, w, h):
         return f'  <image href="../{layout_id}/{file}" x="{x}" y="{y}" width="{w}" height="{h}"/>\n'
-    out = lay("background", img("keypad/background.png" if keypad else "background.png", 0, 0, W, H))
-    f = layout["frame"]
-    out += lay("frame", img("frame.png", f["x"], f["y"], f["width"], f["height"]))
-    for name, (w, h), _, e in images(layout, keypad)[1 if keypad else 2:]:
+    out = lay("background", img("keypad/background.png" if keypad else f"{folder}background.png", 0, 0, W, H))
+    f = shown["frame"]
+    out += lay("frame", img(f"{folder}frame.png", f["x"], f["y"], f["width"], f["height"]))
+    for name, (w, h), _, e in images(layout, keypad, page)[1 if keypad else 2:]:
         x = e["x"] + (e["width"] - w) / 2
         y = e["y"] + (e["height"] - h) / 2
         out += lay(name.rsplit("/", 1)[-1][:-4], img(name, n_(x), n_(y), w, h))
     guides = "".join(f'  <rect x="{s["x"]}" y="{s["y"]}" width="{s["width"]}" height="{s["height"]}" fill="none" '
-                     f'stroke="#3A7BD5" stroke-width="4" stroke-dasharray="12 8"/>\n' for s in layout["screens"])
+                     f'stroke="#3A7BD5" stroke-width="4" stroke-dasharray="12 8"/>\n' for s in shown["screens"])
     out += lay("screens", guides, hidden=True)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
             f'width="{W}" height="{H}" viewBox="0 0 {W} {H}">\n{out}</svg>\n')
@@ -545,7 +591,10 @@ def template_readme(console, name, skin):
         lines += [f"{layout_id}/  ({s['width']} x {s['height']} px)"]
         for sc in layout["screens"]:
             lines.append(f"  game screen at {sc['x']}, {sc['y']}, {sc['width']} x {sc['height']} px (left clear: nothing is drawn there)")
-        for file, (w, h), what, e in images(layout) + (images(layout, True) if "keypad" in layout else []):
+        for page, P in layout.get("screenLayouts", {}).items():
+            for sc in P["screens"]:
+                lines.append(f"  {page}/ game screen at {sc['x']}, {sc['y']}, {sc['width']} x {sc['height']} px (its screen-layout page)")
+        for file, (w, h), what, e in all_images(layout):
             bind = f", bind {e['bind']}" if e else ""
             lines.append(f"  {file:<22} {w:>5} x {h:<5} px  {what}{bind}")
         lines.append("")
@@ -568,8 +617,9 @@ def build_template(console):
         K = template_layout(console, device, orient, keypad=True) if has_keypad(console) else None
         if K is not None:
             check_fit(K, f"{console} template {device} {orient} keypad")
+        S = screen_layouts(console, device, orient, where=f"{console} template {device} {orient}")
         name = name or L["name"]
-        layouts[f"{device}-{orient}"] = skin_layout(L, TEMPLATE_SCALE[device], K)
+        layouts[f"{device}-{orient}"] = skin_layout(L, TEMPLATE_SCALE[device], K, S)
     skin = {"format": 1, "console": console, "name": f"{name} template", "forms": ["phone", "tablet", "fold"], "layouts": layouts}
     (folder / "sources").mkdir()
     for layout_id, layout in layouts.items():
@@ -581,6 +631,11 @@ def build_template(console):
                 placeholder(file, size, e, layout).save(folder / layout_id / file, optimize=True)
             svg = f"{layout_id}-keypad.svg" if kp else f"{layout_id}.svg"
             (folder / "sources" / svg).write_text(layout_svg(layout_id, layout, kp), encoding="utf-8")
+        for page in layout.get("screenLayouts", {}):
+            (folder / layout_id / page).mkdir()
+            for file, size, _, e in images(layout, page=page):
+                placeholder(file, size, e, page_layout(layout, page)).save(folder / layout_id / file, optimize=True)
+            (folder / "sources" / f"{layout_id}-{page}.svg").write_text(layout_svg(layout_id, layout, page=page), encoding="utf-8")
     # UTF-8 whatever the locale: the labels hold symbols (the PlayStation's, the N64's C arrows).
     (folder / "skin.json").write_text(skin_json(skin), encoding="utf-8")
     (folder / "README.txt").write_text(template_readme(console, name, skin), encoding="utf-8")
@@ -609,35 +664,43 @@ def own_layout(console, device, orient, variant, folder, profile, ball):
     element's rect, so drawn over the background it lands on the same pixels and a dimmed quick action is not drawn
     twice. frame.png is the bezel cut out of the background; the D-pad's ball the engine's circle at the ball's size,
     a stick's knob the engine's knob. A console with a keypad has its keypad page rendered the same way, into
-    [folder]/keypad/."""
+    [folder]/keypad/, and one with two screens each screen-layout page into [folder]/<page>/."""
     L = template_layout(console, device, orient, variant)
     K = template_layout(console, device, orient, variant, keypad=True) if has_keypad(console) else None
     where = f"{console} {variant} {device} {orient}"
     check_fit(L, where)
     if K is not None:
         check_fit(K, f"{where} keypad")
+    S = screen_layouts(console, device, orient, variant, where)
     # A variant changes colours only: the same frames, screens and knobs as the console's own skin.
     for kp in [False] + ([True] if K is not None else []):
         if variant != "console" and engine_layout(console, device, orient, variant=variant, keypad=kp) != engine_layout(console, device, orient, keypad=kp):
             raise SystemExit(f"{where}: the {'keypad page' if kp else 'layout'} differs from the console's own skin")
+    for page in S:
+        if variant != "console" and engine_layout(console, device, orient, page, variant) != engine_layout(console, device, orient, page):
+            raise SystemExit(f"{where}: the {page} page differs from the console's own skin")
     scale = TEMPLATE_SCALE[device]
-    layout = skin_layout(L, scale, K)
+    layout = skin_layout(L, scale, K, S)
     folder.mkdir(parents=True)
     own_page(console, device, orient, variant, folder, profile, ball, L, layout, scale, False)
     if K is not None:
         (folder / "keypad").mkdir()
         own_page(console, device, orient, variant, folder, profile, ball, K, layout, scale, True)
+    for page, P in S.items():
+        (folder / page).mkdir()
+        own_page(console, device, orient, variant, folder, profile, ball, P, layout, scale, False, page)
     return layout, L["name"]
 
 
-def own_page(console, device, orient, variant, folder, profile, ball, L, layout, scale, keypad):
-    """The images of one page of a layout (the controls, or the [keypad] page from the engine's [L]) into [folder]."""
+def own_page(console, device, orient, variant, folder, profile, ball, L, layout, scale, keypad, page=None):
+    """The images of one page of a layout (the controls, the [keypad] page or the screen-layout [page], from the
+    engine's [L]) into [folder]."""
     from PIL import Image
-    where = f"{console} {variant} {device} {orient}{' keypad' if keypad else ''}"
+    where = f"{console} {variant} {device} {orient}{' keypad' if keypad else ''}{f' {page}' if page else ''}"
     W, H = layout["size"]["width"], layout["size"]["height"]
-    query = "&keypad=1" if keypad else ""
-    bg = folder / ("keypad/background.png" if keypad else "background.png")
-    controls = folder.parent / f"{folder.name}{'-keypad' if keypad else ''}-controls.png"
+    query = "&keypad=1" if keypad else f"&screens={page}" if page else ""
+    bg = folder / ("keypad/background.png" if keypad else f"{page}/background.png" if page else "background.png")
+    controls = folder.parent / f"{folder.name}{'-keypad' if keypad else f'-{page}' if page else ''}-controls.png"
     screenshot(console, device, orient, L["W"], L["H"], scale, bg, profile, "&layer=background" + query, variant)
     cut_screens(bg, L["screens"], scale)
     screenshot(console, device, orient, L["W"], L["H"], scale, controls, profile, "&layer=controls" + query, variant)
@@ -646,12 +709,12 @@ def own_page(console, device, orient, variant, folder, profile, ball, L, layout,
     if art.size != (W, H) or keys.size != (W, H):
         raise SystemExit(f"{where}: rendered {art.size}, the layout is {W} x {H}")
     sticks = 0
-    for file, (w, h), _, e in images(layout, keypad):
+    for file, (w, h), _, e in images(layout, keypad, page):
         base = file.rsplit("/", 1)[-1]
         if base == "background.png":
             continue
         if base == "frame.png":
-            f = layout["frame"]
+            f = (page_layout(layout, page) if page else layout)["frame"]
             img = art.crop((f["x"], f["y"], f["x"] + w, f["y"] + h))
         elif base.endswith("-ball.png"):
             img = ball.resize((w, h), Image.LANCZOS)

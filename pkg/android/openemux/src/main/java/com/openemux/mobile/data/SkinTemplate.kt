@@ -11,7 +11,8 @@ enum class TemplateImageKind { BACKGROUND, FRAME, BUTTON, KEYPAD, ACTION, DPAD, 
 
 /**
  * One image of a template: its [file] name, its exact size, and the [element] it draws (if any); [keypadPage] when it
- * belongs to the layout's keypad page (issue 772), whose images are in the layout's `keypad/` folder.
+ * belongs to the layout's keypad page (issue 772), whose images are in the layout's `keypad/` folder; [screenPage] the
+ * NDS screen-layout page it belongs to (issue 807), whose images are in the layout's folder of that id (`top/`).
  */
 data class TemplateImage(
     val file: String,
@@ -20,9 +21,14 @@ data class TemplateImage(
     val kind: TemplateImageKind,
     val element: SkinElement? = null,
     val keypadPage: Boolean = false,
+    val screenPage: String? = null,
 ) {
-    /** Where it is in the layout's folder: [file], or `keypad/<file>` on the keypad page. */
-    val path: String get() = if (keypadPage) "${SkinKeypadPage.FOLDER}/$file" else file
+    /** Where it is in the layout's folder: [file], `keypad/<file>` on the keypad page, `<page>/<file>` on a screen-layout page. */
+    val path: String get() = when {
+        screenPage != null -> "$screenPage/$file"
+        keypadPage -> "${SkinKeypadPage.FOLDER}/$file"
+        else -> file
+    }
 }
 
 /**
@@ -42,7 +48,8 @@ object SkinTemplate {
 
     /**
      * Every image [layout] can have, in the order the README lists them: the controls page's, then its keypad page's
-     * (its own background, when it names one, and its controls).
+     * (its own background, when it names one, and its controls), then each screen-layout page's (its own background,
+     * when it names one, its frame and its controls).
      */
     fun images(layout: SkinLayout): List<TemplateImage> = buildList {
         add(TemplateImage(layout.background.imageFile, layout.size.width, layout.size.height, TemplateImageKind.BACKGROUND))
@@ -54,13 +61,20 @@ object SkinTemplate {
             }
             page.elements.forEach { addAll(elementImages(it, keypadPage = true)) }
         }
+        layout.screenLayouts.forEach { (id, page) ->
+            page.background?.let {
+                add(TemplateImage(it.imageFile, layout.size.width, layout.size.height, TemplateImageKind.BACKGROUND, screenPage = id))
+            }
+            page.frame?.let { add(TemplateImage(it.imageFile, px(it.rect.width), px(it.rect.height), TemplateImageKind.FRAME, screenPage = id)) }
+            page.elements.forEach { addAll(elementImages(it, keypadPage = false, screenPage = id)) }
+        }
     }
 
-    private fun elementImages(e: SkinElement, keypadPage: Boolean): List<TemplateImage> {
+    private fun elementImages(e: SkinElement, keypadPage: Boolean, screenPage: String? = null): List<TemplateImage> {
         val w = px(e.rect.width)
         val h = px(e.rect.height)
         val files = e.imageFiles
-        fun image(i: Int, iw: Int, ih: Int, kind: TemplateImageKind) = TemplateImage(files[i], iw, ih, kind, e, keypadPage)
+        fun image(i: Int, iw: Int, ih: Int, kind: TemplateImageKind) = TemplateImage(files[i], iw, ih, kind, e, keypadPage, screenPage)
         return when (e.type) {
             SkinElementType.DPAD -> {
                 val side = px(min(w, h) * BALL_SHARE)
@@ -96,6 +110,11 @@ object SkinTemplate {
             lines += "${id.id}/  (${layout.size.width} x ${layout.size.height} px)"
             layout.screens.forEach { s ->
                 lines += "  game screen at ${num(s.x)}, ${num(s.y)}, ${num(s.width)} x ${num(s.height)} px (left clear: nothing is drawn there)"
+            }
+            layout.screenLayouts.forEach { (page, p) ->
+                p.screens.forEach { s ->
+                    lines += "  $page/ game screen at ${num(s.x)}, ${num(s.y)}, ${num(s.width)} x ${num(s.height)} px (its screen-layout page)"
+                }
             }
             for (image in images(layout)) {
                 val bind = image.element?.let { ", bind ${it.bind}" }.orEmpty()

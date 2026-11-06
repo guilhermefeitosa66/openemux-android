@@ -158,6 +158,14 @@ internal fun elementName(element: SkinElement, res: (Int) -> String): String =
         else -> element.id.uppercase()
     }
 
+/**
+ * The stage's subtitle: the layout being edited ([layout], "Phone · Portrait") and, on an NDS skin with screen-layout
+ * pages, the page shown ([page], the layout itself: the screens one over the other), joined by [join]. The editor edits
+ * that page only; the others are kept as they are.
+ */
+internal fun editorSubtitle(layout: String, page: String?, join: (String, String) -> String): String =
+    if (page == null) layout else join(layout, page)
+
 /** What a guide line says it snapped to. */
 internal fun guideText(guide: SnapGuide, other: String?, res: (Int, String?) -> String): String = when (guide.kind) {
     SnapKind.CENTER -> res(R.string.editor_guide_center, null)
@@ -405,7 +413,10 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             else -> Stage(
                 m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy,
                 title = target.name,
-                subtitle = stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
+                subtitle = editorSubtitle(
+                    stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
+                    stringResource(R.string.game_screens_stacked).takeIf { layout.screenLayouts.isNotEmpty() },
+                ) { a, b -> context.getString(R.string.editor_layout, a, b) },
                 onChange = { commit -> changed(commit) },
                 onResizing = { resizing = it },
                 onTool = { tool = it },

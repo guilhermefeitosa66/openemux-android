@@ -10,6 +10,8 @@ import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinRect
+import com.openemux.mobile.data.SkinScreenPage
+import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.coreBind
 import com.openemux.mobile.data.forCore
 import com.openemux.mobile.data.skin
@@ -78,10 +80,12 @@ sealed interface ElementPlan {
 
     /**
      * A quick action on the frame, pressing [bind]; [lit] is the engine state it lights with while on
-     * (OverlayWriter.LIT_BY), [icon] the app action whose glyph draws it without an image.
+     * (OverlayWriter.LIT_BY), [icon] the app action whose glyph draws it without an image. [next] is the page an NDS
+     * screens key steps to (its bind overlay_next), when the skin has screen-layout pages.
      */
     data class Action(
         override val index: Int, override val box: SkinBox, val bind: String?, val icon: String?, val lit: String?, val dim: Boolean,
+        val next: String? = null,
     ) : ElementPlan
 
     /**
@@ -110,11 +114,12 @@ data class PagePlan(val fit: SkinFit, val viewport: SkinBox, val elements: List<
 /**
  * Lays [layout] out on a [w] x [h] page for [console] played on [coreId]: its controls, or its keypad page's
  * ([keypadPage]). [toggle] is the page the keypad toggle switches to (null: none, the skin has no keypad pages);
- * [hardcore] leaves the speed keys out.
+ * [screensNext] the page the NDS screens key steps to (null: none, the skin has no screen-layout pages, the key is
+ * drawn and presses nothing); [hardcore] leaves the speed keys out.
  */
 fun planPage(
     console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boolean,
-    coreId: String? = null, keypadPage: Boolean = false, toggle: String? = null,
+    coreId: String? = null, keypadPage: Boolean = false, toggle: String? = null, screensNext: String? = null,
 ): PagePlan {
     val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
     val screens = layout.screens.map(fit::box)
@@ -125,20 +130,22 @@ fun planPage(
     val keys by lazy { console.skin.forCore(coreId).keypad }
     val elements = layout.elements(keypadPage).mapIndexed { i, e ->
         val box = fit.box(e.rect)
+        // The screens key steps to the next screen-layout page, when the skin has them.
+        fun action(action: OpenEmuxBinds.Action): ElementPlan.Action {
+            val next = screensNext?.takeIf { e.bind == SCREENS }
+            return ElementPlan.Action(i, box, if (next != null) "overlay_next" else action.bind, action.icon, action.lit, action.dim, next)
+        }
         when (e.type) {
             SkinElementType.BUTTON -> {
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)
                 when {
-                    action != null -> ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
+                    action != null -> action(action)
                     e.bind == SkinFormat.KEYPAD_TOGGLE -> ElementPlan.Toggle(i, box, toggle)
                     else -> ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind, coreId))
                 }
             }
             SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(keys, e.bind))
-            SkinElementType.ACTION -> {
-                val action = OpenEmuxBinds.action(console, e.bind, hardcore)!!
-                ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
-            }
+            SkinElementType.ACTION -> action(OpenEmuxBinds.action(console, e.bind, hardcore)!!)
             SkinElementType.DPAD -> dpad(i, box, OpenEmuxBinds.dpad(console, e.bind, coreId))
             SkinElementType.STICK -> stick(i, box, if (e.bind == "rightAnalogStick") "analog_right" else "analog_left")
         }
@@ -148,16 +155,30 @@ fun planPage(
 
 /**
  * One overlay page of a skin in OpenEmux's format: its [name], whether it is [portrait], the page turning switches to
- * ([rotate]), whether it is a layout's [keypad] page, and the page its keypad toggle switches to ([toggle]).
+ * ([rotate]), whether it is a layout's [keypad] page, and the page its keypad toggle switches to ([toggle]). On an NDS
+ * skin with screen-layout pages, [screen] is the page drawn (null: the layout itself, both screens one over the other)
+ * and [screensNext] the page its screens key steps to.
  */
-data class OwnPage(val name: String, val portrait: Boolean, val rotate: String, val keypad: Boolean, val toggle: String?)
+data class OwnPage(
+    val name: String, val portrait: Boolean, val rotate: String, val keypad: Boolean, val toggle: String?,
+    val screen: String? = null, val screensNext: String? = null,
+)
 
 /**
  * The pages a skin in OpenEmux's format writes: portrait and landscape, and with [keypad] (keypadPages) their keypad
  * pages, turning keeping the kind of page. [first], the page shown before a redraw (any mode), opens again: its
  * orientation, and its keypad page when it was one; none opens on portrait.
+ *
+ * Given the saved NDS layouts [nds] (a skin with screen-layout pages, ndsPages), one page per screen layout and
+ * orientation instead, named, linked and ordered as a package's with one art per layout ([packagePages]: the drawn
+ * skin's, ndsFlatSpecs), the [tablet]'s cycle with side by side sideways.
  */
-fun ownPages(keypad: Boolean, first: String?): List<OwnPage> {
+fun ownPages(keypad: Boolean, first: String?, nds: Pair<ScreenLayout, ScreenLayout>? = null, tablet: Boolean = false): List<OwnPage> {
+    if (nds != null) {
+        return packagePages(nds, tablet, first).map {
+            OwnPage(it.name, it.portrait, it.rotate, false, null, it.layout?.takeIf { l -> l in SkinScreenPage.SCREENS }, it.screensNext)
+        }
+    }
     val shown = first?.let(OverlayName::parse)
     val kinds = if (keypad) listOf(false, true) else listOf(false)
     val pages = kinds.flatMap { k ->
@@ -178,6 +199,13 @@ fun ownPages(keypad: Boolean, first: String?): List<OwnPage> {
  */
 fun keypadPages(skin: OpenEmuxSkin, layouts: LayoutChoice.Use): Boolean =
     listOf(layouts.portrait, layouts.landscape).all { skin.layouts[it]?.keypad?.closable == true }
+
+/**
+ * Whether an NDS skin drawn with [layouts] has screen-layout pages: both layouts have all of them. Otherwise it plays
+ * with the screens one over the other, its screens key pressing nothing.
+ */
+fun ndsPages(skin: OpenEmuxSkin, layouts: LayoutChoice.Use): Boolean = skin.console == Console.NDS &&
+    listOf(layouts.portrait, layouts.landscape).all { skin.layouts[it]?.screenLayouts?.keys?.containsAll(SkinScreenPage.IDS) == true }
 
 /** A D-pad over [box]: its ball travels [OverlayLines.DPAD_TRAVEL] of the half-size, and the whole box starts a touch. */
 private fun dpad(i: Int, box: SkinBox, binds: List<String>?): ElementPlan.Dpad {
@@ -218,13 +246,14 @@ object OpenEmuxBinds {
 
     /**
      * [name] as a quick action (any of the format's action names, on a button or an action element), or null for a
-     * name that is not one. "screens" presses nothing: the skin has no page per NDS layout to step to.
+     * name that is not one. "screens" presses nothing here: on a skin with screen-layout pages, planPage makes it step
+     * to the next one.
      */
     fun action(console: Console, name: String, hardcore: Boolean): Action? {
         val icon = ICONS[name] ?: return null
         val dim = hardcore && name in SPEED
         val bind = when {
-            dim || name == "screens" -> null
+            dim || name == SCREENS -> null
             name == "slowMotion" -> "toggle_slowmotion"
             else -> SkinBinds.bind(console, name, hardcore)
         }
@@ -265,3 +294,6 @@ object OpenEmuxBinds {
         }
     }
 }
+
+/** The NDS screens key's name in the format: the next screen layout. */
+private const val SCREENS = "screens"
