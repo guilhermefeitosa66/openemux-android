@@ -54,7 +54,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 
 /** The buttons the screens give a meaning to, beyond moving focus, A and B. */
-enum class PadButton { L1, R1, X, Y, SELECT, START }
+enum class PadButton { L1, R1, L2, R2, X, Y, SELECT, START }
 
 /** What a pad press does, from the press and the focus alone. */
 sealed interface PadDecision {
@@ -104,6 +104,8 @@ fun decidePadKey(code: Int, action: Int, fromPad: Boolean, focusShown: Boolean, 
     val bus = when (code) {
         KeyEvent.KEYCODE_BUTTON_L1 -> PadButton.L1
         KeyEvent.KEYCODE_BUTTON_R1 -> PadButton.R1
+        KeyEvent.KEYCODE_BUTTON_L2 -> PadButton.L2
+        KeyEvent.KEYCODE_BUTTON_R2 -> PadButton.R2
         KeyEvent.KEYCODE_BUTTON_X -> PadButton.X
         KeyEvent.KEYCODE_BUTTON_Y -> PadButton.Y
         KeyEvent.KEYCODE_BUTTON_SELECT -> PadButton.SELECT
@@ -124,6 +126,8 @@ fun decidePadKey(code: Int, action: Int, fromPad: Boolean, focusShown: Boolean, 
 fun GamepadActions.handler(button: PadButton): (() -> Unit)? = when (button) {
     PadButton.L1 -> l1
     PadButton.R1 -> r1
+    PadButton.L2 -> l2
+    PadButton.R2 -> r2
     PadButton.X -> x
     PadButton.Y -> y
     PadButton.SELECT -> select

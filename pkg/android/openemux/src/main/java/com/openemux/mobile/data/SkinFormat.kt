@@ -415,6 +415,9 @@ object SkinFormat {
         if (!ID.matches(it)) throw SkinFormatException(SkinError.BAD_ID, path, it)
     }
 
+    /** One layout as its entry in a skin.json's `layouts` (the editor adding a layout, issue 785). */
+    fun layoutText(layout: SkinLayout): String = StringBuilder().also { emit(it, layoutJson(layout), "") }.toString()
+
     /** [skin] as a skin.json: keys in a fixed order, two-space indents, optional keys left out when unset. */
     fun toJson(skin: OpenEmuxSkin): String {
         val root = linkedMapOf<String, Any>(

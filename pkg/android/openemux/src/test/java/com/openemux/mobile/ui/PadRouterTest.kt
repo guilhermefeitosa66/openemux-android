@@ -77,6 +77,7 @@ class PadRouterTest {
     fun theScreenButtonsRunOnTheirRelease() {
         val buttons = mapOf(
             KeyEvent.KEYCODE_BUTTON_L1 to PadButton.L1, KeyEvent.KEYCODE_BUTTON_R1 to PadButton.R1,
+            KeyEvent.KEYCODE_BUTTON_L2 to PadButton.L2, KeyEvent.KEYCODE_BUTTON_R2 to PadButton.R2,
             KeyEvent.KEYCODE_BUTTON_X to PadButton.X, KeyEvent.KEYCODE_BUTTON_Y to PadButton.Y,
             KeyEvent.KEYCODE_BUTTON_SELECT to PadButton.SELECT, KeyEvent.KEYCODE_BUTTON_START to PadButton.START,
         )
@@ -101,10 +102,10 @@ class PadRouterTest {
         var ran = ""
         val actions = GamepadActions(
             l1 = { ran += "l1" }, r1 = { ran += "r1" }, x = { ran += "x" }, y = { ran += "y" },
-            select = { ran += "select" }, start = { ran += "start" },
+            select = { ran += "select" }, start = { ran += "start" }, l2 = { ran += "l2" }, r2 = { ran += "r2" },
         )
         PadButton.entries.forEach { actions.handler(it)!!.invoke() }
-        assertEquals("l1r1xyselectstart", ran)
+        assertEquals("l1r1l2r2xyselectstart", ran)
         assertNull(GamepadActions().handler(PadButton.X))
     }
 

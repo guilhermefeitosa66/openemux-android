@@ -14,6 +14,7 @@ import android.graphics.Typeface
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.PathParser
+import androidx.core.graphics.createBitmap
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinElement
@@ -119,19 +120,40 @@ class OpenEmuxSkinRenderer(context: Context) {
      * The skin editor's stage (issue 784): layout [id]'s background and frame at [scale] times its units, the game's
      * screens cut out, as the game draws them.
      */
-    fun previewPage(pkg: SkinPackage, id: SkinLayoutId, scale: Float): Bitmap {
-        val layout = pkg.skin.layouts.getValue(id)
+    fun previewPage(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, scale: Float): Bitmap {
         val w = (layout.size.width * scale).roundToInt().coerceAtLeast(1)
         val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
-        return page(pkg, id, layout, planPage(pkg.skin.console, layout.copy(elements = emptyList()), w, h, false), w, h, false)
+        // The frame is drawn on its own (previewFrame) and the screens over the page, so both follow the screen area
+        // as it moves (issue 785).
+        val plan = planPage(pkg.skin.console, layout.copy(elements = emptyList(), frame = null), w, h, false)
+        return page(pkg, id, layout.copy(elements = emptyList(), frame = null, screens = emptyList()), plan, w, h, false)
+    }
+
+    /**
+     * The editor's frame of [layout] alone (issue 785), at [scale] times its units: its image or its colour, the game's
+     * screens cut out of it. Null for a layout without a frame.
+     */
+    fun previewFrame(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, scale: Float): Bitmap? {
+        val frame = layout.frame ?: return null
+        val w = (frame.rect.width * scale).roundToInt().coerceAtLeast(1)
+        val h = (frame.rect.height * scale).roundToInt().coerceAtLeast(1)
+        val bitmap = createBitmap(w, h)
+        val canvas = Canvas(bitmap)
+        val box = RectF(0f, 0f, w.toFloat(), h.toFloat())
+        val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
+        if (!drawn) canvas.drawRect(box, fill(frame.colors.frame ?: DEFAULT_FRAME))
+        val clear = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
+        layout.screens.forEach { r ->
+            canvas.drawRect(RectF((r.x - frame.rect.x) * scale, (r.y - frame.rect.y) * scale, (r.x + r.width - frame.rect.x) * scale, (r.y + r.height - frame.rect.y) * scale), clear)
+        }
+        return bitmap
     }
 
     /**
      * [element] of layout [id] drawn alone on a [w] x [h] bitmap the way the game draws it at rest: its image or its
      * colours, a D-pad with its ball, a stick with its knob (issue 784).
      */
-    fun previewElement(pkg: SkinPackage, id: SkinLayoutId, element: SkinElement, w: Int, h: Int): Bitmap {
-        val layout = pkg.skin.layouts.getValue(id)
+    fun previewElement(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, w: Int, h: Int): Bitmap {
         val alone = element.copy(rect = SkinRect(0f, 0f, w.toFloat(), h.toFloat()))
         val page = SkinLayout(com.openemux.mobile.data.SkinSize(w, h), listOf(alone.rect), layout.background, layout.frame, listOf(alone))
         val plan = planPage(pkg.skin.console, page, w, h, false).elements.single()

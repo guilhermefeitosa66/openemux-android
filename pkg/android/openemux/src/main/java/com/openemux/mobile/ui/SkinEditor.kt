@@ -17,15 +17,21 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -78,9 +84,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.openemux.mobile.data.BindWords
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.PanelSide
+import com.openemux.mobile.data.SkinArea
+import com.openemux.mobile.data.SkinForm
+import com.openemux.mobile.data.SkinForms
+import com.openemux.mobile.data.SkinPanels
+import com.openemux.mobile.data.SkinTry
+import com.openemux.mobile.data.TryWord
 import com.openemux.mobile.data.Library
-import com.openemux.mobile.data.SkinEditJson
 import com.openemux.mobile.data.SkinEditorModel
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
@@ -178,14 +191,89 @@ internal fun guideText(guide: SnapGuide, other: String?, res: (Int, String?) -> 
 internal fun orientationName(orientation: SkinOrientation): Int =
     if (orientation == SkinOrientation.PORTRAIT) R.string.editor_upright else R.string.editor_sideways
 
-/** The preview of one layout: its page and each control, drawn by the game's renderer at [scale] of its units. */
-private class EditorArt(val layout: SkinLayoutId, val page: ImageBitmap, val elements: Map<String, ImageBitmap>)
+/** Try mode's word for what a control sends (issue 785). */
+@StringRes
+internal fun tryWord(word: TryWord): Int = when (word) {
+    TryWord.DPAD -> R.string.editor_try_dpad
+    TryWord.DPAD2 -> R.string.editor_try_dpad2
+    TryWord.STICK -> R.string.editor_try_stick
+    TryWord.RIGHT_STICK -> R.string.editor_try_right_stick
+    TryWord.UP -> R.string.editor_try_up
+    TryWord.DOWN -> R.string.editor_try_down
+    TryWord.LEFT -> R.string.editor_try_left
+    TryWord.RIGHT -> R.string.editor_try_right
+    TryWord.MENU -> R.string.editor_try_menu
+    TryWord.QUICK_SAVE -> R.string.editor_try_quick_save
+    TryWord.QUICK_LOAD -> R.string.editor_try_quick_load
+    TryWord.FAST_FORWARD_HOLD -> R.string.editor_try_fast_forward_hold
+    TryWord.FAST_FORWARD -> R.string.editor_try_fast_forward
+    TryWord.TURBO -> R.string.editor_try_turbo
+    TryWord.SLOW_MOTION -> R.string.editor_try_slow_motion
+    TryWord.SCREENSHOT -> R.string.editor_try_screenshot
+    TryWord.RESTART -> R.string.editor_try_restart
+    TryWord.SCREENS -> R.string.editor_try_screens
+    TryWord.KEYPAD_PAGE -> R.string.editor_try_keypad_page
+    TryWord.DISK -> R.string.editor_try_disk
+}
+
+/** What a control sends, in words: [res] reads a string, [resArg] one with an argument. */
+internal fun bindText(words: BindWords, res: (Int) -> String, resArg: (Int, String) -> String): String = when (words) {
+    is BindWords.Word -> res(tryWord(words.word))
+    is BindWords.Key -> resArg(R.string.editor_try_key, words.key)
+    is BindWords.Name -> words.text
+}
+
+/** The Layouts panel's line under its title: what this device edits. */
+@StringRes
+internal fun layoutsBody(form: SkinForm): Int = when (form) {
+    SkinForm.PHONE -> R.string.editor_layouts_body_phone
+    SkinForm.TABLET -> R.string.editor_layouts_body_tablet
+    SkinForm.FOLD -> R.string.editor_layouts_body_fold
+}
+
+@StringRes
+internal fun layoutsHere(form: SkinForm): Int = when (form) {
+    SkinForm.PHONE -> R.string.editor_layouts_on_phone
+    SkinForm.TABLET -> R.string.editor_layouts_on_tablet
+    SkinForm.FOLD -> R.string.editor_layouts_on_fold
+}
+
+/** The switch of another form: its title, and the line under it when on and when off. */
+@StringRes
+internal fun offerTitle(form: SkinForm): Int = when (form) {
+    SkinForm.PHONE -> R.string.editor_offer_phones
+    SkinForm.TABLET -> R.string.editor_offer_tablets
+    SkinForm.FOLD -> R.string.editor_offer_folds
+}
+
+@StringRes
+internal fun offerLine(form: SkinForm, on: Boolean): Int = when (form) {
+    SkinForm.PHONE -> if (on) R.string.editor_offer_on_phone else R.string.editor_offer_off_phone
+    SkinForm.TABLET -> if (on) R.string.editor_offer_on_tablet else R.string.editor_offer_off_tablet
+    SkinForm.FOLD -> if (on) R.string.editor_offer_on_fold else R.string.editor_offer_off_fold
+}
+
+/** What a layout card of this device says: being edited, changed, both, or missing from the skin; null for nothing. */
+@StringRes
+internal fun layoutState(present: Boolean, editing: Boolean, changed: Boolean): Int? = when {
+    !present -> R.string.editor_layout_missing
+    editing && changed -> R.string.editor_editing_changed
+    editing -> R.string.editor_editing
+    changed -> R.string.editor_changed
+    else -> null
+}
+
+/** The preview of one layout: its page, its frame and each control, drawn by the game's renderer. */
+private class EditorArt(val layout: SkinLayoutId, val page: ImageBitmap, val frame: ImageBitmap?, val elements: Map<String, ImageBitmap>)
 
 private class Loaded(val pkg: SkinPackage, val json: String)
 
 private enum class Gesture { NONE, MOVE, PINCH, HANDLE }
 
 private enum class Tool { NONE, SIZE, NUDGE }
+
+private const val ROTATE = "M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"
+private const val SCREEN = "M4 5h16v11H4zM9 20h6M12 16v4"
 
 /**
  * The skin editor (issue 784): the layout for this device's form and rotation drawn full screen, controls moved on a
@@ -225,9 +313,15 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     var leaving by remember { mutableStateOf(false) }
     var naming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var layoutsOpen by remember { mutableStateOf(false) }
+    var dropping by remember { mutableStateOf<SkinForm?>(null) }
     val drafts = remember { Mutex() }
     val form = currentSkinForm()
-    val orientation = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) SkinOrientation.LANDSCAPE else SkinOrientation.PORTRAIT
+    val held = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) SkinOrientation.LANDSCAPE else SkinOrientation.PORTRAIT
+    // The toolbar's switch (issue 785) shows the other layout; turning the device follows the device again.
+    var turned by remember { mutableStateOf<SkinOrientation?>(null) }
+    LaunchedEffect(held) { turned = null }
+    val orientation = turned ?: held
 
     fun toast(res: Int) = Toast.makeText(context, res, Toast.LENGTH_SHORT).show()
 
@@ -236,7 +330,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         val read = withContext(Dispatchers.IO) {
             runCatching {
                 val (pkg, json) = store.template(console, target.id)
-                val draft = store.draft(console, target.id)?.let { runCatching { SkinFormat.parse(it).rects() }.getOrNull() }
+                val draft = store.draft(console, target.id)?.let { runCatching { SkinFormat.parse(it) }.getOrNull() }
                 Triple(pkg, json, draft)
             }.onFailure { Log.e(TAG, "${target.id} not opened in the editor", it) }.getOrNull()
         }
@@ -245,7 +339,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             onClose()
             return@LaunchedEffect
         }
-        val m = SkinEditorModel(read.first.skin, read.third)
+        val m = SkinEditorModel.fromDraft(read.first.skin, read.third)
         m.show(form, orientation)
         loaded = Loaded(read.first, read.second)
         model = m
@@ -264,16 +358,18 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         art = withContext(Dispatchers.IO) {
             runCatching {
                 val renderer = OpenEmuxSkinRenderer(context)
-                val layout = pkg.skin.layouts.getValue(id)
+                // A layout switched on in the Layouts panel is only in the model.
+                val layout = model?.layoutOf(id) ?: return@runCatching null
                 val scale = minOf(1f, PREVIEW_LONG / maxOf(layout.size.width, layout.size.height))
-                val page = renderer.previewPage(pkg, id, scale).asImageBitmap()
+                val page = renderer.previewPage(pkg, id, layout, scale).asImageBitmap()
+                val frame = renderer.previewFrame(pkg, id, layout, scale)?.asImageBitmap()
                 // Drawn at twice the size, so a control grown to 200 % stays sharp.
                 val elements = layout.elements.associate { e ->
                     val w = (e.rect.width * scale * 2f).roundToInt().coerceIn(1, 1024)
                     val h = (e.rect.height * scale * 2f).roundToInt().coerceIn(1, 1024)
-                    e.id to renderer.previewElement(pkg, id, e, w, h).asImageBitmap()
+                    e.id to renderer.previewElement(pkg, id, layout, e, w, h).asImageBitmap()
                 }
-                EditorArt(id, page, elements)
+                EditorArt(id, page, frame, elements)
             }.onFailure { Log.e(TAG, "${target.id}: no preview of ${id.id}", it) }.getOrNull()
         }
     }
@@ -285,11 +381,12 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         if (!commit || busy) return
         val m = model ?: return
         val json = loaded?.json ?: return
-        val edits = if (m.dirty) m.edits() else null
+        // m.json, not the rect edits alone: a form switched on or off in the Layouts panel is part of the draft too.
+        val text = if (m.dirty) m.json(json) else null
         scope.launch(Dispatchers.IO) {
             drafts.withLock {
                 runCatching {
-                    if (edits != null) store.saveDraft(console, target.id, SkinEditJson.patch(json, edits)) else store.dropDraft(console, target.id)
+                    if (text != null) store.saveDraft(console, target.id, text) else store.dropDraft(console, target.id)
                 }
             }
         }
@@ -368,6 +465,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     BackHandler {
         val m = model
         when {
+            layoutsOpen -> layoutsOpen = false
+            m?.trying == true -> { m.tryMode(false); changed() }
             tool != Tool.NONE -> tool = Tool.NONE
             m?.selection != null -> { m.clearSelection(); changed() }
             else -> leave()
@@ -375,23 +474,31 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     }
 
     val m = tick.let { model }
+    // L1/R1 pick a control (in Try mode: press the next one), L2/R2 resize it by a step. A dialog over the editor
+    // takes the buttons away from it.
     GamepadButtons(
         hints = listOf(
-            "L1/R1" to stringResource(R.string.editor_pad_pick), "X" to stringResource(R.string.editor_pad_group),
-            "Y" to stringResource(R.string.editor_snap), "B" to stringResource(R.string.settings_hint_back),
+            "L1/R1" to stringResource(R.string.editor_pad_pick), "L2/R2" to stringResource(R.string.editor_size),
+            "X" to stringResource(R.string.editor_pad_group), "Y" to stringResource(R.string.editor_snap),
+            "B" to stringResource(R.string.settings_hint_back),
         ),
-        l1 = { m?.step(-1); changed() },
-        r1 = { m?.step(1); changed() },
+        l1 = { if (m?.trying == true) m.tryStep(-1) else m?.step(-1); changed() },
+        r1 = { if (m?.trying == true) m.tryStep(1) else m?.step(1); changed() },
+        // Try mode moves nothing: the buttons that would edit the layout rest until it ends.
+        l2 = { if (m?.trying != true) { m?.sizeStep(-1); changed(commit = true) } },
+        r2 = { if (m?.trying != true) { m?.sizeStep(1); changed(commit = true) } },
         x = { m?.toggle(); changed() },
         y = { m?.let { it.snap = !it.snap }; changed() },
-        select = { m?.undo(); changed(commit = true) },
+        select = { if (m?.trying != true) { m?.undo(); changed(commit = true) } },
         start = { if (m?.dirty == true) save(andClose = false) },
+        // The Layouts panel covers the stage: the stage's buttons rest while it is open, as the D-pad nudge does.
+        enabled = !leaving && !naming && dropping == null && !layoutsOpen,
     )
 
     Box(
         Modifier.fillMaxSize().onPreviewKeyEvent { e ->
             // With a control selected, the D-pad nudges it; with none, it moves the focus as anywhere else.
-            val sel = model?.selection ?: return@onPreviewKeyEvent false
+            val sel = model?.selection?.takeIf { !layoutsOpen } ?: return@onPreviewKeyEvent false
             val step = when (e.key) {
                 Key.DirectionUp -> 0 to -1
                 Key.DirectionDown -> 0 to 1
@@ -407,9 +514,15 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         },
     ) {
         val layout = m?.layout
+        val other = if (orientation == SkinOrientation.PORTRAIT) SkinOrientation.LANDSCAPE else SkinOrientation.PORTRAIT
+        val otherShown = m?.layoutOf(SkinForms.id(form, other)) != null
         when {
             m == null -> Unit
-            layout == null -> NoLayout(target.name, stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation)))) { leave() }
+            layout == null -> NoLayout(
+                target.name, stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
+                other = stringResource(orientationName(other)).takeIf { otherShown },
+                onOther = { turned = other },
+            ) { leave() }
             else -> Stage(
                 m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy,
                 title = target.name,
@@ -423,8 +536,27 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                 onSnapped = { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
                 onClose = { leave() },
                 onSave = { save(andClose = false) },
+                onRotate = { turned = other; tool = Tool.NONE },
+                onLayouts = { tool = Tool.NONE; layoutsOpen = true },
             )
         }
+        if (m != null && layout != null && layoutsOpen) {
+            LayoutsPanel(
+                m, tick, form, orientation,
+                onShow = { turned = it.takeIf { o -> o != held } },
+                onForm = { f, on -> if (on) { if (m.setForm(f, true)) changed(commit = true) } else dropping = f },
+                onResetLayout = { m.resetLayout(); changed(commit = true) },
+                onClose = { layoutsOpen = false },
+            )
+        }
+    }
+
+    dropping?.let { f ->
+        DropFormDialog(
+            stringResource(formLabel(f)),
+            onDismiss = { dropping = null },
+            onRemove = { dropping = null; if (model?.setForm(f, false) == true) changed(commit = true) },
+        )
     }
 
     if (leaving) {
@@ -449,7 +581,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
 
 /** The skin has no layout for this form and rotation: say so, and offer to close. */
 @Composable
-private fun NoLayout(name: String, layout: String, onClose: () -> Unit) {
+private fun NoLayout(name: String, layout: String, other: String?, onOther: () -> Unit, onClose: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -457,6 +589,7 @@ private fun NoLayout(name: String, layout: String, onClose: () -> Unit) {
     ) {
         Text(name, style = Type.Title.copy(color = StageText, fontSize = 22.sp), textAlign = TextAlign.Center)
         Text(stringResource(R.string.editor_no_layout, layout), style = Type.Small.copy(color = StageMuted, fontSize = 14.sp), textAlign = TextAlign.Center)
+        other?.let { SecondaryButton(stringResource(R.string.editor_edit_other, it), onOther, Modifier.widthIn(min = 200.dp), icon = ROTATE) }
         SecondaryButton(stringResource(R.string.editor_close), onClose, Modifier.widthIn(min = 200.dp), icon = Icons.Close)
     }
 }
@@ -467,7 +600,7 @@ private fun Stage(
     m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Boolean, busy: Boolean,
     title: String, subtitle: String,
     onChange: (Boolean) -> Unit, onResizing: (Boolean) -> Unit, onTool: (Tool) -> Unit, onSnapped: () -> Unit,
-    onClose: () -> Unit, onSave: () -> Unit,
+    onClose: () -> Unit, onSave: () -> Unit, onRotate: () -> Unit, onLayouts: () -> Unit,
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -478,7 +611,9 @@ private fun Stage(
         val px = { dp: Float -> with(density) { dp.dp.toPx() } }
         val latest = rememberUpdatedState(m)
         val selected = m.selection?.ids.orEmpty()
-        val selBox = selected.mapNotNull { id -> layout.elements.firstOrNull { it.id == id }?.rect }.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
+        // The selection's box: controls, or the screen area's screens and frame (issue 785).
+        val all = layout.rects()
+        val selBox = selected.mapNotNull { all[it] }.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
         val selRect = selBox?.let { b -> fit.box(b).let { Rect(it.x - px(8f), it.y - px(8f), it.x + it.w + px(8f), it.y + it.h + px(8f)) } }
 
         Canvas(
@@ -487,6 +622,19 @@ private fun Stage(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     // Read after the touch: a Save between two gestures puts a new model in place.
                     val model = latest.value
+                    if (model.trying) {
+                        // Try mode: the control under the finger is lit while held, and nothing moves.
+                        model.hit((down.position.x - fit.ox) / fit.s, (down.position.y - fit.oy) / fit.s, px(10f) / fit.s)
+                            ?.takeIf { !SkinArea.isArea(it) }?.let { model.press(it); onSnapped(); onChange(false) }
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            event.changes.forEach { it.consume() }
+                            if (event.changes.none { it.pressed }) break
+                        }
+                        model.release()
+                        onChange(false)
+                        return@awaitEachGesture
+                    }
                     val handleAt = currentHandle(model, fit, px(8f))
                     val onHandle = handleAt != null && (down.position - handleAt).getDistance() <= px(24f)
                     val hit = if (onHandle) null else
@@ -560,6 +708,12 @@ private fun Stage(
             art?.let {
                 drawImage(it.page, dstOffset = IntOffset(whole.x.roundToInt(), whole.y.roundToInt()), dstSize = IntSize(whole.w.roundToInt(), whole.h.roundToInt()), filterQuality = FilterQuality.Medium)
             }
+            // The frame and the screens are drawn where they are now, so they follow the screen area as it moves.
+            art?.frame?.let { f ->
+                layout.frame?.let { fit.box(it.rect) }?.let { b ->
+                    drawImage(f, dstOffset = IntOffset(b.x.roundToInt(), b.y.roundToInt()), dstSize = IntSize(b.w.roundToInt().coerceAtLeast(1), b.h.roundToInt().coerceAtLeast(1)), filterQuality = FilterQuality.Medium)
+                }
+            }
             layout.screens.forEach { r -> fit.box(r).let { b -> drawRect(ScreenBg, Offset(b.x, b.y), Size(b.w, b.h)) } }
             // The grid, the whole time.
             val step = SkinGrid.step(layout.size) * fit.s
@@ -581,6 +735,10 @@ private fun Stage(
                 } else {
                     drawRoundRect(Color(0xFF3A3448), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(10f)))
                 }
+                if (e.id == m.pressed) {
+                    drawRoundRect(Oe.Accent.copy(alpha = 0.35f), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(12f)))
+                    drawRoundRect(Guide, Offset(b.x - px(4f), b.y - px(4f)), Size(b.w + px(8f), b.h + px(8f)), CornerRadius(px(14f)), style = Stroke(px(3f)))
+                }
             }
             m.guides.forEach { g ->
                 if (g.axis == SnapAxis.X) {
@@ -600,7 +758,9 @@ private fun Stage(
         }
 
         // Labels: what was snapped to while dragging, else the selection's name; the size while resizing.
-        val names = layout.elements.associate { it.id to elementName(it) { res -> context.getString(res) } }
+        val area = stringResource(R.string.editor_screen_area)
+        val names = layout.elements.associate { it.id to elementName(it) { res -> context.getString(res) } } +
+            SkinArea.ids(layout).filter(SkinArea::isArea).associateWith { area }
         if (selRect != null) {
             val label = when {
                 resizing -> null
@@ -610,6 +770,7 @@ private fun Stage(
                 else -> when (val sel = m.selection) {
                     is SkinSelection.Group -> context.getString(groupName(sel.group)) + " · " + context.getString(R.string.editor_tap_again)
                     is SkinSelection.One -> names[sel.id].orEmpty()
+                    is SkinSelection.Screen -> area
                     null -> null
                 }
             }
@@ -635,6 +796,12 @@ private fun Stage(
         val bottomY = maxOf(screenBottom - px(8f) - px(60f), topY + px(56f))
         val barWidth = with(density) { barW.toDp() }
 
+        if (m.trying) {
+            TryOverlay(m, layout, names, Modifier.offset { IntOffset(barX.roundToInt(), topY.roundToInt()) }.width(barWidth)) {
+                m.tryMode(false); onChange(false)
+            }
+            return@BoxWithConstraints
+        }
         Toolbar(
             title, subtitle, m.canUndo, m.canRedo, m.dirty && !busy,
             Modifier.offset { IntOffset(barX.roundToInt(), topY.roundToInt()) }.width(barWidth),
@@ -642,8 +809,11 @@ private fun Stage(
             onUndo = { m.undo(); onChange(true) },
             onRedo = { m.redo(); onChange(true) },
             onSave = onSave,
+            onRotate = onRotate,
+            onLayouts = onLayouts,
         )
-        if (m.selection == null && m.guides.isEmpty()) {
+        // The hints only where the screen leaves them room between the bars.
+        if (m.selection == null && m.guides.isEmpty() && bottomY - topY >= px(140f)) {
             Column(
                 Modifier.offset { IntOffset(barX.roundToInt(), ((topY + bottomY) / 2f - px(10f)).roundToInt()) }.width(barWidth),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -652,10 +822,25 @@ private fun Stage(
                 Text(stringResource(R.string.editor_hint_drag), style = Type.Small.copy(color = StageMuted, fontSize = 14.sp), textAlign = TextAlign.Center)
             }
         }
-        val bottom = Modifier.offset { IntOffset(barX.roundToInt(), bottomY.roundToInt()) }
+        // Panels open away from what is edited (issue 785): over the screen unless the selection is there.
+        val barH = px(60f)
+        val safeBottom = WindowInsets.safeDrawing.getBottom(density).toFloat()
+        val placed = selRect?.takeIf { it.overlaps(Rect(barX, bottomY, barX + barW, bottomY + barH)) }?.let { sel ->
+            val screen = SkinRect(screenLeft, screenTop, screenRight - screenLeft, screenBottom - screenTop)
+            when (SkinPanels.side(w > h, w.toFloat(), screen, SkinRect(sel.left, sel.top, sel.width, sel.height))) {
+                PanelSide.TOP -> barX to topY + px(56f)
+                PanelSide.BOTTOM -> barX to (h - safeBottom - barH - px(8f))
+                PanelSide.START -> px(8f) to (h - barH) / 2f
+                PanelSide.END -> (w - barW - px(8f)) to (h - barH) / 2f
+            }
+        } ?: (barX to bottomY)
+        val bottom = Modifier.offset { IntOffset(placed.first.roundToInt(), placed.second.roundToInt()) }
         when {
             m.selection == null -> Box(bottom.width(barWidth), contentAlignment = Alignment.Center) {
-                SnapBar(m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) })
+                SnapBar(
+                    m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) },
+                    onScreenArea = { m.selectScreen(); onChange(false) }, onTry = { m.tryMode(true); onTool(Tool.NONE); onChange(false) },
+                )
             }
             tool == Tool.SIZE -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
             tool == Tool.NUDGE -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
@@ -676,8 +861,8 @@ private fun currentHandle(m: SkinEditorModel, fit: SkinFit, outset: Float): Offs
 private fun selectionCentre(m: SkinEditorModel, fit: SkinFit): Offset? = selectionBox(m, fit)?.center
 
 private fun selectionBox(m: SkinEditorModel, fit: SkinFit): Rect? {
-    val layout = m.layout ?: return null
-    val rects = m.selection?.ids?.mapNotNull { id -> layout.elements.firstOrNull { it.id == id }?.rect }?.takeIf { it.isNotEmpty() } ?: return null
+    val all = m.layout?.rects() ?: return null
+    val rects = m.selection?.ids?.mapNotNull { all[it] }?.takeIf { it.isNotEmpty() } ?: return null
     val b = fit.box(SkinSnap.bounds(rects))
     return Rect(b.x, b.y, b.x + b.w, b.y + b.h)
 }
@@ -706,14 +891,21 @@ private fun BarIcon(path: String, label: String, enabled: Boolean = true, mirror
 @Composable
 private fun Toolbar(
     title: String, subtitle: String, canUndo: Boolean, canRedo: Boolean, canSave: Boolean, modifier: Modifier,
-    onClose: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onSave: () -> Unit,
+    onClose: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onSave: () -> Unit, onRotate: () -> Unit, onLayouts: () -> Unit,
 ) {
+    val layouts = stringResource(R.string.editor_layouts)
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         BarIcon(Icons.Close, stringResource(R.string.editor_close), onClick = onClose)
-        Column(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(12.dp)).background(Field).padding(horizontal = 10.dp), verticalArrangement = Arrangement.Center) {
+        // The layout field opens the Layouts panel; the icon beside it shows the other orientation (issue 785).
+        Column(
+            Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).background(Field)
+                .clickable(onClick = onLayouts).semantics { contentDescription = "$layouts: $subtitle" }.padding(horizontal = 10.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
             Text(title, style = Type.Small.copy(color = StageMuted, fontSize = 11.sp, lineHeight = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = Type.Body.copy(color = StageText, fontSize = 13.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        BarIcon(ROTATE, stringResource(R.string.editor_rotate), onClick = onRotate)
         BarIcon(Icons.Undo, stringResource(R.string.editor_undo), enabled = canUndo, onClick = onUndo)
         BarIcon(Icons.Undo, stringResource(R.string.editor_redo), enabled = canRedo, mirrored = true, onClick = onRedo)
         Box(
@@ -726,9 +918,11 @@ private fun Toolbar(
     }
 }
 
-/** With nothing selected: the Snap toggle and More (Reset layout). */
+/** With nothing selected: the Snap toggle, Try, and More (Screen area, Reset layout). */
 @Composable
-private fun SnapBar(snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit) {
+private fun SnapBar(
+    snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit, onScreenArea: () -> Unit, onTry: () -> Unit,
+) {
     var more by remember { mutableStateOf(false) }
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -740,9 +934,21 @@ private fun SnapBar(snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit
             Icon(SNAP, if (snap) Lilac else BarText, 18.dp)
             Text(stringResource(R.string.editor_snap), style = Type.Body.copy(color = if (snap) Lilac else BarText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
         }
+        Row(
+            Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onTry).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(Icons.Play, Lilac, 16.dp, filled = true)
+            Text(stringResource(R.string.editor_try), style = Type.Body.copy(color = BarText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        }
         Box {
             BarIcon(Icons.Dots, stringResource(R.string.editor_more), filled = true) { more = true }
             DropdownMenu(more, { more = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.editor_screen_area), style = Type.Body) },
+                    leadingIcon = { Icon(SCREEN, Oe.Text, 18.dp) },
+                    onClick = { more = false; onScreenArea() },
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.editor_reset_layout), style = Type.Body) },
                     leadingIcon = { Icon(Icons.Reset, Oe.Text, 18.dp) },
@@ -839,6 +1045,162 @@ private fun LeaveDialog(name: String, onDismiss: () -> Unit, onSave: () -> Unit,
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Clock, Oe.Muted, 16.dp)
                     Text(stringResource(R.string.editor_draft_note), style = Type.Small.copy(fontSize = 12.sp, lineHeight = 17.sp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Try mode (issue 785, design 3.4): a bar to go back, and over the screen what was pressed last and what it sends to
+ * the game, with the last few presses.
+ */
+@Composable
+private fun TryOverlay(m: SkinEditorModel, layout: SkinLayout, names: Map<String, String>, modifier: Modifier, onBack: () -> Unit) {
+    val context = LocalContext.current
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(Modifier.fillMaxWidth().bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Play, Guide, 16.dp, filled = true, modifier = Modifier.padding(start = 10.dp))
+            Text(stringResource(R.string.editor_try_title), Modifier.weight(1f), style = Type.Body.copy(color = StageText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
+            Box(
+                Modifier.height(36.dp).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF33333D))
+                    .clickable(onClick = onBack).padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(stringResource(R.string.editor_try_back), style = Type.Body.copy(color = StageText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1) }
+        }
+        val shown = (m.pressed ?: m.recent.lastOrNull())?.let { id -> layout.elements.firstOrNull { it.id == id } }
+        if (shown != null) {
+            val words = bindText(SkinTry.words(shown.bind), { context.getString(it) }) { res, arg -> context.getString(res, arg) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.editor_try_pressed), style = Type.Small.copy(color = StageMuted, fontSize = 12.sp))
+                Text(names[shown.id].orEmpty(), style = Type.Title.copy(color = Color.White, fontSize = 40.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                Text(stringResource(R.string.editor_try_sends, words), style = Type.Small.copy(color = StageMuted, fontSize = 12.sp), textAlign = TextAlign.Center)
+            }
+        }
+        if (m.recent.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.editor_try_last), style = Type.Small.copy(color = StageMuted, fontSize = 12.sp))
+                m.recent.forEachIndexed { i, id ->
+                    val last = i == m.recent.lastIndex
+                    Box(
+                        Modifier.height(26.dp).widthIn(min = 26.dp).clip(RoundedCornerShape(8.dp))
+                            .background(if (last) Oe.Accent.copy(alpha = 0.35f) else Field).padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(names[id].orEmpty(), style = Type.Small.copy(color = StageText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The Layouts panel (issue 785, design 4.2): this device's two layouts (tap one to edit it) and a switch per other
+ * form, which is what the skin's badges show. It opens away from the selection ([SkinPanels]).
+ */
+@Composable
+private fun LayoutsPanel(
+    // [tick]: the model is plain Kotlin, so the panel is told when it changed.
+    m: SkinEditorModel, @Suppress("UNUSED_PARAMETER") tick: Int, form: SkinForm, orientation: SkinOrientation,
+    onShow: (SkinOrientation) -> Unit, onForm: (SkinForm, Boolean) -> Unit, onResetLayout: () -> Unit, onClose: () -> Unit,
+) {
+    val layout = m.layout ?: return
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val w = constraints.maxWidth
+        val h = constraints.maxHeight
+        val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
+        fun stage(r: SkinRect) = fit.box(r).let { SkinRect(it.x, it.y, it.w, it.h) }
+        val rects = layout.rects()
+        val screen = stage(SkinSnap.bounds(layout.screens.ifEmpty { listOf(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height / 2f)) }))
+        val selected = m.selection?.ids?.mapNotNull { rects[it] }?.takeIf { it.isNotEmpty() }?.let { stage(SkinSnap.bounds(it)) }
+        val side = SkinPanels.side(w > h, w.toFloat(), screen, selected)
+        Box(Modifier.fillMaxSize().background(Color(0x66050508)).pointerInput(Unit) { detectTapGestures { onClose() } })
+        val wide = minOf(360.dp, maxWidth * 0.5f)
+        val (align, shape, size) = when (side) {
+            PanelSide.TOP -> Triple(Alignment.TopCenter, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
+            PanelSide.BOTTOM -> Triple(Alignment.BottomCenter, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
+            PanelSide.START -> Triple(Alignment.CenterStart, RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp), Modifier.width(wide).fillMaxHeight())
+            PanelSide.END -> Triple(Alignment.CenterEnd, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp), Modifier.width(wide).fillMaxHeight())
+        }
+        Column(
+            Modifier.align(align).then(size).clip(shape).background(Oe.Sheet).border(1.dp, BarBorder, shape)
+                .pointerInput(Unit) { detectTapGestures { } }
+                .verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.editor_layouts), Modifier.weight(1f), style = Type.Title.copy(fontSize = 22.sp))
+                DoneButton(onClose)
+            }
+            Text(stringResource(layoutsBody(form)), style = Type.Small.copy(fontSize = 13.sp, lineHeight = 18.sp))
+            SectionTitle(stringResource(layoutsHere(form)))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SkinOrientation.entries.forEach { o ->
+                    val id = SkinForms.id(form, o)
+                    val present = m.layoutOf(id) != null
+                    val editing = o == orientation
+                    LayoutCard(o, layoutState(present, editing, m.changed(id)), editing, present, Modifier.weight(1f)) { onShow(o) }
+                }
+            }
+            SectionTitle(stringResource(R.string.editor_layouts_other))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
+                SkinForm.entries.filter { it != form }.forEachIndexed { i, f ->
+                    val on = m.offered(f)
+                    SwitchRow(stringResource(offerTitle(f)), stringResource(offerLine(f, on)), on, { onForm(f, it) }, divider = i > 0)
+                }
+            }
+            FormBadges(SkinForm.entries.filter(m::offered).toSet())
+            Text(stringResource(R.string.editor_layouts_note), style = Type.Small.copy(fontSize = 12.sp, lineHeight = 18.sp))
+            SecondaryButton(stringResource(R.string.editor_reset_layout), onResetLayout, Modifier.fillMaxWidth(), icon = Icons.Reset)
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text.uppercase(), style = Type.Small.copy(fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold))
+}
+
+/** One of this device's layouts in the Layouts panel: a small device turned its way, its name and its state. */
+@Composable
+private fun LayoutCard(orientation: SkinOrientation, @StringRes state: Int?, editing: Boolean, present: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.gamepadFocus(corner = 16.dp).clip(shape)
+            .let { if (editing) it.background(Oe.Accent.copy(alpha = 0.12f)).border(2.dp, Oe.Accent, shape) else it.border(1.dp, BarBorder, shape) }
+            .clickable(enabled = present && !editing, onClick = onClick).padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        val upright = orientation == SkinOrientation.PORTRAIT
+        Box(Modifier.height(78.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(if (upright) 44.dp else 78.dp, if (upright) 78.dp else 44.dp).clip(RoundedCornerShape(8.dp)).background(StageBg).border(2.dp, Color(0xFF6E6C7A), RoundedCornerShape(8.dp)))
+        }
+        Text(stringResource(orientationName(orientation)), style = Type.Body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+        Text(state?.let { stringResource(it) } ?: " ", style = Type.Small.copy(color = if (editing) Oe.AccentText else Oe.Muted, fontSize = 12.sp), maxLines = 1)
+    }
+}
+
+/** Switching a form off: its layouts leave the skin when it is saved (issue 785). */
+@Composable
+private fun DropFormDialog(form: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
+    val opener = LocalPadScope.current
+    val pad = remember { PadScope() }
+    CompositionLocalProvider(LocalPadScope provides pad) {
+        Dialog(onDismissRequest = onDismiss) {
+            Column(
+                Modifier.padRoot(pad).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Oe.Sheet).border(1.dp, BarBorder, RoundedCornerShape(24.dp))
+                    .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                PadDialogWindow(pad, opener)
+                Text(stringResource(R.string.editor_form_off_title, form), style = Type.Title.copy(fontSize = 21.sp))
+                Text(stringResource(R.string.editor_form_off_body), style = Type.Small.copy(fontSize = 14.sp, lineHeight = 20.sp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(
+                        Modifier.fillMaxWidth().height(48.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onRemove),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(stringResource(R.string.editor_remove), style = Type.Body.copy(color = Oe.Danger, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)) }
+                    SecondaryButton(stringResource(R.string.detail_cancel), onDismiss, Modifier.fillMaxWidth())
                 }
             }
         }
