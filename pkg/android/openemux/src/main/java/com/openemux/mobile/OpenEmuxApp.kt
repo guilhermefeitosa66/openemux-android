@@ -83,6 +83,9 @@ class OpenEmuxApp : Application() {
     lateinit var shareNotifications: ShareNotifications
         private set
 
+    /** Files handed over by "Open with" or "Share" (ImportActivity), waiting for the library to import them. */
+    val externalImports = MutableStateFlow<List<android.net.Uri>?>(null)
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var visible = false
     @Volatile private var coordinator: ShareCoordinator? = null

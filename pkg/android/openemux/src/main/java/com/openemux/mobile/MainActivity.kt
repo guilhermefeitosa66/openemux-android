@@ -21,6 +21,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.flow.update
 import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ButtonLabelsPref
@@ -61,13 +62,27 @@ class MainActivity : ComponentActivity() {
             }
         }
         // A recreated activity, or one relaunched from Recents, carries the link it was opened with: it was handled then.
-        if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) handleShareLink(intent)
+        if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            handleShareLink(intent)
+            handleImport(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleShareLink(intent)
+        handleImport(intent)
+    }
+
+    /** Files from "Open with" or "Share", forwarded by ImportActivity with their read grant: the library imports them. */
+    private fun handleImport(intent: Intent?) {
+        if (intent?.action != ImportActivity.ACTION_IMPORT) return
+        val clip = intent.clipData ?: return
+        // This activity is exported too: the guard against the app's own files holds here, not only in ImportActivity.
+        val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.filter { isAcceptableImport(it) }
+        // Files that arrive while others still wait join them instead of replacing them.
+        if (uris.isNotEmpty()) (application as OpenEmuxApp).externalImports.update { (it.orEmpty() + uris).distinct() }
     }
 
     /**

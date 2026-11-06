@@ -136,6 +136,12 @@
         <item quantity="one">%d கோப்பு தவிர்க்கப்பட்டது.</item>
         <item quantity="other">%d கோப்புகள் தவிர்க்கப்பட்டன.</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="one">%d கேம் ஏற்கெனவே உங்கள் நூலகத்தில் உள்ளது.</item>
+        <item quantity="other">%d கேம்கள் ஏற்கெனவே உங்கள் நூலகத்தில் உள்ளன.</item>
+    </plurals>
+    <string name="import_unsupported">OpenEmux-ஆல் %1$s-ஐ இறக்குமதி செய்ய முடியாது: .%2$s கோப்புகளை எந்த கன்சோலும் இயக்காது.</string>
+    <string name="import_open_with_label">OpenEmux-க்கு இறக்குமதி செய்</string>
     <string name="settings_import_none">எந்த ROM-உம் அடையாளம் காணப்படவில்லை.</string>
     <string name="settings_import_view">பார்</string>
     <string name="settings_import_formats">ஏற்கப்படும் வடிவங்கள்</string>

@@ -128,6 +128,11 @@
     <plurals name="settings_import_skipped">
         <item quantity="other">%d 個のファイルをスキップしました。</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="other">%d 本のゲームはすでにライブラリにあります。</item>
+    </plurals>
+    <string name="import_unsupported">%1$s は読み込めません。.%2$s ファイルに対応するゲーム機がありません。</string>
+    <string name="import_open_with_label">OpenEmux に読み込む</string>
     <string name="settings_import_none">ROM が認識されませんでした。</string>
     <string name="settings_import_view">表示</string>
     <string name="settings_import_formats">対応形式</string>

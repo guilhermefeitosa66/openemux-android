@@ -144,6 +144,13 @@
         <item quantity="many">%d de fichiers ignorés.</item>
         <item quantity="other">%d fichiers ignorés.</item>
     </plurals>
+    <plurals name="settings_import_duplicates">
+        <item quantity="one">%d jeu est déjà dans ta bibliothèque.</item>
+        <item quantity="many">%d de jeux sont déjà dans ta bibliothèque.</item>
+        <item quantity="other">%d jeux sont déjà dans ta bibliothèque.</item>
+    </plurals>
+    <string name="import_unsupported">OpenEmux ne peut pas importer %1$s : aucune console ne lit les fichiers .%2$s.</string>
+    <string name="import_open_with_label">Importer dans OpenEmux</string>
     <string name="settings_import_none">Aucune ROM reconnue.</string>
     <string name="settings_import_view">Voir</string>
     <string name="settings_import_formats">Formats acceptés</string>
