@@ -37,7 +37,7 @@
     <string name="editor_contrast_letter">Low contrast: the letter may be hard to read.</string>
     <string name="editor_contrast_icons">Low contrast: the icons may be hard to read on the frame.</string>
     <string name="editor_contrast_active">Low contrast: the icon may be hard to read when the action is on.</string>
-    <string name="editor_replaces_image">A colour here replaces the part's image.</string>
+    <string name="editor_replaces_image">A colour here replaces the part\'s image.</string>
     <string name="editor_icon_when_on">Icon when on</string>
     <string name="editor_light">Light</string>
     <string name="editor_dark">Dark</string>

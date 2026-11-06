@@ -183,6 +183,7 @@ class SkinStore(private val base: File) {
     fun saveEdits(console: Console, id: String, json: String, images: SkinImageEdits = emptyMap()) {
         val dir = own(console, id)
         checkConsole(SkinFormat.parse(json), console)
+        images.keys.forEach { target(dir, it) }
         val stage = stageDir(console, id)
         placeImages(dir, stage, images)
         writeJson(dir, json)
@@ -196,6 +197,7 @@ class SkinStore(private val base: File) {
     fun saveAsNew(console: Console, id: String, json: String, name: String, images: SkinImageEdits = emptyMap()): String {
         val dir = own(console, id)
         checkConsole(SkinFormat.parse(json), console)
+        images.keys.forEach { target(dir, it) }
         val stage = stageDir(console, id)
         return build(console, name) { tmp ->
             copyTree(dir, tmp)
