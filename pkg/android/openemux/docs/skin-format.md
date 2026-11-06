@@ -65,6 +65,12 @@ Each layout folder holds **one image per element**, PNG, at the element's exact 
 (an element 180 × 180 in the layout is a 180 × 180 image). **Every image is optional**: a missing one is drawn from
 the element's colours, shape and label.
 
+Any image may be **WebP** instead: `<name>.webp` in place of `<name>.png` (`a.webp` for `a.png`,
+`keypad/background.webp`), read, drawn, copied and imported the same way. Each image is one or the other: a layout
+with both `<name>.png` and `<name>.webp` is refused (`DUPLICATE_ID`). The names below say `.png` for either. The app's
+bundled colour variants use lossy WebP (with lossless alpha) to keep the APK small; what the app writes itself (a
+converted or drawn copy, a template's images) is PNG.
+
 | File | What it is |
 |---|---|
 | `background.png` | the whole layout, behind everything (the layout's `size`) |
@@ -293,7 +299,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 | `BIND_NOT_FOR_TYPE` | A `bind` the element's type does not take (a stick bound to `a`). |
 | `BAD_SIZE` | A layout size, or a rect's width or height, of 0 or less. |
 | `OUT_OF_LAYOUT` | A screen, the frame or an element reaching outside the layout. |
-| `DUPLICATE_ID` | Two elements with one `id`, or two images with one file name, in a layout. |
+| `DUPLICATE_ID` | Two elements with one `id`, or two images with one file name, in a layout; or one image as both `<name>.png` and `<name>.webp`. |
 | `BAD_ID` | An `id` or an `image` that is not lowercase letters, digits and single hyphens. |
 | `BAD_COLOR` | A colour that is not `#RRGGBB` or `#RRGGBBAA`. |
 | `UNKNOWN_COLOR_PART` | A colour part the element's type (or the frame) does not have. |
@@ -308,8 +314,10 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
 for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
 read from that folder. The skins the app ships for some consoles (issue 770: GG, SG1000, S32X, MCD, SATURN, PCE,
-PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB; issue 772: A5200, CV, INTV, O2) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
-wins over them, and one the app cannot draw falls back to the drawn skin.
+PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB; issue 772: A5200, CV, INTV, O2; issue 806: FC, SFC,
+GB, GBC, GBA, MD, SMS, N64, GC, PS, PSP) are in this format too, zipped, in the APK's `assets/skins/<console>.zip`
+(and `dark/`, and `<colour>/` for each official colour, its images WebP); a user's skin still wins over them, and one
+the app cannot draw falls back to the drawn skin.
 
 - **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window
   600dp or more across its short side uses `tablet-*`; else `phone-*`. One form never borrows another's layouts.
@@ -367,8 +375,9 @@ Manic EMU package, and **Download as template** (a skin of your own → its shee
 
 - **Download as template** writes the skin's own `skin.json` unchanged, a `README.txt` listing every file at its size,
   and **one image per element in every layout the skin has** (the ones this device cannot edit too), all under one
-  folder named after the skin. An image the skin has at the right size is copied as is, one at another size is
-  scaled to it, and a missing one is drawn the way the game draws it (colours, shape, label). Sizes: the element's
+  folder named after the skin. An image the skin has as a PNG at the right size is copied as is, a WebP one or one at
+  another size is written as a PNG at that size, and a missing one is drawn the way the game draws it (colours,
+  shape, label). Sizes: the element's
   rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
   a stick's `-knob` image half its shorter side (rounded half up). A layout's keypad page adds its own images in the
   layout's `keypad/` folder, at the same sizes (its background only when it names one of its own), and an NDS layout's
@@ -383,7 +392,8 @@ Manic EMU package, and **Download as template** (a skin of your own → its shee
   target. Only `skin.json` and the images it names are kept. **A layout whose folder is missing from the zip is
   dropped** from `layouts` (and `forms`), so deleting a template's `fold-*` folders stops the skin offering folds;
   a zip with no layout folder at all keeps every layout (a skin drawn from its colours). An image the zip lacks is
-  the replaced skin's, when it had one; else the element is drawn from its colours.
+  the replaced skin's, when it had one; else the element is drawn from its colours. Each image keeps its name, PNG or
+  WebP.
 - The skin is built in a hidden folder, read back with this reader, and only then renamed into place (a replaced
   skin moved aside until then): a zip that fails at any point leaves the list as it was.
 - A package is copied as it is to `<name>.deltaskin` (or `.manicskin`, when the picked file was one) and shows under

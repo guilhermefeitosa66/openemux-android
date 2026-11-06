@@ -34,7 +34,7 @@ enum class SkinError {
     /** A layout size or a rect with no area. */
     BAD_SIZE,
     OUT_OF_LAYOUT,
-    /** Two elements with one id, or two images with one file name, in a layout. */
+    /** Two elements with one id, two images with one file name, or one image as both PNG and WebP, in a layout. */
     DUPLICATE_ID,
     /** An id or image base name that is not a plain file name. */
     BAD_ID,
@@ -101,8 +101,12 @@ class ZipSkinSource(private val file: File) : SkinSource {
 
 /** A skin read from [source]: the model plus where each of its images is, for the ones the package has. */
 class SkinPackage(val skin: OpenEmuxSkin, val source: SkinSource) {
-    /** The path of [file] in [layout]'s folder, or null when the package lacks it (the colours are drawn instead). */
-    fun image(layout: SkinLayoutId, file: String): String? = "${layout.id}/$file".takeIf { it in source.files }
+    /**
+     * The path of [file] (the model's `<name>.png`) in [layout]'s folder, as PNG or as WebP (`<name>.webp`, issue 806),
+     * or null when the package has neither (the colours are drawn instead).
+     */
+    fun image(layout: SkinLayoutId, file: String): String? =
+        SkinFormat.imageNames(file).map { "${layout.id}/$it" }.firstOrNull { it in source.files }
 
     fun background(layout: SkinLayoutId): String? = skin.layouts[layout]?.let { image(layout, it.background.imageFile) }
 
@@ -154,6 +158,16 @@ object SkinFormat {
     const val SKIN_JSON = "skin.json"
     const val MAX_JSON_BYTES = 1 shl 20
 
+    /** An image's extension in the model's names ([SkinElement.imageFiles]), and the other one a package may use. */
+    const val PNG = ".png"
+    const val WEBP = ".webp"
+
+    /**
+     * The names [file] (a model image name, `<name>.png`) may have in a package, in the order they are looked for:
+     * `<name>.png`, then `<name>.webp` (issue 806: the bundled colour variants' art is lossy WebP).
+     */
+    fun imageNames(file: String): List<String> = listOf(file, file.removeSuffix(PNG) + WEBP)
+
     /** The input names of the quick actions on the frame. */
     val ACTION_BINDS = setOf(
         "menu", "quickSave", "quickLoad", "fastForward", "toggleFastForward", "turbo", "slowMotion", "screenshot",
@@ -203,7 +217,19 @@ object SkinFormat {
         val stream = source.open(SKIN_JSON) ?: throw SkinFormatException(SkinError.NO_SKIN_JSON, "")
         val bytes = stream.use { it.readNBytesCompat(MAX_JSON_BYTES + 1) }
         if (bytes.size > MAX_JSON_BYTES) throw SkinFormatException(SkinError.TOO_LARGE, "")
-        return SkinPackage(parse(String(bytes, Charsets.UTF_8)), source)
+        val skin = parse(String(bytes, Charsets.UTF_8))
+        oneFormatPerImage(skin, source.files)
+        return SkinPackage(skin, source)
+    }
+
+    /** Refuses a layout folder (its keypad page's included) holding one image as both `<name>.png` and `<name>.webp`. */
+    private fun oneFormatPerImage(skin: OpenEmuxSkin, files: Set<String>) {
+        for (id in skin.layouts.keys) {
+            val webp = files.filter { it.startsWith("${id.id}/") && it.endsWith(WEBP) }.sorted()
+            val both = webp.firstOrNull { it.removeSuffix(WEBP) + PNG in files } ?: continue
+            val name = both.removePrefix("${id.id}/").removeSuffix(WEBP)
+            throw SkinFormatException(SkinError.DUPLICATE_ID, "layouts.${id.id}", "image $name is both $name$PNG and $name$WEBP")
+        }
     }
 
     /** [json] (a skin.json's text) as a skin. */

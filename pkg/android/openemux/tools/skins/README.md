@@ -1,14 +1,15 @@
 # Bundled controller skins
 
-`build.py` builds `src/main/assets/skins/<console>.deltaskin` (or
-`.manicskin`), the skins of the twelve best-known consoles, from one source:
+`build.py` builds the app's bundled skins, `src/main/assets/skins/<console>.zip`
+in OpenEmux's own skin format (`docs/skin-format.md`; the DS still a
+`<console>.deltaskin` until issue 808), from one source:
 `Skin.dc.html`, the Skin component of the skins' design canvas. Its script
 holds the layout engine (between `ENGINE START` and `ENGINE END`) and each
 console's colors, measured on photos of the console's best-known shell
 (Wikimedia Commons).
 
 ```sh
-python3 tools/skins/build.py                  # all twelve, both variants
+python3 tools/skins/build.py                  # every console, every variant
 python3 tools/skins/build.py GBA PS           # some
 python3 tools/skins/build.py --variant dark   # only the Dark ones
 python3 tools/skins/build.py --variant white  # one official colour, every console sold in it
@@ -28,8 +29,9 @@ The consoles also come in the official colours they were sold in (issue
 derived to read on it, and, where the shell's plastic also moulds them,
 the D-pad, stick and shoulders. Each colour's packages go in a folder named
 after it (`src/main/assets/skins/<colour>/`), their art in lossy WebP
-(quality 90, alpha lossless): 40 to 140 KB a package instead of the PNG's
-0.5 to 4 MB. The build stops if a colour's layout differs from the
+(quality 90, alpha lossless): a tenth of the PNG's size or less (issue 806:
+200 to 300 KB a zip in OpenEmux's format, against 1 to 2 MB for the
+console's own colours in PNG). The format takes `<name>.webp` for any image. The build stops if a colour's layout differs from the
 console's own, as it does for Dark. Every run also writes
 `src/main/assets/skins/variants.json`, the list the app's picker shows: per
 console, its variants in order with the shell and button colours of each
@@ -53,7 +55,8 @@ show them.
 | PSP | White (Ceramic White), Silver, Blue (Metallic Blue); the skin's own is Piano Black | <https://en.wikipedia.org/wiki/PlayStation_Portable>, <https://av.watch.impress.co.jp/docs/20061101/sce.htm> |
 | PS, MD, SMS | none: one retail colour each | <https://en.wikipedia.org/wiki/PlayStation_(console)>, <https://en.wikipedia.org/wiki/Sega_Genesis>, <https://en.wikipedia.org/wiki/Master_System> |
 
-For each console it lays out four representations (phone and tablet,
+The DS (the only console left in a Delta package, see `SCREEN_LAYOUTS`
+and `TYPES` in `build.py`) is built as follows. It lays out four representations (phone and tablet,
 portrait and landscape: `iphone/edgeToEdge` and `ipad/standard` in the
 format), renders each with headless Chrome from `render.html` (3 px per unit
 on phones, 2 on tablets), cuts the game's screens out of the art and writes
@@ -79,11 +82,17 @@ Intermediate images go to
 
 ## The consoles in OpenEmux's own format
 
-Nineteen more consoles (issues 770, 771 and 772) ship in OpenEmux's own skin format
-(`docs/skin-format.md`) instead of Delta's or Manic's:
-`src/main/assets/skins/<console>.zip` and `dark/<console>.zip`, in their own
-colours and Dark only. `OWN_FORMAT` in `build.py` names them; the same command
-builds them (`python3 tools/skins/build.py GG PCE`), Pillow needed besides.
+Every console but the DS ships in OpenEmux's own skin format
+(`docs/skin-format.md`): nineteen that had the drawn skin (issues 770, 771
+and 772), in their own colours and Dark, and the eleven single-screen ones
+that were Delta/Manic packages (issue 806: FC, SFC, GB, GBC, GBA, MD, SMS,
+N64, GC, PS, PSP), in every variant they had, their official colours'
+images in WebP: `src/main/assets/skins/<console>.zip`, `dark/<console>.zip`
+and `<colour>/<console>.zip`. `OWN_FORMAT` in `build.py` names them; the
+same command builds them (`python3 tools/skins/build.py GG PCE`), Pillow
+needed besides. Their layouts gained the fold (six instead of four), and
+their controls keep the binds the packages had: the same engine items, the
+same input names.
 
 Each package has `skin.json` (written by the same code as the templates) and
 the six layouts, phone, tablet and fold, at the templates' scale (3, 2 and 3 px

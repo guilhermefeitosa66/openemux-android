@@ -176,6 +176,7 @@ Template: [`FC-template.zip`](FC-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
@@ -193,6 +194,7 @@ Template: [`GB-template.zip`](GB-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
@@ -210,6 +212,7 @@ Template: [`GBC-template.zip`](GBC-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
@@ -227,6 +230,7 @@ Template: [`GBA-template.zip`](GBA-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
@@ -319,6 +323,7 @@ Template: [`N64-template.zip`](N64-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
@@ -365,6 +370,7 @@ Template: [`GC-template.zip`](GC-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `z` | button | `z` | Z | `z.png` |
@@ -485,6 +491,7 @@ Template: [`MD-template.zip`](MD-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
@@ -506,6 +513,7 @@ Template: [`SMS-template.zip`](SMS-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
@@ -544,6 +552,7 @@ Template: [`PS-template.zip`](PS-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l2` | button | `l2` | L2 | `l2.png` |
 | `l1` | button | `l1` | L1 | `l1.png` |
@@ -569,6 +578,7 @@ Template: [`PSP-template.zip`](PSP-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
@@ -591,6 +601,7 @@ Template: [`SFC-template.zip`](SFC-template.zip).
 | `save` | action | `quickSave` |  | `save.png` |
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
+| `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |

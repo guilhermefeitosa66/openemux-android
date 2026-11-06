@@ -10,9 +10,10 @@ colour variants' art is lossy WebP, a tenth of the PNG's size; the console's own
 picker's list (src/main/assets/skins/variants.json: per console, its variants in order with the colours of
 their swatch) is written on every run.
 
-The consoles in OWN_FORMAT (issue 770) ship in OpenEmux's own skin format instead (docs/skin-format.md):
-src/main/assets/skins/<console>.zip and dark/<console>.zip, skin.json and the six layouts (phone, tablet, fold),
-one image per element cut out of the engine's art. Needs Pillow as well.
+The consoles in OWN_FORMAT (issues 770, 771, 772, 806: all but the DS) ship in OpenEmux's own skin format instead
+(docs/skin-format.md): src/main/assets/skins/<console>.zip, dark/<console>.zip and <colour>/<console>.zip, skin.json
+and the six layouts (phone, tablet, fold), one image per element cut out of the engine's art, a colour variant's in
+WebP. Needs Pillow as well.
 
 The layout and the art have one source: the engine of the design canvas's
 Skin component (Skin.dc.html, between ENGINE START and ENGINE END). Each
@@ -37,20 +38,19 @@ ASSETS = APP / "src/main/assets/skins"
 WORK = APP / "build/skins"
 CHROME = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
 
-# Delta's identifiers where Delta has the console, Manic EMU's otherwise (and then a .manicskin).
+# Delta's identifiers where Delta has the console, Manic EMU's otherwise (and then a .manicskin). Only the DS is still
+# bundled as a Delta package (issue 806 moved the others to OWN_FORMAT; issue 808 moves the DS).
 TYPES = {
-    "FC": "com.rileytestut.delta.game.nes", "SFC": "com.rileytestut.delta.game.snes",
-    "N64": "com.rileytestut.delta.game.n64", "GBC": "com.rileytestut.delta.game.gbc",
-    "GBA": "com.rileytestut.delta.game.gba", "NDS": "com.rileytestut.delta.game.ds",
-    "MD": "com.rileytestut.delta.game.genesis",
-    "GB": "public.aoshuang.game.gb", "GC": "public.aoshuang.game.ngc", "SMS": "public.aoshuang.game.ms",
-    "PS": "public.aoshuang.game.ps1", "PSP": "public.aoshuang.game.psp",
+    "NDS": "com.rileytestut.delta.game.ds",
 }
 # The consoles bundled in OpenEmux's own skin format (issue 770), with no Delta or Manic identifier: each package is
 # <console>.zip, skin.json and the six layouts, the art cut into one image per element (build_own).
 # Issue 771 added the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy.
 # Issue 772 the consoles with a keypad, each layout with its keypad page (<layout>/keypad/, see keypad_page).
-OWN_FORMAT = ["GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS",
+# Issue 806 the eleven single-screen consoles that were Delta/Manic packages, in every variant they had: their colour
+# variants' images in WebP (see PNG_VARIANTS).
+OWN_FORMAT = ["FC", "SFC", "N64", "GBC", "GBA", "MD", "GB", "GC", "SMS", "PS", "PSP",
+              "GG", "SG1000", "S32X", "MCD", "SATURN", "PCE", "PCECD", "FDS",
               "A2600", "A7800", "LYNX", "NGP", "WS", "VECTREX", "VB",
               "A5200", "CV", "INTV", "O2"]
 CONSOLES = list(TYPES) + OWN_FORMAT
@@ -755,6 +755,10 @@ def build_own(console, profile, variant="console", label=None):
     for device, orient in TEMPLATE_LAYOUTS:
         layout_id = f"{device}-{orient}"
         layouts[layout_id], name = own_layout(console, device, orient, variant, folder / layout_id, profile, ball)
+    if variant not in PNG_VARIANTS:
+        # A colour variant's images in lossy WebP, as its Delta/Manic package had (issue 720): the format reads
+        # <name>.webp in place of <name>.png (docs/skin-format.md, Images).
+        to_webp(folder, [f.relative_to(folder).as_posix() for f in sorted(folder.rglob("*.png"))])
     suffix = {"console": ""}.get(variant, f" {label or variant.capitalize()}")
     skin = {"format": 1, "console": console, "name": f"OpenEmux {name}{suffix}", "forms": ["phone", "tablet", "fold"],
             "layouts": layouts}

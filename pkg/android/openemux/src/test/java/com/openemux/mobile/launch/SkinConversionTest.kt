@@ -72,19 +72,21 @@ class SkinConversionTest {
     @Test fun theAppsOwnAssetsAnswerForEveryConsole() {
         val list = { dir: String -> File(assets, dir).list() }
         fun kind(k: SkinConversion.Kind) = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == k }.map { it.id }.sorted()
-        // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more, issue 772 the four with a keypad.
+        // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more, issue 772 the four with a keypad,
+        // issue 806 the eleven single-screen consoles that shipped Delta/Manic packages.
         assertEquals(
             listOf(
-                "A2600", "A5200", "A7800", "CV", "FDS", "GG", "INTV", "LYNX", "MCD", "NGP", "O2", "PCE", "PCECD", "S32X", "SATURN",
-                "SG1000", "VB", "VECTREX", "WS",
+                "A2600", "A5200", "A7800", "CV", "FC", "FDS", "GB", "GBA", "GBC", "GC", "GG", "INTV", "LYNX", "MCD", "MD", "N64",
+                "NGP", "O2", "PCE", "PCECD", "PS", "PSP", "S32X", "SATURN", "SFC", "SG1000", "SMS", "VB", "VECTREX", "WS",
             ),
             kind(SkinConversion.Kind.OPENEMUX),
         )
-        // The twelve best-known consoles ship Delta/Manic packages (issue 797).
-        assertEquals(listOf("FC", "GB", "GBA", "GBC", "GC", "MD", "N64", "NDS", "PS", "PSP", "SFC", "SMS"), kind(SkinConversion.Kind.PACKAGE))
-        // Every variant of those has one too, its own or the console's.
-        for (console in Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == SkinConversion.Kind.PACKAGE }) {
-            for (variant in SkinVariant.entries) assertEquals("${console.id} ${variant.id}", SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, console, variant))
+        // Only the DS still ships a Delta package (issue 808 moves it).
+        assertEquals(listOf("NDS"), kind(SkinConversion.Kind.PACKAGE))
+        // Every variant of each has the same kind, its own package or the console's.
+        for (console in Console.entries) {
+            val k = SkinConversion.kind(list, console, SkinVariant.CONSOLE)
+            for (variant in SkinVariant.entries) assertEquals("${console.id} ${variant.id}", k, SkinConversion.kind(list, console, variant))
         }
         // Issue 798's drawn copy was for those four; with their packages no bundled console is left on the drawn skin.
         assertEquals(emptyList<String>(), kind(SkinConversion.Kind.DRAWN))
@@ -178,7 +180,8 @@ class SkinConversionTest {
 
     @Test fun everyOwnFormatBundledSkinCopiesWithEveryLayoutElementAndFile() {
         val packages = ownFormatPackages()
-        assertEquals(38, packages.size)
+        // Thirty consoles in their own colours and Dark, and the 33 official colours of the eleven issue 806 moved.
+        assertEquals(30 * 2 + 33, packages.size)
         for ((variant, zip) in packages) {
             val where = "${variant.id} ${zip.name}"
             val source = SkinFormat.readZip(zip)

@@ -103,7 +103,7 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     /**
      * One image of [pkg]'s template (issue 787, data/SkinTemplate.kt) as PNG bytes at its exact size: the skin's own
-     * file as it is when it already has that size, scaled to it when not, and drawn the way the game draws the element
+     * file as it is when it is a PNG of that size, re-encoded (a WebP, issue 806) or scaled to it when not, and drawn the way the game draws the element
      * without an image (its colours, shape, label or glyph) when the skin has none or it cannot be read.
      */
     fun templateImage(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage): ByteArray {

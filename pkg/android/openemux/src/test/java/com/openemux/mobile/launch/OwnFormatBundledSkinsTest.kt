@@ -2,11 +2,13 @@ package com.openemux.mobile.launch
 
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.KEYPAD_BIND
+import com.openemux.mobile.data.SkinCatalog
 import com.openemux.mobile.data.SkinCluster
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinPackage
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.forCore
@@ -23,8 +25,10 @@ import kotlin.math.min
 /**
  * The skins the app ships in OpenEmux's own format (issue 770: the Sega, NEC and Famicom Disk System consoles; issue
  * 771: the Atari consoles, the Lynx, the Neo Geo Pocket, the WonderSwan, the Vectrex and the Virtual Boy; issue 772:
- * the consoles with a keypad), read by the app's own reader: the six layouts, every image at its element's size, a
- * Dark twin with the same layout, and every control pressing what the drawn skin's presses for that console.
+ * the consoles with a keypad; issue 806: the eleven single-screen consoles that shipped Delta/Manic packages, with
+ * their official colours), read by the app's own reader: the six layouts, every image at its element's size (PNG for
+ * the console's own colours and Dark, WebP for a colour variant), every variant with the same layout, and every
+ * control pressing what the drawn skin's presses for that console.
  */
 class OwnFormatBundledSkinsTest {
     private val assets = File("src/main/assets")
@@ -32,55 +36,104 @@ class OwnFormatBundledSkinsTest {
     private fun packages(variant: SkinVariant) = File(assets, variant.assetDir).listFiles()!!
         .filter { it.isFile && ImportedSkinRenderer.isOpenEmuxPackage(it) }.sortedBy { it.name }
 
+    /** Every own-format package in every variant folder, with its variant. */
+    private fun allPackages(): List<Pair<SkinVariant, File>> = SkinVariant.entries.flatMap { v -> packages(v).map { v to it } }
+
     private fun read(file: File): SkinPackage = SkinFormat.readZip(file)
 
-    /** A PNG's width and height, from its header. */
-    private fun pngSize(pkg: SkinPackage, path: String): Pair<Int, Int> = pkg.source.open(path)!!.use { input ->
-        val data = DataInputStream(input)
-        val header = ByteArray(16).also { data.readFully(it) }
-        assertEquals("$path is a PNG", 0x89.toByte(), header[0])
-        data.readInt() to data.readInt()
+    private val catalog by lazy { File(assets, SkinCatalog.ASSET).readText() }
+
+    /** A PNG's width and height from its header, or, with [webp], a WebP's (issue 806: a colour variant's images). */
+    private fun imageSize(pkg: SkinPackage, path: String, webp: Boolean): Pair<Int, Int> = pkg.source.open(path)!!.use { input ->
+        val bytes = input.readBytes()
+        assertEquals("$path is a ${if (webp) "WebP" else "PNG"}", if (webp) ".webp" else ".png", "." + path.substringAfterLast('.'))
+        if (!webp) {
+            assertEquals("$path is a PNG", 0x89.toByte(), bytes[0])
+            val data = DataInputStream(bytes.inputStream(16, 8))
+            return data.readInt() to data.readInt()
+        }
+        assertEquals("$path is a WebP", "RIFFWEBP", String(bytes, 0, 4) + String(bytes, 8, 4))
+        fun le(at: Int, n: Int) = (0 until n).fold(0) { acc, i -> acc or ((bytes[at + i].toInt() and 0xFF) shl (8 * i)) }
+        when (val chunk = String(bytes, 12, 4)) {
+            // The extended form (what an image with alpha is): the canvas's width and height less one, 24 bits each.
+            "VP8X" -> le(24, 3) + 1 to le(27, 3) + 1
+            // Lossless: 14 bits each, less one, after the signature byte.
+            "VP8L" -> le(21, 4).let { (it and 0x3FFF) + 1 to ((it shr 14) and 0x3FFF) + 1 }
+            "VP8 " -> (le(26, 2) and 0x3FFF) to (le(28, 2) and 0x3FFF)
+            else -> throw AssertionError("$path: WebP chunk $chunk")
+        }
     }
 
     @Test fun theConsolesShipInTheOwnFormat() {
         val ids = packages(SkinVariant.CONSOLE).map { it.name.removeSuffix(".zip") }
         assertEquals(listOf(
-            "A2600", "A5200", "A7800", "CV", "FDS", "GG", "INTV", "LYNX", "MCD", "NGP", "O2", "PCE", "PCECD", "S32X", "SATURN",
-            "SG1000", "VB", "VECTREX", "WS",
+            "A2600", "A5200", "A7800", "CV", "FC", "FDS", "GB", "GBA", "GBC", "GC", "GG", "INTV", "LYNX", "MCD", "MD", "N64", "NGP",
+            "O2", "PCE", "PCECD", "PS", "PSP", "S32X", "SATURN", "SFC", "SG1000", "SMS", "VB", "VECTREX", "WS",
         ), ids)
         assertEquals(ids, packages(SkinVariant.DARK).map { it.name.removeSuffix(".zip") })
+        // Issue 806: of the Delta/Manic packages, only the DS's are left (issue 808 moves them), in any variant folder.
+        for (v in SkinVariant.entries) {
+            val left = File(assets, v.assetDir).listFiles()!!.filter { it.isFile && SkinStore.isPackageName(it.name) }.map { it.name }
+            assertEquals(v.id, if (left.isEmpty()) emptyList() else listOf("NDS.deltaskin"), left)
+        }
+    }
+
+    @Test fun everyVariantInTheCatalogShipsAPackage() {
+        // Issue 806: every variant the picker lists for a console in the own format is a zip in that variant's folder.
+        var colors = 0
+        for (file in packages(SkinVariant.CONSOLE)) {
+            val console = read(file).skin.console
+            val listed = SkinCatalog.parse(catalog, console).map { it.variant }
+            assertEquals(console.id, listOf(SkinVariant.CONSOLE, SkinVariant.DARK), listed.take(2))
+            for (v in listed) assertTrue("${v.id}/${file.name}", File(assets, "${v.assetDir}/${file.name}").isFile)
+            colors += listed.size - 2
+        }
+        // The 33 official colours of the eleven consoles issue 806 moved (the DS's five stay packages).
+        assertEquals(33, colors)
+        // And no zip ships that the catalog does not list.
+        for ((v, file) in allPackages()) {
+            val console = read(file).skin.console
+            assertTrue("${v.id}/${file.name}", SkinCatalog.parse(catalog, console).any { it.variant == v })
+        }
     }
 
     @Test fun everyPackageHasTheSixLayoutsForItsConsole() {
-        for (file in packages(SkinVariant.CONSOLE) + packages(SkinVariant.DARK)) {
+        for ((_, file) in allPackages()) {
             val pkg = read(file)
             assertEquals(file.name.removeSuffix(".zip"), pkg.skin.console.id)
             assertEquals(file.path, SkinLayoutId.entries.toSet(), pkg.skin.layouts.keys)
         }
     }
 
-    @Test fun theDarkTwinHasTheSameLayout() {
+    @Test fun everyVariantHasTheSameLayout() {
         for (file in packages(SkinVariant.CONSOLE)) {
             val own = read(file).skin
-            val dark = read(File(assets, "${SkinVariant.DARK.assetDir}/${file.name}")).skin
-            assertEquals("${own.name} Dark", dark.name)
-            for ((id, layout) in own.layouts) {
-                val d = dark.layouts.getValue(id)
-                val where = "${file.name} ${id.id}"
-                assertEquals(where, layout.size, d.size)
-                assertEquals(where, layout.screens, d.screens)
-                assertEquals(where, layout.frame?.rect, d.frame?.rect)
-                for (keypad in listOf(false, true)) {
-                    assertEquals(where, layout.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) },
-                        d.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) })
+            for ((v, twin) in allPackages().filter { (v, f) -> v != SkinVariant.CONSOLE && f.name == file.name }) {
+                val other = read(twin).skin
+                // Dark, or the colour's name (issue 720): "OpenEmux Game Boy Red".
+                if (v == SkinVariant.DARK) assertEquals("${own.name} Dark", other.name)
+                else assertTrue(other.name, other.name.startsWith("${own.name} ") && other.name != "${own.name} Dark")
+                for ((id, layout) in own.layouts) {
+                    val d = other.layouts.getValue(id)
+                    val where = "${v.id}/${file.name} ${id.id}"
+                    assertEquals(where, layout.size, d.size)
+                    assertEquals(where, layout.screens, d.screens)
+                    assertEquals(where, layout.frame?.rect, d.frame?.rect)
+                    for (keypad in listOf(false, true)) {
+                        assertEquals(where, layout.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) },
+                            d.elements(keypad).map { listOf(it.id, it.type, it.bind, it.rect, it.label) })
+                    }
                 }
             }
         }
     }
 
     @Test fun everyImageIsThereAtItsSize() {
-        for (file in packages(SkinVariant.CONSOLE) + packages(SkinVariant.DARK)) {
+        for ((v, file) in allPackages()) {
             val pkg = read(file)
+            // The console's own colours and Dark are PNG (issue 718), every official colour WebP (issues 720, 806).
+            val webp = v != SkinVariant.CONSOLE && v != SkinVariant.DARK
+            fun pngSize(pkg: SkinPackage, path: String) = imageSize(pkg, path, webp)
             for ((id, layout) in pkg.skin.layouts) {
                 val where = "${file.path} ${id.id}"
                 assertEquals(where, layout.size.width to layout.size.height, pngSize(pkg, pkg.background(id)!!))
@@ -178,12 +231,19 @@ class OwnFormatBundledSkinsTest {
             val pkg = read(file)
             for ((id, layout) in pkg.skin.layouts) {
                 val actions = layout.elements.filter { it.type == SkinElementType.ACTION }.map { it.bind }
-                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo", "toggleFastForward"), actions)
+                // Issue 806: the consoles that were Delta/Manic packages keep the slow-motion key the app gave those.
+                val slow = if (pkg.skin.console in SLOW_MOTION) listOf("slowMotion") else emptyList()
+                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo") + slow + "toggleFastForward", actions)
                 assertTrue(layout.elements.any { it.bind == "menu" })
-                actions.forEach { assertNotNull(SkinBinds.bind(pkg.skin.console, it, false)) }
+                actions.forEach { assertNotNull(it, OpenEmuxBinds.action(pkg.skin.console, it, false)?.bind) }
             }
         }
     }
+
+    private val SLOW_MOTION = setOf(
+        Console.FC, Console.SFC, Console.GB, Console.GBC, Console.GBA, Console.MD, Console.SMS, Console.N64, Console.GC,
+        Console.PS, Console.PSP,
+    )
 
     /** The consoles whose drawn skin has a keypad (issue 772): each package has a keypad page in every layout. */
     private val keypadConsoles = Console.entries.filter { it.skin.keypad.isNotEmpty() }

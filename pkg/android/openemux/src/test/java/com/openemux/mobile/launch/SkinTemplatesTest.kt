@@ -101,8 +101,10 @@ class SkinTemplatesTest {
                 val known = when (e.type) {
                     SkinElementType.BUTTON, SkinElementType.ACTION ->
                         // screens and keypadToggle are the format's own: the NDS's next screen layout, the keypad
-                        // page's switch, no RetroArch bind.
-                        e.bind == "screens" || e.bind == SkinFormat.KEYPAD_TOGGLE || SkinBinds.bind(console, e.bind, hardcore = false) != null
+                        // page's switch, no RetroArch bind. A quick action (slowMotion included, issue 806) goes
+                        // through the renderer's own table.
+                        e.bind == "screens" || e.bind == SkinFormat.KEYPAD_TOGGLE || SkinBinds.bind(console, e.bind, hardcore = false) != null ||
+                            OpenEmuxBinds.action(console, e.bind, hardcore = false)?.bind != null
                     else -> e.bind in SkinFormat.bindsFor(e.type)
                 }
                 assertTrue("$id ${layoutId.id} ${e.id} ${e.bind}", known)

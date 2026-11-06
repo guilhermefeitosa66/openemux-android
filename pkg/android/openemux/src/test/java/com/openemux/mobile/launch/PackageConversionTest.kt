@@ -443,21 +443,27 @@ class PackageConversionTest {
         assertEquals(SkinTemplate.images(layout.layout).size, PackageConversion.sizes(layout.layout).size)
     }
 
-    /** Every Delta/Manic package the app ships, in every variant folder. */
-    private fun packages(): List<Pair<SkinVariant, File>> = SkinVariant.entries.flatMap { v ->
-        File(assets, v.assetDir).listFiles().orEmpty().filter { SkinStore.isPackage(it) }.map { v to it }
-    }
+    /**
+     * Every Delta/Manic package the app ships, in every variant folder (the DS's, issue 806 having moved the others to
+     * OpenEmux's format), and the colour packages the eleven others shipped until then, kept as test files
+     * (src/test/resources/skins/packages/<variant>-<console>.<ext>): a Delta and a Manic package of each kind of
+     * controller, sticks included.
+     */
+    private fun packages(): List<Pair<String, File>> = SkinVariant.entries.flatMap { v ->
+        File(assets, v.assetDir).listFiles().orEmpty().filter { SkinStore.isPackage(it) }.map { v.id to it }
+    } + File("src/test/resources/skins/packages").listFiles().orEmpty().filter { SkinStore.isPackage(it) }.sortedBy { it.name }
+        .map { it.name.substringBefore('-') to it }
 
     @Test fun everyBundledPackagePlansIntoASkinTheFormatAccepts() {
         val packages = packages()
-        assertTrue(packages.size >= 60)
+        assertTrue(packages.size >= 15)
         assertEquals(
-            listOf("FC", "GB", "GBA", "GBC", "GC", "MD", "N64", "NDS", "PS", "PSP", "SFC", "SMS"),
-            packages.map { it.second.nameWithoutExtension }.distinct().sorted(),
+            listOf("FC", "GB", "GBA", "GBC", "GC", "N64", "NDS", "PSP", "SFC"),
+            packages.map { it.second.nameWithoutExtension.substringAfter('-') }.distinct().sorted(),
         )
         for ((variant, file) in packages) {
-            val where = "${variant.id} ${file.name}"
-            val console = Console.entries.first { it.id == file.nameWithoutExtension }
+            val where = "$variant ${file.name}"
+            val console = Console.entries.first { it.id == file.nameWithoutExtension.substringAfter('-') }
             ZipFile(file).use { zip ->
                 val info = SkinStore.packageInfo(zip)
                 val plan = PackageConversion.plan(info, console, "Copy") { entry ->
@@ -484,7 +490,7 @@ class PackageConversionTest {
                         assertEquals("$where ${p.element.id}", p.element.imageFiles.size, p.sources.size)
                         p.sources.filterIsInstance<ImageSource.Entry>().forEach { assertNotNull("$where ${it.entry}", ImportedSkinRenderer.findEntry(zip, it.entry)) }
                     }
-                    if (console in setOf(Console.N64, Console.GC, Console.PS, Console.PSP)) {
+                    if (console in setOf(Console.N64, Console.GC, Console.PSP)) {
                         assertTrue("$where ${id.id}", e.any { it.type == SkinElementType.STICK })
                     }
                 }

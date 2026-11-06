@@ -103,9 +103,14 @@ class BundledSkinsTest {
             val own = packages(File(assets, SkinVariant.CONSOLE.assetDir)).firstOrNull { it.name.substringBeforeLast('.') == console.id }
             val ownFormat = File(assets, "${SkinVariant.CONSOLE.assetDir}/${console.id}.zip").isFile
             if (own == null) {
-                // The consoles in OpenEmux's own format (issue 770) come in their own colours and Dark only.
-                val expected = if (ownFormat) listOf(SkinVariant.CONSOLE, SkinVariant.DARK) else emptyList()
-                assertEquals("${console.id} in the catalog", expected, listed.map { it.variant })
+                // A console in OpenEmux's own format ships a zip per variant (OwnFormatBundledSkinsTest): the eleven
+                // issue 806 moved keep their official colours, the others (issues 770-772) come in their own and Dark.
+                if (!ownFormat) assertEquals("${console.id} in the catalog", emptyList<SkinVariant>(), listed.map { it.variant })
+                listed.drop(2).forEach { swatch ->
+                    assertTrue("no ${swatch.variant.id} skin for ${console.id}", File(assets, "${swatch.variant.assetDir}/${console.id}.zip").isFile)
+                    assertTrue("${swatch.variant.id}/${console.id} has no swatch", swatch.body != null && swatch.key != null)
+                    colors++
+                }
                 return@forEach
             }
             assertEquals(console.id, listOf(SkinVariant.CONSOLE, SkinVariant.DARK), listed.take(2).map { it.variant })
