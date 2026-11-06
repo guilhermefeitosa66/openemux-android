@@ -72,6 +72,27 @@ class OpenEmuxSkinLayoutsTest {
         assertNull((plan(Console.GBA, element(SkinElementType.BUTTON, "cUp")).single() as ElementPlan.Button).bind)
     }
 
+    @Test fun buttonsAndKeysPressWhatTheCoreReadsThemAs() {
+        // Gearcoleco reads the ColecoVision pad where blueMSX's binds differ (data/Skin.kt's coreBind), as the drawn skin.
+        val layout = layout.copy(elements = listOf(
+            element(SkinElementType.BUTTON, "a"), element(SkinElementType.KEYPAD, "keypad1", x = 400f),
+            element(SkinElementType.KEYPAD, "keypad9", x = 700f), element(SkinElementType.BUTTON, "quickSave", y = 1300f),
+        ))
+        fun binds(core: String?) = planPage(Console.CV, layout, 1000, 2000, hardcore = false, coreId = core).elements.map {
+            when (it) {
+                is ElementPlan.Button -> it.bind
+                is ElementPlan.Action -> it.bind
+                else -> null
+            }
+        }
+        assertEquals(listOf("a", "x", "r_x_minus", "save_state"), binds(null))
+        assertEquals(listOf("a", "x", "r_x_minus", "save_state"), binds("bluemsx"))
+        assertEquals(listOf("b", "y", "l_y_minus", "save_state"), binds("gearcoleco"))
+        assertEquals("b", com.openemux.mobile.data.coreBind("gearcoleco", "a"))
+        assertEquals("menu", com.openemux.mobile.data.coreBind("gearcoleco", "menu"))
+        assertEquals("a", com.openemux.mobile.data.coreBind(null, "a"))
+    }
+
     @Test fun keypadKeysTypeTheNumberPadAndTheConsolesOwnKeys() {
         fun key(console: Console, name: String) = (plan(console, element(SkinElementType.KEYPAD, name)).single() as ElementPlan.Button).bind
         assertEquals("retrok_num5", key(Console.A5200, "keypad5"))

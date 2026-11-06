@@ -53,6 +53,7 @@ class OpenEmuxSkinRenderer(context: Context) {
     fun render(
         pkg: SkinPackage, layouts: LayoutChoice.Use, console: Console,
         width: Int, height: Int, outDir: File, cutout: Int = 0, tablet: Boolean = false, hardcore: Boolean = false, first: String? = null,
+        coreId: String? = null,
     ): File {
         outDir.mkdirs()
         val portraitW = minOf(width, height)
@@ -65,7 +66,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             val layout = pkg.skin.layouts.getValue(id)
             val w = if (page.portrait) portraitW else portraitH
             val h = if (page.portrait) portraitH else portraitW
-            val plan = planPage(console, layout, w, h, hardcore)
+            val plan = planPage(console, layout, w, h, hardcore, coreId)
             val prefix = "oe-${page.name}"
             val image = "$prefix.png"
             val bitmap = page(pkg, id, layout, plan, w, h)

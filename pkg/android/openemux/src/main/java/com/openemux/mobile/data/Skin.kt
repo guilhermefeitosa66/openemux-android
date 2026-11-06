@@ -425,6 +425,9 @@ private val GEARCOLECO_BINDS = mapOf(
 /** Binds a core reads differently from the core the console's skin is written for, by core id. */
 private val CORE_BINDS = mapOf("gearcoleco" to GEARCOLECO_BINDS)
 
+/** [bind] as [coreId] reads it: the same bind for a core with no entry, or none at all. */
+fun coreBind(coreId: String?, bind: String): String = CORE_BINDS[coreId]?.get(bind) ?: bind
+
 /**
  * The skin with its binds as [coreId] reads them; the drawing stays the console's.
  * A core with no entry, or none at all, gets the skin as it is.
