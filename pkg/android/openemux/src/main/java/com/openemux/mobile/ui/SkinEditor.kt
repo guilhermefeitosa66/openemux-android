@@ -529,7 +529,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         }
         if (m != null && layout != null && layoutsOpen) {
             LayoutsPanel(
-                m, form, orientation,
+                m, tick, form, orientation,
                 onShow = { turned = it.takeIf { o -> o != held } },
                 onForm = { f, on -> if (on) { if (m.setForm(f, true)) changed(commit = true) } else dropping = f },
                 onResetLayout = { m.resetLayout(); changed(commit = true) },
@@ -598,7 +598,9 @@ private fun Stage(
         val px = { dp: Float -> with(density) { dp.dp.toPx() } }
         val latest = rememberUpdatedState(m)
         val selected = m.selection?.ids.orEmpty()
-        val selBox = selected.mapNotNull { id -> layout.elements.firstOrNull { it.id == id }?.rect }.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
+        // The selection's box: controls, or the screen area's screens and frame (issue 785).
+        val all = layout.rects()
+        val selBox = selected.mapNotNull { all[it] }.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
         val selRect = selBox?.let { b -> fit.box(b).let { Rect(it.x - px(8f), it.y - px(8f), it.x + it.w + px(8f), it.y + it.h + px(8f)) } }
 
         Canvas(
@@ -797,7 +799,8 @@ private fun Stage(
             onRotate = onRotate,
             onLayouts = onLayouts,
         )
-        if (m.selection == null && m.guides.isEmpty()) {
+        // The hints only where the screen leaves them room between the bars.
+        if (m.selection == null && m.guides.isEmpty() && bottomY - topY >= px(140f)) {
             Column(
                 Modifier.offset { IntOffset(barX.roundToInt(), ((topY + bottomY) / 2f - px(10f)).roundToInt()) }.width(barWidth),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -845,8 +848,8 @@ private fun currentHandle(m: SkinEditorModel, fit: SkinFit, outset: Float): Offs
 private fun selectionCentre(m: SkinEditorModel, fit: SkinFit): Offset? = selectionBox(m, fit)?.center
 
 private fun selectionBox(m: SkinEditorModel, fit: SkinFit): Rect? {
-    val layout = m.layout ?: return null
-    val rects = m.selection?.ids?.mapNotNull { id -> layout.elements.firstOrNull { it.id == id }?.rect }?.takeIf { it.isNotEmpty() } ?: return null
+    val all = m.layout?.rects() ?: return null
+    val rects = m.selection?.ids?.mapNotNull { all[it] }?.takeIf { it.isNotEmpty() } ?: return null
     val b = fit.box(SkinSnap.bounds(rects))
     return Rect(b.x, b.y, b.x + b.w, b.y + b.h)
 }
@@ -1083,7 +1086,8 @@ private fun TryOverlay(m: SkinEditorModel, layout: SkinLayout, names: Map<String
  */
 @Composable
 private fun LayoutsPanel(
-    m: SkinEditorModel, form: SkinForm, orientation: SkinOrientation,
+    // [tick]: the model is plain Kotlin, so the panel is told when it changed.
+    m: SkinEditorModel, @Suppress("UNUSED_PARAMETER") tick: Int, form: SkinForm, orientation: SkinOrientation,
     onShow: (SkinOrientation) -> Unit, onForm: (SkinForm, Boolean) -> Unit, onResetLayout: () -> Unit, onClose: () -> Unit,
 ) {
     val layout = m.layout ?: return

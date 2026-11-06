@@ -14,6 +14,7 @@ import android.graphics.Typeface
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.PathParser
+import androidx.core.graphics.createBitmap
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
@@ -111,8 +112,8 @@ class OpenEmuxSkinRenderer(context: Context) {
         val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
         // The frame is drawn on its own (previewFrame) and the screens over the page, so both follow the screen area
         // as it moves (issue 785).
-        val bare = layout.copy(elements = emptyList(), frame = null, screens = emptyList())
-        return page(pkg, id, bare, planPage(pkg.skin.console, bare, w, h, false), w, h, false)
+        val plan = planPage(pkg.skin.console, layout.copy(elements = emptyList(), frame = null), w, h, false)
+        return page(pkg, id, layout.copy(elements = emptyList(), frame = null, screens = emptyList()), plan, w, h, false)
     }
 
     /**
@@ -123,7 +124,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         val frame = layout.frame ?: return null
         val w = (frame.rect.width * scale).roundToInt().coerceAtLeast(1)
         val h = (frame.rect.height * scale).roundToInt().coerceAtLeast(1)
-        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(w, h)
         val canvas = Canvas(bitmap)
         val box = RectF(0f, 0f, w.toFloat(), h.toFloat())
         val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
