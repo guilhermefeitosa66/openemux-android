@@ -13,6 +13,8 @@ data class TransferNotice(
     val games: Int,
     val done: Long,
     val total: Long,
+    /** A controller skin is moving, not games. */
+    val skin: Boolean = false,
 ) {
     /** 0..100; null while the size is not known yet (an indeterminate bar). */
     val percent: Int? get() = if (total > 0) (done * 100 / total).toInt().coerceIn(0, 100) else null
@@ -22,7 +24,7 @@ data class TransferNotice(
             is TransferState.Waiting -> TransferNotice(true, state.peer, true, 0, 0, 0)
             is TransferState.Running -> TransferNotice(
                 state.outgoing, state.peer, false, state.games,
-                state.progress?.doneBytes ?: 0, state.progress?.totalBytes ?: 0,
+                state.progress?.doneBytes ?: 0, state.progress?.totalBytes ?: 0, state.skin,
             )
             else -> null
         }

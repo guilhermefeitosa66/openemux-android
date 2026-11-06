@@ -312,6 +312,143 @@ class ShareCoordinatorTest {
         assertTrue(share.transfer.value is TransferState.Finished)
     }
 
+    // -- a controller skin -----------------------------------------------------------
+
+    private val night = SkinToSend(Console.SFC, "night", "Night")
+
+    private fun phone() = peer("Pixel").copy(platform = "phone")
+
+    private fun skinReady() {
+        lib.ownSkin("night")
+        share.startSendSkin(night)
+        share.openScreen(send = true)
+    }
+
+    private fun skinOffer(id: String = "offer1", console: String = "SFC") = IncomingOffer(
+        id, sender, manifest { game("g1", console, "Night") { item(Item.SKIN, "night.zip", skinZipBytes()) } }, "482913",
+    )
+
+    @Test
+    fun `a skin picked to send is built in place of games, and games picked next take its place`() {
+        skinReady()
+        assertEquals(night, share.sendSkin.value)
+        assertTrue(share.sendRoms.value.isEmpty())
+        assertEquals(listOf(night), layer.skinBuilds)
+        assertEquals(0, layer.builds)
+        val prep = share.sendPrep.value as SendPrep.Ready
+        assertEquals(listOf(SendPart.SKIN), prep.selection.games.single().parts.map { it.part })
+        assertEquals("Night", prep.selection.games.single().title)
+        // Picking games afterwards is a games screen again.
+        ready()
+        assertNull(share.sendSkin.value)
+        assertEquals(1, layer.builds)
+        assertEquals(listOf(SendPart.GAME), (share.sendPrep.value as SendPrep.Ready).selection.games.single().parts.map { it.part })
+        // And a skin after games drops the games.
+        share.startSendSkin(night)
+        assertEquals(SendPrep.None, share.sendPrep.value)
+        assertTrue(share.sendRoms.value.isEmpty())
+    }
+
+    @Test
+    fun `a skin that cannot be packed says so`() {
+        share.startSendSkin(night)
+        share.openScreen(send = true)
+        assertEquals(SendPrep.Failed(ShareMessage.GENERIC), share.sendPrep.value)
+    }
+
+    @Test
+    fun `a skin is never offered to a desktop`() {
+        skinReady()
+        share.send(peer())
+        assertEquals(TransferState.Idle, share.transfer.value)
+        assertEquals(0, layer.sends)
+        assertEquals(0, services)
+    }
+
+    @Test
+    fun `sending a skin says it is a skin all the way to the result`() {
+        skinReady()
+        share.send(phone())
+        assertEquals(TransferState.Waiting("Pixel", null), share.transfer.value)
+        assertEquals(1, layer.sends)
+        val p = TransferProgress("g1i1", "night.zip", Item.SKIN, 1, 3, 1, 3, 0, 1)
+        layer.onSendProgress(p)
+        assertEquals(TransferState.Running(true, "Pixel", 1, p, skin = true), share.transfer.value)
+        layer.onSendDone(SendResult(SendResult.DONE, listOf("g1i1")))
+        assertEquals(TransferState.Finished(ShareResult(ResultKind.SENT, true, "Pixel", 1, skin = true)), share.transfer.value)
+        assertEquals(listOf(true), notifier.finished.map { it.skin })
+    }
+
+    @Test
+    fun `a receiver from before skins leaves the skin not sent, with its answer as the reason`() {
+        skinReady()
+        share.send(phone())
+        layer.onSendDone(SendResult(SendResult.DONE, emptyList(), listOf("g1i1" to SkipReason.INVALID_ITEM)))
+        val result = (share.transfer.value as TransferState.Finished).result
+        assertEquals(
+            ShareResult(ResultKind.SENT, true, "Pixel", 0, total = 1, missing = listOf(MissingGame("Night", "SFC", SkipReason.INVALID_ITEM)), skin = true),
+            result,
+        )
+    }
+
+    @Test
+    fun `a skin that ends any other way is still a skin's result`() {
+        for ((status, kind) in listOf(SendResult.DECLINED to ResultKind.DECLINED, SendResult.EXPIRED to ResultKind.EXPIRED, SendResult.CANCELLED to ResultKind.CANCELLED)) {
+            skinReady()
+            share.send(phone())
+            layer.onSendDone(SendResult(status))
+            assertEquals(ShareResult(kind, true, "Pixel", skin = true), (share.transfer.value as TransferState.Finished).result)
+            share.dismissResult()
+        }
+        skinReady()
+        layer.sendError = ShareError(ErrorCode.BUSY, "busy")
+        share.send(phone())
+        assertEquals(
+            ShareResult(ResultKind.FAILED, true, "Pixel", error = ShareMessage.BUSY, skin = true),
+            (share.transfer.value as TransferState.Finished).result,
+        )
+    }
+
+    @Test
+    fun `an offered skin is notified and received as a skin, and its result names its console`() {
+        layer.incoming.value = skinOffer()
+        assertEquals(listOf(true), notifier.skinOffers)
+        assertTrue(share.pendingOffer.value!!.skinOnly)
+        share.accept()
+        assertEquals("offer1", layer.accepted)
+        assertEquals(TransferState.Running(false, "Phone", 1, null, skin = true), share.transfer.value)
+        val p = TransferProgress("g1i1", "night.zip", Item.SKIN, 3, 3, 3, 3, 1, 1)
+        layer.onReceiveProgress(p)
+        assertEquals(TransferState.Running(false, "Phone", 1, p, skin = true), share.transfer.value)
+        layer.onReceiveDone(ReceiveResult(TransferStatus.DONE))
+        val result = (share.transfer.value as TransferState.Finished).result
+        assertEquals(ShareResult(ResultKind.RECEIVED, false, "Phone", 1, firstConsole = "SFC", skin = true), result)
+        assertEquals(listOf(result), notifier.finished)
+    }
+
+    @Test
+    fun `an offered skin this device cannot take is received as nothing, with why`() {
+        share.setForeground(true)
+        layer.incoming.value = skinOffer(console = "ZX81")
+        share.accept()
+        assertEquals(TransferState.Running(false, "Phone", 0, null, skin = true), share.transfer.value)
+        layer.onReceiveDone(ReceiveResult(TransferStatus.DONE, skipped = listOf("g1i1" to SkipReason.UNSUPPORTED_CONSOLE)))
+        assertEquals(
+            ShareResult(
+                ResultKind.RECEIVED, false, "Phone", 0, total = 1,
+                missing = listOf(MissingGame("Night", "ZX81", SkipReason.UNSUPPORTED_CONSOLE)), skin = true,
+            ),
+            (share.transfer.value as TransferState.Finished).result,
+        )
+    }
+
+    @Test
+    fun `an offer of games is notified as games`() {
+        layer.incoming.value = offer()
+        assertEquals(listOf(false), notifier.skinOffers)
+        assertFalse(share.pendingOffer.value!!.skinOnly)
+    }
+
     // -- receiving -------------------------------------------------------------------
 
     @Test
@@ -560,9 +697,11 @@ class ShareCoordinatorTest {
 
     private class FakeNotifier : ShareNotifier {
         val offers = mutableListOf<Pair<String, String>>()
+        /** Whether each offer notified was of a controller skin. */
+        val skinOffers = mutableListOf<Boolean>()
         val finished = mutableListOf<ShareResult>()
         var cleared = 0
-        override fun offer(sender: String, code: String) { offers += sender to code }
+        override fun offer(sender: String, code: String, skin: Boolean) { offers += sender to code; skinOffers += skin }
         override fun clearOffer() { cleared++ }
         override fun finished(result: ShareResult) { finished += result }
     }
@@ -592,6 +731,7 @@ class ShareCoordinatorTest {
         var built: BuiltManifest? = null
         var buildError: ShareError? = null
         var builds = 0
+        val skinBuilds = mutableListOf<SkinToSend>()
         val buildProgress = mutableListOf<Pair<Long, Long>>()
         var sentTo: Peer? = null
         var sends = 0
@@ -637,6 +777,12 @@ class ShareCoordinatorTest {
             buildProgress += listOf(0L to 3L, 3L to 3L)
             assertFalse(cancelled())
             return built!!
+        }
+        override fun buildSkinManifest(skin: SkinToSend, cancelled: () -> Boolean): BuiltManifest {
+            skinBuilds += skin
+            buildError?.let { throw it }
+            assertFalse(cancelled())
+            return SkinShare.build(lib, skin, File(paths.internal, "share-skin"), cancelled)
         }
         override fun send(peer: Peer, built: BuiltManifest, onCode: (String) -> Unit, onProgress: (TransferProgress) -> Unit, onDone: (SendResult) -> Unit): () -> Unit {
             sendError?.let { throw it }

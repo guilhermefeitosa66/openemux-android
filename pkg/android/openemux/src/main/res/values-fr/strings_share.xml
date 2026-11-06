@@ -257,4 +257,22 @@
         <item quantity="one">%1$d ignoré</item>
         <item quantity="other">%1$d ignorés</item>
     </plurals>
+    <string name="share_skin_action">Partager</string>
+    <string name="share_skin_action_sub">Avec un autre appareil Android sur ce réseau</string>
+    <string name="share_items_skin">Skin de manette</string>
+    <string name="share_kind_skin">skin de manette</string>
+    <string name="share_skin_device_desktop">%1$s · les skins ne vont que vers des appareils Android</string>
+    <string name="share_skin_offer_title">Skin entrant</string>
+    <string name="share_skin_offer_lead">veut vous envoyer un skin de manette (%1$s).</string>
+    <string name="share_skin_notif_offer_title">Skin entrant de %1$s</string>
+    <string name="share_skin_result_received_title">Skin reçu</string>
+    <string name="share_skin_result_received_body">De %1$s. Il est dans vos skins de %2$s.</string>
+    <string name="share_skin_result_received_none">Skin non reçu</string>
+    <string name="share_skin_result_received_none_body">De %1$s. Rien n’a été ajouté.</string>
+    <string name="share_skin_result_sent_title">Skin envoyé</string>
+    <string name="share_skin_result_sent_body">%1$s l’a maintenant.</string>
+    <string name="share_skin_result_sent_none">Skin non envoyé</string>
+    <string name="share_skin_result_sent_none_body">%1$s ne l’a pas pris.</string>
+    <string name="share_skin_result_declined_body">%1$s a refusé le skin.</string>
+    <string name="share_skin_reason_sent">%1$s ne peut pas recevoir ce skin. Son OpenEmux a peut-être besoin d’une mise à jour.</string>
 </resources>

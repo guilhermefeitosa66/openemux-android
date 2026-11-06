@@ -2,6 +2,7 @@ package com.openemux.mobile.share
 
 import android.util.Log
 import com.openemux.mobile.data.CART_COLORS
+import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.SHADERS
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,7 +83,9 @@ open class FileOps {
  * file it replaces moved aside first. A commit that fails halfway is rolled
  * back, and a cancel from either side, a broken connection, a bad hash, a full
  * disk or a sender that goes quiet discard everything staged. Either way the
- * library is left as it was.
+ * library is left as it was. A controller skin's zip is checked as a skin when
+ * it arrives and imported by the skin store at the end of the commit, undone
+ * with the rest.
  *
  * [handlePut] runs on the server's connection threads; everything shared is
  * under one lock. The callbacks run on those threads (or the watchdog's).
@@ -102,6 +105,10 @@ class IncomingTransfer(
     var onAbort: (offerId: String, inUpload: Boolean) -> Unit = { _, _ -> },
 ) {
     private val sends = plan.toSend().associateBy { it.itemId }
+    /** The console each skin to receive is for, by item id. */
+    private val skinConsoles: Map<String, Console> = plan.games.flatMap { game ->
+        game.decisions.filter { it.send && it.kind == Item.SKIN }.mapNotNull { d -> game.console?.let { d.itemId to it } }
+    }.toMap()
     private val staged = linkedMapOf<String, File>()
     private val uploading = mutableSetOf<String>()
     /** Folders made for this transfer, in creation order, removed again on abort. */
@@ -208,6 +215,7 @@ class IncomingTransfer(
             decision.sha256 != null && digest.digest().toHex() != decision.sha256 -> "sha256 mismatch"
             decision.kind == Item.COVER && Units.imageKind(tmp) == null -> "art is not an image"
             decision.kind == Item.LABEL && Units.imageKind(tmp) != "png" -> "label is not a PNG"
+            decision.kind == Item.SKIN && !SkinShare.isSkinFor(tmp, skinConsoles.getValue(itemId)) -> "not a skin for its console"
             else -> null
         }
         synchronized(lock) {
@@ -328,8 +336,17 @@ class IncomingTransfer(
         val committed = mutableListOf<File>()
         val aside = mutableListOf<Pair<File, File>>()
         val mtimeNotKept = mutableListOf<File>()
+        val skins = mutableListOf<Pair<Console, File>>()
         try {
             for (decision in plan.toSend()) {
+                if (decision.kind == Item.SKIN) {
+                    // Not moved into place: the skin store builds the skin's folder out of the staged zip.
+                    val console = skinConsoles.getValue(decision.itemId)
+                    val zip = staged.getValue(decision.itemId)
+                    skins += console to importSkin(console, zip)
+                    zip.delete()
+                    continue
+                }
                 val target = decision.target!!
                 val replaces = decision.replaces
                 if (replaces != null && replaces.exists()) {
@@ -349,6 +366,13 @@ class IncomingTransfer(
             }
         } catch (e: IOException) {
             Log.w(TAG, "share receive $offerId: commit failed, rolling back", e)
+            for ((console, dir) in skins.asReversed()) {
+                try {
+                    library.skins.delete(console, dir.name)
+                } catch (failed: IOException) {
+                    Log.e(TAG, "share receive: could not remove the skin $dir on rollback", failed)
+                }
+            }
             rollback(committed, aside)
             finish(TransferStatus.FAILED, error = ErrorCode.INTERNAL)
             return
@@ -361,7 +385,16 @@ class IncomingTransfer(
             File(decision.target!!.parentFile, decision.target.nameWithoutExtension + ".none").delete()
         }
         applyMetadata()
-        finish(TransferStatus.DONE, committed, aside.map { it.second }, mtimeNotKept)
+        finish(TransferStatus.DONE, committed + skins.map { it.second }, aside.map { it.second }, mtimeNotKept)
+    }
+
+    /** The staged [zip] as a new skin of [console]: its folder. Whatever refuses it is an [IOException], so the commit rolls back. */
+    private fun importSkin(console: Console, zip: File): File = try {
+        SkinShare.import(library, console, zip)
+    } catch (e: IOException) {
+        throw e
+    } catch (e: Exception) {
+        throw IOException("skin not imported: ${e.message}", e)
     }
 
     /** [tmp] to [target]. Without [replace], a target that appeared since the plan aborts the commit. */

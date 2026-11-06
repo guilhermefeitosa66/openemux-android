@@ -4,9 +4,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 /** Which group of a console's skin list a stored skin goes in: the player's own, or a Delta/Manic package. */
 enum class StoredSkinKind { OWN, IMPORTED }
@@ -355,8 +358,11 @@ class SkinStore(private val base: File) {
      * ([SkinImport.offered]); an image the zip lacks is the replaced skin's, if
      * it had one. The skin is built in a hidden folder, read back, and only then put in place (a replaced one moved
      * aside until the new one is in): a zip that fails at any point leaves the list as it was.
+     *
+     * [allLayouts] keeps every layout skin.json has, whatever folders the zip holds: for [export]'s zip, a copy of a
+     * skin (a layout with no image has no folder there), not a template whose deleted folders mean something.
      */
-    fun importOwn(console: Console, zip: File, name: String?, replace: String? = null): String {
+    fun importOwn(console: Console, zip: File, name: String?, replace: String? = null, allLayouts: Boolean = false): String {
         SkinImport.guard(zip)
         val pkg = SkinFormat.readZip(zip)
         if (pkg.skin.console != console) throw SkinStoreException("a ${pkg.skin.console.id} skin, not ${console.id}")
@@ -373,7 +379,7 @@ class SkinStore(private val base: File) {
         try {
             tmp.mkdirs()
             val text = pkg.source.open(SkinFormat.SKIN_JSON)!!.use { String(it.readBytes(), Charsets.UTF_8) }.removePrefix("\uFEFF")
-            val kept = SkinImport.offered(pkg)
+            val kept = if (allLayouts) pkg.skin.layouts.keys else SkinImport.offered(pkg)
             val json = JSONObject(text).put("name", finalName)
             val layoutsJson = json.getJSONObject("layouts")
             layoutsJson.keys().asSequence().toList().filter { key -> kept.none { it.id == key } }.forEach { layoutsJson.remove(it) }
@@ -448,6 +454,45 @@ class SkinStore(private val base: File) {
         val dir = own(console, id)
         val pkg = SkinFormat.readFolder(dir)
         return pkg to File(dir, SkinFormat.SKIN_JSON).readText()
+    }
+
+    /**
+     * Writes the player's skin [id] to [out] as a zip to hand to another device (Share nearby): its own skin.json and
+     * the images its layouts have, at the zip's root, and nothing else of its folder (a file the format does not name,
+     * a draft, anything behind a link). [importOwn] with `allLayouts` reads it back as the same skin. [out] is left open.
+     */
+    fun export(console: Console, id: String, out: OutputStream) {
+        val dir = own(console, id)
+        val pkg = SkinFormat.readFolder(dir)
+        val zip = ZipOutputStream(out)
+        fun put(path: String) {
+            val file = File(dir, path)
+            // Never through a link: what it points at is no part of the skin, and would leave the device with it.
+            if (generateSequence(file) { it.parentFile }.takeWhile { it != dir }.any(::isLink)) {
+                if (path == SkinFormat.SKIN_JSON) throw SkinStoreException("skin.json of $id is a link")
+                return
+            }
+            zip.putNextEntry(ZipEntry(path))
+            file.inputStream().use { it.copyTo(zip) }
+            zip.closeEntry()
+        }
+        put(SkinFormat.SKIN_JSON)
+        for ((layoutId, layout) in pkg.skin.layouts) {
+            SkinTemplate.images(layout).map { it.path }.distinct().mapNotNull { pkg.image(layoutId, it) }.forEach(::put)
+        }
+        zip.finish()
+    }
+
+    /**
+     * [name], or `name (2)`, `name (3)`...: the first that none of [console]'s skins shows, so a skin received from
+     * another device (Share nearby) can be told from the one already here by that name.
+     */
+    fun freeName(console: Console, name: String): String {
+        val clean = cleanName(name)
+        val taken = list(console).map { it.name.lowercase() }.toSet()
+        return generateSequence(1) { it + 1 }
+            .map { n -> if (n == 1) clean else " ($n)".let { clean.take(MAX_NAME - it.length).trim() + it } }
+            .first { it.lowercase() !in taken }
     }
 
     /** The player's own folder [id] for [console], or [SkinStoreException] when it is anything else. */

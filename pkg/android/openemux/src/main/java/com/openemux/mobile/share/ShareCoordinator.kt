@@ -35,13 +35,15 @@ data class ShareResult(
     /** Saves and states kept because the local one was newer. */
     val keptNewer: Int = 0,
     val error: ShareMessage? = null,
-    /** The console of the first game received, for "Show in Library". */
+    /** The console of the first game received, for "Show in Library"; of the skin, when one was. */
     val firstConsole: String? = null,
     /** The games the transfer was about; [missing] are the ones of them that did not arrive. */
     val total: Int = games,
     val missing: List<MissingGame> = emptyList(),
     /** The BIOS files that went through (#678), by name. */
     val bios: List<String> = emptyList(),
+    /** The transfer was of a controller skin ([SkinShare]), not of games: the card and the notification say so. */
+    val skin: Boolean = false,
 )
 
 /** The one transfer this device runs at a time. */
@@ -49,7 +51,8 @@ sealed interface TransferState {
     data object Idle : TransferState
     /** The sender's wait for the receiver's answer; [code] once the offer is revealed. */
     data class Waiting(val peer: String, val code: String?) : TransferState
-    data class Running(val outgoing: Boolean, val peer: String, val games: Int, val progress: TransferProgress?) : TransferState
+    /** [skin] when a controller skin moves, not games. */
+    data class Running(val outgoing: Boolean, val peer: String, val games: Int, val progress: TransferProgress?, val skin: Boolean = false) : TransferState
     data class Finished(val result: ShareResult) : TransferState
 
     val busy: Boolean get() = this is Waiting || this is Running
@@ -57,7 +60,8 @@ sealed interface TransferState {
 
 /** What the coordinator posts when the app is not in front. */
 interface ShareNotifier {
-    fun offer(sender: String, code: String)
+    /** [skin] when the offer is of a controller skin, not of games. */
+    fun offer(sender: String, code: String, skin: Boolean)
     fun clearOffer()
     fun finished(result: ShareResult)
 }
@@ -115,6 +119,10 @@ class ShareCoordinator(
     private val _sendRoms = MutableStateFlow<List<Rom>>(emptyList())
     val sendRoms: StateFlow<List<Rom>> = _sendRoms.asStateFlow()
 
+    /** The controller skin the Share screen sends, in place of games ([startSendSkin]). */
+    private val _sendSkin = MutableStateFlow<SkinToSend?>(null)
+    val sendSkin: StateFlow<SkinToSend?> = _sendSkin.asStateFlow()
+
     private val _pendingOffer = MutableStateFlow<OfferModel?>(null)
     val pendingOffer: StateFlow<OfferModel?> = _pendingOffer.asStateFlow()
 
@@ -151,10 +159,11 @@ class ShareCoordinator(
 
     // -- the layer's lifetime ------------------------------------------------
 
-    /** A share screen opened; [send] when it shows the games picked by [startSend]. */
+    /** A share screen opened; [send] when it shows the games picked by [startSend], or the skin of [startSendSkin]. */
     fun openScreen(send: Boolean) {
         discoverability.open()
-        if (send && _sendPrep.value == SendPrep.None && _sendRoms.value.isNotEmpty()) prepare(emptySet())
+        val picked = _sendRoms.value.isNotEmpty() || _sendSkin.value != null
+        if (send && _sendPrep.value == SendPrep.None && picked) prepare(emptySet())
     }
 
     fun closeScreen() = discoverability.close()
@@ -204,17 +213,31 @@ class ShareCoordinator(
     fun startSend(roms: List<Rom>) {
         prepareJob?.cancel()
         _sendRoms.value = roms
+        _sendSkin.value = null
+        _sendPrep.value = SendPrep.None
+    }
+
+    /** The controller skin the next Share screen opens with, in place of games. */
+    fun startSendSkin(skin: SkinToSend) {
+        prepareJob?.cancel()
+        _sendRoms.value = emptyList()
+        _sendSkin.value = skin
         _sendPrep.value = SendPrep.None
     }
 
     private fun prepare(keep: Set<Pair<String, SendPart>>) {
         val roms = _sendRoms.value
+        val skin = _sendSkin.value
         prepareJob?.cancel()
         _sendPrep.value = SendPrep.Building(0, 0)
         prepareJob = scope.launch(work) {
             try {
                 // A cancelled build must not write over the state the next one starts from.
-                val built = layer.buildManifest(roms, { done, total -> if (isActive) _sendPrep.value = SendPrep.Building(done, total) }, { !isActive })
+                val built = if (skin != null) {
+                    layer.buildSkinManifest(skin) { !isActive }
+                } else {
+                    layer.buildManifest(roms, { done, total -> if (isActive) _sendPrep.value = SendPrep.Building(done, total) }, { !isActive })
+                }
                 if (isActive) _sendPrep.value = SendPrep.Ready(built, SendSelection.from(built, roms).copy(unchecked = keep))
             } catch (e: ShareError) {
                 if (isActive) _sendPrep.value = SendPrep.Failed(ShareFormat.errorKey(e.code))
@@ -233,6 +256,9 @@ class ShareCoordinator(
     fun send(peer: Peer) {
         val ready = _sendPrep.value as? SendPrep.Ready ?: return
         if (ready.selection.isEmpty || !peer.compatible || _transfer.value.busy) return
+        val skin = _sendSkin.value != null
+        // The desktop app has no skins: it would only answer the offer with a skip.
+        if (skin && !SkinShare.accepts(peer)) return
         val built = ready.selection.filter(ready.built)
         val excluded = ready.selection.excluded
         val games = ready.selection.gameCount
@@ -242,20 +268,20 @@ class ShareCoordinator(
                 val cancel = layer.send(
                     peer, built,
                     onCode = { code -> if (_transfer.value is TransferState.Waiting) _transfer.value = TransferState.Waiting(peer.name, code) },
-                    onProgress = { progress -> if (_transfer.value.busy) _transfer.value = TransferState.Running(true, peer.name, games, progress) },
-                    onDone = { finish(sendResult(peer.name, built, excluded, it)) },
+                    onProgress = { progress -> if (_transfer.value.busy) _transfer.value = TransferState.Running(true, peer.name, games, progress, skin) },
+                    onDone = { finish(sendResult(peer.name, built, excluded, it, skin)) },
                 )
                 holdCancel(cancel)
             } catch (e: ShareError) {
-                finish(sendResult(peer.name, built, excluded, SendResult(SendResult.FAILED, error = e.code)))
+                finish(sendResult(peer.name, built, excluded, SendResult(SendResult.FAILED, error = e.code), skin))
             } catch (e: Exception) {
                 // Anything else would leave the transfer busy for good (and take the app down).
-                finish(sendResult(peer.name, built, excluded, SendResult(SendResult.FAILED, error = ErrorCode.INTERNAL)))
+                finish(sendResult(peer.name, built, excluded, SendResult(SendResult.FAILED, error = ErrorCode.INTERNAL), skin))
             }
         }
     }
 
-    private fun sendResult(peer: String, built: BuiltManifest, excluded: List<ExcludedGame>, result: SendResult): ShareResult {
+    private fun sendResult(peer: String, built: BuiltManifest, excluded: List<ExcludedGame>, result: SendResult, skin: Boolean): ShareResult {
         val kind = when (result.status) {
             SendResult.DONE -> ResultKind.SENT
             SendResult.DECLINED -> ResultKind.DECLINED
@@ -267,9 +293,9 @@ class ShareCoordinator(
         if (result.error == ErrorCode.SOURCE_CHANGED) {
             prepare((_sendPrep.value as? SendPrep.Ready)?.selection?.unchecked.orEmpty())
         }
-        if (kind != ResultKind.SENT) return ShareResult(kind, true, peer, error = errorOf(kind, result.error))
+        if (kind != ResultKind.SENT) return ShareResult(kind, true, peer, error = errorOf(kind, result.error), skin = skin)
         val report = sendReport(built, excluded, result)
-        return ShareResult(kind, true, peer, report.delivered, total = report.total, missing = report.missing, bios = report.bios)
+        return ShareResult(kind, true, peer, report.delivered, total = report.total, missing = report.missing, bios = report.bios, skin = skin)
     }
 
     // -- receiving -------------------------------------------------------------
@@ -296,7 +322,7 @@ class ShareCoordinator(
         val receivedAt = scheduler.now()
         expiry?.cancel()
         expiry = scheduler.schedule(ShareProtocol.OFFER_TTL_MS) { expire(offer.offerId) }
-        if (!foreground) notifier.offer(offer.sender.name, offer.code)
+        if (!foreground) notifier.offer(offer.sender.name, offer.code, offer.manifest.skinOnly)
         scope.launch(io) {
             try {
                 val model = OfferModel.build(offer, { layer.plan(offer, it) }, emptyMap(), receivedAt)
@@ -344,7 +370,7 @@ class ShareCoordinator(
         val model = _pendingOffer.value ?: return
         if (_transfer.value.busy || !model.spaceOk) return
         val offerId = model.offer.offerId
-        begin(TransferState.Running(false, model.sender, model.plan.games.count { g -> g.decisions.any { it.send } }, null))
+        begin(TransferState.Running(false, model.sender, model.plan.games.count { g -> g.decisions.any { it.send } }, null, model.skinOnly))
         scope.launch(io) {
             // A choice made just before Accept replans on [io] first: accept what it planned.
             val model = _pendingOffer.value?.takeIf { it.offer.offerId == offerId } ?: model
@@ -357,7 +383,7 @@ class ShareCoordinator(
             try {
                 val cancel = layer.accept(
                     offerId, model.plan,
-                    onProgress = { progress -> if (_transfer.value.busy) _transfer.value = TransferState.Running(false, model.sender, games, progress) },
+                    onProgress = { progress -> if (_transfer.value.busy) _transfer.value = TransferState.Running(false, model.sender, games, progress, model.skinOnly) },
                     onDone = { finish(receiveResult(model, it)) },
                 )
                 answered += offerId
@@ -389,10 +415,15 @@ class ShareCoordinator(
             reason == SkipReason.EXISTS_SKIP && kind in setOf(Item.BATTERY_SAVE, Item.STATE) &&
                 (model.overrides[id] ?: DEFAULT_POLICIES[kind]) == Policy.NEWEST
         }
-        val first = model.plan.games.firstOrNull { it.romStatus.placed || it.romStatus == RomStatus.REPLACED }?.console?.id
-        if (kind != ResultKind.RECEIVED) return ShareResult(kind, false, model.sender, keptNewer = keptNewer, error = errorOf(kind, result.error), firstConsole = first)
+        val skin = model.skinOnly
+        val first = model.plan.games.firstOrNull {
+            it.romStatus.placed || it.romStatus == RomStatus.REPLACED || skin && it.decisions.any { d -> d.send }
+        }?.console?.id
+        if (kind != ResultKind.RECEIVED) {
+            return ShareResult(kind, false, model.sender, keptNewer = keptNewer, error = errorOf(kind, result.error), firstConsole = first, skin = skin)
+        }
         val report = receiveReport(model.plan, result)
-        return ShareResult(kind, false, model.sender, report.delivered, keptNewer, null, first, report.total, report.missing, report.bios)
+        return ShareResult(kind, false, model.sender, report.delivered, keptNewer, null, first, report.total, report.missing, report.bios, skin)
     }
 
     fun decline() {

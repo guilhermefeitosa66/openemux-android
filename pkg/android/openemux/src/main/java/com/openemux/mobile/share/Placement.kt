@@ -3,6 +3,8 @@ package com.openemux.mobile.share
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Paths
+import com.openemux.mobile.data.SkinImport
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.biosNamesFor
 import org.json.JSONObject
 import java.io.File
@@ -37,8 +39,8 @@ val DEFAULT_POLICIES = mapOf(
     Item.BIOS to Policy.SKIP,
 )
 
-/** The order a commit places things in: a game's files after its ROM. */
-val COMMIT_ORDER = listOf(Item.ROM, Item.BATTERY_SAVE, Item.STATE, Item.COVER, Item.LABEL, Item.BIOS)
+/** The order a commit places things in: a game's files after its ROM, the skins (imported, not moved) last. */
+val COMMIT_ORDER = listOf(Item.ROM, Item.BATTERY_SAVE, Item.STATE, Item.COVER, Item.LABEL, Item.BIOS, Item.SKIN)
 
 /** One item's fate. [target] is computed here, never taken from the wire; [replaces] is moved aside on commit. */
 data class Decision(
@@ -82,6 +84,8 @@ class GamePlan(val gameId: String, val console: Console?, val title: String, val
     var absentReason = SkipReason.USER_UNCHECKED
     /** The user deselected the game's ROM: none of its settings are applied. */
     var userUnchecked = false
+    /** A controller skin, not a game ([Game.isSkin]): it has no ROM, and counts as arrived when its skin is imported. */
+    var skin = false
     val decisions = mutableListOf<Decision>()
 }
 
@@ -145,7 +149,7 @@ class ReceivePlan(val games: List<GamePlan>, private val probe: SpaceProbe = Nio
  * The receiver's decisions for [manifest], before a byte is written: each item
  * mapped to a target in Android's layout (ROMs flat in `roms/<console>`,
  * `saves/`, `states/`, `covers/` and `labels/` per console, BIOS flat in
- * RetroArch's `system/`), checked against
+ * RetroArch's `system/`, a skin's zip staged in `skins/<console>`), checked against
  * what the library has under the policy for its kind. [policies] replaces the
  * default of a kind, [overrides] one item's; [unchecked] holds the game and
  * item ids the user deselected. Nothing here writes.
@@ -183,6 +187,8 @@ private class Planner(
     private val unchecked = unchecked.toMutableSet()
     /** Targets chosen earlier in this plan, so two incoming games never pick the same name. */
     private val taken = mutableSetOf<File>()
+    private val skins = SkinStore(paths.base)
+    private var skinCount = 0
 
     private fun policy(item: Item) = overrides[item.id] ?: policies.getValue(item.kind)
 
@@ -206,6 +212,7 @@ private class Planner(
     fun plan(game: Game): GamePlan {
         val console = Console.byId(game.console)
         val plan = GamePlan(game.id, console, game.title, game.metadata, game.console)
+        if (game.isSkin) return plan.also { planSkin(it, console, game) }
         val (items, rejected) = validate(game.items)
         rejected.forEach { skip(plan, it, SkipReason.INVALID_ITEM) }
         if (console == null) {
@@ -247,7 +254,8 @@ private class Planner(
     }
 
     private fun problemFree(item: Item): Boolean {
-        if (!item.knownKind || !Units.isReceivableName(item.name)) return false
+        // A skin is an entry of its own ([planSkin]): among a game's files it has nowhere to go.
+        if (!item.knownKind || item.kind == Item.SKIN || !Units.isReceivableName(item.name)) return false
         val part = item.json.opt("part").takeUnless { it == JSONObject.NULL }
         if (part != null) {
             if (item.kind != Item.ROM || part !is JSONObject) return false
@@ -277,6 +285,33 @@ private class Planner(
         if (suffix !in console.extensions) return false
         // A single-file game is its main file alone.
         return role(main) != null || roms.size == 1
+    }
+
+    // -- a controller skin ---------------------------------------------------
+
+    /**
+     * An entry that is a skin, not a game: each skin item is a zip in OpenEmux's format, staged in the console's
+     * skins folder and imported on commit as a new skin of the player's own. Never over one that is there, so there is
+     * no conflict to ask about; whether the zip really is a skin for that console is only known once it has arrived
+     * ([IncomingTransfer]).
+     */
+    private fun planSkin(plan: GamePlan, console: Console?, game: Game) {
+        plan.skin = true
+        for (item in game.items) {
+            when {
+                item.kind != Item.SKIN || !Units.isReceivableName(item.name) || item.size > SkinImport.MAX_BYTES ->
+                    skip(plan, item, SkipReason.INVALID_ITEM)
+                console == null -> skip(plan, item, SkipReason.UNSUPPORTED_CONSOLE)
+                game.id in unchecked || item.id in unchecked -> skip(plan, item, SkipReason.USER_UNCHECKED)
+                else -> {
+                    val dir = skins.root(console)
+                    // Only where the zip waits: the store names the skin's folder when it imports it.
+                    send(plan, item, File(dir, "shared-${++skinCount}.zip"), dir)
+                }
+            }
+        }
+        // Left out by the user, with nothing of it coming: neither counted nor listed, like a game whose ROM was.
+        plan.userUnchecked = plan.decisions.none { it.send } && plan.decisions.any { it.reason == SkipReason.USER_UNCHECKED }
     }
 
     // -- the ROM unit ------------------------------------------------------

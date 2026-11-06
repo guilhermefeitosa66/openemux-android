@@ -84,6 +84,7 @@ import com.openemux.mobile.launch.ImportedSkinRenderer
 import com.openemux.mobile.launch.SkinConversion
 import com.openemux.mobile.launch.OpenEmuxSkinRenderer
 import com.openemux.mobile.launch.skinForm
+import com.openemux.mobile.ui.share.rememberSkinShare
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -146,18 +147,6 @@ data class SkinListState(
      * the list has something to pick or to do.
      */
     val shown: Boolean get() = bundled.options.size + own.size + imported.size > 1 || convertible.isNotEmpty()
-}
-
-/**
- * [name] (cut to what a skin's name may be), or with a number after it, so that no skin called one of [taken] is
- * called the same: a second Edit of one bundled skin makes "Red - edited 2", not another "Red - edited".
- */
-fun freeSkinName(name: String, taken: Collection<String>): String {
-    fun cut(n: Int): String {
-        val tail = if (n == 1) "" else " $n"
-        return name.trim().take(SkinStore.MAX_NAME - tail.length).trim() + tail
-    }
-    return generateSequence(1) { it + 1 }.map(::cut).first { candidate -> taken.none { it.equals(candidate, ignoreCase = true) } }
 }
 
 /** The skin "Download as template" writes: one of the player's, or a bundled one (read from the app's own package). */
@@ -320,6 +309,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var reading by remember { mutableStateOf(false) }
     // An import still writing: picking another file meanwhile would clear the cache folder under it.
     var writing by remember { mutableStateOf(false) }
+    val shareSkin = rememberSkinShare(console)
 
     // Issue 787: the template is written straight into the document the player picked.
     val saveTemplate = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -362,20 +352,24 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     }
 
     /**
-     * A skin of the player's own made from the bundled [swatch], called [name] (numbered when one is called that
-     * already). With [edit], it is used at once and opens in the editor (issue 784): the bundled skin's Edit.
+     * A skin of the player's own made from the bundled [swatch], called [name], or `name (2)` when one of the
+     * console's skins shows that name already ([SkinStore.freeName]: a second Edit of one bundled skin is told from
+     * the first). With [edit], it is used at once and opens in the editor (issue 784): the bundled skin's Edit.
      */
     fun copyBundled(swatch: SkinSwatch, name: String, edit: Boolean) {
-        val free = freeSkinName(name, state.own.map { it.name })
         Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
         scope.launch {
-            val ref = withContext(Dispatchers.IO) {
+            val made = withContext(Dispatchers.IO) {
                 runCatching { library.migrateSkins() }
-                runCatching { SkinConversion.convert(context, library.skins, console, swatch.variant, free) }.getOrNull()
+                runCatching {
+                    val free = library.skins.freeName(console, name)
+                    SkinConversion.convert(context, library.skins, console, swatch.variant, free) to free
+                }.getOrNull()
             }
-            if (ref == null) {
+            if (made == null) {
                 Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
             } else if (edit) {
+                val (ref, free) = made
                 library.useCustomSkin(console, ref)
                 SkinStore.parse(ref)?.let { (_, id) -> editing = SkinEditTarget(id, free, inUse = true) }
             }
@@ -445,6 +439,9 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 }
                 ActionRow(Icons.Download, stringResource(R.string.skins_template), sub = stringResource(R.string.skins_template_sub)) {
                     ownSheet = null; templating = TemplateOf.Own(skin)
+                }
+                ActionRow(Icons.Share, stringResource(R.string.share_skin_action), sub = stringResource(R.string.share_skin_action_sub)) {
+                    ownSheet = null; shareSkin(skin)
                 }
             }
             ActionRow(

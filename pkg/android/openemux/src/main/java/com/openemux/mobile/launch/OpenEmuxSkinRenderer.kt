@@ -18,6 +18,8 @@ import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.PathParser
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withRotation
+import androidx.core.graphics.withSave
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinArt
@@ -499,14 +501,13 @@ class OpenEmuxSkinRenderer(context: Context) {
         val (w, h) = SkinShapes.unturned(top.width(), top.height(), e.rotation)
         val own = RectF(top.centerX() - w / 2f, top.centerY() - h / 2f, top.centerX() + w / 2f, top.centerY() + h / 2f)
         val k = top.width() / e.rect.width
-        c.save()
-        c.rotate(e.rotation, top.centerX(), top.centerY())
-        when (shapeOf(e)) {
-            SkinShape.CIRCLE -> c.drawOval(own, paint(own))
-            SkinShape.PILL -> (minOf(w, h) / 2f).let { c.drawRoundRect(own, it, it, paint(own)) }
-            SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * 0.16f)).coerceAtMost(minOf(w, h) / 2f).let { c.drawRoundRect(own, it, it, paint(own)) }
+        c.withRotation(e.rotation, top.centerX(), top.centerY()) {
+            when (shapeOf(e)) {
+                SkinShape.CIRCLE -> drawOval(own, paint(own))
+                SkinShape.PILL -> (minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
+                SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * 0.16f)).coerceAtMost(minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
+            }
         }
-        c.restore()
     }
 
     /** [e]'s label on a canvas where [r] stands for the element's rect. */
@@ -526,7 +527,11 @@ class OpenEmuxSkinRenderer(context: Context) {
         val label = e.label?.takeIf { it.isNotBlank() } ?: return
         val color = SkinPaintDefaults.letter(e)
         val kind = SkinLabels.kind(label)
-        c.save()
+        c.withSave { drawLabel(this, e, label, kind, color, cx, cy, k) }
+    }
+
+    /** [drawLabel] on a canvas it may turn: the caller puts it back as it was. */
+    private fun drawLabel(c: Canvas, e: SkinElement, label: String, kind: SkinLabelKind, color: Int, cx: Float, cy: Float, k: Float) {
         if (e.labelOffset == null) c.rotate(e.rotation, cx, cy)
         if (kind == SkinLabelKind.TEXT) {
             val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -552,7 +557,6 @@ class OpenEmuxSkinRenderer(context: Context) {
             c.rotate(turn, cx, cy)
             drawPath(c, path, cx, cy, size, color, stroke)
         }
-        c.restore()
     }
 
     /** A 24-unit [path] drawn [size] across, centred on ([cx], [cy]): filled, or with [stroke] units of line. */
@@ -602,10 +606,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         for ((dx, dy, turn) in listOf(Triple(0f, -1f, 0f), Triple(0f, 1f, 180f), Triple(-1f, 0f, 270f), Triple(1f, 0f, 90f))) {
             val x = top.centerX() + dx * reach
             val y = top.centerY() + dy * reach
-            c.save()
-            c.rotate(turn, x, y)
-            drawPath(c, ARROW, x, y, arm * 0.36f, color, 0f)
-            c.restore()
+            c.withRotation(turn, x, y) { drawPath(this, ARROW, x, y, arm * 0.36f, color, 0f) }
         }
     }
 
