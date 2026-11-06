@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">編集</string>
+    <string name="editor_close">エディターを閉じる</string>
+    <string name="editor_undo">元に戻す</string>
+    <string name="editor_redo">やり直す</string>
+    <string name="editor_save">保存</string>
+    <string name="editor_snap">スナップ</string>
+    <string name="editor_more">その他</string>
+    <string name="editor_reset_layout">レイアウトをリセット</string>
+    <string name="editor_hint_tap">コントロールをタップして変更します。</string>
+    <string name="editor_hint_drag">ドラッグで移動 · ピンチでサイズ変更。</string>
+    <string name="editor_upright">縦向き</string>
+    <string name="editor_sideways">横向き</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">このスキンには%1$sのレイアウトがまだありません。端末を回転させて別のレイアウトを編集してください。</string>
+    <string name="editor_size">サイズ</string>
+    <string name="editor_nudge">微調整</string>
+    <string name="editor_reset">リセット</string>
+    <string name="editor_smaller">小さく</string>
+    <string name="editor_larger">大きく</string>
+    <string name="editor_done">完了</string>
+    <string name="editor_up">上へ移動</string>
+    <string name="editor_down">下へ移動</string>
+    <string name="editor_left">左へ移動</string>
+    <string name="editor_right">右へ移動</string>
+    <string name="editor_percent">%1$d%%</string>
+    <string name="editor_tap_again">もう一度タップで単体</string>
+    <string name="editor_group_face">アクションボタン</string>
+    <string name="editor_group_dpad">十字キー</string>
+    <string name="editor_group_center">スタートとセレクト</string>
+    <string name="editor_group_shoulders">ショルダー</string>
+    <string name="editor_group_actions">クイック操作</string>
+    <string name="editor_group_menu">メニュー</string>
+    <string name="editor_group_keypad">キーパッド</string>
+    <string name="editor_group">グループ</string>
+    <string name="editor_stick">スティック</string>
+    <string name="editor_action">クイック操作</string>
+    <string name="editor_guide_center">画面の中央</string>
+    <string name="editor_guide_align">%1$sと揃う</string>
+    <string name="editor_guide_edge">%1$sの端</string>
+    <string name="editor_guide_mirror">%1$sと対称</string>
+    <string name="editor_leave_title">%1$sの変更を保存しますか？</string>
+    <string name="editor_leave_body">このスキンの変更はまだ保存されていません。</string>
+    <string name="editor_save_new">新しいスキンとして保存…</string>
+    <string name="editor_discard">変更を破棄</string>
+    <string name="editor_draft_note">編集中にアプリが終了しても、次にエディターを開いたときに下書きとして復元されます。</string>
+    <string name="editor_draft_back">保存していない変更を復元しました。</string>
+    <string name="editor_saved">スキンを保存しました</string>
+    <string name="editor_save_new_title">新しいスキンとして保存</string>
+    <string name="editor_pad_pick">コントロールを選択</string>
+    <string name="editor_pad_group">グループ／単体</string>
+</resources>

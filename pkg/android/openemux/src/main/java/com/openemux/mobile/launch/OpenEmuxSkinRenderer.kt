@@ -102,6 +102,39 @@ class OpenEmuxSkinRenderer(context: Context) {
         }
     }
 
+    /**
+     * The skin editor's stage (issue 784): layout [id]'s background and frame at [scale] times its units, the game's
+     * screens cut out, as the game draws them.
+     */
+    fun previewPage(pkg: SkinPackage, id: SkinLayoutId, scale: Float): Bitmap {
+        val layout = pkg.skin.layouts.getValue(id)
+        val w = (layout.size.width * scale).roundToInt().coerceAtLeast(1)
+        val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
+        return page(pkg, id, layout, planPage(pkg.skin.console, layout.copy(elements = emptyList()), w, h, false), w, h, false)
+    }
+
+    /**
+     * [element] of layout [id] drawn alone on a [w] x [h] bitmap the way the game draws it at rest: its image or its
+     * colours, a D-pad with its ball, a stick with its knob (issue 784).
+     */
+    fun previewElement(pkg: SkinPackage, id: SkinLayoutId, element: SkinElement, w: Int, h: Int): Bitmap {
+        val layout = pkg.skin.layouts.getValue(id)
+        val alone = element.copy(rect = SkinRect(0f, 0f, w.toFloat(), h.toFloat()))
+        val page = SkinLayout(com.openemux.mobile.data.SkinSize(w, h), listOf(alone.rect), layout.background, layout.frame, listOf(alone))
+        val plan = planPage(pkg.skin.console, page, w, h, false).elements.single()
+        val out = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        for (desc in descs(pkg, id, layout, alone, plan, false)) {
+            for (art in listOfNotNull(desc.image, desc.knob)) {
+                canvas.drawBitmap(art, null, desc.rect, paint)
+                art.recycle()
+            }
+            desc.lit?.bitmap?.recycle()
+        }
+        return out
+    }
+
     /** [image] with no file of its own, as the game draws it. */
     private fun placeholder(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage, box: RectF): Bitmap {
         val layout = pkg.skin.layouts.getValue(id)

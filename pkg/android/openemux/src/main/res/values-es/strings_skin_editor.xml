@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">Editar</string>
+    <string name="editor_close">Cerrar el editor</string>
+    <string name="editor_undo">Deshacer</string>
+    <string name="editor_redo">Rehacer</string>
+    <string name="editor_save">Guardar</string>
+    <string name="editor_snap">Imán</string>
+    <string name="editor_more">Más</string>
+    <string name="editor_reset_layout">Restablecer diseño</string>
+    <string name="editor_hint_tap">Toca un control para cambiarlo.</string>
+    <string name="editor_hint_drag">Arrastra para mover · pellizca para cambiar el tamaño.</string>
+    <string name="editor_upright">Vertical</string>
+    <string name="editor_sideways">Horizontal</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">Esta skin aún no tiene diseño %1$s. Gira el dispositivo para editar otro.</string>
+    <string name="editor_size">Tamaño</string>
+    <string name="editor_nudge">Ajuste fino</string>
+    <string name="editor_reset">Restablecer</string>
+    <string name="editor_smaller">Más pequeño</string>
+    <string name="editor_larger">Más grande</string>
+    <string name="editor_done">Listo</string>
+    <string name="editor_up">Mover arriba</string>
+    <string name="editor_down">Mover abajo</string>
+    <string name="editor_left">Mover a la izquierda</string>
+    <string name="editor_right">Mover a la derecha</string>
+    <string name="editor_percent">%1$d%%</string>
+    <string name="editor_tap_again">toca otra vez para uno solo</string>
+    <string name="editor_group_face">Botones de acción</string>
+    <string name="editor_group_dpad">Cruceta</string>
+    <string name="editor_group_center">Start y Select</string>
+    <string name="editor_group_shoulders">Gatillos</string>
+    <string name="editor_group_actions">Acciones rápidas</string>
+    <string name="editor_group_menu">Menú</string>
+    <string name="editor_group_keypad">Teclado</string>
+    <string name="editor_group">Grupo</string>
+    <string name="editor_stick">Stick</string>
+    <string name="editor_action">Acción rápida</string>
+    <string name="editor_guide_center">Centro de la pantalla</string>
+    <string name="editor_guide_align">Alineado con %1$s</string>
+    <string name="editor_guide_edge">Borde de %1$s</string>
+    <string name="editor_guide_mirror">Refleja %1$s</string>
+    <string name="editor_leave_title">¿Guardar los cambios en %1$s?</string>
+    <string name="editor_leave_body">Tus cambios en esta skin aún no se han guardado.</string>
+    <string name="editor_save_new">Guardar como skin nueva…</string>
+    <string name="editor_discard">Descartar cambios</string>
+    <string name="editor_draft_note">Si la app se cierra mientras editas, tu trabajo vuelve como borrador la próxima vez que abras el editor.</string>
+    <string name="editor_draft_back">Tus cambios sin guardar han vuelto.</string>
+    <string name="editor_saved">Skin guardada</string>
+    <string name="editor_save_new_title">Guardar como skin nueva</string>
+    <string name="editor_pad_pick">Elegir un control</string>
+    <string name="editor_pad_group">Grupo o uno solo</string>
+</resources>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">编辑</string>
+    <string name="editor_close">关闭编辑器</string>
+    <string name="editor_undo">撤销</string>
+    <string name="editor_redo">重做</string>
+    <string name="editor_save">保存</string>
+    <string name="editor_snap">吸附</string>
+    <string name="editor_more">更多</string>
+    <string name="editor_reset_layout">重置布局</string>
+    <string name="editor_hint_tap">点按一个按键来修改它。</string>
+    <string name="editor_hint_drag">拖动以移动 · 双指缩放以调整大小。</string>
+    <string name="editor_upright">竖屏</string>
+    <string name="editor_sideways">横屏</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">此皮肤还没有%1$s布局。旋转设备以编辑另一个布局。</string>
+    <string name="editor_size">大小</string>
+    <string name="editor_nudge">微调</string>
+    <string name="editor_reset">重置</string>
+    <string name="editor_smaller">缩小</string>
+    <string name="editor_larger">放大</string>
+    <string name="editor_done">完成</string>
+    <string name="editor_up">上移</string>
+    <string name="editor_down">下移</string>
+    <string name="editor_left">左移</string>
+    <string name="editor_right">右移</string>
+    <string name="editor_percent">%1$d%%</string>
+    <string name="editor_tap_again">再点一次选单个</string>
+    <string name="editor_group_face">动作键</string>
+    <string name="editor_group_dpad">方向键</string>
+    <string name="editor_group_center">开始和选择</string>
+    <string name="editor_group_shoulders">肩键</string>
+    <string name="editor_group_actions">快捷操作</string>
+    <string name="editor_group_menu">菜单</string>
+    <string name="editor_group_keypad">数字键盘</string>
+    <string name="editor_group">组</string>
+    <string name="editor_stick">摇杆</string>
+    <string name="editor_action">快捷操作</string>
+    <string name="editor_guide_center">屏幕中心</string>
+    <string name="editor_guide_align">与%1$s对齐</string>
+    <string name="editor_guide_edge">%1$s的边缘</string>
+    <string name="editor_guide_mirror">与%1$s对称</string>
+    <string name="editor_leave_title">保存对%1$s的更改？</string>
+    <string name="editor_leave_body">你对此皮肤的更改还没有保存。</string>
+    <string name="editor_save_new">另存为新皮肤…</string>
+    <string name="editor_discard">放弃更改</string>
+    <string name="editor_draft_note">如果编辑时应用关闭，下次打开编辑器时你的工作会以草稿形式恢复。</string>
+    <string name="editor_draft_back">未保存的更改已恢复。</string>
+    <string name="editor_saved">皮肤已保存</string>
+    <string name="editor_save_new_title">另存为新皮肤</string>
+    <string name="editor_pad_pick">选择按键</string>
+    <string name="editor_pad_group">组或单个</string>
+</resources>

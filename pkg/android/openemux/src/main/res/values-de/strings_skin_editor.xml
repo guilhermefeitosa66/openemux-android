@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">Bearbeiten</string>
+    <string name="editor_close">Editor schließen</string>
+    <string name="editor_undo">Rückgängig</string>
+    <string name="editor_redo">Wiederholen</string>
+    <string name="editor_save">Speichern</string>
+    <string name="editor_snap">Magnet</string>
+    <string name="editor_more">Mehr</string>
+    <string name="editor_reset_layout">Layout zurücksetzen</string>
+    <string name="editor_hint_tap">Tippe auf ein Bedienelement, um es zu ändern.</string>
+    <string name="editor_hint_drag">Ziehen zum Verschieben · Zwei Finger zum Skalieren.</string>
+    <string name="editor_upright">Hochkant</string>
+    <string name="editor_sideways">Quer</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">Dieser Skin hat noch kein Layout für %1$s. Drehe das Gerät, um ein anderes zu bearbeiten.</string>
+    <string name="editor_size">Größe</string>
+    <string name="editor_nudge">Feinschritt</string>
+    <string name="editor_reset">Zurücksetzen</string>
+    <string name="editor_smaller">Kleiner</string>
+    <string name="editor_larger">Größer</string>
+    <string name="editor_done">Fertig</string>
+    <string name="editor_up">Nach oben</string>
+    <string name="editor_down">Nach unten</string>
+    <string name="editor_left">Nach links</string>
+    <string name="editor_right">Nach rechts</string>
+    <string name="editor_percent">%1$d %%</string>
+    <string name="editor_tap_again">erneut tippen für eins</string>
+    <string name="editor_group_face">Aktionstasten</string>
+    <string name="editor_group_dpad">Steuerkreuz</string>
+    <string name="editor_group_center">Start und Select</string>
+    <string name="editor_group_shoulders">Schultertasten</string>
+    <string name="editor_group_actions">Schnellaktionen</string>
+    <string name="editor_group_menu">Menü</string>
+    <string name="editor_group_keypad">Tastenfeld</string>
+    <string name="editor_group">Gruppe</string>
+    <string name="editor_stick">Stick</string>
+    <string name="editor_action">Schnellaktion</string>
+    <string name="editor_guide_center">Bildschirmmitte</string>
+    <string name="editor_guide_align">Bündig mit %1$s</string>
+    <string name="editor_guide_edge">Kante von %1$s</string>
+    <string name="editor_guide_mirror">Spiegelt %1$s</string>
+    <string name="editor_leave_title">Änderungen an %1$s speichern?</string>
+    <string name="editor_leave_body">Deine Änderungen an diesem Skin sind noch nicht gespeichert.</string>
+    <string name="editor_save_new">Als neuen Skin speichern…</string>
+    <string name="editor_discard">Änderungen verwerfen</string>
+    <string name="editor_draft_note">Wenn die App beim Bearbeiten geschlossen wird, kommt deine Arbeit beim nächsten Öffnen des Editors als Entwurf zurück.</string>
+    <string name="editor_draft_back">Deine ungespeicherten Änderungen sind wieder da.</string>
+    <string name="editor_saved">Skin gespeichert</string>
+    <string name="editor_save_new_title">Als neuen Skin speichern</string>
+    <string name="editor_pad_pick">Element wählen</string>
+    <string name="editor_pad_group">Gruppe oder eins</string>
+</resources>

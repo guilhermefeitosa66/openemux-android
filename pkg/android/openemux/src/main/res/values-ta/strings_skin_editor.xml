@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">திருத்து</string>
+    <string name="editor_close">எடிட்டரை மூடு</string>
+    <string name="editor_undo">செயல்தவிர்</string>
+    <string name="editor_redo">மீண்டும் செய்</string>
+    <string name="editor_save">சேமி</string>
+    <string name="editor_snap">ஒட்டு</string>
+    <string name="editor_more">மேலும்</string>
+    <string name="editor_reset_layout">தளவமைப்பை மீட்டமை</string>
+    <string name="editor_hint_tap">மாற்ற ஒரு கட்டுப்பாட்டைத் தட்டவும்.</string>
+    <string name="editor_hint_drag">நகர்த்த இழுக்கவும் · அளவை மாற்ற கிள்ளவும்.</string>
+    <string name="editor_upright">நேராக</string>
+    <string name="editor_sideways">பக்கவாட்டில்</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">இந்த ஸ்கினில் இன்னும் %1$s தளவமைப்பு இல்லை. வேறொன்றைத் திருத்த சாதனத்தைச் சுழற்றவும்.</string>
+    <string name="editor_size">அளவு</string>
+    <string name="editor_nudge">நுண் நகர்வு</string>
+    <string name="editor_reset">மீட்டமை</string>
+    <string name="editor_smaller">சிறியதாக</string>
+    <string name="editor_larger">பெரியதாக</string>
+    <string name="editor_done">முடிந்தது</string>
+    <string name="editor_up">மேலே நகர்த்து</string>
+    <string name="editor_down">கீழே நகர்த்து</string>
+    <string name="editor_left">இடப்புறம் நகர்த்து</string>
+    <string name="editor_right">வலப்புறம் நகர்த்து</string>
+    <string name="editor_percent">%1$d%%</string>
+    <string name="editor_tap_again">ஒன்றுக்கு மீண்டும் தட்டவும்</string>
+    <string name="editor_group_face">செயல் பொத்தான்கள்</string>
+    <string name="editor_group_dpad">D-pad</string>
+    <string name="editor_group_center">Start மற்றும் Select</string>
+    <string name="editor_group_shoulders">தோள் பொத்தான்கள்</string>
+    <string name="editor_group_actions">விரைவுச் செயல்கள்</string>
+    <string name="editor_group_menu">மெனு</string>
+    <string name="editor_group_keypad">விசைப்பலகை</string>
+    <string name="editor_group">குழு</string>
+    <string name="editor_stick">ஸ்டிக்</string>
+    <string name="editor_action">விரைவுச் செயல்</string>
+    <string name="editor_guide_center">திரையின் மையம்</string>
+    <string name="editor_guide_align">%1$s உடன் வரிசையில்</string>
+    <string name="editor_guide_edge">%1$s இன் விளிம்பு</string>
+    <string name="editor_guide_mirror">%1$s இன் பிரதிபலிப்பு</string>
+    <string name="editor_leave_title">%1$s இல் செய்த மாற்றங்களைச் சேமிக்கவா?</string>
+    <string name="editor_leave_body">இந்த ஸ்கினில் உங்கள் மாற்றங்கள் இன்னும் சேமிக்கப்படவில்லை.</string>
+    <string name="editor_save_new">புதிய ஸ்கினாகச் சேமி…</string>
+    <string name="editor_discard">மாற்றங்களை நிராகரி</string>
+    <string name="editor_draft_note">திருத்தும்போது ஆப் மூடினால், அடுத்த முறை எடிட்டரைத் திறக்கும்போது உங்கள் வேலை வரைவாகத் திரும்பும்.</string>
+    <string name="editor_draft_back">சேமிக்காத உங்கள் மாற்றங்கள் திரும்பி வந்தன.</string>
+    <string name="editor_saved">ஸ்கின் சேமிக்கப்பட்டது</string>
+    <string name="editor_save_new_title">புதிய ஸ்கினாகச் சேமி</string>
+    <string name="editor_pad_pick">கட்டுப்பாட்டைத் தேர்வு செய்</string>
+    <string name="editor_pad_group">குழு அல்லது ஒன்று</string>
+</resources>
