@@ -62,7 +62,7 @@ the element's colours, shape and label.
 | `background.png` | the whole layout, behind everything (the layout's `size`) |
 | `frame.png` | the bezel around the game screen, where the quick actions sit (the frame's rect) |
 | `<id>.png` | a button, a keypad key or a quick action |
-| `<id>.png`, `<id>-ball.png` | a D-pad: the pad, and the ball that moves like a stick |
+| `<id>.png`, `<id>-ball.png` | a D-pad: the pad, and the ball that moves like a stick (`dpad2.png`, `dpad2-ball.png` for a second D-pad) |
 | `<id>-base.png`, `<id>-knob.png` | an analog stick: the base, and the knob that moves |
 
 `<id>` is the element's `id` (below), so the usual names are `dpad.png`, `dpad-ball.png`, `stick-base.png`,
@@ -155,7 +155,7 @@ Quick actions (`action` elements) use these colours; they have none of their own
 |---|---|---|---|
 | `id` | string | yes | Unique in the layout; lowercase letters, digits and single hyphens (`a`, `stick2`, `key-star`). Also the base name of the element's images. |
 | `type` | string | yes | `button`, `dpad`, `stick`, `action` or `keypad` (below). |
-| `bind` | string | yes, except `dpad` | The input it presses (below). A D-pad's is `dpad`, and may be left out. |
+| `bind` | string | yes, except `dpad` | The input it presses (below). A D-pad's is `dpad`, and may be left out; a second D-pad's is `dpad2`. |
 | `group` | string | no | The group the editor moves it with (`face`, `dpad`, `shoulders-left`, `center`…). Free text; elements with the same value move together. |
 | `x`, `y`, `width`, `height` | numbers | yes | The element's rect (see Rect). |
 | `shape` | string | no | `circle`, `pill` or `rect`: the outline drawn when the element has no image. |
@@ -198,10 +198,12 @@ actions:
 | Mega Drive, 32X, Mega-CD: `c`, `z`, `mode` | C, Z, Mode |
 | Saturn: `c`, `z` | C, Z (its `l`, `r` are the Saturn's own shoulders) |
 | Famicom Disk System: `disk` | turns the disk over (pressing nothing on other consoles) |
+| Lynx: `option1`, `option2` | Option 1, Option 2 (pressing nothing on other consoles) |
+| Neo Geo Pocket: `a`, `b` | the Neo Geo Pocket's A (on the left) and B |
 | any `action` name below | that quick action |
 
 The console's own names mean the console's own buttons: on N64 `a` and `b` are the N64's A and B, on the Mega Drive
-(and the 32X, the Mega-CD and the Saturn) `a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button.
+(and the 32X, the Mega-CD and the Saturn) `a`, `b`, `c`, `x`, `y`, `z` its six buttons, on GameCube `l`, `r` the analog triggers and `z` the Z button, on the Neo Geo Pocket `a` its A (on the left) and `b` its B.
 
 **`action`**: `quickSave`, `quickLoad`, `turbo`, `slowMotion`, `fastForward` (held), `toggleFastForward`,
 `screenshot`, `menu`, `restart` (also `reset`), `screens` (NDS: the next screen layout). In RetroAchievements hardcore
@@ -209,7 +211,8 @@ the speed keys (`slowMotion`, `fastForward`, `toggleFastForward`) are drawn dimm
 
 **`stick`**: `analogStick` (the left stick), `rightAnalogStick`.
 
-**`dpad`**: `dpad`.
+**`dpad`**: `dpad` (the D-pad), `dpad2` (the console's second D-pad: the Virtual Boy's right pad, which presses
+Beetle VB's L2 up, L3 down, R2 left and R3 right; on a console with one D-pad it is drawn and presses nothing).
 
 **`keypad`**: `keypad0` … `keypad9`, `keypadStar`, `keypadHash`.
 
@@ -247,7 +250,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
 for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
 read from that folder. The skins the app ships for some consoles (issue 770: GG, SG1000, S32X, MCD, SATURN, PCE,
-PCECD, FDS) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
+PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
 wins over them, and one the app cannot draw falls back to the drawn skin.
 
 - **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window

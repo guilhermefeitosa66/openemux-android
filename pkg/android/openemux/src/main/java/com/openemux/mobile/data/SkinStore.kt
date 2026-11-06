@@ -80,15 +80,58 @@ class SkinStore(private val base: File) {
      */
     fun duplicate(console: Console, id: String, name: String): String {
         val dir = own(console, id)
+        SkinFormat.readFolder(dir)
+        return build(console, File(dir, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(dir, tmp) }
+    }
+
+    /**
+     * A new skin of the player's own named [name], made from [source]: a skin in OpenEmux's own format for [console], a
+     * folder or a zip (a bundled package, issue 783). Every layout and image it has is kept and only its name changes in
+     * skin.json; [source] is only read. Built in a hidden folder renamed into place, like [duplicate]: returns its ref.
+     */
+    fun create(console: Console, source: File, name: String): String =
+        if (source.isDirectory) {
+            checkConsole(SkinFormat.readFolder(source), console)
+            build(console, File(source, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(source, tmp) }
+        } else {
+            create(console, ZipSkinSource(source), name)
+        }
+
+    /** [create] from a zip's [source]: each of its files extracted, none outside the new skin's folder. */
+    internal fun create(console: Console, source: SkinSource, name: String): String {
+        checkConsole(SkinFormat.read(source), console)
+        val json = source.open(SkinFormat.SKIN_JSON)!!.use { it.bufferedReader().readText() }
+        return build(console, json, name) { tmp ->
+            val top = tmp.canonicalFile
+            for (path in source.files) {
+                val dest = File(tmp, path)
+                if (!dest.canonicalPath.startsWith(top.path + File.separator)) throw SkinStoreException("$path is outside the skin")
+                dest.parentFile.mkdirs()
+                source.open(path)!!.use { input -> dest.outputStream().use { input.copyTo(it) } }
+            }
+        }
+    }
+
+    private fun checkConsole(pkg: SkinPackage, console: Console) {
+        if (pkg.skin.console != console) throw SkinStoreException("a ${pkg.skin.console.id} skin is not for ${console.id}")
+    }
+
+    /**
+     * A new skin of the player's own for [console] (skin.json [json]) named [name], its files put in by [fill]: its ref.
+     * Built in a hidden folder renamed into place, so a copy cut short never shows up half made.
+     */
+    private fun build(console: Console, json: String, name: String, fill: (File) -> Unit): String {
         val clean = cleanName(name)
-        val json = renamed(dir, clean)
+        val text = withName(json, clean)
+        val root = root(console)
         val newId = freeId(console, clean)
-        val tmp = File(root(console), ".$newId.tmp")
+        val tmp = File(root, ".$newId.tmp")
         deleteTree(tmp)
         try {
-            copyTree(dir, tmp)
-            writeJson(tmp, json)
-            if (!tmp.renameTo(File(root(console), newId))) throw IOException("could not create $newId")
+            if (!tmp.mkdirs()) throw IOException("could not make ${tmp.name}")
+            fill(tmp)
+            writeJson(tmp, text)
+            if (!tmp.renameTo(File(root, newId))) throw IOException("could not create $newId")
         } finally {
             deleteTree(tmp)
         }
@@ -248,9 +291,12 @@ class SkinStore(private val base: File) {
      */
     private fun renamed(dir: File, name: String): String {
         SkinFormat.readFolder(dir)
-        val text = File(dir, SkinFormat.SKIN_JSON).readText().removePrefix("\uFEFF")
-        return JSONObject(text).put("name", name).toString(2) + "\n"
+        return withName(File(dir, SkinFormat.SKIN_JSON).readText(), name)
     }
+
+    /** The skin.json [json] with only its name changed to [name]. */
+    private fun withName(json: String, name: String): String =
+        JSONObject(json.removePrefix("\uFEFF")).put("name", name).toString(2) + "\n"
 
     private fun writeJson(dir: File, text: String) {
         val target = File(dir, SkinFormat.SKIN_JSON)

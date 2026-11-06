@@ -77,6 +77,7 @@ import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.StoredSkin
 import com.openemux.mobile.data.StoredSkinKind
 import com.openemux.mobile.launch.ImportedSkinRenderer
+import com.openemux.mobile.launch.SkinConversion
 import com.openemux.mobile.launch.OpenEmuxSkinRenderer
 import com.openemux.mobile.launch.skinForm
 import com.retroarch.R
@@ -113,6 +114,7 @@ data class SkinChoice(val options: List<SkinSwatch>) {
 /**
  * A console's skin list (issue 782): the [bundled] ones, the player's [own] and the [imported] packages, with the
  * bundled variant saved ([bundledId], the one to go back to) and the player's skin in use ([custom], a ref).
+ * [convertible]: the bundled variants (ids) "Create copy and edit" can make a skin of the player's own of (issue 783).
  */
 data class SkinListState(
     val bundled: SkinChoice,
@@ -120,6 +122,7 @@ data class SkinListState(
     val imported: List<StoredSkin>,
     val bundledId: String,
     val custom: String?,
+    val convertible: Set<String> = emptySet(),
 ) {
     /** The player's skin in use: the one [custom] names, when it is still there and readable. */
     val customInUse: StoredSkin? get() = (own + imported).firstOrNull { it.ref == custom && !it.broken }
@@ -130,6 +133,9 @@ data class SkinListState(
     fun inUse(skin: StoredSkin) = customInUse?.ref == skin.ref
 
     fun inUse(swatch: SkinSwatch) = customInUse == null && bundledPick == swatch
+
+    /** Whether "Create copy and edit" is offered for the bundled [swatch]. */
+    fun convertible(swatch: SkinSwatch) = swatch.variant.id in convertible
 
     /** More than one skin in all: the list has something to pick. */
     val shown: Boolean get() = bundled.options.size + own.size + imported.size > 1
@@ -179,17 +185,17 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
     val context = LocalContext.current
     val meta by library.meta.collectAsState()
     val settings = meta.consoles[console.id]
-    val listed by produceState<Triple<SkinChoice, List<StoredSkin>, List<StoredSkin>>?>(null, console, revision) {
+    val listed by produceState<SkinListState?>(null, console, revision) {
         value = withContext(Dispatchers.IO) {
-            val choice = SkinChoice.of(skinCatalog(context), console) {
-                ImportedSkinRenderer.bundledName(context.assets.list(it.assetDir), console) != null
-            }
+            val list = { dir: String -> context.assets.list(dir) }
+            val choice = SkinChoice.of(skinCatalog(context), console) { ImportedSkinRenderer.bundledName(list(it.assetDir), console) != null }
             val stored = library.skins.list(console)
-            Triple(choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED })
+            val convertible = choice.options.filter { SkinConversion.kind(list, console, it.variant) != null }.map { it.variant.id }.toSet()
+            SkinListState(choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null, convertible)
         }
     }
-    val (choice, own, imported) = listed ?: return null
-    return SkinListState(choice, own, imported, settings?.skin ?: SkinVariant.CONSOLE.id, remember(meta, console) { library.customSkin(console) })
+    val state = listed ?: return null
+    return state.copy(bundledId = settings?.skin ?: SkinVariant.CONSOLE.id, custom = remember(meta, console) { library.customSkin(console) })
 }
 
 /** The catalog's JSON, read from the APK once per process: it only changes with an update, which restarts the app. */
@@ -266,6 +272,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var ownSheet by remember { mutableStateOf<StoredSkin?>(null) }
     var bundledSheet by remember { mutableStateOf<SkinSwatch?>(null) }
     var renaming by remember { mutableStateOf<StoredSkin?>(null) }
+    var copying by remember { mutableStateOf<SkinSwatch?>(null) }
     var deleting by remember { mutableStateOf<StoredSkin?>(null) }
     var templating by remember { mutableStateOf<StoredSkin?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -381,15 +388,29 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 Text(stringResource(R.string.skins_bundled_locked), style = Type.Small)
             }
             HorizontalDivider(color = Oe.Divider, thickness = 1.dp)
+            if (state.convertible(swatch)) ActionRow(Icons.Pencil, stringResource(R.string.skins_create_copy)) {
+                bundledSheet = null; copying = swatch
+            }
             ActionRow(Icons.Check, stringResource(R.string.skins_use_as_is)) {
                 bundledSheet = null; library.useBundledSkin(console, swatch.variant.id)
             }
         }
     }
     renaming?.let { skin ->
-        RenameSkinSheet(skin.name, onClose = { renaming = null }) { name ->
+        NameSkinSheet(stringResource(R.string.skins_rename_title), skin.name, stringResource(R.string.skins_save), onClose = { renaming = null }) { name ->
             renaming = null
             store { library.skins.rename(console, skin.id, name) }
+        }
+    }
+    copying?.let { swatch ->
+        val label = stringResource(swatch.variant.label)
+        NameSkinSheet(
+            stringResource(R.string.skins_create_copy_title), stringResource(R.string.skins_bundled_copy_name, label).take(SkinStore.MAX_NAME),
+            stringResource(R.string.skins_create_copy_save), lead = stringResource(R.string.skins_create_copy_lead), onClose = { copying = null },
+        ) { name ->
+            copying = null
+            // The copy is used at once: until the editor comes (issue 784), the flow ends on the list with it in use.
+            store { library.useCustomSkin(console, SkinConversion.convert(context, library.skins, console, swatch.variant, name)) }
         }
     }
     templating?.let { skin ->
@@ -564,16 +585,18 @@ private fun ActionRow(icon: String, label: String, danger: Boolean = false, sub:
     }
 }
 
+/** The sheet that asks for a skin's name: [title] over an optional [lead] line, [initial] filled in, [confirm] saving it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RenameSkinSheet(current: String, onClose: () -> Unit, onSave: (String) -> Unit) {
-    var name by remember { mutableStateOf(current) }
+private fun NameSkinSheet(title: String, initial: String, confirm: String, lead: String? = null, onClose: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf(initial) }
     val valid = name.isNotBlank()
     fun save() { if (valid) onSave(name.trim()) }
     OeSheet(onClose) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.skins_rename_title), style = Type.Title.copy(fontSize = 22.sp))
+            Text(title, style = Type.Title.copy(fontSize = 22.sp))
+            if (lead != null) Text(lead, style = Type.Small)
             OeTextField(
                 stringResource(R.string.skins_name_label), name, { name = it.take(SkinStore.MAX_NAME) }, Modifier.fillMaxWidth(),
                 isError = !valid,
@@ -582,7 +605,7 @@ private fun RenameSkinSheet(current: String, onClose: () -> Unit, onSave: (Strin
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SecondaryButton(stringResource(R.string.detail_cancel), onClose, Modifier.weight(1f))
-                PrimaryButton(stringResource(R.string.skins_save), ::save, Modifier.weight(1f), enabled = valid)
+                PrimaryButton(confirm, ::save, Modifier.weight(1f), enabled = valid)
             }
         }
     }

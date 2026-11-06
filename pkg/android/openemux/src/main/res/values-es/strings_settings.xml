@@ -320,6 +320,11 @@
     <string name="skins_delete_title">¿Eliminar %1$s?</string>
     <string name="skins_delete_body">La skin y sus imágenes se borran de este dispositivo.</string>
     <string name="skins_error">No se pudo cambiar la skin.</string>
+    <string name="skins_create_copy">Crear copia y editar</string>
+    <string name="skins_create_copy_title">Ponle nombre a tu copia</string>
+    <string name="skins_create_copy_lead">Las skins incluidas se quedan como están. La copia conserva todos los diseños y puedes cambiarle el nombre después.</string>
+    <string name="skins_create_copy_save">Crear copia</string>
+    <string name="skins_bundled_copy_name">Copia de %1$s</string>
     <string name="skins_template">Descargar como plantilla</string>
     <string name="skins_template_sub">Un .zip con todos los diseños: móvil, tablet, plegable</string>
     <string name="skins_template_title">Descargar como plantilla</string>

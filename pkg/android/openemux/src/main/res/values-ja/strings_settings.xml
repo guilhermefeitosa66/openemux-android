@@ -298,6 +298,11 @@
     <string name="skins_delete_title">%1$s を削除しますか？</string>
     <string name="skins_delete_body">スキンとその画像がこの端末から削除されます。</string>
     <string name="skins_error">スキンを変更できませんでした。</string>
+    <string name="skins_create_copy">コピーを作成して編集</string>
+    <string name="skins_create_copy_title">コピーの名前</string>
+    <string name="skins_create_copy_lead">同梱のスキンはそのまま残ります。コピーにはすべてのレイアウトが含まれ、名前はあとで変更できます。</string>
+    <string name="skins_create_copy_save">コピーを作成</string>
+    <string name="skins_bundled_copy_name">%1$s のコピー</string>
     <string name="skins_template">テンプレートとしてダウンロード</string>
     <string name="skins_template_sub">すべてのレイアウト(スマホ、タブレット、折りたたみ)を含む .zip</string>
     <string name="skins_template_title">テンプレートとしてダウンロード</string>
