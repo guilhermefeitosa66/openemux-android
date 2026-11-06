@@ -31,7 +31,7 @@ Template: [`A2600-template.zip`](A2600-template.zip).
 
 ## A5200: Atari 5200
 
-No template yet: the controls of the skin the app draws.
+Template: [`A5200-template.zip`](A5200-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -45,6 +45,18 @@ No template yet: the controls of the skin the app draws.
 | `b` | button | `b` | 1 | `b.png` |
 | `start` | button | `start` | START | `start.png` |
 | `select` | button | `select` | PAUSE | `select.png` |
+| `keypad-toggle` | button | `keypadToggle` | KEYPAD | `keypad-toggle.png` |
+
+Keypad page, in each layout's `keypad/` folder with a `background.png` of its own (the frame is the layout's):
+
+| Element | Type | Bind | Label | Images |
+|---|---|---|---|---|
+| `save` | action | `quickSave` |  | `save.png` |
+| `load` | action | `quickLoad` |  | `load.png` |
+| `turbo` | action | `turbo` |  | `turbo.png` |
+| `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
+| `menu` | button | `menu` | MENU | `menu.png` |
+| `stick` | stick | `analogStick` |  | `stick-base.png`, `stick-knob.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
 | `key-3` | keypad | `keypad3` | 3 | `key-3.png` |
@@ -57,6 +69,9 @@ No template yet: the controls of the skin the app draws.
 | `key-star` | keypad | `keypadStar` | * | `key-star.png` |
 | `key-0` | keypad | `keypad0` | 0 | `key-0.png` |
 | `key-hash` | keypad | `keypadHash` | # | `key-hash.png` |
+| `start` | button | `start` | START | `start.png` |
+| `select` | button | `select` | PAUSE | `select.png` |
+| `keypad-toggle` | button | `keypadToggle` | CONTROLS | `keypad-toggle.png` |
 
 ## A7800: Atari 7800
 
@@ -96,7 +111,7 @@ Template: [`LYNX-template.zip`](LYNX-template.zip).
 
 ## CV: ColecoVision
 
-No template yet: the controls of the skin the app draws.
+Template: [`CV-template.zip`](CV-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -108,6 +123,18 @@ No template yet: the controls of the skin the app draws.
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `a` | button | `a` | L | `a.png` |
 | `b` | button | `b` | R | `b.png` |
+| `keypad-toggle` | button | `keypadToggle` | KEYPAD | `keypad-toggle.png` |
+
+Keypad page, in each layout's `keypad/` folder with a `background.png` of its own (the frame is the layout's):
+
+| Element | Type | Bind | Label | Images |
+|---|---|---|---|---|
+| `save` | action | `quickSave` |  | `save.png` |
+| `load` | action | `quickLoad` |  | `load.png` |
+| `turbo` | action | `turbo` |  | `turbo.png` |
+| `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
+| `menu` | button | `menu` | MENU | `menu.png` |
+| `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
 | `key-3` | keypad | `keypad3` | 3 | `key-3.png` |
@@ -120,6 +147,7 @@ No template yet: the controls of the skin the app draws.
 | `key-star` | keypad | `keypadStar` | * | `key-star.png` |
 | `key-0` | keypad | `keypad0` | 0 | `key-0.png` |
 | `key-hash` | keypad | `keypadHash` | # | `key-hash.png` |
+| `keypad-toggle` | button | `keypadToggle` | CONTROLS | `keypad-toggle.png` |
 
 ## FDS: Famicom Disk System
 
@@ -227,7 +255,7 @@ Template: [`GG-template.zip`](GG-template.zip).
 
 ## INTV: Intellivision
 
-No template yet: the controls of the skin the app draws.
+Template: [`INTV-template.zip`](INTV-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -240,6 +268,18 @@ No template yet: the controls of the skin the app draws.
 | `y` | button | `y` | 1 | `y.png` |
 | `b` | button | `b` | 2 | `b.png` |
 | `a` | button | `a` | 3 | `a.png` |
+| `keypad-toggle` | button | `keypadToggle` | KEYPAD | `keypad-toggle.png` |
+
+Keypad page, in each layout's `keypad/` folder with a `background.png` of its own (the frame is the layout's):
+
+| Element | Type | Bind | Label | Images |
+|---|---|---|---|---|
+| `save` | action | `quickSave` |  | `save.png` |
+| `load` | action | `quickLoad` |  | `load.png` |
+| `turbo` | action | `turbo` |  | `turbo.png` |
+| `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
+| `menu` | button | `menu` | MENU | `menu.png` |
+| `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
 | `key-3` | keypad | `keypad3` | 3 | `key-3.png` |
@@ -252,6 +292,7 @@ No template yet: the controls of the skin the app draws.
 | `key-star` | keypad | `keypadStar` | CLR | `key-star.png` |
 | `key-0` | keypad | `keypad0` | 0 | `key-0.png` |
 | `key-hash` | keypad | `keypadHash` | ENT | `key-hash.png` |
+| `keypad-toggle` | button | `keypadToggle` | CONTROLS | `keypad-toggle.png` |
 
 ## NGP: NeoGeo Pocket
 
@@ -340,7 +381,7 @@ Template: [`GC-template.zip`](GC-template.zip).
 
 ## O2: Odyssey²
 
-No template yet: the controls of the skin the app draws.
+Template: [`O2-template.zip`](O2-template.zip).
 
 | Element | Type | Bind | Label | Images |
 |---|---|---|---|---|
@@ -351,6 +392,18 @@ No template yet: the controls of the skin the app draws.
 | `menu` | button | `menu` | MENU | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | ACTION | `b.png` |
+| `keypad-toggle` | button | `keypadToggle` | KEYPAD | `keypad-toggle.png` |
+
+Keypad page, in each layout's `keypad/` folder with a `background.png` of its own (the frame is the layout's):
+
+| Element | Type | Bind | Label | Images |
+|---|---|---|---|---|
+| `save` | action | `quickSave` |  | `save.png` |
+| `load` | action | `quickLoad` |  | `load.png` |
+| `turbo` | action | `turbo` |  | `turbo.png` |
+| `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
+| `menu` | button | `menu` | MENU | `menu.png` |
+| `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
 | `key-3` | keypad | `keypad3` | 3 | `key-3.png` |
@@ -363,6 +416,7 @@ No template yet: the controls of the skin the app draws.
 | `key-star` | keypad | `keypadStar` | CLR | `key-star.png` |
 | `key-0` | keypad | `keypad0` | 0 | `key-0.png` |
 | `key-hash` | keypad | `keypadHash` | ENT | `key-hash.png` |
+| `keypad-toggle` | button | `keypadToggle` | CONTROLS | `keypad-toggle.png` |
 
 ## SG1000: SG-1000
 

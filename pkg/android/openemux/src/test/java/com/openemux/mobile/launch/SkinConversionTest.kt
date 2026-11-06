@@ -68,13 +68,16 @@ class SkinConversionTest {
     @Test fun theAppsOwnAssetsAnswerForTheOwnFormatAndTheDrawnConsoles() {
         val list = { dir: String -> File(assets, dir).list() }
         fun kind(k: SkinConversion.Kind) = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == k }.map { it.id }.sorted()
-        // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more.
+        // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more, issue 772 the four with a keypad.
         assertEquals(
-            listOf("A2600", "A7800", "FDS", "GG", "LYNX", "MCD", "NGP", "PCE", "PCECD", "S32X", "SATURN", "SG1000", "VB", "VECTREX", "WS"),
+            listOf(
+                "A2600", "A5200", "A7800", "CV", "FDS", "GG", "INTV", "LYNX", "MCD", "NGP", "O2", "PCE", "PCECD", "S32X", "SATURN",
+                "SG1000", "VB", "VECTREX", "WS",
+            ),
             kind(SkinConversion.Kind.OPENEMUX),
         )
-        // Issue 798: the consoles left on the drawn skin.
-        assertEquals(listOf("A5200", "CV", "INTV", "O2"), kind(SkinConversion.Kind.DRAWN))
+        // Issue 798's drawn copy was for those four; with their packages no bundled console is left on the drawn skin.
+        assertEquals(emptyList<String>(), kind(SkinConversion.Kind.DRAWN))
     }
 
     @Test fun aDrawnSkinIsCopiedWithItsImagesAndNothingLeftInTheCache() {
@@ -122,7 +125,7 @@ class SkinConversionTest {
 
     @Test fun everyOwnFormatBundledSkinCopiesWithEveryLayoutElementAndFile() {
         val packages = ownFormatPackages()
-        assertEquals(30, packages.size)
+        assertEquals(38, packages.size)
         for ((variant, zip) in packages) {
             val where = "${variant.id} ${zip.name}"
             val source = SkinFormat.readZip(zip)

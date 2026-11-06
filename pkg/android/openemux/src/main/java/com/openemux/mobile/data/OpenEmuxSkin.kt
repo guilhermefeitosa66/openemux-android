@@ -120,11 +120,39 @@ data class SkinElement(
     val imageFiles: List<String> get() = type.imageSuffixes.map { "${image ?: id}$it.png" }
 }
 
-/** One layout: its pixel space, the game's one or two screens, the background, the frame and the controls. */
+/**
+ * One layout: its pixel space, the game's one or two screens, the background, the frame and the controls; [keypad] its
+ * keypad page, when the skin has one.
+ */
 data class SkinLayout(
     val size: SkinSize,
     val screens: List<SkinRect>,
     val background: SkinBackground = SkinBackground(),
     val frame: SkinFrame? = null,
     val elements: List<SkinElement> = emptyList(),
-)
+    val keypad: SkinKeypadPage? = null,
+) {
+    /** The controls of the page shown: the layout's own, or its keypad page's ([keypadPage]). */
+    fun elements(keypadPage: Boolean): List<SkinElement> = if (keypadPage) keypad?.elements.orEmpty() else elements
+
+    /**
+     * The page's background: the keypad page's own when it has one (its colour left out is the layout's), else the
+     * layout's.
+     */
+    fun background(keypadPage: Boolean): SkinBackground =
+        keypad?.background?.takeIf { keypadPage }?.let { it.copy(color = it.color ?: background.color) } ?: background
+}
+
+/**
+ * A layout's keypad page (docs/skin-format.md): the layout's size, screens and frame with controls of its own, which a
+ * [SkinFormat.KEYPAD_TOGGLE] key switches to and back from. Its images are in the layout's [FOLDER]; [background] null
+ * keeps the layout's (colour and image).
+ */
+data class SkinKeypadPage(val elements: List<SkinElement>, val background: SkinBackground? = null) {
+    /** Whether it has the key that leaves it: a page without one would keep the player on it. */
+    val closable: Boolean get() = elements.any { it.bind == SkinFormat.KEYPAD_TOGGLE }
+
+    companion object {
+        const val FOLDER = "keypad"
+    }
+}

@@ -75,7 +75,7 @@ Intermediate images go to
 
 ## The consoles in OpenEmux's own format
 
-Fifteen more consoles (issues 770 and 771) ship in OpenEmux's own skin format
+Nineteen more consoles (issues 770, 771 and 772) ship in OpenEmux's own skin format
 (`docs/skin-format.md`) instead of Delta's or Manic's:
 `src/main/assets/skins/<console>.zip` and `dark/<console>.zip`, in their own
 colours and Dark only. `OWN_FORMAT` in `build.py` names them; the same command
@@ -89,8 +89,21 @@ only the controls on a transparent page (`render.html?layer=controls`: every
 part the engine draws records the element it belongs to). Each element's image
 is that second render cut at the element's rect, so it lands on the same pixels
 of the background; `frame.png` is the bezel cut out of the background, and the
-D-pad's ball the engine's circle cut edge to edge at the ball's size. The zips
-are dated 1980-01-01, so a rebuild that changes nothing changes no binary.
+D-pad's ball the engine's circle cut edge to edge at the ball's size, and a
+stick's knob the engine's knob rendered alone (`render.html?knob=<n>`) and cut
+the same way. The zips are dated 1980-01-01, so a rebuild that changes nothing
+changes no binary.
+
+The consoles whose games need the controller's keypad (issue 772: A5200, CV,
+INTV, O2, those with a `keypad` in the engine's `C`) have a keypad page in every
+layout: the engine draws it with `layout(..., { keypad: true })`
+(`render.html?keypad=1`), the twelve keys (`keypad1` … `keypad9`, `keypadStar`,
+`keypad0`, `keypadHash`) in the face buttons' place and the centre row's
+`keypadToggle` key labelled CONTROLS instead of KEYPAD. It is rendered the same
+two ways into the layout's `keypad/` folder, with a `background.png` of its own
+(the controls' labels are painted in the layout's); the frame is the layout's.
+The keys press what the drawn skin's keypad presses (`OpenEmuxBinds.keypad`),
+so the art only names them.
 
 | Console | Base | Controls (input names) | Colours from |
 |---|---|---|---|
@@ -109,11 +122,17 @@ are dated 1980-01-01, so a rebuild that changes nothing changes no binary.
 | WS | own | D-pad, B, A, START | <https://en.wikipedia.org/wiki/WonderSwan> |
 | VECTREX | own | D-pad, 1 to 4 in a row (`a`, `b`, `x`, `y`, the face kind `row4`), no centre keys (upright screen) | <https://en.wikipedia.org/wiki/Vectrex> |
 | VB | own | two D-pads (the right one `dpad2`: L2, L3, R2, R3), B and A under it, L, R, SELECT, START (black and red) | <https://en.wikipedia.org/wiki/Virtual_Boy> |
+| A5200 | own | the analog stick (`analogStick`), 2 (`a`, on the left) and 1 (`b`), START, PAUSE (`select`), KEYPAD; keypad with * and # (the CX52's black body, orange-red fires) | <https://en.wikipedia.org/wiki/Atari_5200> |
+| CV | own | D-pad, L (`a`, blueMSX's left fire) and R (`b`), KEYPAD; keypad with * and # (Gearcoleco's swapped binds applied in game) | <https://en.wikipedia.org/wiki/ColecoVision> |
+| INTV | own | the disc as a D-pad, 1 (`y`, top), 2 (`b`), 3 (`a`) as FreeIntv reads them (the face kind `col3`), KEYPAD; keypad with CLR and ENT (brown and gold) | <https://en.wikipedia.org/wiki/Intellivision> |
+| O2 | own | D-pad, ACTION (`b`, the face kind `one`), KEYPAD; keypad with CLR and ENT (O2EM's End and Return) | <https://en.wikipedia.org/wiki/Magnavox_Odyssey_2> |
 
 Where the RetroPad has a console's buttons elsewhere (the six-button pads,
 Saturn, the disk key, the Lynx's options, the Neo Geo Pocket's A and B, the
 Virtual Boy's right pad), `launch/SkinBinds.kt` says where, as `data/Skin.kt` does
 for the drawn skin; `OwnFormatBundledSkinsTest` checks every control against it.
+A core that reads them elsewhere (Gearcoleco on the ColecoVision) gets the drawn
+skin's remap (`coreBind` in `data/Skin.kt`) in game.
 
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the
 build. `launch/ImportedSkinRenderer.kt` reads the Delta and Manic packages,

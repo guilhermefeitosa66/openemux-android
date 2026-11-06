@@ -418,4 +418,107 @@ class SkinFormatTest {
         assertTrue(SkinRect(0f, 0f, 10f, 10f).inside(SkinSize(10, 10)))
         assertFalse(SkinRect(0f, 0f, 10.5f, 10f).inside(SkinSize(10, 10)))
     }
+
+    // Issue 772: a layout's keypad page.
+
+    private val keypadPage = SkinKeypadPage(
+        listOf(
+            SkinElement("dpad", SkinElementType.DPAD, "dpad", rect(60f, 1300f, 400f, 400f)),
+            SkinElement("key-1", SkinElementType.KEYPAD, "keypad1", rect(600f, 1300f, 120f, 100f), "keypad", SkinShape.RECT, "1"),
+            SkinElement("key-star", SkinElementType.KEYPAD, "keypadStar", rect(600f, 1420f, 120f, 100f), label = "CLR"),
+            SkinElement("keypad-toggle", SkinElementType.BUTTON, SkinFormat.KEYPAD_TOGGLE, rect(500f, 2100f, 160f, 60f), "center", SkinShape.PILL, "CONTROLS"),
+        ),
+        SkinBackground(0xFF101010.toInt()),
+    )
+
+    private val withKeypad = full.copy(
+        layouts = full.layouts + (SkinLayoutId.PHONE_PORTRAIT to full.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).copy(keypad = keypadPage)),
+    )
+
+    private fun JSONObject.keypad() = layout().getJSONObject("keypad")
+
+    @Test fun aKeypadPageReadsBackTheSame() {
+        assertEquals(withKeypad, SkinFormat.parse(SkinFormat.toJson(withKeypad)))
+        val noBackground = withKeypad.copy(layouts = mapOf(SkinLayoutId.PHONE_PORTRAIT to
+            withKeypad.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).copy(keypad = keypadPage.copy(background = null))))
+        assertEquals(noBackground, SkinFormat.parse(SkinFormat.toJson(noBackground)))
+        val text = SkinFormat.toJson(withKeypad)
+        // After the layout's controls, its background before its own controls.
+        assertTrue(text.indexOf("\"keypad\": {") > text.indexOf("\"elements\""))
+        assertTrue("\"bind\": \"keypadToggle\"" in text)
+        // A layout with no keypad page writes none.
+        assertFalse("\"keypad\": {" in SkinFormat.toJson(full))
+    }
+
+    @Test fun anEmptyKeypadBackgroundIsTheLayouts() {
+        val skin = SkinFormat.parse(json(withKeypad).apply { keypad().put("background", JSONObject()) }.toString())
+        val layout = skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        assertNull(layout.keypad!!.background)
+        assertEquals(layout.background, layout.background(keypadPage = true))
+        assertEquals(keypadPage.background, withKeypad.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).background(keypadPage = true))
+        assertEquals(layout.background, layout.background(keypadPage = false))
+        // An image of its own and no colour: the layout's colour behind it.
+        val imageOnly = layout.copy(keypad = SkinKeypadPage(emptyList(), SkinBackground(image = "kp")))
+        assertEquals(SkinBackground(layout.background.color, "kp"), imageOnly.background(keypadPage = true))
+    }
+
+    @Test fun thePageShownGivesItsControls() {
+        val layout = withKeypad.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        assertEquals(keypadPage.elements, layout.elements(keypadPage = true))
+        assertEquals(layout.elements, layout.elements(keypadPage = false))
+        // A layout with none has no keypad controls.
+        assertEquals(emptyList<SkinElement>(), full.layouts.getValue(SkinLayoutId.FOLD_LANDSCAPE).elements(keypadPage = true))
+    }
+
+    @Test fun aKeypadPageWithoutItsToggleIsNotClosable() {
+        assertTrue(keypadPage.closable)
+        assertFalse(SkinKeypadPage(keypadPage.elements.filter { it.bind != SkinFormat.KEYPAD_TOGGLE }).closable)
+    }
+
+    @Test fun aKeypadPageIsCheckedLikeTheLayout() {
+        fun refusedKeypad(error: SkinError, path: String, edit: JSONObject.() -> Unit) =
+            refusedText(error, path) { json(withKeypad).apply(edit).toString() }
+        refusedKeypad(SkinError.MISSING_KEY, "layouts.phone-portrait.keypad.elements") { keypad().remove("elements") }
+        refusedKeypad(SkinError.BAD_VALUE, "layouts.phone-portrait.keypad") { layout().put("keypad", "yes") }
+        refusedKeypad(SkinError.DUPLICATE_ID, "layouts.phone-portrait.keypad.elements[2].id") {
+            keypad().getJSONArray("elements").getJSONObject(2).put("id", "key-1")
+        }
+        refusedKeypad(SkinError.DUPLICATE_ID, "layouts.phone-portrait.keypad.elements[2]") {
+            keypad().getJSONArray("elements").getJSONObject(2).put("image", "key-1")
+        }
+        refusedKeypad(SkinError.DUPLICATE_ID, "layouts.phone-portrait.keypad.elements[1]") {
+            keypad().put("background", JSONObject().put("image", "key-1"))
+        }
+        refusedKeypad(SkinError.OUT_OF_LAYOUT, "layouts.phone-portrait.keypad.elements[1]") {
+            keypad().getJSONArray("elements").getJSONObject(1).put("x", 5000)
+        }
+        refusedKeypad(SkinError.BIND_NOT_FOR_TYPE, "layouts.phone-portrait.keypad.elements[1].bind") {
+            keypad().getJSONArray("elements").getJSONObject(1).put("bind", SkinFormat.KEYPAD_TOGGLE)
+        }
+        refusedKeypad(SkinError.BAD_COLOR, "layouts.phone-portrait.keypad.background.color") {
+            keypad().put("background", JSONObject().put("color", "red"))
+        }
+        // The page's ids and images are its own: the layout's "dpad" again is no clash.
+        assertEquals("dpad", SkinFormat.parse(json(withKeypad).toString()).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).keypad!!.elements[0].id)
+    }
+
+    @Test fun aKeypadPagesImagesAreInItsFolder() {
+        val p = SkinLayoutId.PHONE_PORTRAIT
+        val pkg = SkinFormat.readFolder(folder(withKeypad, "phone-portrait/bg-dark.png", "phone-portrait/keypad/background.png",
+            "phone-portrait/keypad/key-1.png", "phone-portrait/key-star.png"))
+        val page = withKeypad.layouts.getValue(p).keypad!!
+        assertEquals("phone-portrait/keypad/background.png", pkg.background(p, keypadPage = true))
+        assertEquals("phone-portrait/bg-dark.png", pkg.background(p, keypadPage = false))
+        assertEquals(listOf("phone-portrait/keypad/key-1.png"), pkg.images(p, page.elements[1], keypadPage = true))
+        // A file in the layout's folder is not the page's.
+        assertEquals(listOf<String?>(null), pkg.images(p, page.elements[2], keypadPage = true))
+        assertEquals(listOf<String?>(null), pkg.images(p, page.elements[1], keypadPage = false))
+        assertNull(pkg.keypadImage(p, "frame.png"))
+        // No background of its own: the layout's, from the layout's folder.
+        val shared = withKeypad.copy(layouts = mapOf(p to withKeypad.layouts.getValue(p).copy(keypad = page.copy(background = null))))
+        val pkg2 = SkinFormat.readFolder(folder(shared, "phone-portrait/bg-dark.png"))
+        assertEquals("phone-portrait/bg-dark.png", pkg2.background(p, keypadPage = true))
+        // A layout with no keypad page: the layout's.
+        assertNull(pkg2.background(SkinLayoutId.FOLD_LANDSCAPE, keypadPage = true))
+    }
 }

@@ -88,6 +88,11 @@ fun gamepadTarget(current: String, gamepad: Boolean, overlays: Collection<String
     return available(shown.withGamepad(gamepad), overlays)
 }
 
-/** [name] if the skin has it, else its expanded twin (a package skin's own pages have no collapsed one); null for neither. */
+/**
+ * [name] if the skin has it, else its expanded twin (a package skin's own pages have no collapsed one), else, for a
+ * keypad page, the same without the keypad (a package with no keypad page of its own, the drawn keypad being the
+ * gamepad layout's); null for none.
+ */
 fun available(name: OverlayName, overlays: Collection<String>): String? =
-    listOf(name, name.withCollapsed(false)).map { it.toString() }.firstOrNull { it in overlays }
+    (listOf(name, name.withCollapsed(false)) + if (name.keypad) listOf(name.copy(keypad = false), name.copy(keypad = false, collapsed = false)) else emptyList())
+        .map { it.toString() }.firstOrNull { it in overlays }

@@ -199,7 +199,7 @@ class SkinStore(private val base: File) {
      * [replace], over the player's skin of that id, which keeps its id (so a console using it goes on using it) and
      * its name. Returns the skin's ref.
      *
-     * Only skin.json and the images it names are taken from the zip, for the layouts whose folder the zip has
+     * Only skin.json and the images it names (its keypad pages' included) are taken from the zip, for the layouts whose folder the zip has
      * ([SkinImport.offered]); an image the zip lacks is the replaced skin's, if
      * it had one. The skin is built in a hidden folder, read back, and only then put in place (a replaced one moved
      * aside until the new one is in): a zip that fails at any point leaves the list as it was.
@@ -229,8 +229,7 @@ class SkinStore(private val base: File) {
             writeJson(tmp, json.toString(2) + "\n")
             var budget = SkinImport.MAX_BYTES
             for ((layoutId, layout) in pkg.skin.layouts.filterKeys { it in kept }) {
-                val files = listOf(layout.background.imageFile) + listOfNotNull(layout.frame?.imageFile) +
-                    layout.elements.flatMap { it.imageFiles }
+                val files = SkinTemplate.images(layout).map { it.path }.distinct()
                 for (file in files) {
                     val out = File(tmp, "${layoutId.id}/$file")
                     val copied = pkg.image(layoutId, file)?.let { path ->

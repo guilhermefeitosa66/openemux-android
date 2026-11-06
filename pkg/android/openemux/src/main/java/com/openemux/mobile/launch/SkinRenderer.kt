@@ -114,8 +114,9 @@ class SkinRenderer(private val context: Context) {
         val base = under?.readText()
         val flat = base?.let(::overlayNames).orEmpty()
         val packaged = base != null
+        val keypad = skin.keypad.isNotEmpty()
         val specs = if (!packaged) {
-            withAppModes(overlaySpecs(console.gameAspect, skin.keypad.isNotEmpty(), ndsLayouts, band != null, ndsTabletop, tablet)).let { all ->
+            withAppModes(overlaySpecs(console.gameAspect, keypad, ndsLayouts, band != null, ndsTabletop, tablet)).let { all ->
                 // With a gamepad, the named page's gamepad twin.
                 val opening = first?.takeIf { f -> all.any { it.name == f } }?.let { f -> if (gamepad) OverlayName.map(f) { it.withGamepad(true) } else f }
                     ?: if (gamepad) OverlayName.map(all.first().name) { it.withGamepad(true) } else null
@@ -124,8 +125,12 @@ class SkinRenderer(private val context: Context) {
         } else {
             // A package skin opened on its own [first] already (ImportedSkinRenderer): these go after.
             val nds = console == Console.NDS
-            val tabletop = if (band != null) packageTabletopSpecs(console.gameAspect, nds, ndsTabletop, ndsLayouts?.second, tablet) else emptyList()
-            packageSpecs(console.gameAspect, nds, tabletop, ndsLayouts, tablet)
+            val tabletop = if (band != null) {
+                packageTabletopSpecs(console.gameAspect, nds, ndsTabletop, ndsLayouts?.second, tablet, keypad, packageKeypad = "keypad-landscape" in flat)
+            } else {
+                emptyList()
+            }
+            packageSpecs(console.gameAspect, nds, tabletop, ndsLayouts, tablet, keypad)
         }
         val gaps = mutableMapOf<String, Int>()
         val cfg = StringBuilder()
@@ -151,7 +156,7 @@ class SkinRenderer(private val context: Context) {
                 spec.collapsed, hide, show,
             )
             val descs = when {
-                !art -> layout.pad(w, h, band.takeIf { spec.tabletop }, spec.portrait, keypad = skin.keypad.isNotEmpty() && !packaged)
+                !art -> layout.pad(w, h, band.takeIf { spec.tabletop }, spec.portrait, keypad = keypad)
                 spec.tabletop && band != null -> layout.tabletop(w, h, band.startPx / unit, band.endPx / unit, wide)
                 tablet && spec.portrait -> layout.tabletPortrait(w, h)
                 tablet -> layout.tabletLandscape(w, h)

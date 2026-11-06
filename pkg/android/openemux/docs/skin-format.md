@@ -25,6 +25,10 @@ my-skin/
 │   ├── dpad-ball.png
 │   ├── a.png
 │   └── …
+│   └── keypad/            optional: the layout's keypad page (below)
+│       ├── background.png
+│       ├── key-1.png
+│       └── …
 ├── phone-landscape/
 └── …
 ```
@@ -131,6 +135,7 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
 | `background` | object | no | `color` (colour) and `image` (base name, default `background`). |
 | `frame` | object | no | The bezel around the game screen: a rect (`x`, `y`, `width`, `height`), `colors` and `image` (base name, default `frame`). |
 | `elements` | array | no | The controls (below). Empty or left out: a layout with only the picture. |
+| `keypad` | object | no | The layout's keypad page (below). |
 
 The frame's `colors`:
 
@@ -142,6 +147,22 @@ The frame's `colors`:
 | `activeIcon` | `light` or `dark` | The icon's tone on that `active` background. |
 
 Quick actions (`action` elements) use these colours; they have none of their own.
+
+### Keypad page
+
+A layout may have a second page, for the consoles whose games need the controller's keypad (Atari 5200, ColecoVision,
+Intellivision, Odyssey 2): a `keypadToggle` key on the layout's controls switches to it, and the same key on the page
+switches back. The page is the layout's `size`, `screens` and `frame` (the game's picture does not move) with controls
+of its own, typically the twelve keypad keys in the face buttons' place.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `background` | object | no | `color` and `image`, as the layout's; its image in the page's folder, its colour left out the layout's. Left out (or empty): the layout's background, colour and image. |
+| `elements` | array | yes | The page's controls, under the same rules as the layout's; ids and image names only need to be unique within the page. |
+
+Its images are in the layout's `keypad/` folder (`phone-portrait/keypad/key-1.png`, and its own `background.png` when
+it has a `background`); the frame's image stays the layout's. Errors in it are reported at
+`layouts.<id>.keypad…` (`layouts.phone-portrait.keypad.elements[3].bind`).
 
 ### Rect
 
@@ -200,6 +221,7 @@ actions:
 | Famicom Disk System: `disk` | turns the disk over (pressing nothing on other consoles) |
 | Lynx: `option1`, `option2` | Option 1, Option 2 (pressing nothing on other consoles) |
 | Neo Geo Pocket: `a`, `b` | the Neo Geo Pocket's A (on the left) and B |
+| `keypadToggle` | opens the layout's keypad page; on that page, goes back to the controls (pressing nothing when the skin has no keypad pages) |
 | any `action` name below | that quick action |
 
 The console's own names mean the console's own buttons: on N64 `a` and `b` are the N64's A and B, on the Mega Drive
@@ -250,7 +272,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 A skin folder (holding `skin.json`) in `Android/data/com.openemux.mobile/files/skins/<console id>/` is the user's skin
 for that console, alongside `.deltaskin` and `.manicskin` files there: the first by name is used. Zipped skins are not
 read from that folder. The skins the app ships for some consoles (issue 770: GG, SG1000, S32X, MCD, SATURN, PCE,
-PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
+PCECD, FDS; issue 771: A2600, A7800, LYNX, NGP, WS, VECTREX, VB; issue 772: A5200, CV, INTV, O2) are in this format too, zipped, in the APK's `assets/skins/<console>.zip` (and `dark/`); a user's skin still
 wins over them, and one the app cannot draw falls back to the drawn skin.
 
 - **Form.** A window with a fold (a foldable's inner screen, flat or half open) uses the `fold-*` layouts; else a window
@@ -268,22 +290,32 @@ wins over them, and one the app cannot draw falls back to the drawn skin.
 - **Defaults.** A colour part left unset: background `#16161A`, frame `#0E0E11`, icons `#FFFFFF`, active `#7C3AED`
   (light icon), button and pad and stick base `#2E2E35`, letter `#FFFFFF`, ball and knob `#6B6B76`. A button with no
   `shape` is a circle, a keypad key a rounded rect.
+- **Keypad pages.** When both layouts of the window's form have a keypad page with a `keypadToggle` key on it, the
+  skin has four pages: portrait, landscape and their keypad pages (`keypad-portrait`, `keypad-landscape`). The toggle
+  switches between a layout's two pages, and turning the device keeps the kind of page. Otherwise the skin plays
+  with its controls only, and a `keypadToggle` key presses nothing. A redraw while the keypad page is open (the
+  window changing size) opens on it again.
+- **Cores.** A control presses the RetroPad button the drawn skin presses on the console, as the core in use reads
+  it: Gearcoleco reads the ColecoVision's buttons and keypad elsewhere than blueMSX, and gets them there.
 - **Quick actions** light (the `active` background) while turbo, fast forward or slow motion is on. `screens` is drawn
   and does nothing (the skin has no page per NDS layout). In RetroAchievements hardcore the speed keys are dimmed and do
   nothing.
-- The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout.
+- The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout;
+  on a console with a keypad both reach the drawn keypad, as with the drawn skin.
 - **Core binds.** Buttons and keypad keys press what the running core reads them as, as the drawn skin does: on the
   ColecoVision with Gearcoleco, the fire buttons, the keypad pairs, `*` and `#`, 9 and 0 go where that core reads them
   (`coreBind` in `data/Skin.kt`).
 
 ## Copies of the drawn skin
 
-On a console with no bundled package (A5200, CV, INTV, O2), the bundled skin's **Create copy and edit** converts the
-app's drawn skin into this format (`launch/DrawnSkinCopy.kt`, issue 798): the six layouts, each the drawn skin laid out
+On a console with no bundled package, the bundled skin's **Create copy and edit** converts the app's drawn skin into
+this format (`launch/DrawnSkinCopy.kt`, issue 798). Issue 798 made it for the A5200, CV, INTV and O2; since issue 772
+those four ship packages of their own (with a keypad page), so their copy is the package's, and the drawn copy is left
+for a console added later with no package. The copy has the six layouts, each the drawn skin laid out
 for a reference window of its form (Phone 1080 × 2340, Tablet 1600 × 2560 at density 2, Fold 1812 × 2178 at 2.625),
 with its colours, shapes, labels and binds, and `background.png` (with the console's name), `dpad.png`,
-`dpad-ball.png` and `menu.png` painted as the game draws them. What the format has no room for: the keypad key and the
-hide key are left out; the keypad keys get a place of their own (upright, a grid between the clusters, or two rows of six
+`dpad-ball.png` and `menu.png` painted as the game draws them. The copy has no keypad page (the format's since issue
+772) and no hide key: the keypad key and the hide key are left out, and the keypad keys get a place of their own (upright, a grid between the clusters, or two rows of six
 under them when the column is too narrow; sideways, under the face buttons, the pills moving to the left).
 
 ## Import and export
@@ -296,7 +328,9 @@ Manic EMU package, and **Download as template** (a skin of your own → its shee
   folder named after the skin. An image the skin has at the right size is copied as is, one at another size is
   scaled to it, and a missing one is drawn the way the game draws it (colours, shape, label). Sizes: the element's
   rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
-  a stick's `-knob` image half its shorter side (rounded half up).
+  a stick's `-knob` image half its shorter side (rounded half up). A layout's keypad page adds its own images in the
+  layout's `keypad/` folder, at the same sizes (its background only when it names one of its own); **Import** takes
+  them back from there.
 - **Import** refuses, before writing anything, a file that is not a zip, a zip with neither `skin.json` nor a
   package's `info.json`, a `skin.json` the reader refuses, a skin for another console (also a Delta package whose
   `gameTypeIdentifier` names one), a zip with an entry whose name starts with `/`, contains `\` or a `..` segment,
