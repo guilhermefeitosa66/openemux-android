@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -557,8 +558,9 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
     val count = roms.count { it.console == console }
     var colorSheet by remember { mutableStateOf(false) }
     var ownSheet by remember { mutableStateOf(false) }
-    // The variants the app ships for this console (Dark, its official colors) and whether an imported skin replaces them.
-    val skinChoice = rememberSkinChoice(lib, console)
+    // The console's skins: the player's own, the bundled ones and the imported packages (issue 782).
+    var skinRevision by remember { mutableIntStateOf(0) }
+    val skinList = rememberSkinList(lib, console, skinRevision)
     val sample = roms.firstOrNull { it.console == console }
 
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
@@ -601,13 +603,13 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
         }
 
         // Inline, like the core: the choice is in plain sight on the console's screen (issue 718).
-        if (skinChoice?.pickable == true) {
+        if (skinList?.shown == true) {
             Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
-                Text(stringResource(R.string.settings_default_skin), style = Type.Section, modifier = Modifier.weight(1f))
-                skinValueLabel(skinChoice, settings.skin)?.let { Text(stringResource(it), style = Type.Small) }
+                Text(stringResource(R.string.skins_title), style = Type.Section, modifier = Modifier.weight(1f))
+                skinValue(skinList)?.let { Text(it.text(), style = Type.Small, maxLines = 1) }
             }
-            Text(stringResource(R.string.settings_skin_sheet_desc, console.short), style = Type.Small, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
-            SkinCards(lib, console, settings.skin, skinChoice, Modifier.padding(horizontal = 20.dp))
+            Text(stringResource(R.string.skins_lead), style = Type.Small, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
+            SkinList(lib, console, skinList, onChanged = { skinRevision++ }, Modifier.padding(horizontal = 20.dp))
         }
 
         Card(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
@@ -629,9 +631,8 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                 ListRow("BIOS", subtitle = stringResource(R.string.settings_bios_not_needed), value = "—")
             }
             // A console the app draws its own skin for has no other package: nothing to pick, the row says which skin it is.
-            if (skinChoice != null && !skinChoice.pickable) ListRow(
-                stringResource(R.string.settings_default_skin),
-                value = if (skinChoice.imported) stringResource(R.string.settings_skin_imported_value) else "OpenEmux ${console.short}", divider = true,
+            if (skinList != null && !skinList.shown) ListRow(
+                stringResource(R.string.settings_default_skin), value = "OpenEmux ${console.short}", divider = true,
             )
             if (console.frame != null) ListRow(
                 stringResource(R.string.settings_cart_color), value = stringResource(CART_COLORS.first { it.id == settings.color }.label), divider = true,

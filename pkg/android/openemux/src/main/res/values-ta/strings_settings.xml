@@ -76,9 +76,6 @@
     <string name="settings_skin_color_clear">ஒளிபுகும்</string>
     <string name="settings_skin_color_clear_blue">ஒளிபுகும் நீலம்</string>
     <string name="settings_skin_color_clear_pink">ஒளிபுகும் இளஞ்சிவப்பு</string>
-    <string name="settings_skin_sheet_desc">ஒவ்வொரு %1$s விளையாட்டும் பயன்படுத்தும் மெய்நிகர் கட்டுப்படுத்தி.</string>
-    <string name="settings_skin_imported">%1$s-க்கு நீங்கள் இறக்குமதி செய்த தோற்றம் அதற்குப் பதிலாகப் பயன்படுத்தப்படுகிறது.</string>
-    <string name="settings_skin_imported_value">இறக்குமதி செய்த தோற்றம்</string>
     <string name="settings_cart_color">கார்ட்ரிட்ஜ் நிறம்</string>
     <plurals name="settings_applies_all">
         <item quantity="one">%2$s விளையாட்டுக்குப் பொருந்தும்.</item>
@@ -286,4 +283,41 @@
     <string name="providers_dev_id">டெவலப்பர் ID</string>
     <string name="providers_dev_password">டெவலப்பர் கடவுச்சொல்</string>
     <string name="providers_remove_developer">டெவலப்பர் கணக்கை அகற்று</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">கண்ட்ரோலர் ஸ்கின்கள்</string>
+    <string name="skins_lead">விளையாட்டில் பயன்படுத்த ஒரு ஸ்கினைத் தட்டவும். ஒவ்வொன்றும் எந்தத் திரைகளுக்காக உருவாக்கப்பட்டது எனக் காட்டும். உள்ளமைந்த ஸ்கின்கள் ஒருபோதும் மாறாது.</string>
+    <string name="skins_yours">உங்கள் ஸ்கின்கள்</string>
+    <string name="skins_bundled">உள்ளமைந்தவை</string>
+    <string name="skins_imported">இறக்குமதி செய்தவை</string>
+    <string name="skins_in_use">பயன்பாட்டில்</string>
+    <string name="skins_form_phone">போன்</string>
+    <string name="skins_form_tablet">டேப்லெட்</string>
+    <string name="skins_form_fold">மடிக்கக்கூடியது</string>
+    <string name="skins_form_made">%1$s: இதற்காக உருவாக்கப்பட்டது</string>
+    <string name="skins_form_missing">%1$s: சேர்க்கப்படவில்லை</string>
+    <string name="skins_not_for_phones">போன்களுக்காக உருவாக்கப்படவில்லை</string>
+    <string name="skins_not_for_tablets">டேப்லெட்டுகளுக்காக உருவாக்கப்படவில்லை</string>
+    <string name="skins_not_for_folds">மடிக்கக்கூடியவற்றுக்காக உருவாக்கப்படவில்லை</string>
+    <string name="skins_broken">படிக்க முடியவில்லை</string>
+    <string name="skins_actions">%1$s க்கான செயல்கள்</string>
+    <string name="skins_use">பயன்படுத்து</string>
+    <string name="skins_use_as_is">அப்படியே பயன்படுத்து</string>
+    <string name="skins_bundled_locked">உள்ளமைந்த ஸ்கின்கள் ஒருபோதும் மாறாது.</string>
+    <string name="skins_rename">பெயர் மாற்று</string>
+    <string name="skins_rename_title">ஸ்கின் பெயரை மாற்று</string>
+    <string name="skins_name_label">பெயர்</string>
+    <string name="skins_save">சேமி</string>
+    <string name="skins_duplicate">நகலெடு</string>
+    <string name="skins_copy_name">%1$s (நகல்)</string>
+    <string name="skins_delete">நீக்கு</string>
+    <string name="skins_delete_sub">கன்சோல் %1$s க்குத் திரும்பும்</string>
+    <string name="skins_delete_title">%1$s ஐ நீக்கவா?</string>
+    <string name="skins_delete_body">ஸ்கினும் அதன் படங்களும் இந்தச் சாதனத்திலிருந்து நீக்கப்படும்.</string>
+    <string name="skins_error">ஸ்கினை மாற்ற முடியவில்லை.</string>
+    <string name="skins_create_copy">நகல் உருவாக்கித் திருத்து</string>
+    <string name="skins_create_copy_title">உங்கள் நகலுக்குப் பெயரிடுங்கள்</string>
+    <string name="skins_create_copy_lead">உள்ளமைந்த ஸ்கின்கள் அப்படியே இருக்கும். நகல் எல்லா அமைப்புகளையும் வைத்திருக்கும், பெயரைப் பின்னர் மாற்றலாம்.</string>
+    <string name="skins_create_copy_save">நகல் உருவாக்கு</string>
+    <string name="skins_bundled_copy_name">%1$s நகல்</string>
 </resources>

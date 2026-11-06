@@ -12,6 +12,15 @@ object SkinBinds {
     /** The Famicom Disk System's disk-side key: the app's own input name (tools/skins), which other emulators ignore. */
     const val DISK_INPUT = "disk"
 
+    /** The OpenEmux format's second D-pad (data/SkinFormat.kt): a D-pad element bound to it presses [SECOND_DPAD]. */
+    const val DPAD2 = "dpad2"
+
+    /**
+     * The second D-pad's up, down, left and right on the consoles that have one: Beetle VB reads the Virtual Boy's
+     * right pad from L2, L3, R2 and R3 (as data/Skin.kt). Elsewhere a second D-pad presses nothing.
+     */
+    val SECOND_DPAD: Map<Console, List<String>> = mapOf(Console.VB to listOf("l2", "l3", "r2", "r3"))
+
     /** Genesis Plus GX and PicoDrive's six-button pad: A on Y, B on B, C on A, X on L, Y on X, Z on R, Mode on Select. */
     private val SIX_BUTTON = mapOf("a" to "y", "b" to "b", "c" to "a", "x" to "l", "y" to "x", "z" to "r", "mode" to "select")
 
@@ -32,6 +41,10 @@ object SkinBinds {
         Console.GC to mapOf("z" to "r", "l" to "l2", "r" to "r2"),
         // Nestopia turns the disk over on L: the skin's disk key, an input name of the app's own.
         Console.FDS to mapOf(DISK_INPUT to "l"),
+        // Beetle Lynx has Option 1 on R and Option 2 on L.
+        Console.LYNX to mapOf("option1" to "r", "option2" to "l"),
+        // The Neo Geo Pocket's A is on the left, and Beetle NGP reads it from B; its B from A.
+        Console.NGP to mapOf("a" to "b", "b" to "a"),
     )
 
     /** The generic names, whatever the console, and their RetroArch overlay binds. */

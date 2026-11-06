@@ -18,6 +18,7 @@ import androidx.core.graphics.PathParser
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.ui.Icons
 import org.json.JSONArray
@@ -84,11 +85,7 @@ class ImportedSkinRenderer {
         val portraitW = minOf(width, height)
         val portraitH = maxOf(width, height) - cutout
         ZipFile(skinFile).use { zip ->
-            val infoEntry = zip.entries().asSequence()
-                .first { it.name.endsWith("info.json") && !it.name.startsWith("__MACOSX") }
-            val text = zip.getInputStream(infoEntry).bufferedReader().readText().removePrefix("﻿")
-            // Some community skins carry trailing commas, which strict JSON rejects.
-            val info = JSONObject(text.replace(Regex(",(\\s*[}\\]])"), "$1"))
+            val info = SkinStore.packageInfo(zip)
             Log.i(TAG, "importing ${info.optString("name")} (${info.optString("identifier")})")
             val reps = info.getJSONObject("representations")
             val own = mapOf("portrait" to representation(reps, "portrait", tablet), "landscape" to representation(reps, "landscape", tablet))
@@ -516,13 +513,10 @@ class ImportedSkinRenderer {
          * The skin the user put in files/skins/<console> for [console], if any: the first by name of the .deltaskin and
          * .manicskin files and the folders in OpenEmux's own format (with a skin.json, [isOpenEmuxSkin]).
          */
-        fun imported(base: File, console: Console): File? =
-            File(base, "skins/${console.id}").listFiles()
-                ?.filter { isOpenEmuxSkin(it) || it.isFile && (it.name.endsWith(".deltaskin", true) || it.name.endsWith(".manicskin", true)) }
-                ?.minByOrNull { it.name }
+        fun imported(base: File, console: Console): File? = SkinStore(base).legacyPick(console)
 
         /** Whether [file] is a skin folder in OpenEmux's own format (docs/skin-format.md): one holding a skin.json. */
-        fun isOpenEmuxSkin(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
+        fun isOpenEmuxSkin(file: File) = SkinStore.isOwn(file)
 
         /**
          * Whether [file], a package the app ships, is in OpenEmux's own format (docs/skin-format.md): a .zip, as the
@@ -535,13 +529,18 @@ class ImportedSkinRenderer {
             names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }
 
         /**
+         * The assets folder and file name of the package [console] plays in [variant]: [variant]'s own, else the
+         * console's own colors' when [variant] ships none for it. [list] lists an assets folder.
+         */
+        fun bundledEntry(list: (String) -> Array<String>?, console: Console, variant: SkinVariant): Pair<String, String>? =
+            listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v -> bundledName(list(v.assetDir), console)?.let { v.assetDir to it } }
+
+        /**
          * The package the app ships for [console] in [variant]'s assets folder (the console's own when that variant ships
          * none for it), copied out (to a cache folder of its own per variant) so it can be read as a zip.
          */
         fun bundled(context: Context, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
-            val (dir, name) = listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v ->
-                bundledName(context.assets.list(v.assetDir), console)?.let { v.assetDir to it }
-            } ?: return null
+            val (dir, name) = bundledEntry({ context.assets.list(it) }, console, variant) ?: return null
             val out = File(context.cacheDir, "$dir/$name")
             out.parentFile?.mkdirs()
             // Copied once per install or update of the app, stamped with its time (an exact match, so a clock that

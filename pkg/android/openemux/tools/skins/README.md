@@ -75,7 +75,7 @@ Intermediate images go to
 
 ## The consoles in OpenEmux's own format
 
-Eight more consoles (issue 770) ship in OpenEmux's own skin format
+Fifteen more consoles (issues 770 and 771) ship in OpenEmux's own skin format
 (`docs/skin-format.md`) instead of Delta's or Manic's:
 `src/main/assets/skins/<console>.zip` and `dark/<console>.zip`, in their own
 colours and Dark only. `OWN_FORMAT` in `build.py` names them; the same command
@@ -102,9 +102,17 @@ are dated 1980-01-01, so a rebuild that changes nothing changes no binary.
 | PCE | own | D-pad, II (`b`), I (`a`), SELECT, RUN (`start`) | <https://en.wikipedia.org/wiki/TurboGrafx-16> |
 | PCECD | PCE | as the PC Engine | <https://en.wikipedia.org/wiki/TurboGrafx-CD> |
 | FDS | FC | as the Famicom, plus DISK (`disk`, the app's own name, on L) | <https://en.wikipedia.org/wiki/Family_Computer_Disk_System> |
+| A2600 | own | D-pad, FIRE (`b`, the face kind `one`), SELECT, RESET (`start`, Stella's Reset) (woodgrain brown, red Fire) | <https://en.wikipedia.org/wiki/Atari_CX40_joystick> |
+| A7800 | own | D-pad, 1 (`b`, lower left), 2 (`a`), SELECT, PAUSE (`start`), RESET (`x`, prosystem's) | <https://en.wikipedia.org/wiki/Atari_7800> |
+| LYNX | own | D-pad, B, A, OPTION 1 (`option1`, on R), OPTION 2 (`option2`, on L), PAUSE (`start`) | <https://en.wikipedia.org/wiki/Atari_Lynx> |
+| NGP | own | D-pad, A (`a`, on the left, Beetle NGP's B), B (`b`, on A), OPTION (`start`) | <https://en.wikipedia.org/wiki/Neo_Geo_Pocket> |
+| WS | own | D-pad, B, A, START | <https://en.wikipedia.org/wiki/WonderSwan> |
+| VECTREX | own | D-pad, 1 to 4 in a row (`a`, `b`, `x`, `y`, the face kind `row4`), no centre keys (upright screen) | <https://en.wikipedia.org/wiki/Vectrex> |
+| VB | own | two D-pads (the right one `dpad2`: L2, L3, R2, R3), B and A under it, L, R, SELECT, START (black and red) | <https://en.wikipedia.org/wiki/Virtual_Boy> |
 
 Where the RetroPad has a console's buttons elsewhere (the six-button pads,
-Saturn, the disk key), `launch/SkinBinds.kt` says where, as `data/Skin.kt` does
+Saturn, the disk key, the Lynx's options, the Neo Geo Pocket's A and B, the
+Virtual Boy's right pad), `launch/SkinBinds.kt` says where, as `data/Skin.kt` does
 for the drawn skin; `OwnFormatBundledSkinsTest` checks every control against it.
 
 To change a skin, change `Skin.dc.html` (on the canvas, or here) and run the

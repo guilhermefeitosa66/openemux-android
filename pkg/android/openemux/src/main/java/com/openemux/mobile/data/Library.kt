@@ -67,14 +67,20 @@ data class ConsoleSettings(
     val core: String,
     val shader: String,
     val color: String = "default",
-    /** The bundled skin's [SkinVariant] id; a console saved before it existed plays in its own colors. */
+    /**
+     * The bundled skin's [SkinVariant] id; a console saved before it existed plays in its own colors. While [custom]
+     * names a skin of the player's, this is the bundled one the console goes back to (issue 782).
+     */
     val skin: String = SkinVariant.CONSOLE.id,
+    /** The player's skin in use ([SkinStore.ref]: their own or an imported package); null plays the bundled [skin]. */
+    val custom: String? = null,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("core", core)
         put("shader", shader)
         put("color", color)
         put("skin", skin)
+        custom?.let { put("custom", it) }
     }
 
     companion object {
@@ -82,6 +88,7 @@ data class ConsoleSettings(
             c.getString("core"), c.getString("shader"), c.optString("color", "default"),
             // Kept as saved, even an id this build does not know (a newer build's), so a save here never drops it.
             c.optString("skin").ifEmpty { SkinVariant.CONSOLE.id },
+            c.optString("custom").ifEmpty { null },
         )
     }
 }
@@ -98,6 +105,11 @@ data class Meta(
     val consoles: Map<String, ConsoleSettings> = emptyMap(),
     /** The user's console order, as on the desktop (issue #386): ids, the rest follow in Console order. */
     val consoleOrder: List<String> = emptyList(),
+    /**
+     * Whether each console's skin in use was saved (issue 782). Before, the first of the player's skins by name won;
+     * the first pass with the storage ready saves that one as each console's [ConsoleSettings.custom].
+     */
+    val skinsMigrated: Boolean = false,
 )
 
 /** The metadata without the games [keys] names; console settings and order stay. */
@@ -164,6 +176,8 @@ class Library(
             Log.w(TAG, "ROM storage not ready, scan skipped: ${paths.base}")
             return@withContext
         }
+        // A meta.json that cannot be written must not stop the scan: the next start migrates again.
+        runCatching { migrateSkins() }.onFailure { Log.w(TAG, "skin choices not saved", it) }
         var listed = true
         try {
             listed = scanRoms()
@@ -214,6 +228,53 @@ class Library(
 
     /** The bundled skin every game of [console] plays with: the one picked in its settings (issue 718). */
     fun skinVariant(console: Console): SkinVariant = SkinVariant.byId(consoleSettings(console).skin)
+
+    /** The player's skins, per console (issue 782). */
+    val skins = SkinStore(paths.base)
+
+    /**
+     * The player's skin [console] plays with ([SkinStore.ref]), null for the bundled one. Until the skins are migrated,
+     * the one the first-by-name rule picked, without saving it.
+     */
+    fun customSkin(console: Console): String? =
+        if (_meta.value.skinsMigrated) consoleSettings(console).custom else skins.legacyPick(console)?.let(SkinStore::refOf)
+
+    /**
+     * Saves, once, the skin each console played with before the choice was saved (the first of the player's skins by
+     * name), so an update keeps it. Run with the storage ready, and before any pick, which would else be overwritten.
+     */
+    @Synchronized
+    fun migrateSkins() {
+        if (_meta.value.skinsMigrated) return
+        // Storage that cannot be listed (not mounted, no access yet) reads as "no skins": migrating then would drop the
+        // skin each console played with for good. The next pass with it readable migrates.
+        if (paths.base.listFiles() == null) return
+        _meta.update { m ->
+            val picks = Console.entries.mapNotNull { c ->
+                skins.legacyPick(c)?.let { c.id to m.settingsFor(c).copy(custom = SkinStore.refOf(it)) }
+            }
+            m.copy(consoles = m.consoles + picks, skinsMigrated = true)
+        }
+        saveMeta()
+    }
+
+    /** Plays [console] with the bundled [variant] id; the player's skin in use, if any, stays in the list for later. */
+    fun useBundledSkin(console: Console, variant: String) {
+        migrateSkins()
+        updateConsole(console) { it.copy(skin = variant, custom = null) }
+    }
+
+    /** Plays [console] with the player's skin [ref]; the bundled one picked stays as the one to go back to. */
+    fun useCustomSkin(console: Console, ref: String) {
+        migrateSkins()
+        updateConsole(console) { it.copy(custom = ref) }
+    }
+
+    /** After the skin [ref] was deleted: a console that played with it goes back to its bundled skin. */
+    fun forgetCustomSkin(console: Console, ref: String) {
+        migrateSkins()
+        if (consoleSettings(console).custom == ref) updateConsole(console) { it.copy(custom = null) }
+    }
 
     private fun Meta.settingsFor(console: Console): ConsoleSettings =
         consoles[console.id] ?: ConsoleSettings(core = console.cores[0].id, shader = console.defaultShader)
@@ -409,7 +470,7 @@ class Library(
                 }
             }.orEmpty()
             val order = json.optJSONArray("consoleOrder")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } }.orEmpty()
-            Meta(roms, consoles, order.filter { Console.byId(it) != null }.distinct())
+            Meta(roms, consoles, order.filter { Console.byId(it) != null }.distinct(), json.optBoolean("skinsMigrated"))
         }.getOrDefault(Meta())
     }
 
@@ -433,6 +494,7 @@ class Library(
             m.consoles.forEach { (k, c) -> put(k, c.toJson()) }
         })
         if (m.consoleOrder.isNotEmpty()) json.put("consoleOrder", org.json.JSONArray(m.consoleOrder))
+        if (m.skinsMigrated) json.put("skinsMigrated", true)
         paths.meta.parentFile?.mkdirs()
         val tmp = File(paths.meta.path + ".tmp")
         tmp.writeText(json.toString())

@@ -145,6 +145,8 @@ object Icons {
     const val Mute = "M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6"
     const val Reset = "M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"
     const val Trash = "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
+    /** A padlock: a bundled skin, which never changes (issue 782). */
+    const val Lock = "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4"
     /** A picture: the artwork manager (issue 746). */
     // The artwork editor's tools (issue 753), from its design.
     const val Crop = "M6 2v16h16M2 6h16v16"
@@ -167,6 +169,7 @@ object Icons {
     const val Tablet = "M6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13A2.5 2.5 0 0 1 6.5 3zM11 18h2"
     const val WifiOff = "M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19h.01M3 3l18 18"
     const val Qr = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M20 14v2M14 18h2v2M18 18h2v2"
+    const val Pencil = "M4 20h4L19 9l-4-4L4 16v4z"
     const val Copy = "M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"
 }
 

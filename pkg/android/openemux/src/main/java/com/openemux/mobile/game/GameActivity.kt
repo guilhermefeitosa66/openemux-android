@@ -235,6 +235,7 @@ class GameActivity : RetroActivityFuture() {
                 hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
                 coreId = intent.getStringExtra(GameExtras.CORE_ID),
                 variant = SkinVariant.byId(intent.getStringExtra(GameExtras.SKIN_VARIANT)),
+                custom = intent.getStringExtra(GameExtras.SKIN_CUSTOM),
                 first = first,
                 gamepad = synchronized(ndsLayouts) { wantGamepad },
                 // Drawn upright, as the launcher does: the fold goes with it.

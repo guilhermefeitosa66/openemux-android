@@ -78,9 +78,6 @@
     <string name="settings_skin_color_clear">Transparente</string>
     <string name="settings_skin_color_clear_blue">Azul transparente</string>
     <string name="settings_skin_color_clear_pink">Rosa transparente</string>
-    <string name="settings_skin_sheet_desc">El mando virtual que usan todos los juegos de %1$s.</string>
-    <string name="settings_skin_imported">Se usa en su lugar un diseño que importaste para %1$s.</string>
-    <string name="settings_skin_imported_value">Diseño importado</string>
     <string name="settings_cart_color">Color del cartucho</string>
     <plurals name="settings_applies_all">
         <item quantity="one">Se aplica al juego de %2$s.</item>
@@ -298,4 +295,41 @@
     <string name="providers_dev_id">ID de desarrollador</string>
     <string name="providers_dev_password">Contraseña de desarrollador</string>
     <string name="providers_remove_developer">Quitar cuenta de desarrollador</string>
+
+    <!-- Controller skin list (issue 782). -->
+    <string name="skins_title">Skins del mando</string>
+    <string name="skins_lead">Toca una skin para usarla en el juego. Cada una indica para qué pantallas se hizo. Las skins incluidas nunca cambian.</string>
+    <string name="skins_yours">Tus skins</string>
+    <string name="skins_bundled">Incluidas</string>
+    <string name="skins_imported">Importadas</string>
+    <string name="skins_in_use">En uso</string>
+    <string name="skins_form_phone">Móvil</string>
+    <string name="skins_form_tablet">Tableta</string>
+    <string name="skins_form_fold">Plegable</string>
+    <string name="skins_form_made">%1$s: hecha para él</string>
+    <string name="skins_form_missing">%1$s: no incluido</string>
+    <string name="skins_not_for_phones">No hecha para móviles</string>
+    <string name="skins_not_for_tablets">No hecha para tabletas</string>
+    <string name="skins_not_for_folds">No hecha para plegables</string>
+    <string name="skins_broken">No se puede leer</string>
+    <string name="skins_actions">Acciones de %1$s</string>
+    <string name="skins_use">Usar</string>
+    <string name="skins_use_as_is">Usar tal cual</string>
+    <string name="skins_bundled_locked">Las skins incluidas nunca cambian.</string>
+    <string name="skins_rename">Cambiar nombre</string>
+    <string name="skins_rename_title">Cambiar nombre de la skin</string>
+    <string name="skins_name_label">Nombre</string>
+    <string name="skins_save">Guardar</string>
+    <string name="skins_duplicate">Duplicar</string>
+    <string name="skins_copy_name">%1$s (copia)</string>
+    <string name="skins_delete">Eliminar</string>
+    <string name="skins_delete_sub">La consola vuelve a %1$s</string>
+    <string name="skins_delete_title">¿Eliminar %1$s?</string>
+    <string name="skins_delete_body">La skin y sus imágenes se borran de este dispositivo.</string>
+    <string name="skins_error">No se pudo cambiar la skin.</string>
+    <string name="skins_create_copy">Crear copia y editar</string>
+    <string name="skins_create_copy_title">Ponle nombre a tu copia</string>
+    <string name="skins_create_copy_lead">Las skins incluidas se quedan como están. La copia conserva todos los diseños y puedes cambiarle el nombre después.</string>
+    <string name="skins_create_copy_save">Crear copia</string>
+    <string name="skins_bundled_copy_name">Copia de %1$s</string>
 </resources>

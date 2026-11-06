@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -129,10 +130,11 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     val shader = lib.effectiveShader(rom)
     val color = lib.effectiveColor(rom)
     // The skin is the console's (issues 718, 720): the row shows it and opens the same choice as the console's settings.
-    val skinChoice = rememberSkinChoice(lib, rom.console)
-    val skin = lib.consoleSettings(rom.console).skin
     val artSource = rememberArtSource(rom)
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
+    // Read again when the skin sheet closes: a skin may have been picked, renamed or deleted there.
+    var skinRevision by remember { mutableIntStateOf(0) }
+    val skinList = rememberSkinList(lib, rom.console, skinRevision)
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val close = onClose ?: { a.nav.popBackStack(); Unit }
@@ -283,8 +285,8 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Setting(stringResource(R.string.artwork_title), artSource?.let { stringResource(it) } ?: "", false) { a.nav.navigate(Routes.artwork(rom.key)) },
         Setting(
             stringResource(R.string.detail_controller_skin),
-            skinValueLabel(skinChoice, skin)?.let { stringResource(it) } ?: "OpenEmux ${rom.console.short}", false,
-            if (skinChoice?.pickable == true) ({ sheet = Sheet.Skin }) else null,
+            skinValue(skinList)?.text() ?: "OpenEmux ${rom.console.short}", false,
+            if (skinList?.shown == true) ({ sheet = Sheet.Skin }) else null,
         ),
         Setting(stringResource(R.string.detail_cheats), stringResource(R.string.detail_coming_soon), false, null),
     )
@@ -501,7 +503,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.Core -> CoreSheet(rom) { sheet = Sheet.None }
         Sheet.Shader -> ShaderSheet(rom) { sheet = Sheet.None }
         Sheet.States -> StatesSheet(states, ::playState) { sheet = Sheet.None }
-        Sheet.Skin -> skinChoice?.let { SkinSheet(lib, rom.console, skin, it) { sheet = Sheet.None } }
+        Sheet.Skin -> SkinSheet(lib, rom.console) { sheet = Sheet.None; skinRevision++ }
         Sheet.None -> {}
     }
 

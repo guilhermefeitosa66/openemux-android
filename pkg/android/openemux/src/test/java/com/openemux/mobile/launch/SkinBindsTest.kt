@@ -33,6 +33,23 @@ class SkinBindsTest {
         assertTrue(SkinBinds.DISK_INPUT in SkinBinds.NAMES)
     }
 
+    @Test fun theLynxAndNeoGeoPocketKeysLandWhereTheDrawnSkinPutsThem() {
+        // Beetle Lynx: Option 1 on R, Option 2 on L; A, B and Pause (Start) as named.
+        assertEquals(mapOf("option1" to "r", "option2" to "l", "a" to "a", "b" to "b", "start" to "start"),
+            listOf("option1", "option2", "a", "b", "start").associateWith { SkinBinds.bind(Console.LYNX, it, false) })
+        // Beetle NGP reads the Neo Geo Pocket's A (on the left) from B, its B from A.
+        assertEquals(mapOf("a" to "b", "b" to "a", "start" to "start"),
+            listOf("a", "b", "start").associateWith { SkinBinds.bind(Console.NGP, it, false) })
+        // The options are the Lynx's own: elsewhere they press nothing.
+        assertNull(SkinBinds.bind(Console.GB, "option1", false))
+        assertTrue("option1" in SkinBinds.NAMES && "option2" in SkinBinds.NAMES)
+    }
+
+    @Test fun onlyTheVirtualBoyHasASecondDpad() {
+        assertEquals(mapOf(Console.VB to listOf("l2", "l3", "r2", "r3")), SkinBinds.SECOND_DPAD)
+        assertEquals("dpad2", SkinBinds.DPAD2)
+    }
+
     @Test fun theRetroPadNamesPassThrough() {
         listOf("up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "l2", "r2", "l3", "r3", "start", "select")
             .forEach { assertEquals(it, SkinBinds.bind(Console.SFC, it, false)) }
