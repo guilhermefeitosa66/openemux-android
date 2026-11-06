@@ -29,6 +29,10 @@ my-skin/
 │       ├── background.png
 │       ├── key-1.png
 │       └── …
+│   └── top/, bottom/, side/  NDS, optional: the layout's screen-layout pages (below)
+│       ├── background.png
+│       ├── frame.png
+│       └── …
 ├── phone-landscape/
 └── …
 ```
@@ -136,6 +140,7 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
 | `frame` | object | no | The bezel around the game screen: a rect (`x`, `y`, `width`, `height`), `colors` and `image` (base name, default `frame`). |
 | `elements` | array | no | The controls (below). Empty or left out: a layout with only the picture. |
 | `keypad` | object | no | The layout's keypad page (below). |
+| `screenLayouts` | object | no | NDS only: the layout's screen-layout pages (below). |
 
 The frame's `colors`:
 
@@ -163,6 +168,34 @@ of its own, typically the twelve keypad keys in the face buttons' place.
 Its images are in the layout's `keypad/` folder (`phone-portrait/keypad/key-1.png`, and its own `background.png` when
 it has a `background`); the frame's image stays the layout's. Errors in it are reported at
 `layouts.<id>.keypad…` (`layouts.phone-portrait.keypad.elements[3].bind`).
+
+### Screen-layout pages
+
+An NDS layout draws the two screens one over the other. It may also have one page per other way the DS screens can be
+shown, so the skin's `screens` key steps through them and the core's screens follow, as with the DS skins the app
+ships: `screenLayouts` holds `top` (the top screen only), `bottom` (the bottom screen only) and `side` (both, side by
+side), **all three or none**. The layout itself stays the default page, the screens one over the other.
+
+```json
+"screenLayouts": {
+  "top":    { "screens": [{ "x": 60, "y": 180, "width": 960, "height": 720 }], "frame": { … }, "elements": [ … ] },
+  "bottom": { "screens": [{ "x": 60, "y": 180, "width": 960, "height": 720 }], "elements": [ … ] },
+  "side":   { "screens": [{ "x": 0, "y": 360, "width": 540, "height": 405 }, { "x": 540, "y": 360, "width": 540, "height": 405 }] }
+}
+```
+
+Each page is the layout's `size` with:
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `screens` | array of rects | yes | Where the page's picture goes: one rect for `top` and `bottom`, two for `side` (the top screen first, on the left). |
+| `background` | object | no | `color` and `image`, as the layout's; its image in the page's folder, its colour left out the layout's. Left out (or empty): the layout's background, colour and image. |
+| `frame` | object | no | The page's own bezel, as the layout's `frame`, its image in the page's folder. Left out: no frame on the page. |
+| `elements` | array | no | The page's controls, under the same rules as the layout's (include a `screens` key, or the player cannot step on); ids and image names only need to be unique within the page. |
+
+Its images are in the layout's folder of the page's id (`phone-portrait/side/a.png`, `phone-portrait/top/frame.png`).
+Errors in it are reported at `layouts.<id>.screenLayouts.<page>…` (`layouts.phone-portrait.screenLayouts.side.screens`).
+The skin editor edits the default page (its subtitle says "One above the other") and keeps the pages as they are.
 
 ### Rect
 
@@ -265,7 +298,10 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 | `BAD_COLOR` | A colour that is not `#RRGGBB` or `#RRGGBBAA`. |
 | `UNKNOWN_COLOR_PART` | A colour part the element's type (or the frame) does not have. |
 | `BAD_SHAPE` | A `shape` other than `circle`, `pill`, `rect`. |
-| `BAD_SCREENS` | Not one screen (two for NDS). |
+| `BAD_SCREENS` | Not one screen (two for NDS); on a screen-layout page, not one (`top`, `bottom`) or two (`side`). |
+| `UNKNOWN_SCREEN_LAYOUT` | A key of `screenLayouts` other than `top`, `bottom` and `side`. |
+| `SCREEN_LAYOUTS_NOT_NDS` | `screenLayouts` in a skin for a console other than `NDS`. |
+| `INCOMPLETE_SCREEN_LAYOUTS` | `screenLayouts` without all three of `top`, `bottom` and `side`. |
 
 ## How the app draws it
 
@@ -297,9 +333,15 @@ wins over them, and one the app cannot draw falls back to the drawn skin.
   window changing size) opens on it again.
 - **Cores.** A control presses the RetroPad button the drawn skin presses on the console, as the core in use reads
   it: Gearcoleco reads the ColecoVision's buttons and keypad elsewhere than blueMSX, and gets them there.
-- **Quick actions** light (the `active` background) while turbo, fast forward or slow motion is on. `screens` is drawn
-  and does nothing (the skin has no page per NDS layout). In RetroAchievements hardcore the speed keys are dimmed and do
-  nothing.
+- **Screen-layout pages.** On DeSmuME, when both layouts of the window's form have screen-layout pages, the skin has
+  one page per screen layout and orientation (`portrait@stacked`, `portrait@top`, … `landscape@side`), named, linked
+  and remembered as with the DS skin the app ships: the `screens` key steps to the next one (upright: top, bottom, one
+  over the other; sideways side by side too on a tablet), the pause menu's choice switches to its page, the core shows
+  the screens as the page does, and the next game opens on the layout used last. Otherwise (melonDS, or a layout
+  without pages) the skin draws the screens one over the other.
+- **Quick actions** light (the `active` background) while turbo, fast forward or slow motion is on. `screens` steps
+  through the screen-layout pages; on a skin without them it is drawn and does nothing. In RetroAchievements hardcore
+  the speed keys are dimmed and do nothing.
 - The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout;
   on a console with a keypad both reach the drawn keypad, as with the drawn skin.
 - **Core binds.** Buttons and keypad keys press what the running core reads them as, as the drawn skin does: on the
@@ -329,8 +371,9 @@ Manic EMU package, and **Download as template** (a skin of your own → its shee
   scaled to it, and a missing one is drawn the way the game draws it (colours, shape, label). Sizes: the element's
   rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
   a stick's `-knob` image half its shorter side (rounded half up). A layout's keypad page adds its own images in the
-  layout's `keypad/` folder, at the same sizes (its background only when it names one of its own); **Import** takes
-  them back from there.
+  layout's `keypad/` folder, at the same sizes (its background only when it names one of its own), and an NDS layout's
+  screen-layout pages theirs in its `top/`, `bottom/` and `side/` folders (each page's background only when it names
+  one, its frame when it has one); **Import** takes them back from there.
 - **Import** refuses, before writing anything, a file that is not a zip, a zip with neither `skin.json` nor a
   package's `info.json`, a `skin.json` the reader refuses, a skin for another console (also a Delta package whose
   `gameTypeIdentifier` names one), a zip with an entry whose name starts with `/`, contains `\` or a `..` segment,

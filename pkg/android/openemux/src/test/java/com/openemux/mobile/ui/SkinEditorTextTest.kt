@@ -84,4 +84,10 @@ class SkinEditorTextTest {
         assertEquals(R.string.editor_upright, orientationName(SkinOrientation.PORTRAIT))
         assertEquals(R.string.editor_sideways, orientationName(SkinOrientation.LANDSCAPE))
     }
+
+    @Test fun theSubtitleNamesTheScreenLayoutPageShownOnlyWhenTheSkinHasPages() {
+        val join = { a: String, b: String -> "$a · $b" }
+        assertEquals("Phone · Portrait · One above the other", editorSubtitle("Phone · Portrait", "One above the other", join))
+        assertEquals("Phone · Portrait", editorSubtitle("Phone · Portrait", null, join))
+    }
 }

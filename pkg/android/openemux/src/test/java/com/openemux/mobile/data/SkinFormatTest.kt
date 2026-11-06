@@ -521,4 +521,138 @@ class SkinFormatTest {
         // A layout with no keypad page: the layout's.
         assertNull(pkg2.background(SkinLayoutId.FOLD_LANDSCAPE, keypadPage = true))
     }
+
+    // Issue 807: an NDS layout's screen-layout pages.
+
+    private val dsFrame = SkinFrame(rect(0f, 0f, 1080f, 900f), SkinFrameColors(frame = 0xFF202020.toInt()))
+
+    private val screenPages = mapOf(
+        "top" to SkinScreenPage(
+            listOf(rect(60f, 100f, 960f, 720f)), SkinBackground(image = "top-bg"),
+            SkinFrame(rect(40f, 80f, 1000f, 760f), SkinFrameColors(frame = 0xFF303030.toInt())),
+            listOf(SkinElement("screens", SkinElementType.ACTION, "screens", rect(20f, 20f, 60f, 60f))),
+        ),
+        "bottom" to SkinScreenPage(listOf(rect(60f, 100f, 960f, 720f))),
+        "side" to SkinScreenPage(
+            listOf(rect(0f, 300f, 540f, 405f), rect(540f, 300f, 540f, 405f)), SkinBackground(0xFF445566.toInt()),
+            elements = listOf(SkinElement("a", SkinElementType.BUTTON, "a", rect(800f, 1600f, 160f, 160f))),
+        ),
+    )
+
+    private val ds = OpenEmuxSkin(
+        Console.NDS, "DS",
+        mapOf(
+            SkinLayoutId.PHONE_PORTRAIT to SkinLayout(
+                SkinSize(1080, 2340), listOf(rect(156f, 60f, 768f, 576f), rect(156f, 636f, 768f, 576f)),
+                SkinBackground(0xFF101010.toInt()), dsFrame,
+                listOf(SkinElement("a", SkinElementType.BUTTON, "a", rect(800f, 1600f, 160f, 160f))),
+                screenLayouts = screenPages,
+            ),
+        ),
+    )
+
+    private fun JSONObject.pages() = layout().getJSONObject("screenLayouts")
+
+    private fun refusedDs(error: SkinError, path: String, edit: JSONObject.() -> Unit) =
+        refusedText(error, path) { json(ds).apply(edit).toString() }
+
+    @Test fun screenLayoutPagesReadBackTheSame() {
+        assertEquals(ds, SkinFormat.parse(SkinFormat.toJson(ds)))
+        val text = SkinFormat.toJson(ds)
+        // After the layout's controls, in the cycle's order whatever the file's.
+        assertTrue(text.indexOf("\"screenLayouts\": {") > text.indexOf("\"elements\""))
+        val reordered = json(ds).apply {
+            val pages = pages()
+            layout().put("screenLayouts", JSONObject().put("side", pages.get("side")).put("top", pages.get("top")).put("bottom", pages.get("bottom")))
+        }
+        assertEquals(SkinScreenPage.IDS, SkinFormat.parse(reordered.toString()).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts.keys.toList())
+        // A page with only its screens writes only them and an empty controls list.
+        assertEquals(setOf("screens", "elements"), json(ds).pages().getJSONObject("bottom").keys().asSequence().toSet())
+        // A layout with none writes none.
+        assertFalse("screenLayouts" in SkinFormat.toJson(full))
+        assertEquals(emptyMap<String, SkinScreenPage>(), full.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts)
+    }
+
+    @Test fun aScreenLayoutPageIsALayoutOfItsOwn() {
+        val layout = ds.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        val top = layout.screenPage("top")!!
+        assertEquals(layout.size, top.size)
+        assertEquals(screenPages.getValue("top").screens, top.screens)
+        assertEquals(screenPages.getValue("top").frame, top.frame)
+        assertEquals(screenPages.getValue("top").elements, top.elements)
+        // An image of its own and no colour: the layout's colour behind it.
+        assertEquals(SkinBackground(0xFF101010.toInt(), "top-bg"), top.background)
+        // No background of its own: the layout's; no frame of its own: none.
+        val bottom = layout.screenPage("bottom")!!
+        assertEquals(layout.background, bottom.background)
+        assertNull(bottom.frame)
+        assertEquals(emptyList<SkinElement>(), bottom.elements)
+        assertEquals(SkinBackground(0xFF445566.toInt()), layout.screenPage("side")!!.background)
+        assertTrue(top.screenLayouts.isEmpty())
+        // The layout itself, both screens one over the other, is no page of its own.
+        assertNull(layout.screenPage("stacked"))
+        assertNull(full.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenPage("top"))
+    }
+
+    @Test fun anEmptyScreenPageBackgroundIsTheLayouts() {
+        val skin = SkinFormat.parse(json(ds).apply { pages().getJSONObject("side").put("background", JSONObject()) }.toString())
+        assertNull(skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts.getValue("side").background)
+    }
+
+    @Test fun screenLayoutPagesAreChecked() {
+        val pages = "layouts.phone-portrait.screenLayouts"
+        refusedDs(SkinError.UNKNOWN_SCREEN_LAYOUT, "$pages.stacked") { pages().put("stacked", pages().get("top")) }
+        refusedDs(SkinError.INCOMPLETE_SCREEN_LAYOUTS, "$pages.side") { pages().remove("side") }
+        refusedDs(SkinError.INCOMPLETE_SCREEN_LAYOUTS, "$pages.top") { layout().put("screenLayouts", JSONObject()) }
+        refusedDs(SkinError.BAD_VALUE, pages) { layout().put("screenLayouts", "yes") }
+        refusedDs(SkinError.BAD_SCREENS, "$pages.top.screens") {
+            pages().getJSONObject("top").getJSONArray("screens").put(JSONObject().put("x", 0).put("y", 0).put("width", 10).put("height", 10))
+        }
+        refusedDs(SkinError.BAD_SCREENS, "$pages.side.screens") { pages().getJSONObject("side").getJSONArray("screens").remove(1) }
+        refusedDs(SkinError.MISSING_KEY, "$pages.bottom.screens") { pages().getJSONObject("bottom").remove("screens") }
+        refusedDs(SkinError.OUT_OF_LAYOUT, "$pages.side.screens[1]") {
+            pages().getJSONObject("side").getJSONArray("screens").getJSONObject(1).put("x", 1000)
+        }
+        refusedDs(SkinError.OUT_OF_LAYOUT, "$pages.top.frame") { pages().getJSONObject("top").getJSONObject("frame").put("width", 5000) }
+        refusedDs(SkinError.BAD_COLOR, "$pages.side.background.color") { pages().getJSONObject("side").put("background", JSONObject().put("color", "red")) }
+        refusedDs(SkinError.UNKNOWN_BIND, "$pages.side.elements[0].bind") {
+            pages().getJSONObject("side").getJSONArray("elements").getJSONObject(0).put("bind", "nothing")
+        }
+        refusedDs(SkinError.DUPLICATE_ID, "$pages.top.frame") { pages().getJSONObject("top").getJSONObject("frame").put("image", "top-bg") }
+        refusedDs(SkinError.DUPLICATE_ID, "$pages.top.elements[0]") {
+            pages().getJSONObject("top").getJSONArray("elements").getJSONObject(0).put("image", "frame")
+        }
+        // On any other console the key is refused, wherever it is.
+        val gba = json(ds).apply { put("console", "GBA"); layout().put("screens", JSONArray().put(layout().getJSONArray("screens").get(0))) }
+        refusedText(SkinError.SCREEN_LAYOUTS_NOT_NDS, pages) { gba.toString() }
+        // The page's ids and images are its own: the layout's "a" again is no clash.
+        assertEquals("a", SkinFormat.parse(json(ds).toString()).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts.getValue("side").elements[0].id)
+    }
+
+    @Test fun aScreenLayoutPagesImagesAreInItsFolder() {
+        val p = SkinLayoutId.PHONE_PORTRAIT
+        val pkg = SkinFormat.readFolder(folder(ds, "phone-portrait/background.png", "phone-portrait/frame.png", "phone-portrait/a.png",
+            "phone-portrait/top/top-bg.png", "phone-portrait/top/frame.png", "phone-portrait/top/screens.png", "phone-portrait/side/background.png"))
+        val pages = ds.layouts.getValue(p).screenLayouts
+        assertEquals("phone-portrait/top/top-bg.png", pkg.screenBackground(p, "top"))
+        assertEquals("phone-portrait/top/frame.png", pkg.screenFrame(p, "top"))
+        assertEquals(listOf("phone-portrait/top/screens.png"), pkg.screenImages(p, "top", pages.getValue("top").elements[0]))
+        // No background of its own: the layout's; no frame: none.
+        assertEquals("phone-portrait/background.png", pkg.screenBackground(p, "bottom"))
+        assertNull(pkg.screenFrame(p, "bottom"))
+        // A background of its own that the package lacks: none (its colour is drawn), never the layout's.
+        assertNull(SkinFormat.readFolder(folder(ds, "phone-portrait/background.png")).screenBackground(p, "top"))
+        // The layout's own files are not the page's.
+        assertEquals(listOf<String?>(null), pkg.screenImages(p, "side", pages.getValue("side").elements[0]))
+        assertEquals("phone-portrait/side/background.png", pkg.screenImage(p, "side", "background.png"))
+        // A layout with no pages, or none in the skin: the layout's background, no frame.
+        assertNull(pkg.screenBackground(SkinLayoutId.FOLD_LANDSCAPE, "top"))
+        assertNull(pkg.screenFrame(SkinLayoutId.FOLD_LANDSCAPE, "top"))
+    }
+
+    @Test fun theNewErrorsAreNamed() {
+        assertEquals(SkinError.UNKNOWN_SCREEN_LAYOUT, SkinError.valueOf("UNKNOWN_SCREEN_LAYOUT"))
+        assertEquals(listOf("top", "bottom", "side"), SkinScreenPage.IDS)
+        assertEquals(mapOf("top" to 1, "bottom" to 1, "side" to 2), SkinScreenPage.SCREENS)
+    }
 }

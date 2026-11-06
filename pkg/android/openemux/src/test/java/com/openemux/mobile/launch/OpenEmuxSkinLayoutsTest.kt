@@ -9,7 +9,9 @@ import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinKeypadPage
 import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
+import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.SkinRect
+import com.openemux.mobile.data.SkinScreenPage
 import com.openemux.mobile.data.SkinSize
 import com.openemux.mobile.ui.Fold
 import org.junit.Assert.assertArrayEquals
@@ -242,5 +244,75 @@ class OpenEmuxSkinLayoutsTest {
         assertEquals("a", (plan(Console.CV, element(SkinElementType.BUTTON, "a")).single() as ElementPlan.Button).bind)
         assertEquals("b", (planPage(Console.CV, layout.copy(elements = listOf(element(SkinElementType.BUTTON, "a"))), 1000, 2000, false, coreId = "gearcoleco")
             .elements.single() as ElementPlan.Button).bind)
+    }
+
+    // Issue 807: an NDS skin's screen-layout pages.
+
+    private val dsPages = SkinScreenPage.SCREENS.mapValues { (_, n) -> SkinScreenPage((0 until n).map { SkinRect(it * 500f, 100f, 500f, 375f) }) }
+
+    @Test fun theScreensKeyStepsToTheNextScreenLayoutOrPressesNothing() {
+        val ds = layout.copy(screens = listOf(SkinRect(0f, 0f, 1000f, 750f), SkinRect(0f, 750f, 1000f, 750f)))
+        fun screens(type: SkinElementType, next: String?) = planPage(
+            Console.NDS, ds.copy(elements = listOf(element(type, "screens"), element(type, if (type == SkinElementType.ACTION) "menu" else "a"))), 1000, 2000, false, screensNext = next,
+        ).elements
+        for (type in listOf(SkinElementType.ACTION, SkinElementType.BUTTON)) {
+            val stepping = screens(type, "portrait@bottom")
+            val key = stepping[0] as ElementPlan.Action
+            assertEquals("overlay_next", key.bind)
+            assertEquals("portrait@bottom", key.next)
+            assertEquals("screens", key.icon)
+            // Only the screens key steps.
+            if (type == SkinElementType.BUTTON) assertEquals(ElementPlan.Button::class, stepping[1]::class)
+            else assertNull((stepping[1] as ElementPlan.Action).next)
+            // Without pages: drawn, pressing nothing.
+            val inert = screens(type, null)[0] as ElementPlan.Action
+            assertNull(inert.bind)
+            assertNull(inert.next)
+        }
+        // Another quick action is never a step.
+        val save = planPage(Console.NDS, ds.copy(elements = listOf(element(SkinElementType.ACTION, "quickSave"))), 1000, 2000, false,
+            screensNext = "portrait@top").elements.single() as ElementPlan.Action
+        assertNull(save.next)
+        assertEquals("save_state", save.icon)
+    }
+
+    @Test fun screenLayoutPagesNeedTheNdsAndBothLayouts() {
+        val use = LayoutChoice.Use(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE)
+        fun skinWith(console: Console, portrait: Map<String, SkinScreenPage>, landscape: Map<String, SkinScreenPage>) = OpenEmuxSkin(
+            console, "DS",
+            mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(screenLayouts = portrait), SkinLayoutId.PHONE_LANDSCAPE to layout.copy(screenLayouts = landscape)),
+        )
+        assertTrue(ndsPages(skinWith(Console.NDS, dsPages, dsPages), use))
+        assertFalse(ndsPages(skinWith(Console.NDS, dsPages, emptyMap()), use))
+        assertFalse(ndsPages(skinWith(Console.NDS, emptyMap(), dsPages), use))
+        assertFalse(ndsPages(skinWith(Console.NDS, dsPages - "side", dsPages), use))
+        assertFalse(ndsPages(skinWith(Console.GBA, dsPages, dsPages), use))
+        // A layout the skin lacks has none.
+        assertFalse(ndsPages(skinWith(Console.NDS, dsPages, dsPages), LayoutChoice.Use(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.TABLET_LANDSCAPE)))
+    }
+
+    @Test fun anNdsSkinsPagesAreAPackagesWithOneArtPerLayout() {
+        val nds = NdsLayouts.find("portrait", "stacked")!! to NdsLayouts.find("landscape", "top")!!
+        for (tablet in listOf(false, true)) {
+            for (first in listOf(null, "landscape@side", "pad-portrait@bottom", "keypad-landscape")) {
+                val own = ownPages(keypad = true, first = first, nds = nds, tablet = tablet)
+                val pkg = packagePages(nds, tablet, first)
+                assertEquals(pkg.map { it.name }, own.map { it.name })
+                assertEquals(pkg.map { it.rotate }, own.map { it.rotate })
+                assertEquals(pkg.map { it.portrait }, own.map { it.portrait })
+                assertEquals(pkg.map { it.screensNext }, own.map { it.screensNext })
+                // No keypad pages on them, whatever was asked.
+                assertTrue(own.none { it.keypad || it.toggle != null })
+            }
+        }
+        val byName = ownPages(keypad = false, first = null, nds = nds).associateBy { it.name }
+        // The layout itself draws both screens one over the other; every other page is the skin's page of that id.
+        assertNull(byName.getValue("portrait@stacked").screen)
+        assertEquals("side", byName.getValue("landscape@side").screen)
+        assertEquals("top", byName.getValue("portrait@top").screen)
+        assertEquals("portrait@stacked", byName.getValue("portrait@bottom").screensNext)
+        // Without the saved layouts: the plain pages, as before.
+        assertEquals(listOf("portrait", "landscape"), ownPages(keypad = false, first = null).map { it.name })
+        assertTrue(ownPages(keypad = false, first = null).all { it.screen == null && it.screensNext == null })
     }
 }

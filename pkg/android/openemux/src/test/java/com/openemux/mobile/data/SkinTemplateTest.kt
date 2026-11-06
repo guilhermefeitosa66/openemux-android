@@ -163,4 +163,55 @@ class SkinTemplateTest {
             return head + int(w) + int(h) + byteArrayOf(8, 6, 0, 0, 0)
         }
     }
+
+    // Issue 807: an NDS layout's screen-layout pages.
+
+    private fun dsLayout() = layout(frame = false).copy(
+        screens = listOf(SkinRect(36f, 36f, 1008f, 756f), SkinRect(36f, 792f, 1008f, 756f)),
+        elements = listOf(SkinElement("a", SkinElementType.BUTTON, "a", SkinRect(800f, 1600f, 180f, 180f))),
+        screenLayouts = mapOf(
+            "top" to SkinScreenPage(
+                listOf(SkinRect(36f, 36f, 1008f, 756f)), SkinBackground(0xFF202020.toInt()), SkinFrame(SkinRect(18f, 18f, 1044f, 792f)),
+                listOf(SkinElement("screens", SkinElementType.ACTION, "screens", SkinRect(20f, 900f, 90f, 90f))),
+            ),
+            "bottom" to SkinScreenPage(listOf(SkinRect(36f, 36f, 1008f, 756f))),
+            "side" to SkinScreenPage(
+                listOf(SkinRect(0f, 400f, 540f, 405f), SkinRect(540f, 400f, 540f, 405f)),
+                elements = listOf(SkinElement("a", SkinElementType.BUTTON, "a", SkinRect(800f, 1600f, 120.4f, 120f))),
+            ),
+        ),
+    )
+
+    @Test fun screenLayoutPagesAddTheirImagesInTheirFolders() {
+        val images = SkinTemplate.images(dsLayout())
+        val pages = images.filter { it.screenPage != null }
+        assertEquals(
+            listOf("top/background.png" to (1080 to 2238), "top/frame.png" to (1044 to 792), "top/screens.png" to (90 to 90), "side/a.png" to (120 to 120)),
+            pages.map { it.path to (it.width to it.height) },
+        )
+        assertEquals(listOf(TemplateImageKind.BACKGROUND, TemplateImageKind.FRAME, TemplateImageKind.ACTION, TemplateImageKind.BUTTON), pages.map { it.kind })
+        assertEquals(listOf("top", "top", "top", "side"), pages.map { it.screenPage })
+        // The layout's own images stay in its folder.
+        assertEquals(listOf("background.png", "a.png"), images.filter { it.screenPage == null }.map { it.path })
+        assertTrue(pages.none { it.keypadPage })
+    }
+
+    @Test fun screenLayoutPagesAreInTheReadmeAndTheZipAndReadBack() {
+        val skin = OpenEmuxSkin(Console.NDS, "Two screens", mapOf(SkinLayoutId.PHONE_PORTRAIT to dsLayout()))
+        val readme = SkinTemplate.readme(skin)
+        assertTrue(readme, "\n  side/ game screen at 540, 400, 540 x 405 px (its screen-layout page)\n" in readme)
+        assertTrue(readme, Regex("\n  top/frame\\.png +1044 x 792 +px  the bezel").containsMatchIn(readme))
+        val dir = Files.createTempDirectory("template").toFile()
+        try {
+            val zip = File(dir, "t.zip")
+            zip.outputStream().use { out -> SkinTemplate.write(out, skin, SkinFormat.toJson(skin)) { _, i -> png(i.width, i.height) } }
+            val pkg = SkinFormat.readZip(zip)
+            assertEquals(skin, pkg.skin)
+            assertEquals("phone-portrait/top/frame.png", pkg.screenFrame(SkinLayoutId.PHONE_PORTRAIT, "top"))
+            assertEquals("phone-portrait/side/a.png", pkg.screenImage(SkinLayoutId.PHONE_PORTRAIT, "side", "a.png"))
+            assertNull(pkg.screenImage(SkinLayoutId.PHONE_PORTRAIT, "bottom", "background.png"))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
 }

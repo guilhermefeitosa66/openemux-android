@@ -314,4 +314,26 @@ class SkinImportTest {
         private val IMG_A = byteArrayOf(1, 2, 3)
         private val IMG_B = byteArrayOf(9, 9)
     }
+
+    @Test fun screenLayoutPagesImagesAreImported() {
+        val two = listOf(SkinRect(0f, 0f, 50f, 40f), SkinRect(50f, 0f, 50f, 40f))
+        val pages = mapOf(
+            "top" to SkinScreenPage(two.take(1), SkinBackground(0xFF000000.toInt())),
+            "bottom" to SkinScreenPage(two.take(1)),
+            "side" to SkinScreenPage(two, elements = listOf(SkinElement("a", SkinElementType.BUTTON, "a", SkinRect(10f, 100f, 20f, 20f)))),
+        )
+        val base = layout()
+        val ds = base.copy(screens = two, screenLayouts = pages)
+        val skin = OpenEmuxSkin(Console.NDS, "DS", mapOf(SkinLayoutId.PHONE_PORTRAIT to ds))
+        val zip = skinZip(skin, mapOf("phone-portrait/a.png" to IMG_A, "phone-portrait/top/background.png" to IMG_B, "phone-portrait/side/a.png" to IMG_B))
+        val dir = File(store.root(Console.NDS), store.importOwn(Console.NDS, zip, null).substringAfter(':'))
+        assertArrayEquals(IMG_B, File(dir, "phone-portrait/top/background.png").readBytes())
+        assertArrayEquals(IMG_B, File(dir, "phone-portrait/side/a.png").readBytes())
+        assertArrayEquals(IMG_A, File(dir, "phone-portrait/a.png").readBytes())
+        assertEquals(pages, SkinFormat.readFolder(dir).skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts)
+        // A copy of it keeps them too.
+        val copy = File(store.root(Console.NDS), store.duplicate(Console.NDS, dir.name, "Copy").substringAfter(':'))
+        assertArrayEquals(IMG_B, File(copy, "phone-portrait/side/a.png").readBytes())
+        assertEquals(pages, SkinFormat.readFolder(copy).skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).screenLayouts)
+    }
 }
