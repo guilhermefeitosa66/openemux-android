@@ -196,4 +196,26 @@ class SkinSpecsTest {
         assertEquals(listOf("portrait@side", "portrait@top"), ndsFlatSpecs(side to top).map { it.name }.take(2))
         assertEquals("landscape@top", ndsFlatSpecs(side to top)[4].name)
     }
+
+    @Test fun underAPackageAConsoleWithAKeypadGetsTheDrawnKeypadWithAGamepadAndHalfOpen() {
+        // Issue 772: the gamepad layout's keypad key opens the drawn keypad, turning keeps it open.
+        val specs = packageSpecs(1.5f, nds = false, tabletop = emptyList(), keypad = true)
+        assertEquals(
+            listOf("pad-portrait", "pad-landscape", "pad-keypad-portrait", "pad-keypad-landscape",
+                "min-pad-portrait", "min-pad-landscape", "min-pad-keypad-portrait", "min-pad-keypad-landscape"),
+            names(specs),
+        )
+        val open = specs.first { it.name == "pad-keypad-portrait" }
+        assertTrue(open.keypadOpen)
+        assertEquals("pad-keypad-landscape", open.rotate)
+        // Half open: the drawn keypad's tabletop page, turning to the package's keypad page when it has one.
+        val tabletop = packageTabletopSpecs(1.5f, nds = false, keypad = true, packageKeypad = true)
+        assertEquals(listOf(TABLETOP, "keypad-$TABLETOP"), names(tabletop))
+        assertEquals("keypad-landscape", tabletop[1].rotate)
+        assertTrue(tabletop[1].keypadOpen && tabletop[1].tabletop)
+        assertEquals("landscape", packageTabletopSpecs(1.5f, nds = false, keypad = true)[1].rotate)
+        // NDS has no keypad, and no keypad at all leaves the lists as they were.
+        assertEquals(names(packageTabletopSpecs(1.5f, nds = true)), names(packageTabletopSpecs(1.5f, nds = true, keypad = true)))
+        assertEquals(listOf(TABLETOP), names(packageTabletopSpecs(1.5f, nds = false)))
+    }
 }

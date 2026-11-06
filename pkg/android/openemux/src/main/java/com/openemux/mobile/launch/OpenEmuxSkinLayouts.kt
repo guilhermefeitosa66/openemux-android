@@ -4,11 +4,14 @@ import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.OpenEmuxSkin
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinForm
+import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinKey
 import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinRect
 import com.openemux.mobile.data.coreBind
+import com.openemux.mobile.data.forCore
 import com.openemux.mobile.data.skin
 import com.openemux.mobile.ui.Fold
 
@@ -68,6 +71,12 @@ sealed interface ElementPlan {
     data class Button(override val index: Int, override val box: SkinBox, val bind: String?) : ElementPlan
 
     /**
+     * The keypad toggle: switches to the overlay page [next] (the keypad page from the controls, the controls from the
+     * keypad page); null when the skin has no keypad pages to switch between, drawn and pressing nothing.
+     */
+    data class Toggle(override val index: Int, override val box: SkinBox, val next: String?) : ElementPlan
+
+    /**
      * A quick action on the frame, pressing [bind]; [lit] is the engine state it lights with while on
      * (OverlayWriter.LIT_BY), [icon] the app action whose glyph draws it without an image.
      */
@@ -99,34 +108,76 @@ sealed interface ElementPlan {
 data class PagePlan(val fit: SkinFit, val viewport: SkinBox, val elements: List<ElementPlan>, val gap: Float)
 
 /**
- * Lays [layout] out on a [w] x [h] page for [console]; [hardcore] leaves the speed keys out. Buttons and keypad keys
- * press what [coreId] reads them as (data/Skin.kt's coreBind: Gearcoleco's ColecoVision pad), as the drawn skin does.
+ * Lays [layout] out on a [w] x [h] page for [console] played on [coreId]: its controls, or its keypad page's
+ * ([keypadPage]). [toggle] is the page the keypad toggle switches to (null: none, the skin has no keypad pages);
+ * [hardcore] leaves the speed keys out.
  */
-fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boolean, coreId: String? = null): PagePlan {
+fun planPage(
+    console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boolean,
+    coreId: String? = null, keypadPage: Boolean = false, toggle: String? = null,
+): PagePlan {
     val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
     val screens = layout.screens.map(fit::box)
     val left = screens.minOf { it.x }
     val top = screens.minOf { it.y }
     val viewport = SkinBox(left, top, screens.maxOf { it.right } - left, screens.maxOf { it.bottom } - top)
-    val elements = layout.elements.mapIndexed { i, e ->
+    // The drawn keypad as the core reads it, built once for the page's keys rather than once per key.
+    val keys by lazy { console.skin.forCore(coreId).keypad }
+    val elements = layout.elements(keypadPage).mapIndexed { i, e ->
         val box = fit.box(e.rect)
         when (e.type) {
             SkinElementType.BUTTON -> {
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)
-                if (action != null) ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
-                else ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind)?.let { coreBind(coreId, it) })
+                when {
+                    action != null -> ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
+                    e.bind == SkinFormat.KEYPAD_TOGGLE -> ElementPlan.Toggle(i, box, toggle)
+                    else -> ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind, coreId))
+                }
             }
-            SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(console, e.bind)?.let { coreBind(coreId, it) })
+            SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(keys, e.bind))
             SkinElementType.ACTION -> {
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)!!
                 ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
             }
-            SkinElementType.DPAD -> dpad(i, box, OpenEmuxBinds.dpad(console, e.bind))
+            SkinElementType.DPAD -> dpad(i, box, OpenEmuxBinds.dpad(console, e.bind, coreId))
             SkinElementType.STICK -> stick(i, box, if (e.bind == "rightAnalogStick") "analog_right" else "analog_left")
         }
     }
     return PagePlan(fit, viewport, elements, 2f * fit.s)
 }
+
+/**
+ * One overlay page of a skin in OpenEmux's format: its [name], whether it is [portrait], the page turning switches to
+ * ([rotate]), whether it is a layout's [keypad] page, and the page its keypad toggle switches to ([toggle]).
+ */
+data class OwnPage(val name: String, val portrait: Boolean, val rotate: String, val keypad: Boolean, val toggle: String?)
+
+/**
+ * The pages a skin in OpenEmux's format writes: portrait and landscape, and with [keypad] (keypadPages) their keypad
+ * pages, turning keeping the kind of page. [first], the page shown before a redraw (any mode), opens again: its
+ * orientation, and its keypad page when it was one; none opens on portrait.
+ */
+fun ownPages(keypad: Boolean, first: String?): List<OwnPage> {
+    val shown = first?.let(OverlayName::parse)
+    val kinds = if (keypad) listOf(false, true) else listOf(false)
+    val pages = kinds.flatMap { k ->
+        listOf(true, false).map { p ->
+            OwnPage(
+                OverlayName(portrait = p, keypad = k).toString(), p, OverlayName(portrait = !p, keypad = k).toString(), k,
+                OverlayName(portrait = p, keypad = !k).toString().takeIf { keypad },
+            )
+        }
+    }
+    val opening = OverlayName(portrait = shown?.portrait != false, keypad = keypad && shown?.keypad == true).toString()
+    return pages.sortedBy { if (it.name == opening) 0 else 1 }
+}
+
+/**
+ * Whether a skin drawn with [layouts] has keypad pages: both layouts have one, and each has the toggle that leaves
+ * it. Otherwise the skin plays with its controls only (a keypad toggle on them presses nothing).
+ */
+fun keypadPages(skin: OpenEmuxSkin, layouts: LayoutChoice.Use): Boolean =
+    listOf(layouts.portrait, layouts.landscape).all { skin.layouts[it]?.keypad?.closable == true }
 
 /** A D-pad over [box]: its ball travels [OverlayLines.DPAD_TRAVEL] of the half-size, and the whole box starts a touch. */
 private fun dpad(i: Int, box: SkinBox, binds: List<String>?): ElementPlan.Dpad {
@@ -180,20 +231,29 @@ object OpenEmuxBinds {
         return Action(bind, icon, bind?.let { OverlayWriter.LIT_BY[it] }, dim)
     }
 
-    /** A D-pad's directions on [console]: [name] dpad's, or dpad2's (the console's second pad, null when it has none). */
-    fun dpad(console: Console, name: String): List<String>? =
-        if (name == SkinBinds.DPAD2) SkinBinds.SECOND_DPAD[console] else ElementPlan.Dpad.DIRECTIONS
-
-    /** A button's [name] on [console] (a quick action's name is [action]'s), or null for one nothing maps. */
-    fun button(console: Console, name: String): String? = SkinBinds.bind(console, name, hardcore = false)
+    /**
+     * A D-pad's directions on [console] as [coreId] reads them: [name] dpad's, or dpad2's (the console's second pad,
+     * null when it has none).
+     */
+    fun dpad(console: Console, name: String, coreId: String? = null): List<String>? =
+        (if (name == SkinBinds.DPAD2) SkinBinds.SECOND_DPAD[console] else ElementPlan.Dpad.DIRECTIONS)?.map { coreBind(coreId, it) }
 
     /**
-     * A keypad key, as the drawn skins' keypad (Console.skin's) presses it: a digit is the console's key with that
-     * label (ColecoVision's are joypad buttons), else typed on the keyboard's number pad; the keys beside the 0
-     * ([name] keypadStar, keypadHash) are the console's own, none when it has no keypad.
+     * A button's [name] on [console] as [coreId] reads it (Gearcoleco's swapped buttons, data/Skin.kt), or null for one
+     * nothing maps. A quick action's name is [action]'s.
      */
-    fun keypad(console: Console, name: String): String? {
-        val keys = console.skin.keypad
+    fun button(console: Console, name: String, coreId: String? = null): String? =
+        SkinBinds.bind(console, name, hardcore = false)?.let { coreBind(coreId, it) }
+
+    /**
+     * A keypad key, as the drawn skins' keypad (Console.skin's, as [coreId] reads it) presses it: a digit is the
+     * console's key with that label (ColecoVision's are joypad buttons), else typed on the keyboard's number pad; the
+     * keys beside the 0 ([name] keypadStar, keypadHash) are the console's own, none when it has no keypad.
+     */
+    fun keypad(console: Console, name: String, coreId: String? = null): String? = keypad(console.skin.forCore(coreId).keypad, name)
+
+    /** [keypad] against the drawn keypad's rows [keys] (Console.skin's, already as the core reads them). */
+    fun keypad(keys: List<List<SkinKey>>, name: String): String? {
         name.removePrefix("keypad").toIntOrNull()?.let { digit ->
             return keys.flatten().firstOrNull { it.label == "$digit" }?.bind ?: "retrok_num$digit"
         }

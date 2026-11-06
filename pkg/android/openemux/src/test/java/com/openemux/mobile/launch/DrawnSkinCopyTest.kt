@@ -27,17 +27,24 @@ import java.io.File
  */
 class DrawnSkinCopyTest {
     /** The consoles that play the drawn skin: the app ships no package for them in any variant. */
-    private val drawn: List<Console> = run {
+    private val unpackaged: List<Console> = run {
         val list = { dir: String -> File("src/main/assets", dir).list() }
         Console.entries.filter { c -> SkinVariant.entries.none { ImportedSkinRenderer.bundledName(list(it.assetDir), c) != null } }
     }
 
+    /**
+     * The consoles the copy was made for, the ones with a keypad (the converter's hardest case). Issue 772 shipped them
+     * packages of their own, but the converter still takes any drawn skin, so they stay its reference.
+     */
+    private val drawn = listOf(Console.A5200, Console.CV, Console.INTV, Console.O2)
+
     private fun copy(console: Console) = DrawnSkinCopy.convert(console, "Mine")
 
     @Test fun theDrawnConsolesAreTheFourWithAKeypad() {
-        // Issue 771 shipped packages for the Atari 2600 and 7800, Lynx, NGP, WonderSwan, Vectrex and Virtual Boy.
-        assertEquals(listOf(Console.A5200, Console.CV, Console.INTV, Console.O2), drawn)
-        drawn.forEach { assertTrue(it.id, it.skin.keypad.isNotEmpty()) }
+        // Issue 771 shipped packages for the Atari 2600 and 7800, Lynx, NGP, WonderSwan, Vectrex and Virtual Boy, issue
+        // 772 for the four with a keypad: no console is left on the drawn skin.
+        assertEquals(emptyList<Console>(), unpackaged)
+        assertEquals(drawn, Console.entries.filter { it.skin.keypad.isNotEmpty() })
     }
 
     @Test fun everyDrawnSkinReadsBackWithItsSixLayouts() {

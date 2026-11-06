@@ -248,6 +248,48 @@ const OE = (() => {
     },
   });
 
+  // Issue 772: the consoles whose games need the controller's keypad, also in OpenEmux's own format. Each has a keypad
+  // page (layout(..., { keypad: true })): the twelve keys, 1 to 9 then the two beside the 0, in the face buttons'
+  // place, reached with the centre row's keypadToggle key (KEYPAD, CONTROLS on the keypad page). Each key presses what
+  // the drawn skin's keypad presses (launch/OpenEmuxSkinLayouts.kt reads that table), so the art only names it.
+  const KEYPAD_TOGGLE = { input: 'keypadToggle', label: 'KEYPAD', keypadLabel: 'CONTROLS' };
+  Object.assign(C, {
+    // The CX52 controller: an analog stick, the two fire buttons (atari800: the left one, 2, on A; 1 on B), Start and
+    // Pause on the controller's side.
+    A5200: {
+      name: 'Atari 5200', res: '320 × 192', aspect: 4 / 3, body: '#17171A', bezel: '#0B0B0D', bar: '#101012', barIcon: '#A9A9B4',
+      dpad: '#111113', dpadMark: '#55555E', pill: '#2A2A30', labelInk: '#A9A9B4', brandInk: '#A9A9B4',
+      leftMain: 'stick', stick: { knob: '#2C2C31' }, well: '#1E1E22',
+      face: { kind: 'ab', color: '#D2502C', ink: '#F7E2DA', inputs: { b: 'a', a: 'b' }, labels: { b: '2', a: '1' } }, shoulders: [[], []],
+      center: [{ input: 'start', label: 'START' }, { input: 'select', label: 'PAUSE' }, KEYPAD_TOGGLE],
+      keypad: { color: '#3A3A41', ink: '#E8E8EE', star: '*', hash: '#' },
+    },
+    // blueMSX: the left fire on A, the right one on B.
+    CV: {
+      name: 'ColecoVision', res: '256 × 192', aspect: 4 / 3, body: '#111113', bezel: '#08080A', bar: '#0B0B0D', barIcon: '#B4B4C0',
+      dpad: '#1C1C20', dpadMark: '#5A5A64', pill: '#2A2A30', labelInk: '#B4B4C0', brandInk: '#B4B4C0',
+      face: { kind: 'ab', color: '#D9632B', ink: '#FBE6DA', inputs: { b: 'a', a: 'b' }, labels: { b: 'L', a: 'R' } }, shoulders: [[], []],
+      center: [KEYPAD_TOGGLE],
+      keypad: { color: '#2E2E34', ink: '#E2E2E8', star: '*', hash: '#' },
+    },
+    // The controller's disc as a D-pad and its side buttons, FreeIntv's: top Y, lower left A, lower right B.
+    INTV: {
+      name: 'Intellivision', res: '159 × 96', aspect: 4 / 3, body: '#2F2318', bezel: '#140E09', bar: '#1F170F', barIcon: '#B39466',
+      dpad: '#1A130C', dpadMark: '#7A6040', pill: '#4A3824', labelInk: '#D2B36A', brandInk: '#D2B36A',
+      face: { kind: 'col3', color: '#C9A24A', ink: '#2F2318' }, shoulders: [[], []],
+      center: [KEYPAD_TOGGLE],
+      keypad: { color: '#1A130C', ink: '#D2B36A', star: 'CLR', hash: 'ENT' },
+    },
+    // One Action button; O2EM's keyboard keys (Clear and Enter beside the 0).
+    O2: {
+      name: 'Odyssey²', res: '160 × 200', aspect: 4 / 3, body: '#1A1A1A', bezel: '#0A0A0A', bar: '#111111', barIcon: '#B0B0B0',
+      dpad: '#111111', dpadMark: '#5A5A5A', pill: '#2A2A2A', labelInk: '#B0B0B0', brandInk: '#B0B0B0',
+      face: { kind: 'one', color: '#D2382C', ink: '#F8E1DE', labels: { b: 'ACTION' } }, shoulders: [[], []],
+      center: [KEYPAD_TOGGLE],
+      keypad: { color: '#2C2C2C', ink: '#E0E0E0', star: 'CLR', hash: 'ENT' },
+    },
+  });
+
   // The Dark variant: every console's layout in one palette, for playing in a dark room. A black body, the
   // controls in a dark grey that stands out from it just enough to be found by eye, labels and glyphs in a
   // muted grey, so the game's picture is the brightest thing on the screen. Only colours change: the layout
@@ -264,6 +306,7 @@ const OE = (() => {
       dpad: D.key, dpadMark: D.mark, shoulder: D.key, shoulderInk: D.ink, pill: D.key,
       faceWell: S.faceWell && D.bezel, labelInk: D.ink, brandInk: D.ink,
       stick: S.stick && Object.assign({}, S.stick, { knob: D.knob }),
+      keypad: S.keypad && Object.assign({}, S.keypad, { color: D.key, ink: D.ink }),
       secondary: S.secondary && S.secondary.map((x) => Object.assign({}, x, x.knob ? { knob: D.knob } : {}, x.ink ? { ink: D.ink } : {})),
       face: Object.assign({}, S.face, { color: D.key, ink: D.ink, colors: undefined, inks: undefined, symColor: D.ink, map }),
     });
@@ -418,6 +461,8 @@ const OE = (() => {
     nes: (f) => [{ input: fin(f, 'b'), label: flab(f, 'b'), dx: -38, dy: 0, w: 60 }, { input: fin(f, 'a'), label: flab(f, 'a'), dx: 38, dy: 0, w: 60 }],
     // A single large button (the 2600's Fire), its word smaller than a letter so it fits.
     one: (f) => [{ input: fin(f, 'b'), label: flab(f, 'b'), dx: 0, dy: 0, w: 84, fs: 0.26 }],
+    // Three side buttons, 1 at the top, 2 on the right, 3 at the bottom (the Intellivision's: Y, B, A).
+    col3: () => [['y', '1', -30, -44], ['b', '2', 30, 0], ['a', '3', -30, 44]].map(([input, label, dx, dy]) => ({ input, label, dx, dy, w: 48 })),
     // Four buttons in a row, 1 to 4 (the Vectrex's).
     row4: () => [['a', '1', -81], ['b', '2', -27], ['x', '3', 27], ['y', '4', 81]].map(([input, label, dx]) => ({ input, label, dx, dy: 0, w: 50 })),
     // As tall as the d-pad: the top button lines up with its up arm, the bottom one with its down arm.
@@ -644,6 +689,12 @@ const OE = (() => {
      * puts them on another row than the left cluster's (the Virtual Boy's, under its right D-pad).
      */
     function main(lx, rx, cy, k, room, faceY) {
+      if (kpOpen) {
+        if (S.leftMain === 'stick') stick(lx, cy, 112 * k, S.stick, false);
+        else dpad(lx, cy, 140 * k);
+        keypadBlock(rx, cy, room);
+        return;
+      }
       const btns = FACE[S.face.kind](S.face);
       const ext = (b) => Math.max(b.w, b.h || b.w) / 2;
       const minX = Math.min(...btns.map((b) => b.dx - ext(b))), maxX = Math.max(...btns.map((b) => b.dx + ext(b)));
@@ -665,7 +716,33 @@ const OE = (() => {
       });
     }
 
+    /**
+     * The keypad page's twelve keys, 4 rows of 3, in the face buttons' place: centred on [cx] (inside the page) and on
+     * [cy], no wider than [room] and no taller than the controls' area ([kpArea]).
+     */
+    function keypadBlock(cx, cy, room) {
+      const K = S.keypad, g = tab ? 10 : 6;
+      const kw = Math.min((room - 2 * g) / 3, tab ? 84 : 60);
+      const kh = Math.min(kw * 0.86, (kpArea.bot - kpArea.top - 3 * g) / 4);
+      const bw = 3 * kw + 2 * g, bh = 4 * kh + 3 * g;
+      const x0 = Math.min(cx - bw / 2, W - 8 - bw);
+      const y0 = Math.max(kpArea.top, Math.min(cy - bh / 2, kpArea.bot - bh));
+      const rows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['star', '0', 'hash']];
+      rows.forEach((row, r) => row.forEach((key, c) => {
+        const x = x0 + c * (kw + g), y = y0 + r * (kh + g);
+        const label = key === 'star' ? K.star : key === 'hash' ? K.hash : key;
+        const input = 'keypad' + (key === 'star' ? 'Star' : key === 'hash' ? 'Hash' : key);
+        own();
+        add(box(x, y, kw, kh) + center + `border-radius:${r1(Math.min(kw, kh) * 0.2)}px;background:linear-gradient(180deg, ${lighten(K.color, 0.1)}, ${K.color});box-shadow:0 ${r1(2.5 * kh / 46)}px 0 ${darken(K.color, 0.45)};`,
+          lbl(label, K.ink, Math.min(kw, kh) * (label.length > 1 ? 0.3 : 0.42)));
+        item([input], x, y, kw, kh);
+        owner = null;
+        look({ group: 'keypad', label, shape: 'rect', colors: { button: K.color, letter: K.ink } });
+      }));
+    }
+
     function centerKey(c, cx, cy) {
+      if (kpOpen && c.keypadLabel) c = Object.assign({}, c, { label: c.keypadLabel });
       const w = tab ? 66 : 54, h = tab ? 22 : 18;
       own();
       add(box(cx - w / 2, cy - h / 2, w, h) + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.pill, 0.12)}, ${S.pill});box-shadow:0 2px 0 ${darken(S.pill, 0.4)};` + (S.pillRot ? `transform:rotate(${S.pillRot}deg);` : ''));
@@ -679,6 +756,10 @@ const OE = (() => {
       add(box(cx - 80, cy - 8, 160, 16) + center, lbl('OpenEmux', alpha(S.brandInk, 0.42), tab ? 13 : 11, '.32em'));
     }
 
+    // The keypad page (opts.keypad, on a console with a keypad): the keypad in the face buttons' place, in the
+    // controls' area [kpArea] (set below for each orientation).
+    const kpOpen = !!(opts.keypad && S.keypad);
+    let kpArea = null;
     const hasSec = !!(S.secondary && S.secondary.length);
     // Only a right-hand item swaps: the face buttons are on the right.
     const swap = hasSec && S.secondary.some((s) => s.swap && s.pos === 'right');
@@ -694,7 +775,10 @@ const OE = (() => {
       const k = Math.min(tab ? 1.12 : 1, (aBot - aTop) / (hasSec ? 290 : 170));
       const lx = tab ? 160 : 90, rx = W - (tab ? 160 : 96);
       const mainY = hasSec ? aTop + (aBot - aTop) * 0.36 : aTop + (aBot - aTop) * 0.42, secY = aTop + (aBot - aTop) * 0.82;
-      main(lx, rx, mainY, k, W / 2 + 10, swap ? secY : undefined);
+      kpArea = { top: aTop, bot: aBot };
+      // The keypad takes the right of the D-pad, from its edge to the page's.
+      if (kpOpen) main(lx, (lx + 70 * k + 10 + W - 8) / 2, mainY, k, W - 8 - (lx + 70 * k + 10));
+      else main(lx, rx, mainY, k, W / 2 + 10, swap ? secY : undefined);
       if (hasSec) secondary(lx, rx, secY, k, mainY);
       const cyKeys = H - reserve + (tab ? 44 : 22);
       const step = tab ? 120 : 92;
@@ -711,6 +795,7 @@ const OE = (() => {
       const top = mY + mH + 10, bot = H - (tab ? 70 : 52);
       const k = (tab ? 1.12 : 0.86) * (hasSec && !tab ? 0.88 : 1);
       const mainY = hasSec ? top + (bot - top) * 0.33 : (top + bot) / 2, secY = top + (bot - top) * 0.82;
+      kpArea = { top, bot };
       main(lx, rx, mainY, k, side - 16, swap ? secY : undefined);
       if (hasSec) secondary(lx, rx, secY, k, mainY);
       const cyKeys = H - (tab ? 40 : 30);

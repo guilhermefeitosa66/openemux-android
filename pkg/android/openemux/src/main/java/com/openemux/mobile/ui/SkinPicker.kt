@@ -290,6 +290,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var copying by remember { mutableStateOf<SkinSwatch?>(null) }
     var deleting by remember { mutableStateOf<StoredSkin?>(null) }
     var templating by remember { mutableStateOf<StoredSkin?>(null) }
+    var editing by remember { mutableStateOf<SkinEditTarget?>(null) }
     var saving by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf<PickedSkin?>(null) }
     var reading by remember { mutableStateOf(false) }
@@ -384,6 +385,9 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 ownSheet = null; library.useCustomSkin(console, skin.ref)
             }
             if (!skin.broken) {
+                ActionRow(Icons.Pencil, stringResource(R.string.skins_edit)) {
+                    ownSheet = null; editing = SkinEditTarget(skin.id, skin.name, state.inUse(skin))
+                }
                 ActionRow(Icons.List, stringResource(R.string.skins_rename)) { ownSheet = null; renaming = skin }
                 ActionRow(Icons.Copy, stringResource(R.string.skins_duplicate)) {
                     ownSheet = null
@@ -448,9 +452,24 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             copying = null
             // A Delta/Manic package takes a moment: every control is lifted off its art (issue 797).
             if (state.converts(swatch)) Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
-            // The copy is used at once: until the editor comes (issue 784), the flow ends on the list with it in use.
-            store { library.useCustomSkin(console, SkinConversion.convert(context, library.skins, console, swatch.variant, name)) }
+            // The copy is used at once and opens in the editor (issue 784).
+            scope.launch {
+                val ref = withContext(Dispatchers.IO) {
+                    runCatching { library.migrateSkins() }
+                    runCatching { SkinConversion.convert(context, library.skins, console, swatch.variant, name) }.getOrNull()
+                }
+                if (ref == null) {
+                    Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
+                } else {
+                    library.useCustomSkin(console, ref)
+                    SkinStore.parse(ref)?.let { (_, id) -> editing = SkinEditTarget(id, name.trim(), inUse = true) }
+                }
+                onChanged()
+            }
         }
+    }
+    editing?.let { target ->
+        SkinEditor(library, console, target, onChanged = onChanged, onClose = { editing = null })
     }
     templating?.let { skin ->
         TemplateSheet(skin.name, saving, onClose = { if (!saving) templating = null }) {
@@ -638,7 +657,7 @@ private fun ActionRow(icon: String, label: String, danger: Boolean = false, sub:
 /** The sheet that asks for a skin's name: [title] over an optional [lead] line, [initial] filled in, [confirm] saving it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NameSkinSheet(title: String, initial: String, confirm: String, lead: String? = null, onClose: () -> Unit, onSave: (String) -> Unit) {
+internal fun NameSkinSheet(title: String, initial: String, confirm: String, lead: String? = null, onClose: () -> Unit, onSave: (String) -> Unit) {
     var name by remember { mutableStateOf(initial) }
     val valid = name.isNotBlank()
     fun save() { if (valid) onSave(name.trim()) }

@@ -6,6 +6,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -224,6 +225,14 @@ class SkinImportTest {
         assertEquals(emptyList<String>(), leftovers())
     }
 
+    @Test fun replacingASkinDropsItsEditorDraft() {
+        val dir = own("mine")
+        store.saveDraft(Console.SFC, "mine", File(dir, SkinFormat.SKIN_JSON).readText())
+        store.importOwn(Console.SFC, skinZip(), null, replace = "mine")
+        assertNull(store.draft(Console.SFC, "mine"))
+        assertFalse(File(store.root(Console.SFC), ".mine.draft.json").exists())
+    }
+
     @Test fun replacingABrokenSkinTakesTheZipsName() {
         val dir = own("mine")
         File(dir, SkinFormat.SKIN_JSON).writeText("{")
@@ -254,12 +263,25 @@ class SkinImportTest {
         val (pkg, json) = store.template(Console.SFC, "trip")
         val zip = File(work, "trip.zip")
         zip.outputStream().use { out ->
-            SkinTemplate.write(out, pkg.skin, json) { id, image -> pkg.image(id, image.file)?.let { File(store.root(Console.SFC), "trip/$it").readBytes() } ?: png(image.width, image.height) }
+            SkinTemplate.write(out, pkg.skin, json) { id, image -> pkg.image(id, image.path)?.let { File(store.root(Console.SFC), "trip/$it").readBytes() } ?: png(image.width, image.height) }
         }
         assertTrue(SkinImport.inspect(zip, Console.SFC, "trip.zip") is ImportCheck.Own)
         store.importOwn(Console.SFC, zip, null, replace = "trip")
         assertEquals(original, SkinFormat.readFolder(File(store.root(Console.SFC), "trip")).skin)
         assertThrows(SkinStoreException::class.java) { store.template(Console.SFC, "nope") }
+    }
+
+    @Test fun aKeypadPagesImagesAreImported() {
+        val page = SkinKeypadPage(
+            listOf(SkinElement("key-1", SkinElementType.KEYPAD, "keypad1", SkinRect(10f, 100f, 20f, 20f))),
+            background = SkinBackground(0xFF000000.toInt()),
+        )
+        val skin = OpenEmuxSkin(Console.SFC, "Keys", mapOf(SkinLayoutId.PHONE_PORTRAIT to layout().copy(keypad = page)))
+        val zip = skinZip(skin, mapOf("phone-portrait/a.png" to IMG_A, "phone-portrait/keypad/key-1.png" to IMG_B, "phone-portrait/keypad/background.png" to IMG_A))
+        val dir = File(store.root(Console.SFC), store.importOwn(Console.SFC, zip, null).substringAfter(':'))
+        assertArrayEquals(IMG_B, File(dir, "phone-portrait/keypad/key-1.png").readBytes())
+        assertArrayEquals(IMG_A, File(dir, "phone-portrait/keypad/background.png").readBytes())
+        assertEquals(page, SkinFormat.readFolder(dir).skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).keypad)
     }
 
     // --- importPackage -------------------------------------------------------------------------------------------

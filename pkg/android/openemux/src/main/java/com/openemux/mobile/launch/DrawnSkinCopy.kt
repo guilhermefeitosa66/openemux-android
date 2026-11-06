@@ -35,7 +35,8 @@ import kotlin.math.roundToInt
  * [SkinRenderer] uses there (the phone's are its own, the tablet's [SkinGeometry]'s), in design units scaled to the
  * layout's pixels. What the format cannot express is left out or given a place of its own: the keypad, which the drawn
  * skin opens over the face buttons, gets its own keys ([keypadUpright], [keypadSideways]); the key that opens it and the
- * hide key are left out (the format has no pages); the gamepad and tabletop pages stay the app's.
+ * hide key are left out (the copy makes no keypad page, which the format has had since issue 772); the gamepad and
+ * tabletop pages stay the app's.
  */
 object DrawnSkinCopy {
     /** A reference window: its portrait size in pixels and its density (dp per pixel's inverse), for the unit. */
