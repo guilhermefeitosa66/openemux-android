@@ -175,8 +175,6 @@ object Icons {
     const val Qr = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M20 14v2M14 18h2v2M18 18h2v2"
     const val Pencil = "M4 20h4L19 9l-4-4L4 16v4z"
     const val Copy = "M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"
-    /** A pencil: rename a game (issue 790). */
-    const val Pencil = "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"
 }
 
 @Composable
