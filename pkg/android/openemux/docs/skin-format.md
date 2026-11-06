@@ -272,6 +272,19 @@ wins over them, and one the app cannot draw falls back to the drawn skin.
   and does nothing (the skin has no page per NDS layout). In RetroAchievements hardcore the speed keys are dimmed and do
   nothing.
 - The half-open (tabletop) posture keeps the app's drawn tabletop layout, and a connected gamepad its gamepad layout.
+- **Core binds.** Buttons and keypad keys press what the running core reads them as, as the drawn skin does: on the
+  ColecoVision with Gearcoleco, the fire buttons, the keypad pairs, `*` and `#`, 9 and 0 go where that core reads them
+  (`coreBind` in `data/Skin.kt`).
+
+## Copies of the drawn skin
+
+On a console with no bundled package (A5200, CV, INTV, O2), the bundled skin's **Create copy and edit** converts the
+app's drawn skin into this format (`launch/DrawnSkinCopy.kt`, issue 798): the six layouts, each the drawn skin laid out
+for a reference window of its form (Phone 1080 × 2340, Tablet 1600 × 2560 at density 2, Fold 1812 × 2178 at 2.625),
+with its colours, shapes, labels and binds, and `background.png` (with the console's name), `dpad.png`,
+`dpad-ball.png` and `menu.png` painted as the game draws them. What the format has no room for: the keypad key and the
+hide key are left out; the keypad keys get a place of their own (upright, a grid between the clusters, or two rows of six
+under them when the column is too narrow; sideways, under the face buttons, the pills moving to the left).
 
 ## Import and export
 

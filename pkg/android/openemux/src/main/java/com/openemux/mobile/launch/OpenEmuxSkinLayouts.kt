@@ -8,6 +8,7 @@ import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinRect
+import com.openemux.mobile.data.coreBind
 import com.openemux.mobile.data.skin
 import com.openemux.mobile.ui.Fold
 
@@ -97,8 +98,11 @@ sealed interface ElementPlan {
 /** A layout as an overlay page: where the game goes ([viewport], both NDS screens' box), its elements, a stick's [gap]. */
 data class PagePlan(val fit: SkinFit, val viewport: SkinBox, val elements: List<ElementPlan>, val gap: Float)
 
-/** Lays [layout] out on a [w] x [h] page for [console]; [hardcore] leaves the speed keys out. */
-fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boolean): PagePlan {
+/**
+ * Lays [layout] out on a [w] x [h] page for [console]; [hardcore] leaves the speed keys out. Buttons and keypad keys
+ * press what [coreId] reads them as (data/Skin.kt's coreBind: Gearcoleco's ColecoVision pad), as the drawn skin does.
+ */
+fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boolean, coreId: String? = null): PagePlan {
     val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
     val screens = layout.screens.map(fit::box)
     val left = screens.minOf { it.x }
@@ -110,9 +114,9 @@ fun planPage(console: Console, layout: SkinLayout, w: Int, h: Int, hardcore: Boo
             SkinElementType.BUTTON -> {
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)
                 if (action != null) ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)
-                else ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind))
+                else ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind)?.let { coreBind(coreId, it) })
             }
-            SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(console, e.bind))
+            SkinElementType.KEYPAD -> ElementPlan.Button(i, box, OpenEmuxBinds.keypad(console, e.bind)?.let { coreBind(coreId, it) })
             SkinElementType.ACTION -> {
                 val action = OpenEmuxBinds.action(console, e.bind, hardcore)!!
                 ElementPlan.Action(i, box, action.bind, action.icon, action.lit, action.dim)

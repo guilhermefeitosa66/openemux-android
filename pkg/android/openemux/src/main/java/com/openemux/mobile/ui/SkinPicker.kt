@@ -137,8 +137,11 @@ data class SkinListState(
     /** Whether "Create copy and edit" is offered for the bundled [swatch]. */
     fun convertible(swatch: SkinSwatch) = swatch.variant.id in convertible
 
-    /** More than one skin in all: the list has something to pick. */
-    val shown: Boolean get() = bundled.options.size + own.size + imported.size > 1
+    /**
+     * More than one skin in all, or a bundled one to make a copy of (issue 798: a console with only the drawn skin):
+     * the list has something to pick or to do.
+     */
+    val shown: Boolean get() = bundled.options.size + own.size + imported.size > 1 || convertible.isNotEmpty()
 }
 
 /** Whether [skin] can be used on a device of [form]: readable and with a layout for it. */

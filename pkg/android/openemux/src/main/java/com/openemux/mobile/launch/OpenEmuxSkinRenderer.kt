@@ -53,6 +53,7 @@ class OpenEmuxSkinRenderer(context: Context) {
     fun render(
         pkg: SkinPackage, layouts: LayoutChoice.Use, console: Console,
         width: Int, height: Int, outDir: File, cutout: Int = 0, tablet: Boolean = false, hardcore: Boolean = false, first: String? = null,
+        coreId: String? = null,
     ): File {
         outDir.mkdirs()
         val portraitW = minOf(width, height)
@@ -65,7 +66,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             val layout = pkg.skin.layouts.getValue(id)
             val w = if (page.portrait) portraitW else portraitH
             val h = if (page.portrait) portraitH else portraitW
-            val plan = planPage(console, layout, w, h, hardcore)
+            val plan = planPage(console, layout, w, h, hardcore, coreId)
             val prefix = "oe-${page.name}"
             val image = "$prefix.png"
             val bitmap = page(pkg, id, layout, plan, w, h)
@@ -342,7 +343,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         private const val TAG = "OpenEmuxSkin"
 
         /** The D-pad's ball across, as a share of its travel's box. */
-        private const val BALL_SHARE = 0.55f
+        internal const val BALL_SHARE = 0.55f
 
         // A part left unset, with no image, in the app's Dark skin family.
         private const val DEFAULT_BACKGROUND = 0xFF16161A.toInt()

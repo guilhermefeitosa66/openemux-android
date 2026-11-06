@@ -425,17 +425,20 @@ private val GEARCOLECO_BINDS = mapOf(
 /** Binds a core reads differently from the core the console's skin is written for, by core id. */
 private val CORE_BINDS = mapOf("gearcoleco" to GEARCOLECO_BINDS)
 
+/** [bind] as [coreId] reads it: the same bind for a core with no entry, or none at all. */
+fun coreBind(coreId: String?, bind: String): String = CORE_BINDS[coreId]?.get(bind) ?: bind
+
 /**
  * The skin with its binds as [coreId] reads them; the drawing stays the console's.
  * A core with no entry, or none at all, gets the skin as it is.
  */
 fun Skin.forCore(coreId: String?): Skin {
-    val map = CORE_BINDS[coreId] ?: return this
-    fun b(bind: String?) = bind?.let { map[it] ?: it }
+    if (CORE_BINDS[coreId] == null) return this
+    fun b(bind: String?) = bind?.let { coreBind(coreId, it) }
     fun k(key: SkinKey) = SkinKey(key.label, b(key.bind), key.labelRes)
     val clusters = clusters.map { cl ->
         when (cl) {
-            is SkinCluster.DPad -> SkinCluster.DPad(cl.side, cl.row, cl.size, cl.binds.map { map[it] ?: it })
+            is SkinCluster.DPad -> SkinCluster.DPad(cl.side, cl.row, cl.size, cl.binds.map { coreBind(coreId, it) })
             is SkinCluster.Stick -> cl
             is SkinCluster.Face -> SkinCluster.Face(cl.side, cl.row, cl.slots, cl.buttons.map { SkinButton(it.label, b(it.bind), it.bg, it.fg) })
         }

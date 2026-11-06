@@ -56,7 +56,7 @@ object GameSkin {
         val ownFormat = user != null && ImportedSkinRenderer.isOpenEmuxSkin(user)
         // A skin in OpenEmux's own format ([name]: its folder or zip), or null, logged, when it cannot be drawn here.
         fun ownFormatSkin(name: String, next: String, read: () -> SkinPackage) =
-            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold) }
+            runCatching { openEmux(context, read(), name, console, size, outDir, tablet, hardcore, first, fold, coreId) }
                 .onFailure { e -> Log.e(OWN_TAG, "$name not drawn: falling back to the $next skin", e) }.getOrNull()
         // The user's skin in OpenEmux's own format; one that cannot be drawn here leaves the bundled package next.
         val own = user?.takeIf { ownFormat }?.let { dir -> ownFormatSkin(dir.name, "bundled") { SkinFormat.readFolder(dir) } }
@@ -102,7 +102,7 @@ object GameSkin {
      */
     private fun openEmux(
         context: Context, pkg: SkinPackage, name: String, console: Console, size: SkinSize, outDir: File, tablet: Boolean,
-        hardcore: Boolean, first: String?, fold: Fold?,
+        hardcore: Boolean, first: String?, fold: Fold?, coreId: String?,
     ): File? {
         return when (val choice = chooseLayouts(pkg.skin, skinForm(tablet, fold))) {
             is LayoutChoice.Missing -> {
@@ -110,7 +110,7 @@ object GameSkin {
                 null
             }
             is LayoutChoice.Use ->
-                OpenEmuxSkinRenderer(context).render(pkg, choice, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first)
+                OpenEmuxSkinRenderer(context).render(pkg, choice, console, size.short, size.long, outDir, size.cutout, tablet, hardcore, first, coreId)
         }
     }
 }
