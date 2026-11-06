@@ -51,6 +51,45 @@ class SkinTemplateTest {
         assertEquals("dpad", images[6].element?.id)
     }
 
+    private fun keypadLayout(background: Boolean) = layout(frame = false).copy(
+        keypad = SkinKeypadPage(
+            listOf(
+                SkinElement("key-1", SkinElementType.KEYPAD, "keypad1", SkinRect(10f, 1000f, 90f, 60f)),
+                SkinElement("controls", SkinElementType.BUTTON, SkinFormat.KEYPAD_TOGGLE, SkinRect(500f, 1000f, 120f, 40f)),
+            ),
+            background = if (background) SkinBackground(0xFF202020.toInt()) else null,
+        ),
+    )
+
+    @Test fun aKeypadPageAddsItsBackgroundAndControlsInItsFolder() {
+        val images = SkinTemplate.images(keypadLayout(background = true))
+        val page = images.filter { it.keypadPage }
+        assertEquals(
+            listOf("keypad/background.png" to (1080 to 2238), "keypad/key-1.png" to (90 to 60), "keypad/controls.png" to (120 to 40)),
+            page.map { it.path to (it.width to it.height) },
+        )
+        assertEquals(listOf(TemplateImageKind.BACKGROUND, TemplateImageKind.KEYPAD, TemplateImageKind.BUTTON), page.map { it.kind })
+        assertEquals("key-1.png", images.first { !it.keypadPage && it.kind == TemplateImageKind.KEYPAD }.path)
+        // Without a background of its own, the page uses the layout's: no image of its own for it.
+        assertEquals(listOf("keypad/key-1.png", "keypad/controls.png"), SkinTemplate.images(keypadLayout(background = false)).filter { it.keypadPage }.map { it.path })
+    }
+
+    @Test fun aKeypadPageIsInTheReadmeAndTheZipAndReadsBack() {
+        val skin = OpenEmuxSkin(Console.CV, "Keys", mapOf(SkinLayoutId.PHONE_PORTRAIT to keypadLayout(background = true)))
+        assertTrue(Regex("\\n  keypad/key-1\\.png +90 x 60 +px  a keypad key, bind keypad1\\n").containsMatchIn(SkinTemplate.readme(skin)))
+        val dir = Files.createTempDirectory("template").toFile()
+        try {
+            val zip = File(dir, "t.zip")
+            zip.outputStream().use { out -> SkinTemplate.write(out, skin, SkinFormat.toJson(skin)) { _, i -> png(i.width, i.height) } }
+            val pkg = SkinFormat.readZip(zip)
+            assertEquals(skin, pkg.skin)
+            assertEquals("phone-portrait/keypad/controls.png", pkg.keypadImage(SkinLayoutId.PHONE_PORTRAIT, "controls.png"))
+            assertEquals("phone-portrait/keypad/background.png", pkg.background(SkinLayoutId.PHONE_PORTRAIT, keypadPage = true))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun aLayoutWithNoFrameHasNoFrameImage() {
         assertTrue(SkinTemplate.images(layout(frame = false)).none { it.kind == TemplateImageKind.FRAME })
     }

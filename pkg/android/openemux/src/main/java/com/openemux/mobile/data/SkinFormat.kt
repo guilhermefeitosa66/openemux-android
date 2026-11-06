@@ -104,6 +104,22 @@ class SkinPackage(val skin: OpenEmuxSkin, val source: SkinSource) {
 
     /** Each of [element]'s image files ([SkinElement.imageFiles] order) as a path, or null for a colour fallback. */
     fun images(layout: SkinLayoutId, element: SkinElement): List<String?> = element.imageFiles.map { image(layout, it) }
+
+    /** The path of [file] in [layout]'s keypad page folder, or null when the package lacks it. */
+    fun keypadImage(layout: SkinLayoutId, file: String): String? = "${layout.id}/${SkinKeypadPage.FOLDER}/$file".takeIf { it in source.files }
+
+    /**
+     * The page's background image: the keypad page's own ([keypadPage]) when it names one, in its folder; else the
+     * layout's.
+     */
+    fun background(layout: SkinLayoutId, keypadPage: Boolean): String? {
+        val own = skin.layouts[layout]?.keypad?.background?.takeIf { keypadPage } ?: return background(layout)
+        return keypadImage(layout, own.imageFile)
+    }
+
+    /** [element]'s images on the page shown: in the keypad page's folder ([keypadPage]) or the layout's. */
+    fun images(layout: SkinLayoutId, element: SkinElement, keypadPage: Boolean): List<String?> =
+        if (keypadPage) element.imageFiles.map { keypadImage(layout, it) } else images(layout, element)
 }
 
 /**
@@ -127,8 +143,11 @@ object SkinFormat {
     /** A D-pad binds the D-pad, or the console's second one (the Virtual Boy's right pad, SkinBinds.SECOND_DPAD). */
     val DPAD_BINDS = setOf(DPAD_BIND, SkinBinds.DPAD2)
 
-    /** A button takes any name a Delta or Manic skin may use, plus the format's own quick actions. */
-    val BUTTON_BINDS = SkinBinds.NAMES + ACTION_BINDS
+    /** A button that opens a layout's keypad page and, on that page, closes it (docs/skin-format.md). */
+    const val KEYPAD_TOGGLE = "keypadToggle"
+
+    /** A button takes any name a Delta or Manic skin may use, plus the format's own quick actions and keypad toggle. */
+    val BUTTON_BINDS = SkinBinds.NAMES + ACTION_BINDS + KEYPAD_TOGGLE
 
     private val ID = Regex("[a-z0-9]+(-[a-z0-9]+)*")
     private val COLOR = Regex("#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})")
@@ -203,23 +222,46 @@ object SkinFormat {
             SkinBackground(it.optColor("color", "$path.background.color"), it.optImage("image", "$path.background.image"))
         } ?: SkinBackground()
         val frame = json.optObj("frame", "$path.frame")?.let { frame(it, "$path.frame", size) }
-        val elementsJson = json.optArray("elements", "$path.elements") ?: JSONArray()
-        val elements = (0 until elementsJson.length()).map {
-            element(elementsJson.obj(it, "$path.elements[$it]"), "$path.elements[$it]", size)
-        }
+        val elements = elements(json.optArray("elements", "$path.elements") ?: JSONArray(), path, size)
+        // Each image file with the key that names it, so a clash points at the second one.
+        unique(
+            listOf(background.imageFile to "$path.background") + listOfNotNull(frame?.let { it.imageFile to "$path.frame" }) +
+                imageOwners(elements, path),
+        )
+        val keypad = json.optObj("keypad", "$path.keypad")?.let { keypad(it, "$path.keypad", size) }
+        return SkinLayout(size, screens, background, frame, elements, keypad)
+    }
+
+    /** A layout's keypad page: controls of its own and, optionally, its own background; its images in its own folder. */
+    private fun keypad(json: JSONObject, path: String, size: SkinSize): SkinKeypadPage {
+        // An empty background object is no background: the layout's stays, as when it is left out.
+        val background = json.optObj("background", "$path.background")?.let {
+            SkinBackground(it.optColor("color", "$path.background.color"), it.optImage("image", "$path.background.image"))
+        }?.takeIf { it.color != null || it.image != null }
+        val elements = elements(json.array("elements", "$path.elements"), path, size)
+        unique(listOfNotNull(background?.let { it.imageFile to "$path.background" }) + imageOwners(elements, path))
+        return SkinKeypadPage(elements, background)
+    }
+
+    /** The elements of a page at [path], their ids unique in it. */
+    private fun elements(json: JSONArray, path: String, size: SkinSize): List<SkinElement> {
+        val elements = (0 until json.length()).map { element(json.obj(it, "$path.elements[$it]"), "$path.elements[$it]", size) }
         val ids = HashSet<String>()
         elements.forEachIndexed { i, e ->
             if (!ids.add(e.id)) throw SkinFormatException(SkinError.DUPLICATE_ID, "$path.elements[$i].id", e.id)
         }
-        // Each image file with the key that names it, so a clash points at the second one.
-        val owners = listOf(background.imageFile to "$path.background") +
-            listOfNotNull(frame?.let { it.imageFile to "$path.frame" }) +
-            elements.flatMapIndexed { i, e -> e.imageFiles.map { it to "$path.elements[$i]" } }
+        return elements
+    }
+
+    private fun imageOwners(elements: List<SkinElement>, path: String) =
+        elements.flatMapIndexed { i, e -> e.imageFiles.map { it to "$path.elements[$i]" } }
+
+    /** Refuses a page whose images clash: each file with the key that names it, the second one is pointed at. */
+    private fun unique(owners: List<Pair<String, String>>) {
         val files = HashSet<String>()
         owners.forEach { (file, owner) ->
             if (!files.add(file)) throw SkinFormatException(SkinError.DUPLICATE_ID, owner, "image $file used twice")
         }
-        return SkinLayout(size, screens, background, frame, elements)
     }
 
     private fun frame(json: JSONObject, path: String, size: SkinSize): SkinFrame {
@@ -336,11 +378,7 @@ object SkinFormat {
     private fun layoutJson(layout: SkinLayout): Map<String, Any> = buildMap {
         put("size", mapOf("width" to layout.size.width, "height" to layout.size.height))
         put("screens", layout.screens.map { rectJson(it) })
-        val bg = buildMap {
-            layout.background.color?.let { put("color", colorJson(it)) }
-            layout.background.image?.let { put("image", it) }
-        }
-        if (bg.isNotEmpty()) put("background", bg)
+        backgroundJson(layout.background)?.let { put("background", it) }
         layout.frame?.let { frame ->
             put("frame", buildMap {
                 putAll(rectJson(frame.rect))
@@ -356,7 +394,19 @@ object SkinFormat {
             })
         }
         put("elements", layout.elements.map { elementJson(it) })
+        layout.keypad?.let { page ->
+            put("keypad", buildMap {
+                page.background?.let(::backgroundJson)?.let { put("background", it) }
+                put("elements", page.elements.map { elementJson(it) })
+            })
+        }
     }
+
+    /** A background's keys, or null when it sets none. */
+    private fun backgroundJson(bg: SkinBackground): Map<String, Any>? = buildMap {
+        bg.color?.let { put("color", colorJson(it)) }
+        bg.image?.let { put("image", it) }
+    }.takeIf { it.isNotEmpty() }
 
     private fun elementJson(e: SkinElement): Map<String, Any> = buildMap {
         put("id", e.id)

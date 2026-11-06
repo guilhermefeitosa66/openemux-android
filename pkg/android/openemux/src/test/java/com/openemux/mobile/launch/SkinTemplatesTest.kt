@@ -67,7 +67,12 @@ class SkinTemplatesTest {
                 assertEquals(where, layout.size.width to layout.size.height, pngSize(pkg, pkg.background(layoutId)!!))
                 val frame = layout.frame!!
                 assertEquals(where, frame.rect.width.toInt() to frame.rect.height.toInt(), pngSize(pkg, pkg.frame(layoutId)!!))
-                for (e in layout.elements) {
+                layout.keypad?.let { page ->
+                    assertEquals(where, layout.size.width to layout.size.height, pngSize(pkg, pkg.background(layoutId, keypadPage = true)!!))
+                    assertTrue(where, pkg.background(layoutId, keypadPage = true)!!.startsWith("${layoutId.id}/keypad/"))
+                    assertTrue(where, page.closable)
+                }
+                for ((e, keypad) in layout.elements.map { it to false } + layout.elements(keypadPage = true).map { it to true }) {
                     val w = e.rect.width.toInt()
                     val h = e.rect.height.toInt()
                     // Whole pixels, so the image is exactly the element.
@@ -78,7 +83,7 @@ class SkinTemplatesTest {
                         SkinElementType.STICK -> listOf(w to h, px(side * 0.5).let { it to it })
                         else -> listOf(w to h)
                     }
-                    pkg.images(layoutId, e).zip(sizes).forEach { (path, size) ->
+                    pkg.images(layoutId, e, keypad).zip(sizes).forEach { (path, size) ->
                         assertNotNull("$where ${e.id}", path)
                         assertEquals("$where $path", size, pngSize(pkg, path!!))
                     }
@@ -91,11 +96,12 @@ class SkinTemplatesTest {
         for (id in bundled().keys) {
             val pkg = template(id)
             val console = pkg.skin.console
-            for ((layoutId, layout) in pkg.skin.layouts) for (e in layout.elements) {
+            for ((layoutId, layout) in pkg.skin.layouts) for (e in layout.elements + layout.elements(keypadPage = true)) {
                 val known = when (e.type) {
                     SkinElementType.BUTTON, SkinElementType.ACTION ->
-                        // screens is the format's own: the NDS's next screen layout, no RetroArch bind.
-                        e.bind == "screens" || SkinBinds.bind(console, e.bind, hardcore = false) != null
+                        // screens and keypadToggle are the format's own: the NDS's next screen layout, the keypad
+                        // page's switch, no RetroArch bind.
+                        e.bind == "screens" || e.bind == SkinFormat.KEYPAD_TOGGLE || SkinBinds.bind(console, e.bind, hardcore = false) != null
                     else -> e.bind in SkinFormat.bindsFor(e.type)
                 }
                 assertTrue("$id ${layoutId.id} ${e.id} ${e.bind}", known)
@@ -118,6 +124,7 @@ class SkinTemplatesTest {
                 assertEquals(where, layout.screens, t.screens)
                 assertEquals(where, layout.frame?.rect, t.frame?.rect)
                 assertEquals(where, layout.elements.map { listOf(it.id, it.type, it.bind, it.rect) }, t.elements.map { listOf(it.id, it.type, it.bind, it.rect) })
+                assertEquals(where, layout.elements(true).map { listOf(it.id, it.type, it.bind, it.rect) }, t.elements(true).map { listOf(it.id, it.type, it.bind, it.rect) })
             }
         }
     }

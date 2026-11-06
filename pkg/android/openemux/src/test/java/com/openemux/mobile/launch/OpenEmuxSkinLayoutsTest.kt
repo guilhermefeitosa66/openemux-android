@@ -5,6 +5,8 @@ import com.openemux.mobile.data.OpenEmuxSkin
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinForm
+import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinKeypadPage
 import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinLayoutId
 import com.openemux.mobile.data.SkinRect
@@ -12,7 +14,9 @@ import com.openemux.mobile.data.SkinSize
 import com.openemux.mobile.ui.Fold
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OpenEmuxSkinLayoutsTest {
@@ -175,5 +179,68 @@ class OpenEmuxSkinLayoutsTest {
     @Test fun elementsKeepTheirPlaceInTheLayout() {
         val p = plan(Console.GBA, element(SkinElementType.DPAD, "dpad"), element(SkinElementType.BUTTON, "a"), element(SkinElementType.ACTION, "menu"))
         assertEquals(listOf(0, 1, 2), p.map { it.index })
+    }
+
+    // Issue 772: the keypad page and the core's own binds.
+
+    private val toggle = SkinElement("keypad-toggle", SkinElementType.BUTTON, SkinFormat.KEYPAD_TOGGLE, SkinRect(400f, 1800f, 200f, 60f))
+    private val key = SkinElement("key-1", SkinElementType.KEYPAD, "keypad1", SkinRect(600f, 1000f, 100f, 100f))
+    private val page = SkinKeypadPage(listOf(key, toggle))
+
+    @Test fun theKeypadToggleSwitchesToItsPageOrPressesNothing() {
+        val withPage = layout.copy(elements = listOf(toggle), keypad = page)
+        assertEquals(ElementPlan.Toggle(0, SkinBox(400f, 1800f, 200f, 60f), "keypad-portrait"),
+            planPage(Console.CV, withPage, 1000, 2000, false, toggle = "keypad-portrait").elements.single())
+        assertEquals(ElementPlan.Toggle(0, SkinBox(400f, 1800f, 200f, 60f), null), plan(Console.CV, toggle).single())
+        // On the keypad page: its own controls.
+        val keypad = planPage(Console.CV, withPage, 1000, 2000, false, keypadPage = true, toggle = "portrait").elements
+        assertEquals(listOf(ElementPlan.Button(0, SkinBox(600f, 1000f, 100f, 100f), "x"), ElementPlan.Toggle(1, SkinBox(400f, 1800f, 200f, 60f), "portrait")), keypad)
+    }
+
+    @Test fun keypadPagesNeedBothLayoutsAndAWayBack() {
+        val use = LayoutChoice.Use(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE)
+        fun skinWith(portrait: SkinKeypadPage?, landscape: SkinKeypadPage?) = OpenEmuxSkin(
+            Console.CV, "Test",
+            mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(keypad = portrait), SkinLayoutId.PHONE_LANDSCAPE to layout.copy(keypad = landscape)),
+        )
+        assertTrue(keypadPages(skinWith(page, page), use))
+        assertFalse(keypadPages(skinWith(page, null), use))
+        assertFalse(keypadPages(skinWith(null, page), use))
+        assertFalse(keypadPages(skinWith(page, SkinKeypadPage(listOf(key))), use))
+    }
+
+    @Test fun theOwnFormatsPagesOpenWhereThePlayerWas() {
+        assertEquals(listOf(OwnPage("portrait", true, "landscape", false, null), OwnPage("landscape", false, "portrait", false, null)),
+            ownPages(keypad = false, first = null))
+        assertEquals(listOf("landscape", "portrait"), ownPages(keypad = false, first = "pad-landscape").map { it.name })
+        // A keypad page asked for on a skin with none: its orientation's controls.
+        assertEquals("landscape", ownPages(keypad = false, first = "keypad-landscape").first().name)
+        val all = ownPages(keypad = true, first = null)
+        assertEquals(listOf("portrait", "landscape", "keypad-portrait", "keypad-landscape"), all.map { it.name })
+        assertEquals(OwnPage("keypad-landscape", false, "keypad-portrait", true, "landscape"), all[3])
+        assertEquals("keypad-portrait", all[0].toggle)
+        assertEquals("keypad-landscape", ownPages(keypad = true, first = "keypad-landscape").first().name)
+        assertEquals("keypad-portrait", ownPages(keypad = true, first = "keypad-$TABLETOP").first().name)
+        assertEquals("portrait", ownPages(keypad = true, first = TABLETOP).first().name)
+    }
+
+    @Test fun gearcolecoReadsTheColecoVisionsButtonsSwapped() {
+        // blueMSX (the drawn skin's core): the skin's names as they are.
+        assertEquals("a", OpenEmuxBinds.button(Console.CV, "a"))
+        assertEquals("a", OpenEmuxBinds.button(Console.CV, "a", "bluemsx"))
+        assertEquals("b", OpenEmuxBinds.button(Console.CV, "a", "gearcoleco"))
+        assertNull(OpenEmuxBinds.button(Console.CV, "nothing", "gearcoleco"))
+        assertEquals(listOf("up", "down", "left", "right"), OpenEmuxBinds.dpad(Console.CV, "dpad", "gearcoleco"))
+        // The keypad: 1 on X with blueMSX, on Y with Gearcoleco; 9 from the right stick, from the left one; * and # swap.
+        assertEquals("x", OpenEmuxBinds.keypad(Console.CV, "keypad1"))
+        assertEquals("y", OpenEmuxBinds.keypad(Console.CV, "keypad1", "gearcoleco"))
+        assertEquals("l_y_minus", OpenEmuxBinds.keypad(Console.CV, "keypad9", "gearcoleco"))
+        assertEquals("start", OpenEmuxBinds.keypad(Console.CV, "keypadStar", "gearcoleco"))
+        assertEquals("select", OpenEmuxBinds.keypad(Console.CV, "keypadHash", "gearcoleco"))
+        // Other consoles' cores read the names as they are.
+        assertEquals("retrok_leftbracket", OpenEmuxBinds.keypad(Console.INTV, "keypadStar", "freeintv"))
+        assertEquals("a", (plan(Console.CV, element(SkinElementType.BUTTON, "a")).single() as ElementPlan.Button).bind)
+        assertEquals("b", (planPage(Console.CV, layout.copy(elements = listOf(element(SkinElementType.BUTTON, "a"))), 1000, 2000, false, coreId = "gearcoleco")
+            .elements.single() as ElementPlan.Button).bind)
     }
 }
