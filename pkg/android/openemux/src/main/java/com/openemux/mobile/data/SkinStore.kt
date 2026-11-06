@@ -112,8 +112,10 @@ class SkinStore(private val base: File) {
         }
     }
 
-    private fun checkConsole(pkg: SkinPackage, console: Console) {
-        if (pkg.skin.console != console) throw SkinStoreException("a ${pkg.skin.console.id} skin is not for ${console.id}")
+    private fun checkConsole(pkg: SkinPackage, console: Console) = checkConsole(pkg.skin, console)
+
+    private fun checkConsole(skin: OpenEmuxSkin, console: Console) {
+        if (skin.console != console) throw SkinStoreException("a ${skin.console.id} skin is not for ${console.id}")
     }
 
     /**
@@ -138,12 +140,65 @@ class SkinStore(private val base: File) {
         return ref(StoredSkinKind.OWN, newId)
     }
 
-    /** Deletes the player's skin [id], its folder and nothing a link inside it points at. */
+    /** Deletes the player's skin [id], its folder and nothing a link inside it points at, and its draft. */
     fun delete(console: Console, id: String) {
         val dir = own(console, id)
         deleteTree(dir)
         if (dir.exists()) throw IOException("could not delete $id")
+        dropDraft(console, id)
     }
+
+    /**
+     * The editor's Save (issue 784): [json] becomes the player's skin [id]'s skin.json. It must read as a skin for
+     * [console] first; the images stay as they are. A failing save leaves the skin as it was.
+     */
+    fun saveEdits(console: Console, id: String, json: String) {
+        val dir = own(console, id)
+        checkConsole(SkinFormat.parse(json), console)
+        writeJson(dir, json)
+    }
+
+    /**
+     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images) with [json] as its skin.json,
+     * named [name]; [id] is left as it was. Returns the new skin's ref.
+     */
+    fun saveAsNew(console: Console, id: String, json: String, name: String): String {
+        val dir = own(console, id)
+        checkConsole(SkinFormat.parse(json), console)
+        return build(console, json, name) { tmp -> copyTree(dir, tmp) }
+    }
+
+    /**
+     * Keeps [json], the editor's unsaved skin.json for the player's skin [id], beside it as a hidden file, so work in
+     * progress survives the app being closed (issue 784).
+     */
+    fun saveDraft(console: Console, id: String, json: String) {
+        own(console, id)
+        val file = draftFile(console, id)
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(json)
+        if (!tmp.renameTo(file)) {
+            tmp.delete()
+            throw IOException("could not write the draft of $id")
+        }
+    }
+
+    /** The draft of the player's skin [id], or null for none; one that no longer reads as a skin for [console] goes. */
+    fun draft(console: Console, id: String): String? {
+        if (!safeName(id)) return null
+        val file = draftFile(console, id)
+        if (isLink(file) || !file.isFile) return null
+        val json = runCatching { file.readText().also { checkConsole(SkinFormat.parse(it), console) } }.getOrNull()
+        if (json == null) file.delete()
+        return json
+    }
+
+    /** Forgets the draft of the player's skin [id] (saved, discarded or deleted). */
+    fun dropDraft(console: Console, id: String) {
+        if (safeName(id)) draftFile(console, id).takeIf { !isLink(it) }?.delete()
+    }
+
+    private fun draftFile(console: Console, id: String) = File(root(console), ".$id$DRAFT")
 
     /**
      * Imports [zip], a skin in OpenEmux's own format for [console] (issue 787): as a new skin called [name], or, with
@@ -312,6 +367,7 @@ class SkinStore(private val base: File) {
         private const val OWN_PREFIX = "own:"
         private const val PKG_PREFIX = "pkg:"
         private const val MAX_ID = 40
+        private const val DRAFT = ".draft.json"
         const val MAX_NAME = 60
 
         fun ref(kind: StoredSkinKind, name: String) = (if (kind == StoredSkinKind.OWN) OWN_PREFIX else PKG_PREFIX) + name

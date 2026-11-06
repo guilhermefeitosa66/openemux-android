@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The skin editor (issue 784). -->
+<resources>
+    <string name="skins_edit">Editar</string>
+    <string name="editor_close">Fechar o editor</string>
+    <string name="editor_undo">Desfazer</string>
+    <string name="editor_redo">Refazer</string>
+    <string name="editor_save">Salvar</string>
+    <string name="editor_snap">Ímã</string>
+    <string name="editor_more">Mais</string>
+    <string name="editor_reset_layout">Restaurar layout</string>
+    <string name="editor_hint_tap">Toque num controle para mudá-lo.</string>
+    <string name="editor_hint_drag">Arraste para mover · pince para redimensionar.</string>
+    <string name="editor_upright">Em pé</string>
+    <string name="editor_sideways">Deitado</string>
+    <string name="editor_layout">%1$s · %2$s</string>
+    <string name="editor_no_layout">Esta skin ainda não tem layout %1$s. Gire o aparelho para editar outro.</string>
+    <string name="editor_size">Tamanho</string>
+    <string name="editor_nudge">Ajuste fino</string>
+    <string name="editor_reset">Restaurar</string>
+    <string name="editor_smaller">Menor</string>
+    <string name="editor_larger">Maior</string>
+    <string name="editor_done">Pronto</string>
+    <string name="editor_up">Mover para cima</string>
+    <string name="editor_down">Mover para baixo</string>
+    <string name="editor_left">Mover para a esquerda</string>
+    <string name="editor_right">Mover para a direita</string>
+    <string name="editor_percent">%1$d%%</string>
+    <string name="editor_tap_again">toque de novo para um só</string>
+    <string name="editor_group_face">Botões de ação</string>
+    <string name="editor_group_dpad">Direcional</string>
+    <string name="editor_group_center">Start e Select</string>
+    <string name="editor_group_shoulders">Ombros</string>
+    <string name="editor_group_actions">Ações rápidas</string>
+    <string name="editor_group_menu">Menu</string>
+    <string name="editor_group_keypad">Teclado</string>
+    <string name="editor_group">Grupo</string>
+    <string name="editor_stick">Analógico</string>
+    <string name="editor_action">Ação rápida</string>
+    <string name="editor_guide_center">Centro da tela</string>
+    <string name="editor_guide_align">Alinhado com %1$s</string>
+    <string name="editor_guide_edge">Borda de %1$s</string>
+    <string name="editor_guide_mirror">Espelha %1$s</string>
+    <string name="editor_leave_title">Salvar as mudanças em %1$s?</string>
+    <string name="editor_leave_body">Suas mudanças em %1$s ainda não foram salvas.</string>
+    <string name="editor_save_new">Salvar como nova skin…</string>
+    <string name="editor_discard">Descartar mudanças</string>
+    <string name="editor_draft_note">Se o app fechar enquanto você edita, seu trabalho volta como rascunho na próxima vez que abrir o editor.</string>
+    <string name="editor_draft_back">Suas mudanças não salvas voltaram.</string>
+    <string name="editor_saved">Skin salva</string>
+    <string name="editor_save_new_title">Salvar como nova skin</string>
+    <string name="editor_pad_pick">Escolher controle</string>
+    <string name="editor_pad_group">Grupo ou um só</string>
+</resources>
