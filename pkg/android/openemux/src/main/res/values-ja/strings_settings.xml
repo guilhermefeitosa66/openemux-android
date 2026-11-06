@@ -292,6 +292,8 @@
     <string name="skins_use">使う</string>
     <string name="skins_use_as_is">そのまま使う</string>
     <string name="skins_bundled_locked">同梱のスキンは変更されません。</string>
+    <string name="skins_imported_locked">インポートしたスキンはそのまま残ります。複製すると自分用のコピーができます。</string>
+    <string name="skins_copy_working">コピーを作成しています…</string>
     <string name="skins_rename">名前を変更</string>
     <string name="skins_rename_title">スキン名の変更</string>
     <string name="skins_name_label">名前</string>

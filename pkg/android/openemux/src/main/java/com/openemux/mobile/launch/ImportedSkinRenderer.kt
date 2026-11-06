@@ -101,7 +101,7 @@ class ImportedSkinRenderer {
                 val h = if (page.portrait) portraitH else portraitW
                 // Pages with the same art (top only and bottom only) name the same image: the engine loads it once.
                 // A file name of its own: an asset in a folder of the zip ("art/portrait.pdf") would name a folder outDir lacks.
-                val art = assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
+                val art = PackageConversion.assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
                 val image = "${if (page.portrait) "portrait" else "landscape"}-$art.png"
                 val drawn = drawOverlay(zip, rep, page.portrait, w, h, outDir, image, page.screensNext, page.name.replace('@', '-'))
                 // The skin's own extended edges already widen the touch areas.
@@ -180,7 +180,7 @@ class ImportedSkinRenderer {
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
         // Translucent skins sit over the game, so the picture shows through them.
         if (rep.optBoolean("translucent", false)) paint.alpha = 0xB3
-        canvas.drawBitmap(rasterize(zip, assetName(rep.getJSONObject("assets")), art), null, art, paint)
+        canvas.drawBitmap(rasterize(zip, PackageConversion.assetName(rep.getJSONObject("assets")), art), null, art, paint)
         if (screen != null) canvas.drawRect(viewport, Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
 
         val defaultEdges = rep.optJSONObject("extendedEdges")
@@ -451,44 +451,40 @@ class ImportedSkinRenderer {
     private fun box(f: JSONObject) =
         SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
 
-    /** resizable (a PDF) when there is one, the largest PNG otherwise; the keys' case varies between skins. */
-    private fun assetName(assets: JSONObject): String {
-        val byKey = assets.keys().asSequence().associateBy({ it.lowercase(Locale.US) }, { assets.getString(it) })
-        return listOf("resizable", "large", "medium", "small").firstNotNullOf { byKey[it] }
-    }
+    companion object {
+        /** The zip entry [name] names (at the root or in a folder), outside the __MACOSX copies; null when there is none. */
+        internal fun findEntry(zip: ZipFile, name: String) =
+            zip.entries().asSequence().firstOrNull { !it.name.startsWith("__MACOSX") && (it.name == name || it.name.endsWith("/$name")) }
 
-    private fun findEntry(zip: ZipFile, name: String) =
-        zip.entries().asSequence().firstOrNull { !it.name.startsWith("__MACOSX") && (it.name == name || it.name.endsWith("/$name")) }
+        private fun entry(zip: ZipFile, name: String) = findEntry(zip, name) ?: error("no $name in the skin")
 
-    private fun entry(zip: ZipFile, name: String) = findEntry(zip, name) ?: error("no $name in the skin")
-
-    private fun rasterize(zip: ZipFile, name: String, target: RectF): Bitmap {
-        val entry = entry(zip, name)
-        val tw = target.width().toInt().coerceAtLeast(1)
-        val th = target.height().toInt().coerceAtLeast(1)
-        if (!name.endsWith(".pdf", ignoreCase = true)) {
-            return zip.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
-        }
-        // PdfRenderer reads from a file descriptor: the page goes through a temporary copy.
-        val tmp = File.createTempFile("skin", ".pdf")
-        try {
-            zip.getInputStream(entry).use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
-                PdfRenderer(fd).use { pdf ->
-                    pdf.openPage(0).use { page ->
-                        val bitmap = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
-                        val m = Matrix().apply { setScale(tw.toFloat() / page.width, th.toFloat() / page.height) }
-                        page.render(bitmap, Rect(0, 0, tw, th), m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        return bitmap
+        /** The image [name] of the package [zip] decoded (a PNG, WebP or JPEG at its own size) or drawn at [target]'s size (a PDF). */
+        internal fun rasterize(zip: ZipFile, name: String, target: RectF): Bitmap {
+            val entry = entry(zip, name)
+            val tw = target.width().toInt().coerceAtLeast(1)
+            val th = target.height().toInt().coerceAtLeast(1)
+            if (!name.endsWith(".pdf", ignoreCase = true)) {
+                return zip.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
+            }
+            // PdfRenderer reads from a file descriptor: the page goes through a temporary copy.
+            val tmp = File.createTempFile("skin", ".pdf")
+            try {
+                zip.getInputStream(entry).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                    PdfRenderer(fd).use { pdf ->
+                        pdf.openPage(0).use { page ->
+                            val bitmap = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+                            val m = Matrix().apply { setScale(tw.toFloat() / page.width, th.toFloat() / page.height) }
+                            page.render(bitmap, Rect(0, 0, tw, th), m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            return bitmap
+                        }
                     }
                 }
+            } finally {
+                tmp.delete()
             }
-        } finally {
-            tmp.delete()
         }
-    }
 
-    companion object {
         private const val TAG = "ImportedSkin"
         private const val RADIAL = "analog_left"
         private const val RADIAL_RIGHT = "analog_right"

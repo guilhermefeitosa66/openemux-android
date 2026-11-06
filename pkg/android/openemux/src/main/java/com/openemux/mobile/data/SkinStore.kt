@@ -81,7 +81,8 @@ class SkinStore(private val base: File) {
     fun duplicate(console: Console, id: String, name: String): String {
         val dir = own(console, id)
         SkinFormat.readFolder(dir)
-        return build(console, File(dir, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(dir, tmp) }
+        val json = File(dir, SkinFormat.SKIN_JSON).readText()
+        return build(console, name) { tmp -> copyTree(dir, tmp); json }
     }
 
     /**
@@ -92,7 +93,8 @@ class SkinStore(private val base: File) {
     fun create(console: Console, source: File, name: String): String =
         if (source.isDirectory) {
             checkConsole(SkinFormat.readFolder(source), console)
-            build(console, File(source, SkinFormat.SKIN_JSON).readText(), name) { tmp -> copyTree(source, tmp) }
+            val json = File(source, SkinFormat.SKIN_JSON).readText()
+            build(console, name) { tmp -> copyTree(source, tmp); json }
         } else {
             create(console, ZipSkinSource(source), name)
         }
@@ -101,7 +103,7 @@ class SkinStore(private val base: File) {
     internal fun create(console: Console, source: SkinSource, name: String): String {
         checkConsole(SkinFormat.read(source), console)
         val json = source.open(SkinFormat.SKIN_JSON)!!.use { it.bufferedReader().readText() }
-        return build(console, json, name) { tmp ->
+        return build(console, name) { tmp ->
             val top = tmp.canonicalFile
             for (path in source.files) {
                 val dest = File(tmp, path)
@@ -109,7 +111,32 @@ class SkinStore(private val base: File) {
                 dest.parentFile.mkdirs()
                 source.open(path)!!.use { input -> dest.outputStream().use { input.copyTo(it) } }
             }
+            json
         }
+    }
+
+    /**
+     * A new skin of the player's own for [console] named [name], made by [fill] (issue 797: a Delta/Manic package
+     * converted): [fill] writes the images into the new skin's folder and returns the skin, whose skin.json is written
+     * after them. The folder is read back before it is put in place, so a conversion that went wrong anywhere leaves
+     * nothing behind: returns its ref.
+     */
+    fun createConverted(console: Console, name: String, fill: (File) -> OpenEmuxSkin): String =
+        build(console, name, verify = true) { tmp ->
+            val skin = fill(tmp)
+            if (skin.console != console) throw SkinStoreException("a ${skin.console.id} skin is not for ${console.id}")
+            SkinFormat.toJson(skin)
+        }
+
+    /**
+     * The player's imported package [id] (a .deltaskin or .manicskin directly in [console]'s skins folder), only to read
+     * (issue 797: Duplicate makes a skin of the player's own out of it), or [SkinStoreException] for anything else.
+     */
+    fun importedPackage(console: Console, id: String): File {
+        if (!safeName(id)) throw SkinStoreException("not a skin id: $id")
+        val file = File(root(console), id)
+        if (isLink(file) || !isPackage(file)) throw SkinStoreException("$id is not an imported package")
+        return file
     }
 
     private fun checkConsole(pkg: SkinPackage, console: Console) {
@@ -117,20 +144,20 @@ class SkinStore(private val base: File) {
     }
 
     /**
-     * A new skin of the player's own for [console] (skin.json [json]) named [name], its files put in by [fill]: its ref.
-     * Built in a hidden folder renamed into place, so a copy cut short never shows up half made.
+     * A new skin of the player's own for [console] named [name], its files put in by [fill], which returns its skin.json
+     * (named [name] here): its ref. Built in a hidden folder renamed into place, so a copy cut short never shows up half
+     * made; [verify] reads the folder back as a skin first.
      */
-    private fun build(console: Console, json: String, name: String, fill: (File) -> Unit): String {
+    private fun build(console: Console, name: String, verify: Boolean = false, fill: (File) -> String): String {
         val clean = cleanName(name)
-        val text = withName(json, clean)
         val root = root(console)
         val newId = freeId(console, clean)
         val tmp = File(root, ".$newId.tmp")
         deleteTree(tmp)
         try {
             if (!tmp.mkdirs()) throw IOException("could not make ${tmp.name}")
-            fill(tmp)
-            writeJson(tmp, text)
+            writeJson(tmp, withName(fill(tmp), clean))
+            if (verify) SkinFormat.readFolder(tmp)
             if (!tmp.renameTo(File(root, newId))) throw IOException("could not create $newId")
         } finally {
             deleteTree(tmp)
@@ -341,8 +368,10 @@ class SkinStore(private val base: File) {
 
         fun isOwn(file: File) = file.isDirectory && File(file, SkinFormat.SKIN_JSON).isFile
 
-        fun isPackage(file: File) =
-            file.isFile && (file.name.endsWith(".deltaskin", true) || file.name.endsWith(".manicskin", true))
+        fun isPackage(file: File) = file.isFile && isPackageName(file.name)
+
+        /** Whether [name] is a Delta or Manic EMU package's file name (.deltaskin, .manicskin). */
+        fun isPackageName(name: String) = name.endsWith(".deltaskin", true) || name.endsWith(".manicskin", true)
 
         internal fun isLink(file: File) = Files.isSymbolicLink(file.toPath())
 
