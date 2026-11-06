@@ -1,5 +1,6 @@
 package com.openemux.mobile.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -153,7 +154,36 @@ object SkinResize {
     }
 }
 
-/** What the editor has selected: a whole group (the face buttons) or one control. */
+/**
+ * The parts of a layout that are not controls, in [SkinRects] under ids a skin's own (`[a-z0-9-]`) can never take:
+ * each game screen and the frame (issue 785).
+ */
+object SkinArea {
+    const val FRAME = "@frame"
+    private const val SCREEN = "@screen"
+
+    fun screen(index: Int) = "$SCREEN$index"
+
+    /** The screen [id] names, or null for any other id. */
+    fun screenIndex(id: String): Int? = id.takeIf { it.startsWith(SCREEN) }?.removePrefix(SCREEN)?.toIntOrNull()
+
+    fun isArea(id: String) = id.startsWith("@")
+
+    /**
+     * What "Screen area" moves in [layout]: its screens, its frame, and the quick actions on the frame (whose centre is
+     * inside it), so the bezel and its icons go with the picture.
+     */
+    fun ids(layout: SkinLayout): List<String> = buildList {
+        layout.screens.indices.forEach { add(screen(it)) }
+        val frame = layout.frame?.rect ?: return@buildList
+        add(FRAME)
+        layout.elements.filter { it.type == SkinElementType.ACTION && frame.holds(it.rect.cx, it.rect.cy) }.forEach { add(it.id) }
+    }
+
+    private fun SkinRect.holds(px: Float, py: Float) = px >= x && px <= right && py >= y && py <= bottom
+}
+
+/** What the editor has selected: a whole group (the face buttons), one control, or the screen area. */
 sealed class SkinSelection {
     abstract val ids: List<String>
 
@@ -162,6 +192,9 @@ sealed class SkinSelection {
     data class One(val id: String) : SkinSelection() {
         override val ids: List<String> get() = listOf(id)
     }
+
+    /** The game screens with their frame and its quick actions (issue 785, [SkinArea.ids]). */
+    data class Screen(override val ids: List<String>) : SkinSelection()
 }
 
 object SkinSelect {
@@ -213,6 +246,7 @@ object SkinSelect {
         null -> null
         is SkinSelection.Group -> SkinSelection.One(current.ids.first())
         is SkinSelection.One -> first(layout, current.id)
+        is SkinSelection.Screen -> current
     }
 
     /** The groups and lone controls of [layout], each once, in layout order. */
@@ -256,16 +290,46 @@ class SkinEditHistory<T>(initial: T, private val cap: Int = 100) {
 /** The rects of every element, per layout. */
 typealias SkinRects = Map<SkinLayoutId, Map<String, SkinRect>>
 
-fun OpenEmuxSkin.rects(): SkinRects = layouts.mapValues { (_, l) -> l.elements.associate { it.id to it.rect } }
+fun OpenEmuxSkin.rects(): SkinRects = layouts.mapValues { (_, l) -> l.rects() }
+
+/** The rects of [SkinLayout.elements], of each screen and of the frame ([SkinArea]). */
+fun SkinLayout.rects(): Map<String, SkinRect> = buildMap {
+    elements.forEach { put(it.id, it.rect) }
+    screens.forEachIndexed { i, r -> put(SkinArea.screen(i), r) }
+    frame?.let { put(SkinArea.FRAME, it.rect) }
+}
+
+/** [this] with the rects of [rects] put back: elements by id, screens and frame by their [SkinArea] ids. */
+fun SkinLayout.withRects(rects: Map<String, SkinRect>): SkinLayout = copy(
+    elements = elements.map { e -> rects[e.id]?.let { e.copy(rect = it) } ?: e },
+    screens = screens.mapIndexed { i, r -> rects[SkinArea.screen(i)] ?: r },
+    frame = frame?.let { f -> rects[SkinArea.FRAME]?.let { f.copy(rect = it) } ?: f },
+)
 
 /**
- * One editing session on [saved] (issue 784): the rects of every layout, the one being edited ([layoutId], set from
- * the device's form and rotation), the selection, Snap, and undo/redo. [start] is a draft's rects; only the layouts
- * and elements [saved] has are taken from it.
+ * One editing session on [saved] (issues 784 and 785): the rects of every layout, the one being edited ([layoutId], set
+ * from the device's form and rotation), the selection, Snap, Try mode, and undo/redo. The layouts the skin offers are
+ * the keys of [rects], so switching a form on or off is an undo step like any other.
+ *
+ * [start] is a draft's rects; only the layouts and elements the session has are taken from it. [added] are layouts
+ * the draft has and [saved] has not, [removed] layouts of [saved] the draft dropped.
  */
-class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
+class SkinEditorModel(
+    val saved: OpenEmuxSkin,
+    start: SkinRects? = null,
+    added: Map<SkinLayoutId, SkinLayout> = emptyMap(),
+    removed: Set<SkinLayoutId> = emptySet(),
+) {
     private val original = saved.rects()
-    private val history = SkinEditHistory(merge(original, start))
+
+    /** Layouts this session made (a form switched on) or a draft brought: what [base] falls back to. */
+    private val derived = added.toMutableMap()
+    private val history = SkinEditHistory(
+        ((saved.layouts.keys - removed) + added.keys).associateWith { id ->
+            val d = start?.get(id).orEmpty()
+            base(id).rects().mapValues { (k, r) -> d[k] ?: r }
+        },
+    )
 
     /** The rects while a drag or a pinch is going on, before it becomes one undo step. */
     private var live: SkinRects? = null
@@ -279,6 +343,16 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
     var guides: List<SnapGuide> = emptyList()
         private set
 
+    /** Try mode (issue 785): presses light controls instead of selecting them. */
+    var trying: Boolean = false
+        private set
+
+    /** The control held down in Try mode, and the last few pressed (oldest first). */
+    var pressed: String? = null
+        private set
+    var recent: List<String> = emptyList()
+        private set
+
     val rects: SkinRects get() = live ?: history.current
     val dirty: Boolean get() = rects != original
     val canUndo: Boolean get() = history.canUndo
@@ -286,33 +360,115 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
 
     /** The layout being edited with its current rects, or null when the skin has none for this form and rotation. */
     val layout: SkinLayout?
-        get() {
-            val id = layoutId ?: return null
-            val base = saved.layouts[id] ?: return null
-            val now = rects.getValue(id)
-            return base.copy(elements = base.elements.map { e -> e.copy(rect = now.getValue(e.id)) })
-        }
+        get() = layoutId?.let(::layoutOf)
+
+    /** Layout [id] with its current rects, or null when the skin does not offer it now. */
+    fun layoutOf(id: SkinLayoutId): SkinLayout? {
+        val now = rects[id] ?: return null
+        return base(id).withRects(now)
+    }
 
     /** Edits [form]'s layout in [orientation]; the selection is dropped. */
     fun show(form: SkinForm, orientation: SkinOrientation) {
-        val id = SkinLayoutId.entries.first { it.form == form && it.orientation == orientation }
-        val next = id.takeIf { it in saved.layouts }
+        val id = SkinForms.id(form, orientation)
+        val next = id.takeIf { it in rects }
         if (next != layoutId) {
             cancelGesture()
             selection = null
+            pressed = null
         }
         layoutId = next
     }
 
-    /** The topmost control under ([x], [y]), within [slop] of its box; null for none. */
-    fun hit(x: Float, y: Float, slop: Float = 0f): String? = layout?.elements?.lastOrNull { e ->
-        val r = e.rect
-        x >= r.x - slop && x <= r.right + slop && y >= r.y - slop && y <= r.bottom + slop
-    }?.id
+    /** Whether the skin offers [form] now: it has at least one of its layouts (what the form's badge shows). */
+    fun offered(form: SkinForm): Boolean = SkinForms.layoutsOf(form).any { it in rects }
+
+    /** Whether layout [id] differs from how the skin has it (or is new, or gone). */
+    fun changed(id: SkinLayoutId): Boolean = rects[id] != original[id]
+
+    /**
+     * The Layouts panel's switch for [form] (issue 785). On: each of its layouts the skin lacks is made from the closest
+     * one it has ([SkinForms]), or comes back as the skin had it. Off: its layouts leave the skin. The form being
+     * edited cannot be switched off. Returns whether anything changed.
+     */
+    fun setForm(form: SkinForm, on: Boolean): Boolean {
+        if (form == layoutId?.form) return false
+        val ids = SkinForms.layoutsOf(form)
+        val now = history.current
+        val next = if (on) {
+            val grown = now.toMutableMap()
+            for (id in ids.filter { it !in now }) {
+                if (id !in saved.layouts && id !in derived) {
+                    val source = SkinForms.closest(id, grown.keys) ?: return false
+                    val layouts = grown.keys.associateWith { base(it).withRects(grown.getValue(it)) }
+                    derived[id] = SkinForms.derive(layouts.getValue(source), SkinForms.size(id, layouts))
+                }
+                grown[id] = base(id).rects()
+            }
+            grown
+        } else {
+            now - ids.toSet()
+        }
+        if (next == now) return false
+        cancelGesture()
+        history.push(next)
+        return true
+    }
+
+    /** The topmost control under ([x], [y]), within [slop] of its box; null for none. With the screen area selected, a
+     * touch inside it is on the screen area. */
+    fun hit(x: Float, y: Float, slop: Float = 0f): String? {
+        val l = layout ?: return null
+        (selection as? SkinSelection.Screen)?.let { sel ->
+            val box = SkinSnap.bounds(sel.ids.mapNotNull { current()[it] })
+            if (x >= box.x && x <= box.right && y >= box.y && y <= box.bottom) return sel.ids.first()
+        }
+        return l.elements.lastOrNull { e ->
+            val r = e.rect
+            x >= r.x - slop && x <= r.right + slop && y >= r.y - slop && y <= r.bottom + slop
+        }?.id
+    }
 
     fun tap(id: String) {
         val l = layout ?: return
+        if (selection is SkinSelection.Screen && id in selection!!.ids) return
         selection = SkinSelect.tap(l, selection, id)
+    }
+
+    /** More › Screen area: the screens, frame and quick actions selected together ([SkinArea.ids]). */
+    fun selectScreen() {
+        val l = layout ?: return
+        if (l.screens.isEmpty()) return
+        tryMode(false)
+        selection = SkinSelection.Screen(SkinArea.ids(l))
+    }
+
+    /** Try mode on or off: the selection and any gesture are dropped, nothing is lit. */
+    fun tryMode(on: Boolean) {
+        cancelGesture()
+        selection = null
+        trying = on
+        pressed = null
+        if (!on) recent = emptyList()
+    }
+
+    /** Try mode: [id] is pressed, lit until [release], and joins [recent]. */
+    fun press(id: String) {
+        if (!trying || layout?.elements?.any { it.id == id } != true) return
+        pressed = id
+        recent = SkinTry.remember(recent, id)
+    }
+
+    fun release() {
+        pressed = null
+    }
+
+    /** Try mode with a gamepad: the next (+1) or previous (-1) control is pressed. */
+    fun tryStep(by: Int) {
+        val elements = layout?.elements?.takeIf { it.isNotEmpty() } ?: return
+        val at = elements.indexOfFirst { it.id == (pressed ?: recent.lastOrNull()) }
+        val next = if (at < 0) (if (by > 0) 0 else elements.size - 1) else Math.floorMod(at + by, elements.size)
+        press(elements[next].id)
     }
 
     fun clearSelection() {
@@ -410,13 +566,13 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
     fun reset() {
         val sel = selection ?: return
         val id = layoutId ?: return
-        history.push(withLayout(id, original.getValue(id).filterKeys { it in sel.ids }))
+        history.push(withLayout(id, base(id).rects().filterKeys { it in sel.ids }))
     }
 
     /** The whole layout being edited back to how the skin has it. */
     fun resetLayout() {
         val id = layoutId ?: return
-        history.push(withLayout(id, original.getValue(id)))
+        history.push(withLayout(id, base(id).rects()))
     }
 
     fun undo() {
@@ -429,17 +585,26 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
         history.redo()
     }
 
-    /** The rects that differ from the skin's, per layout. */
-    fun edits(): SkinRects = rects.mapValues { (layout, now) ->
+    /** The rects that differ from the skin's, per layout the skin had and still offers. */
+    fun edits(): SkinRects = rects.filterKeys { it in original }.mapValues { (layout, now) ->
         now.filter { (id, r) -> original.getValue(layout)[id] != r }
     }.filterValues { it.isNotEmpty() }
 
-    /** [json], the skin's skin.json, with the edited rects written in. */
-    fun json(json: String): String = SkinEditJson.patch(json, edits())
+    /** The layouts offered now that the skin had not, with their current rects. */
+    fun addedLayouts(): Map<SkinLayoutId, SkinLayout> =
+        rects.keys.filter { it !in original }.associateWith { layoutOf(it)!! }
+
+    /** The layouts of the skin no longer offered. */
+    fun removedLayouts(): Set<SkinLayoutId> = original.keys - rects.keys
+
+    /** [json], the skin's skin.json, with the edited rects written in and the layouts switched on or off. */
+    fun json(json: String): String = SkinEditJson.patch(json, edits(), removedLayouts(), addedLayouts())
+
+    private fun base(id: SkinLayoutId): SkinLayout = saved.layouts[id] ?: derived.getValue(id)
 
     private fun current(): Map<String, SkinRect> = rects.getValue(layoutId!!)
 
-    private fun savedRect(id: String): SkinRect? = layoutId?.let { original.getValue(it)[id] }
+    private fun savedRect(id: String): SkinRect? = layoutId?.let { base(it).rects()[id] }
 
     private fun resizeTo(from: Map<String, SkinRect>, ref: String, saved: SkinRect, target: Int, live: Boolean) {
         val id = layoutId ?: return
@@ -451,22 +616,27 @@ class SkinEditorModel(val saved: OpenEmuxSkin, start: SkinRects? = null) {
     private fun withLayout(id: SkinLayoutId, changed: Map<String, SkinRect>): SkinRects =
         history.current + (id to history.current.getValue(id) + changed)
 
-    private companion object {
-        /** [base] with the rects of [draft] that name a layout and an element [base] has. */
-        fun merge(base: SkinRects, draft: SkinRects?): SkinRects = if (draft == null) base else base.mapValues { (layout, rects) ->
-            val d = draft[layout].orEmpty()
-            rects.mapValues { (id, r) -> d[id] ?: r }
-        }
+    companion object {
+        /** A session on [saved] that resumes [draft], its unsaved skin.json read back (null: none). */
+        fun fromDraft(saved: OpenEmuxSkin, draft: OpenEmuxSkin?): SkinEditorModel = if (draft == null) SkinEditorModel(saved) else
+            SkinEditorModel(
+                saved, draft.rects(),
+                added = draft.layouts.filterKeys { it !in saved.layouts },
+                removed = saved.layouts.keys - draft.layouts.keys,
+            )
     }
 }
 
 /** Writes the editor's rects into a skin.json, every other key as it was (issue 784). */
 object SkinEditJson {
     /**
-     * [json] with each element of [edits] given its rect in whole units: at least 1 wide and tall, inside its layout.
-     * Elements and layouts the file does not have are skipped.
+     * [json] with each element, screen and frame of [edits] given its rect in whole units: at least 1 wide and tall,
+     * inside its layout. Elements and layouts the file does not have are skipped. The layouts of [removed] go, those of
+     * [added] are written in, and a `forms` list follows the layouts left (issue 785).
      */
-    fun patch(json: String, edits: SkinRects): String {
+    fun patch(
+        json: String, edits: SkinRects, removed: Set<SkinLayoutId> = emptySet(), added: Map<SkinLayoutId, SkinLayout> = emptyMap(),
+    ): String {
         val root = JSONObject(json.removePrefix("\uFEFF"))
         val layouts = root.getJSONObject("layouts")
         for ((layoutId, rects) in edits) {
@@ -474,17 +644,30 @@ object SkinEditJson {
             val size = layout.getJSONObject("size")
             val w = size.getInt("width")
             val h = size.getInt("height")
-            val elements = layout.optJSONArray("elements") ?: continue
-            for (i in 0 until elements.length()) {
-                val e = elements.getJSONObject(i)
-                val r = rects[e.optString("id")] ?: continue
+            fun put(target: JSONObject, r: SkinRect) {
                 val width = r.width.roundToInt().coerceIn(1, w)
                 val height = r.height.roundToInt().coerceIn(1, h)
-                e.put("x", r.x.roundToInt().coerceIn(0, w - width))
-                e.put("y", r.y.roundToInt().coerceIn(0, h - height))
-                e.put("width", width)
-                e.put("height", height)
+                target.put("x", r.x.roundToInt().coerceIn(0, w - width))
+                target.put("y", r.y.roundToInt().coerceIn(0, h - height))
+                target.put("width", width)
+                target.put("height", height)
             }
+            layout.optJSONArray("elements")?.let { elements ->
+                for (i in 0 until elements.length()) {
+                    val e = elements.getJSONObject(i)
+                    rects[e.optString("id")]?.let { put(e, it) }
+                }
+            }
+            layout.optJSONArray("screens")?.let { screens ->
+                for (i in 0 until screens.length()) rects[SkinArea.screen(i)]?.let { put(screens.getJSONObject(i), it) }
+            }
+            rects[SkinArea.FRAME]?.let { r -> layout.optJSONObject("frame")?.let { put(it, r) } }
+        }
+        removed.forEach { layouts.remove(it.id) }
+        added.forEach { (id, layout) -> layouts.put(id.id, JSONObject(SkinFormat.layoutText(layout))) }
+        if (root.has("forms")) {
+            val ids = layouts.keys().asSequence().mapNotNull(SkinLayoutId::byId).toSet()
+            root.put("forms", JSONArray(SkinForm.entries.filter { f -> ids.any { it.form == f } }.map { it.id }))
         }
         return root.toString(2) + "\n"
     }

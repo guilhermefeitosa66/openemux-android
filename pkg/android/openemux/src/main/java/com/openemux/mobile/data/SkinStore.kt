@@ -177,22 +177,31 @@ class SkinStore(private val base: File) {
 
     /**
      * The editor's Save (issue 784): [json] becomes the player's skin [id]'s skin.json. It must read as a skin for
-     * [console] first; the images stay as they are. A failing save leaves the skin as it was.
+     * [console] first; the images stay as they are, but the folders of layouts [json] no longer has go with them
+     * (issue 785). A failing save leaves the skin as it was.
      */
     fun saveEdits(console: Console, id: String, json: String) {
         val dir = own(console, id)
-        checkConsole(SkinFormat.parse(json), console)
+        val skin = SkinFormat.parse(json)
+        checkConsole(skin, console)
         writeJson(dir, json)
+        dropLayoutFolders(dir, skin)
     }
 
     /**
-     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images) with [json] as its skin.json,
-     * named [name]; [id] is left as it was. Returns the new skin's ref.
+     * The editor's "Save as a new skin": a copy of the player's skin [id] (its images, but those of layouts [json] no
+     * longer has) with [json] as its skin.json, named [name]; [id] is left as it was. Returns the new skin's ref.
      */
     fun saveAsNew(console: Console, id: String, json: String, name: String): String {
         val dir = own(console, id)
-        checkConsole(SkinFormat.parse(json), console)
-        return build(console, name) { tmp -> copyTree(dir, tmp); json }
+        val skin = SkinFormat.parse(json)
+        checkConsole(skin, console)
+        return build(console, name) { tmp -> copyTree(dir, tmp); dropLayoutFolders(tmp, skin); json }
+    }
+
+    /** Deletes the image folders in [dir] of the layouts [skin] does not offer. */
+    private fun dropLayoutFolders(dir: File, skin: OpenEmuxSkin) {
+        SkinLayoutId.entries.filter { it !in skin.layouts }.forEach { deleteTree(File(dir, it.id)) }
     }
 
     /**
