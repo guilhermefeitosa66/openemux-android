@@ -43,6 +43,10 @@ const OE = (() => {
     load: 'M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19.5h14',
     turbo: 'M13 2.5L5 13.5h6l-1 8 8-11h-6z',
     ff: 'M3.5 6.5v11l8-5.5zM12.5 6.5v11l8-5.5z',
+    // Slow motion: a play triangle in a dashed ring, the app's own glyph (ui/Components.kt, Icons.SlowMotion).
+    slow: 'M13.17 3.08A9 9 0 0 1 17.48 4.86M19.14 6.52A9 9 0 0 1 20.92 10.83M20.92 13.17A9 9 0 0 1 19.14 17.48' +
+      'M17.48 19.14A9 9 0 0 1 13.17 20.92M10.83 20.92A9 9 0 0 1 6.52 19.14M4.86 17.48A9 9 0 0 1 3.08 13.17' +
+      'M3.08 10.83A9 9 0 0 1 4.86 6.52M6.52 4.86A9 9 0 0 1 10.83 3.08M10 8.5v7l5.5-3.5z',
     menu: 'M5 7h14M5 12h14M5 17h14',
     arrow: 'M12 5l7.5 12h-15z',
     tri: 'M12 5l7 12H5z',
@@ -52,6 +56,8 @@ const OE = (() => {
     // Two screens, one over the other: the NDS layout key.
     screens: 'M6 3h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM6 13h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z',
   };
+  // Issue 806: the eleven single-screen consoles that were Delta/Manic packages, whose chin has slow motion.
+  const SLOW_MOTION = ['FC', 'SFC', 'GB', 'GBC', 'GBA', 'MD', 'SMS', 'N64', 'GC', 'PS', 'PSP'];
   const LEFT_STICK = { up: 'analogStickUp', down: 'analogStickDown', left: 'analogStickLeft', right: 'analogStickRight' };
   const RIGHT_STICK = { up: 'rightAnalogStickUp', down: 'rightAnalogStickDown', left: 'rightAnalogStickLeft', right: 'rightAnalogStickRight' };
   const SELECT_START = [{ input: 'select', label: 'SELECT' }, { input: 'start', label: 'START' }];
@@ -569,9 +575,12 @@ const OE = (() => {
     }
 
     // The chin: save, load, turbo, fast forward, and on the NDS the screens key (its input is the app's own name,
-    // which steps to the next layout's art; other emulators ignore it).
+    // which steps to the next layout's art; other emulators ignore it). The consoles whose skins were Delta/Manic
+    // packages, where the app put slow motion before fast forward, keep it in OpenEmux's format (issue 806).
     const barY = by + pad + rows * sh, barH = chin;
-    const acts = [['quickSave', 'save'], ['quickLoad', 'load'], ['turbo', 'turbo'], ['toggleFastForward', 'ff']]
+    const acts = [['quickSave', 'save'], ['quickLoad', 'load'], ['turbo', 'turbo']]
+      .concat(SLOW_MOTION.includes(id) ? [['slowMotion', 'slow']] : [])
+      .concat([['toggleFastForward', 'ff']])
       .concat(nds ? [['screens', 'screens']] : []);
     const slot = bw / acts.length;
     acts.forEach(([input, ic], i) => {

@@ -231,12 +231,19 @@ class OwnFormatBundledSkinsTest {
             val pkg = read(file)
             for ((id, layout) in pkg.skin.layouts) {
                 val actions = layout.elements.filter { it.type == SkinElementType.ACTION }.map { it.bind }
-                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo", "toggleFastForward"), actions)
+                // Issue 806: the consoles that were Delta/Manic packages keep the slow-motion key the app gave those.
+                val slow = if (pkg.skin.console in SLOW_MOTION) listOf("slowMotion") else emptyList()
+                assertEquals("${file.name} ${id.id}", listOf("quickSave", "quickLoad", "turbo") + slow + "toggleFastForward", actions)
                 assertTrue(layout.elements.any { it.bind == "menu" })
-                actions.forEach { assertNotNull(SkinBinds.bind(pkg.skin.console, it, false)) }
+                actions.forEach { assertNotNull(it, OpenEmuxBinds.action(pkg.skin.console, it, false)?.bind) }
             }
         }
     }
+
+    private val SLOW_MOTION = setOf(
+        Console.FC, Console.SFC, Console.GB, Console.GBC, Console.GBA, Console.MD, Console.SMS, Console.N64, Console.GC,
+        Console.PS, Console.PSP,
+    )
 
     /** The consoles whose drawn skin has a keypad (issue 772): each package has a keypad page in every layout. */
     private val keypadConsoles = Console.entries.filter { it.skin.keypad.isNotEmpty() }
