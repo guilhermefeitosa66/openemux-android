@@ -110,7 +110,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         val layout = pkg.skin.layouts.getValue(id)
         val w = (layout.size.width * scale).roundToInt().coerceAtLeast(1)
         val h = (layout.size.height * scale).roundToInt().coerceAtLeast(1)
-        return page(pkg, id, layout, planPage(pkg.skin.console, layout.copy(elements = emptyList()), w, h, false), w, h)
+        return page(pkg, id, layout, planPage(pkg.skin.console, layout.copy(elements = emptyList()), w, h, false), w, h, false)
     }
 
     /**
@@ -125,7 +125,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         val out = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-        for (desc in descs(pkg, id, layout, alone, plan)) {
+        for (desc in descs(pkg, id, layout, alone, plan, false)) {
             for (art in listOfNotNull(desc.image, desc.knob)) {
                 canvas.drawBitmap(art, null, desc.rect, paint)
                 art.recycle()
