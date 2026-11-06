@@ -426,7 +426,8 @@ class SkinEditorModel(
             for (id in ids.filter { it !in now.rects }) {
                 if (id !in saved.layouts && id !in derived) {
                     val source = SkinForms.closest(id, grown.keys) ?: return false
-                    // Made from the source as it is now: its rects and its colours (its images are not carried over).
+                    // Made from the source as it is when first switched on this session: its rects and its colours
+                    // (not its images). Kept in [derived] afterwards, so undo and redo find the same layout.
                     val layouts = grown.keys.associateWith { base(it).withRects(grown.getValue(it)).withLook(looks.getValue(it)) }
                     derived[id] = SkinForms.derive(layouts.getValue(source), SkinForms.size(id, layouts))
                 }

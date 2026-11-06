@@ -738,7 +738,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         x = { m?.toggle(); changed() },
         y = { m?.let { it.snap = !it.snap }; changed() },
         select = { if (m?.trying != true) { m?.undo(); changed(commit = true) } },
-        start = { if (m?.dirty == true) save(andClose = false) },
+        // A picture being framed goes in first, or Save would leave it out.
+        start = { commitTexture { if (model?.dirty == true) save(andClose = false) } },
         // The Layouts panel covers the stage: the stage's buttons rest while it is open, as the D-pad nudge does.
         enabled = !leaving && !naming && dropping == null && !layoutsOpen,
     )
