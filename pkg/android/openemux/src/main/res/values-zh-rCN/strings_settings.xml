@@ -292,6 +292,8 @@
     <string name="skins_use">使用</string>
     <string name="skins_use_as_is">直接使用</string>
     <string name="skins_bundled_locked">内置皮肤永远不会被修改。</string>
+    <string name="skins_imported_locked">导入的皮肤保持原样。复制会生成一份属于你的副本。</string>
+    <string name="skins_copy_working">正在创建副本…</string>
     <string name="skins_rename">重命名</string>
     <string name="skins_rename_title">重命名皮肤</string>
     <string name="skins_name_label">名称</string>

@@ -12,15 +12,18 @@ import java.io.File
  * Makes an editable skin of the player's own, in OpenEmux's format, out of a bundled skin (issue 783): "Create copy
  * and edit" asks here whether a console's bundled skin can be made one, and has it made.
  *
- * The packages that already ship in OpenEmux's format (issue 770) are copied as they are; a console with no package at
- * all plays the drawn skin, which is converted (issue 798, [DrawnSkinCopy]). The Delta/Manic packages come in another
- * part, a [Kind] of their own behind the same two calls.
+ * The packages that already ship in OpenEmux's format (issue 770) are copied as they are; the Delta/Manic packages are
+ * converted (issue 797, [PackageConverter]), and so is an imported one the player duplicates; a console with no package
+ * at all plays the drawn skin, which is converted too (issue 798, [DrawnSkinCopy]).
  */
 object SkinConversion {
     /** How a bundled skin is made into the player's own. */
     enum class Kind {
         /** A package already in OpenEmux's format: copied as it is, only its name changed. */
         OPENEMUX,
+
+        /** A Delta/Manic package (.deltaskin, .manicskin): converted, every control lifted off its art (issue 797). */
+        PACKAGE,
 
         /** No package: the console plays the app's drawn skin, converted into OpenEmux's format. */
         DRAWN,
@@ -33,7 +36,14 @@ object SkinConversion {
      */
     fun kind(list: (String) -> Array<String>?, console: Console, variant: SkinVariant): Kind? {
         val (_, name) = ImportedSkinRenderer.bundledEntry(list, console, variant) ?: return Kind.DRAWN
-        return Kind.OPENEMUX.takeIf { ImportedSkinRenderer.isOpenEmuxPackage(File(name)) }
+        return kind(File(name))
+    }
+
+    /** How the package [file] is made into the player's own, or null for a file that is neither kind. */
+    fun kind(file: File): Kind? = when {
+        ImportedSkinRenderer.isOpenEmuxPackage(file) -> Kind.OPENEMUX
+        SkinStore.isPackageName(file.name) -> Kind.PACKAGE
+        else -> null
     }
 
     /** A new skin of the player's own named [name], made from [console]'s bundled skin in [variant]: its ref. */
@@ -68,7 +78,21 @@ object SkinConversion {
     /** A new skin of the player's own named [name], made from [bundled] (the package copied out of the app): its ref. */
     fun convert(store: SkinStore, console: Console, bundled: File?, name: String): String {
         val file = bundled ?: throw SkinStoreException("${console.id} ships no bundled package")
-        if (!ImportedSkinRenderer.isOpenEmuxPackage(file)) throw SkinStoreException("${file.name} cannot be converted yet")
-        return store.create(console, file, name)
+        return when (kind(file)) {
+            Kind.OPENEMUX -> store.create(console, file, name)
+            Kind.PACKAGE -> convertPackage(store, console, file, name)
+            Kind.DRAWN, null -> throw SkinStoreException("${file.name} cannot be converted")
+        }
     }
+
+    /**
+     * Duplicate on the player's imported package [id] (issue 797): a new skin of their own named [name], in OpenEmux's
+     * format; the package stays as it is. Its ref.
+     */
+    fun duplicatePackage(store: SkinStore, console: Console, id: String, name: String): String =
+        convertPackage(store, console, store.importedPackage(console, id), name)
+
+    /** The conversion itself: Android bitmap work, swapped out by the JVM tests. */
+    @Volatile
+    internal var convertPackage: (SkinStore, Console, File, String) -> String = PackageConverter::convert
 }

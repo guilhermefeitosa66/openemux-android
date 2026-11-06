@@ -304,6 +304,8 @@
     <string name="skins_use">Usar</string>
     <string name="skins_use_as_is">Usar como está</string>
     <string name="skins_bundled_locked">As skins do app nunca mudam.</string>
+    <string name="skins_imported_locked">As skins importadas ficam como estão. Duplicar cria uma cópia sua.</string>
+    <string name="skins_copy_working">Criando a cópia…</string>
     <string name="skins_rename">Renomear</string>
     <string name="skins_rename_title">Renomear skin</string>
     <string name="skins_name_label">Nome</string>

@@ -304,6 +304,8 @@
     <string name="skins_use">பயன்படுத்து</string>
     <string name="skins_use_as_is">அப்படியே பயன்படுத்து</string>
     <string name="skins_bundled_locked">உள்ளமைந்த ஸ்கின்கள் ஒருபோதும் மாறாது.</string>
+    <string name="skins_imported_locked">இறக்குமதி செய்த ஸ்கின்கள் அப்படியே இருக்கும். நகலெடுத்தால் உங்களுக்கான நகல் உருவாகும்.</string>
+    <string name="skins_copy_working">நகல் உருவாக்கப்படுகிறது…</string>
     <string name="skins_rename">பெயர் மாற்று</string>
     <string name="skins_rename_title">ஸ்கின் பெயரை மாற்று</string>
     <string name="skins_name_label">பெயர்</string>

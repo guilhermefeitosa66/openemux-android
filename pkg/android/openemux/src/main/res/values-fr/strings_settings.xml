@@ -316,6 +316,8 @@
     <string name="skins_use">Utiliser</string>
     <string name="skins_use_as_is">Utiliser tel quel</string>
     <string name="skins_bundled_locked">Les skins fournis ne changent jamais.</string>
+    <string name="skins_imported_locked">Les skins importés restent tels quels. Dupliquer en fait une copie à vous.</string>
+    <string name="skins_copy_working">Création de la copie…</string>
     <string name="skins_rename">Renommer</string>
     <string name="skins_rename_title">Renommer le skin</string>
     <string name="skins_name_label">Nom</string>

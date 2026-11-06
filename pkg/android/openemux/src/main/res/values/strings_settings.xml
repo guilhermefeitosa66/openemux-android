@@ -305,6 +305,8 @@
     <string name="skins_use">Use it</string>
     <string name="skins_use_as_is">Use it as it is</string>
     <string name="skins_bundled_locked">Bundled skins never change.</string>
+    <string name="skins_imported_locked">Imported skins stay as they are. Duplicate makes a copy of your own.</string>
+    <string name="skins_copy_working">Making the copy…</string>
     <string name="skins_rename">Rename</string>
     <string name="skins_rename_title">Rename skin</string>
     <string name="skins_name_label">Name</string>

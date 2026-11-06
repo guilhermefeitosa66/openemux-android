@@ -114,7 +114,8 @@ data class SkinChoice(val options: List<SkinSwatch>) {
 /**
  * A console's skin list (issue 782): the [bundled] ones, the player's [own] and the [imported] packages, with the
  * bundled variant saved ([bundledId], the one to go back to) and the player's skin in use ([custom], a ref).
- * [convertible]: the bundled variants (ids) "Create copy and edit" can make a skin of the player's own of (issue 783).
+ * [convertible]: the bundled variants (ids) "Create copy and edit" can make a skin of the player's own of (issue 783),
+ * [converted] those of them that are Delta/Manic packages, converted rather than copied (issue 797).
  */
 data class SkinListState(
     val bundled: SkinChoice,
@@ -123,6 +124,7 @@ data class SkinListState(
     val bundledId: String,
     val custom: String?,
     val convertible: Set<String> = emptySet(),
+    val converted: Set<String> = emptySet(),
 ) {
     /** The player's skin in use: the one [custom] names, when it is still there and readable. */
     val customInUse: StoredSkin? get() = (own + imported).firstOrNull { it.ref == custom && !it.broken }
@@ -137,6 +139,9 @@ data class SkinListState(
     /** Whether "Create copy and edit" is offered for the bundled [swatch]. */
     fun convertible(swatch: SkinSwatch) = swatch.variant.id in convertible
 
+    /** Whether making [swatch]'s copy converts a Delta/Manic package (issue 797), which takes a moment. */
+    fun converts(swatch: SkinSwatch) = swatch.variant.id in converted
+
     /**
      * More than one skin in all, or a bundled one to make a copy of (issue 798: a console with only the drawn skin):
      * the list has something to pick or to do.
@@ -146,6 +151,9 @@ data class SkinListState(
 
 /** Whether [skin] can be used on a device of [form]: readable and with a layout for it. */
 fun madeFor(skin: StoredSkin, form: SkinForm) = !skin.broken && form in skin.forms
+
+/** Whether Duplicate can make an imported package [skin] a skin of the player's own: it reads and has art to convert (issue 797). */
+fun duplicable(skin: StoredSkin) = !skin.broken && skin.forms.isNotEmpty()
 
 /** The line a skin with no layout for [form] shows. */
 @StringRes
@@ -193,8 +201,11 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
             val list = { dir: String -> context.assets.list(dir) }
             val choice = SkinChoice.of(skinCatalog(context), console) { ImportedSkinRenderer.bundledName(list(it.assetDir), console) != null }
             val stored = library.skins.list(console)
-            val convertible = choice.options.filter { SkinConversion.kind(list, console, it.variant) != null }.map { it.variant.id }.toSet()
-            SkinListState(choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null, convertible)
+            val kinds = choice.options.associate { it.variant.id to SkinConversion.kind(list, console, it.variant) }
+            SkinListState(
+                choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null,
+                kinds.filterValues { it != null }.keys, kinds.filterValues { it == SkinConversion.Kind.PACKAGE }.keys,
+            )
         }
     }
     val state = listed ?: return null
@@ -274,6 +285,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     val scope = rememberCoroutineScope()
     var ownSheet by remember { mutableStateOf<StoredSkin?>(null) }
     var bundledSheet by remember { mutableStateOf<SkinSwatch?>(null) }
+    var importedSheet by remember { mutableStateOf<StoredSkin?>(null) }
     var renaming by remember { mutableStateOf<StoredSkin?>(null) }
     var copying by remember { mutableStateOf<SkinSwatch?>(null) }
     var deleting by remember { mutableStateOf<StoredSkin?>(null) }
@@ -353,9 +365,12 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             SkinGroup(stringResource(R.string.skins_imported)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.imported.forEach { skin ->
-                        ImportedRow(skin, state.inUse(skin), madeFor(skin, form), stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form))) {
-                            library.useCustomSkin(console, skin.ref)
-                        }
+                        ImportedRow(
+                            skin, state.inUse(skin), madeFor(skin, form), stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
+                            onPick = { library.useCustomSkin(console, skin.ref) },
+                            // A package with nothing to convert (unreadable, no complete art) has no menu: Duplicate would fail.
+                            onMenu = if (duplicable(skin)) { { importedSheet = skin } } else null,
+                        )
                     }
                 }
             }
@@ -403,6 +418,25 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             }
         }
     }
+    importedSheet?.let { skin ->
+        SkinActionsSheet(skin.name, storedColors(skin), skin.forms, state.inUse(skin), onClose = { importedSheet = null }) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Lock, Oe.Muted, 18.dp)
+                Text(stringResource(R.string.skins_imported_locked), style = Type.Small)
+            }
+            HorizontalDivider(color = Oe.Divider, thickness = 1.dp)
+            if (!state.inUse(skin) && madeFor(skin, form)) ActionRow(Icons.Check, stringResource(R.string.skins_use)) {
+                importedSheet = null; library.useCustomSkin(console, skin.ref)
+            }
+            // Issue 797: a copy of the player's own, in OpenEmux's format; the package stays under Imported.
+            if (duplicable(skin)) ActionRow(Icons.Copy, stringResource(R.string.skins_duplicate)) {
+                importedSheet = null
+                Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
+                val name = context.getString(R.string.skins_copy_name, skin.name).take(SkinStore.MAX_NAME)
+                store { SkinConversion.duplicatePackage(library.skins, console, skin.id, name) }
+            }
+        }
+    }
     renaming?.let { skin ->
         NameSkinSheet(stringResource(R.string.skins_rename_title), skin.name, stringResource(R.string.skins_save), onClose = { renaming = null }) { name ->
             renaming = null
@@ -416,6 +450,8 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
             stringResource(R.string.skins_create_copy_save), lead = stringResource(R.string.skins_create_copy_lead), onClose = { copying = null },
         ) { name ->
             copying = null
+            // A Delta/Manic package takes a moment: every control is lifted off its art (issue 797).
+            if (state.converts(swatch)) Toast.makeText(context, R.string.skins_copy_working, Toast.LENGTH_SHORT).show()
             // The copy is used at once and opens in the editor (issue 784).
             scope.launch {
                 val ref = withContext(Dispatchers.IO) {
@@ -545,19 +581,24 @@ private fun SkinCard(
 }
 
 @Composable
-private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, onPick: () -> Unit) {
+private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, onPick: () -> Unit, onMenu: (() -> Unit)?) {
+    val menuLabel = stringResource(R.string.skins_actions, skin.name)
+    // As on a skin card: Right goes from the row to its menu button, Left comes back.
+    val rowFocus = remember { FocusRequester() }
+    val menuFocus = remember { FocusRequester() }
     Row(
         Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Surface)
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
-            .clickable(enabled = pickable, role = Role.RadioButton, onClick = onPick)
-            .alpha(if (pickable) 1f else DIMMED_ALPHA)
+            .focusRequester(rowFocus).focusProperties { if (onMenu != null) right = menuFocus }
+            // A package not made for this device opens its sheet: Duplicate still works there.
+            .clickable(enabled = pickable || onMenu != null, role = Role.RadioButton) { if (pickable) onPick() else onMenu?.invoke() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         val (body, key) = storedColors(skin)
-        MiniSkin(body, key, Modifier.width(72.dp).height(40.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        MiniSkin(body, key, Modifier.width(72.dp).height(40.dp).alpha(if (pickable) 1f else DIMMED_ALPHA))
+        Column(Modifier.weight(1f).alpha(if (pickable) 1f else DIMMED_ALPHA), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(skin.name, style = Type.Section, maxLines = 1, overflow = TextOverflow.Ellipsis)
             FormBadges(skin.forms)
             when {
@@ -565,6 +606,12 @@ private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, rea
                 !pickable -> Text(reason, style = Type.Small)
             }
         }
+        if (onMenu != null) Box(
+            Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape)
+                .focusRequester(menuFocus).focusProperties { left = rowFocus }
+                .clickable(onClickLabel = menuLabel, role = Role.Button, onClick = onMenu).semantics { contentDescription = menuLabel },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Dots, Oe.Muted, 20.dp) }
     }
 }
 

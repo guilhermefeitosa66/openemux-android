@@ -101,7 +101,7 @@ class ImportedSkinRenderer {
                 val h = if (page.portrait) portraitH else portraitW
                 // Pages with the same art (top only and bottom only) name the same image: the engine loads it once.
                 // A file name of its own: an asset in a folder of the zip ("art/portrait.pdf") would name a folder outDir lacks.
-                val art = assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
+                val art = PackageConversion.assetName(rep.getJSONObject("assets")).substringBeforeLast('.').replace(Regex("[^A-Za-z0-9_-]"), "_")
                 val image = "${if (page.portrait) "portrait" else "landscape"}-$art.png"
                 val drawn = drawOverlay(zip, rep, page.portrait, w, h, outDir, image, page.screensNext, page.name.replace('@', '-'))
                 // The skin's own extended edges already widen the touch areas.
@@ -179,8 +179,8 @@ class ImportedSkinRenderer {
         val art = place.rect(0.0, 0.0, mw.toDouble(), mh.toDouble())
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
         // Translucent skins sit over the game, so the picture shows through them.
-        if (rep.optBoolean("translucent", false)) paint.alpha = 0xB3
-        canvas.drawBitmap(rasterize(zip, assetName(rep.getJSONObject("assets")), art), null, art, paint)
+        if (rep.optBoolean("translucent", false)) paint.alpha = PackageConversion.TRANSLUCENT_ALPHA
+        canvas.drawBitmap(rasterize(zip, PackageConversion.assetName(rep.getJSONObject("assets")), art), null, art, paint)
         if (screen != null) canvas.drawRect(viewport, Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
 
         val defaultEdges = rep.optJSONObject("extendedEdges")
@@ -188,20 +188,15 @@ class ImportedSkinRenderer {
         val items = rep.optJSONArray("items") ?: JSONArray()
         val boxes = (0 until items.length()).map { i ->
             val item = items.getJSONObject(i)
-            item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let { box(it) }
+            item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let(::packageBox)
         }
         // Slow motion goes right before fast forward, in a slot made among the keys beside it.
-        // The toggle wins over the hold key when a skin has both, whatever their order in the items.
-        val ff = PACKAGE_FAST_FORWARD_INPUTS.firstNotNullOfOrNull { input ->
-            (0 until items.length()).firstOrNull { i ->
-                (items.getJSONObject(i).get("inputs") as? JSONArray)?.let { it.length() == 1 && it.getString(0) == input } == true
-            }
-        }
+        val ff = fastForwardItem(items)
         val slow = ff?.let { slowMotionLayout(boxes, it) }
         if (ff != null && slow != null) respace(bitmap, slow, boxes, ff, place)
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
-            val f = slow?.moved?.get(i) ?: box(item.getJSONObject("frame"))
+            val f = slow?.moved?.get(i) ?: packageBox(item.getJSONObject("frame"))
             val e = item.optJSONObject("extendedEdges") ?: defaultEdges
             fun edge(k: String) = e?.optDouble(k, 0.0)?.toFloat() ?: 0f
             val frame = place.rect(f)
@@ -448,47 +443,40 @@ class ImportedSkinRenderer {
     private fun extended(b: SkinBox, edge: (String) -> Float) =
         SkinBox(b.x - edge("left"), b.y - edge("top"), b.w + edge("left") + edge("right"), b.h + edge("top") + edge("bottom"))
 
-    private fun box(f: JSONObject) =
-        SkinBox(f.getDouble("x").toFloat(), f.getDouble("y").toFloat(), f.getDouble("width").toFloat(), f.getDouble("height").toFloat())
+    companion object {
+        /** The zip entry [name] names (at the root or in a folder), outside the __MACOSX copies; null when there is none. */
+        internal fun findEntry(zip: ZipFile, name: String) =
+            zip.entries().asSequence().firstOrNull { !it.name.startsWith("__MACOSX") && (it.name == name || it.name.endsWith("/$name")) }
 
-    /** resizable (a PDF) when there is one, the largest PNG otherwise; the keys' case varies between skins. */
-    private fun assetName(assets: JSONObject): String {
-        val byKey = assets.keys().asSequence().associateBy({ it.lowercase(Locale.US) }, { assets.getString(it) })
-        return listOf("resizable", "large", "medium", "small").firstNotNullOf { byKey[it] }
-    }
+        private fun entry(zip: ZipFile, name: String) = findEntry(zip, name) ?: error("no $name in the skin")
 
-    private fun findEntry(zip: ZipFile, name: String) =
-        zip.entries().asSequence().firstOrNull { !it.name.startsWith("__MACOSX") && (it.name == name || it.name.endsWith("/$name")) }
-
-    private fun entry(zip: ZipFile, name: String) = findEntry(zip, name) ?: error("no $name in the skin")
-
-    private fun rasterize(zip: ZipFile, name: String, target: RectF): Bitmap {
-        val entry = entry(zip, name)
-        val tw = target.width().toInt().coerceAtLeast(1)
-        val th = target.height().toInt().coerceAtLeast(1)
-        if (!name.endsWith(".pdf", ignoreCase = true)) {
-            return zip.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
-        }
-        // PdfRenderer reads from a file descriptor: the page goes through a temporary copy.
-        val tmp = File.createTempFile("skin", ".pdf")
-        try {
-            zip.getInputStream(entry).use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
-                PdfRenderer(fd).use { pdf ->
-                    pdf.openPage(0).use { page ->
-                        val bitmap = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
-                        val m = Matrix().apply { setScale(tw.toFloat() / page.width, th.toFloat() / page.height) }
-                        page.render(bitmap, Rect(0, 0, tw, th), m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        return bitmap
+        /** The image [name] of the package [zip] decoded (a PNG, WebP or JPEG at its own size) or drawn at [target]'s size (a PDF). */
+        internal fun rasterize(zip: ZipFile, name: String, target: RectF): Bitmap {
+            val entry = entry(zip, name)
+            val tw = target.width().toInt().coerceAtLeast(1)
+            val th = target.height().toInt().coerceAtLeast(1)
+            if (!name.endsWith(".pdf", ignoreCase = true)) {
+                return zip.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
+            }
+            // PdfRenderer reads from a file descriptor: the page goes through a temporary copy.
+            val tmp = File.createTempFile("skin", ".pdf")
+            try {
+                zip.getInputStream(entry).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                    PdfRenderer(fd).use { pdf ->
+                        pdf.openPage(0).use { page ->
+                            val bitmap = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+                            val m = Matrix().apply { setScale(tw.toFloat() / page.width, th.toFloat() / page.height) }
+                            page.render(bitmap, Rect(0, 0, tw, th), m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            return bitmap
+                        }
                     }
                 }
+            } finally {
+                tmp.delete()
             }
-        } finally {
-            tmp.delete()
         }
-    }
 
-    companion object {
         private const val TAG = "ImportedSkin"
         private const val RADIAL = "analog_left"
         private const val RADIAL_RIGHT = "analog_right"
