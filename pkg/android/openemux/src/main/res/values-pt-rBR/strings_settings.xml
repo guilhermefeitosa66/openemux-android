@@ -309,4 +309,9 @@
     <string name="skins_delete_title">Apagar %1$s?</string>
     <string name="skins_delete_body">A skin e as imagens dela saem deste aparelho.</string>
     <string name="skins_error">Não foi possível alterar a skin.</string>
+    <string name="skins_create_copy">Criar cópia e editar</string>
+    <string name="skins_create_copy_title">Dê um nome à sua cópia</string>
+    <string name="skins_create_copy_lead">As skins do app ficam como estão. A cópia mantém todos os layouts, e você pode renomeá-la depois.</string>
+    <string name="skins_create_copy_save">Criar cópia</string>
+    <string name="skins_bundled_copy_name">Cópia de %1$s</string>
 </resources>

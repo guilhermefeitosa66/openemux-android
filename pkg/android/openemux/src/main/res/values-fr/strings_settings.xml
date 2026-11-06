@@ -320,4 +320,9 @@
     <string name="skins_delete_title">Supprimer %1$s ?</string>
     <string name="skins_delete_body">Le skin et ses images sont retirés de cet appareil.</string>
     <string name="skins_error">Impossible de modifier le skin.</string>
+    <string name="skins_create_copy">Créer une copie et modifier</string>
+    <string name="skins_create_copy_title">Nommez votre copie</string>
+    <string name="skins_create_copy_lead">Les skins fournis restent tels quels. La copie garde toutes les dispositions, et vous pourrez la renommer plus tard.</string>
+    <string name="skins_create_copy_save">Créer la copie</string>
+    <string name="skins_bundled_copy_name">Copie de %1$s</string>
 </resources>

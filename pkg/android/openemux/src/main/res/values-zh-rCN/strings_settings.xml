@@ -298,4 +298,9 @@
     <string name="skins_delete_title">删除 %1$s？</string>
     <string name="skins_delete_body">该皮肤及其图片将从此设备中移除。</string>
     <string name="skins_error">无法更改皮肤。</string>
+    <string name="skins_create_copy">创建副本并编辑</string>
+    <string name="skins_create_copy_title">为副本命名</string>
+    <string name="skins_create_copy_lead">内置皮肤保持原样。副本保留所有布局，之后也可以重命名。</string>
+    <string name="skins_create_copy_save">创建副本</string>
+    <string name="skins_bundled_copy_name">%1$s 副本</string>
 </resources>

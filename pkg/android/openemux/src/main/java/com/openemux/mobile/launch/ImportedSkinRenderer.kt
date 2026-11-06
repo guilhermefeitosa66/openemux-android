@@ -529,13 +529,18 @@ class ImportedSkinRenderer {
             names?.firstOrNull { it.contains('.') && it.substringBeforeLast('.') == console.id }
 
         /**
+         * The assets folder and file name of the package [console] plays in [variant]: [variant]'s own, else the
+         * console's own colors' when [variant] ships none for it. [list] lists an assets folder.
+         */
+        fun bundledEntry(list: (String) -> Array<String>?, console: Console, variant: SkinVariant): Pair<String, String>? =
+            listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v -> bundledName(list(v.assetDir), console)?.let { v.assetDir to it } }
+
+        /**
          * The package the app ships for [console] in [variant]'s assets folder (the console's own when that variant ships
          * none for it), copied out (to a cache folder of its own per variant) so it can be read as a zip.
          */
         fun bundled(context: Context, console: Console, variant: SkinVariant = SkinVariant.CONSOLE): File? {
-            val (dir, name) = listOf(variant, SkinVariant.CONSOLE).firstNotNullOfOrNull { v ->
-                bundledName(context.assets.list(v.assetDir), console)?.let { v.assetDir to it }
-            } ?: return null
+            val (dir, name) = bundledEntry({ context.assets.list(it) }, console, variant) ?: return null
             val out = File(context.cacheDir, "$dir/$name")
             out.parentFile?.mkdirs()
             // Copied once per install or update of the app, stamped with its time (an exact match, so a clock that
