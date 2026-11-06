@@ -10,6 +10,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
@@ -42,12 +43,15 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(list, Console.GG, SkinVariant.DARK))
     }
 
-    @Test fun deltaAndManicPackagesAndTheDrawnSkinCannotYet() {
-        val list = lister("skins" to arrayOf("SFC.deltaskin", "GB.manicskin"))
-        assertNull(SkinConversion.kind(list, Console.SFC, SkinVariant.CONSOLE))
-        assertNull(SkinConversion.kind(list, Console.GB, SkinVariant.CONSOLE))
+    @Test fun deltaAndManicPackagesAreConvertedAndTheDrawnSkinCannotYet() {
+        val list = lister("skins" to arrayOf("SFC.deltaskin", "GB.manicskin", "N64.txt"))
+        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.SFC, SkinVariant.CONSOLE))
+        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, Console.GB, SkinVariant.CONSOLE))
+        assertNull(SkinConversion.kind(list, Console.N64, SkinVariant.CONSOLE))
         assertNull(SkinConversion.kind(list, Console.A2600, SkinVariant.CONSOLE))
         assertNull(SkinConversion.kind(lister(), Console.GG, SkinVariant.CONSOLE))
+        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(File("Mine.MANICSKIN")))
+        assertNull(SkinConversion.kind(File("notes.txt")))
     }
 
     @Test fun aVariantWithNoPackageOfItsOwnFollowsTheConsolesOwn() {
@@ -56,24 +60,73 @@ class SkinConversionTest {
         assertEquals(SkinConversion.Kind.OPENEMUX, SkinConversion.kind(list, Console.GG, SkinVariant.DARK))
         // The variant's own package wins over the console's, whatever its format.
         val delta = lister("skins" to arrayOf("FC.zip"), "skins/red" to arrayOf("FC.deltaskin"))
-        assertNull(SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
+        assertEquals(SkinConversion.Kind.PACKAGE, SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
     }
 
-    @Test fun theAppsOwnAssetsAnswerForTheOwnFormatConsolesOnly() {
+    @Test fun theAppsOwnAssetsAnswerForEveryConsoleWithAPackage() {
         val list = { dir: String -> File(assets, dir).list() }
-        val convertible = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) != null }.map { it.id }.sorted()
+        fun kind(k: SkinConversion.Kind) = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == k }.map { it.id }.sorted()
         // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more.
         assertEquals(
             listOf("A2600", "A7800", "FDS", "GG", "LYNX", "MCD", "NGP", "PCE", "PCECD", "S32X", "SATURN", "SG1000", "VB", "VECTREX", "WS"),
-            convertible,
+            kind(SkinConversion.Kind.OPENEMUX),
         )
+        // The twelve best-known consoles ship Delta/Manic packages (issue 797).
+        assertEquals(listOf("FC", "GB", "GBA", "GBC", "GC", "MD", "N64", "NDS", "PS", "PSP", "SFC", "SMS"), kind(SkinConversion.Kind.PACKAGE))
+        // Every variant of those has one too, its own or the console's.
+        for (console in Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) == SkinConversion.Kind.PACKAGE }) {
+            for (variant in SkinVariant.entries) assertEquals("${console.id} ${variant.id}", SkinConversion.Kind.PACKAGE, SkinConversion.kind(list, console, variant))
+        }
     }
 
-    @Test fun noPackageOrOneNotInOpenEmuxsFormatIsRefused() {
+    @Test fun noPackageOrOneOfNeitherKindIsRefused() {
         assertThrows(SkinStoreException::class.java) { SkinConversion.convert(store, Console.GG, null, "Mine") }
-        val delta = File(base, "SFC.deltaskin").apply { writeText("x") }
-        assertThrows(SkinStoreException::class.java) { SkinConversion.convert(store, Console.SFC, delta, "Mine") }
+        val other = File(base, "SFC.txt").apply { writeText("x") }
+        assertThrows(SkinStoreException::class.java) { SkinConversion.convert(store, Console.SFC, other, "Mine") }
         assertEquals(emptyList<Any>(), store.list(Console.SFC))
+    }
+
+    /** [SkinConversion.convertPackage] swapped for [stub] (the bitmap work needs Android) while [block] runs. */
+    private fun withConverter(stub: (SkinStore, Console, File, String) -> String, block: () -> Unit) {
+        val real = SkinConversion.convertPackage
+        SkinConversion.convertPackage = stub
+        try {
+            block()
+        } finally {
+            SkinConversion.convertPackage = real
+        }
+    }
+
+    @Test fun aDeltaOrManicPackageGoesToTheConverter() {
+        val delta = File(base, "SFC.deltaskin").apply { writeText("x") }
+        val calls = mutableListOf<Triple<Console, File, String>>()
+        withConverter({ s, c, f, n -> assertSame(store, s); calls += Triple(c, f, n); "own:done" }) {
+            assertEquals("own:done", SkinConversion.convert(store, Console.SFC, delta, "Mine"))
+        }
+        assertEquals(listOf(Triple(Console.SFC, delta, "Mine")), calls)
+    }
+
+    @Test fun duplicateConvertsThePlayersImportedPackageAndNothingElse() {
+        val root = store.root(Console.GBA).apply { mkdirs() }
+        val pkg = File(root, "Mine.deltaskin").apply { writeText("x") }
+        File(root, "own").mkdirs()
+        File(root, "own/skin.json").writeText("{}")
+        File(root, "notes.txt").writeText("x")
+        val calls = mutableListOf<File>()
+        withConverter({ _, _, f, _ -> calls += f; "own:copy" }) {
+            assertEquals("own:copy", SkinConversion.duplicatePackage(store, Console.GBA, "Mine.deltaskin", "Mine (copy)"))
+            for (id in listOf("own", "notes.txt", "missing.deltaskin", "../GBA/Mine.deltaskin", ".hidden.deltaskin", "")) {
+                assertThrows(id, SkinStoreException::class.java) { SkinConversion.duplicatePackage(store, Console.GBA, id, "x") }
+            }
+            val link = File(root, "link.deltaskin")
+            java.nio.file.Files.createSymbolicLink(link.toPath(), pkg.toPath())
+            assertThrows(SkinStoreException::class.java) { SkinConversion.duplicatePackage(store, Console.GBA, "link.deltaskin", "x") }
+        }
+        assertEquals(listOf(pkg), calls)
+    }
+
+    @Test fun theRealConverterIsThePackageConverters() {
+        assertEquals("convert", (SkinConversion.convertPackage as kotlin.reflect.KFunction<*>).name)
     }
 
     /** Every own-format package the app ships, in every variant folder. */

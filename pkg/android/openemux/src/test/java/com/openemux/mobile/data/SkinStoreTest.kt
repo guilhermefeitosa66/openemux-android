@@ -406,4 +406,43 @@ class SkinStoreTest {
         }
         assertTrue(root.list().orEmpty().isEmpty())
     }
+
+    @Test fun createConvertedWritesTheImagesThenTheSkinNamedAndReadsItBack() {
+        val ref = store.createConverted(Console.SFC, "  Converted  ") { dir ->
+            File(dir, "phone-portrait").mkdirs()
+            File(dir, "phone-portrait/a.png").writeBytes(byteArrayOf(9))
+            phoneSkin("Ignored")
+        }
+        assertEquals("own:converted", ref)
+        val dir = store.file(Console.SFC, ref)!!
+        val read = SkinFormat.readFolder(dir).skin
+        assertEquals(phoneSkin("Converted"), read)
+        assertArrayEquals(byteArrayOf(9), File(dir, "phone-portrait/a.png").readBytes())
+        assertEquals(listOf("converted"), store.root(Console.SFC).list()!!.toList())
+    }
+
+    @Test fun createConvertedLeavesNothingWhenItFailsAnywhere() {
+        // The conversion throws, makes another console's skin, or a skin the reader refuses.
+        assertThrows(IllegalStateException::class.java) { store.createConverted(Console.SFC, "A") { error("cut short") } }
+        assertThrows(SkinStoreException::class.java) { store.createConverted(Console.SFC, "B") { phoneSkin("B").copy(console = Console.GBA) } }
+        val bad = phoneSkin("C").let { s -> s.copy(layouts = s.layouts.mapValues { (_, l) -> l.copy(screens = emptyList()) }) }
+        assertThrows(SkinFormatException::class.java) { store.createConverted(Console.SFC, "C") { bad } }
+        assertThrows(SkinStoreException::class.java) { store.createConverted(Console.SFC, "  ") { phoneSkin("D") } }
+        assertTrue(store.root(Console.SFC).list().orEmpty().isEmpty())
+    }
+
+    @Test fun anImportedPackageIsOnlyReachedWhenItIsOne() {
+        val root = store.root(Console.SFC).apply { mkdirs() }
+        val file = File(root, "Mine.manicskin").apply { writeText("x") }
+        assertEquals(file, store.importedPackage(Console.SFC, "Mine.manicskin"))
+        own("mine")
+        File(root, "dir.deltaskin").mkdirs()
+        for (id in listOf("mine", "dir.deltaskin", "none.deltaskin", "..", "a/b.deltaskin", ".x.deltaskin")) {
+            assertThrows(id, SkinStoreException::class.java) { store.importedPackage(Console.SFC, id) }
+        }
+        Files.createSymbolicLink(File(root, "link.deltaskin").toPath(), file.toPath())
+        assertThrows(SkinStoreException::class.java) { store.importedPackage(Console.SFC, "link.deltaskin") }
+        assertTrue(SkinStore.isPackageName("A.DeltaSkin"))
+        assertFalse(SkinStore.isPackageName("a.zip"))
+    }
 }

@@ -188,7 +188,7 @@ object PackageConversion {
             listOf(PixelRect(0, 0, layoutW, if (portrait) offsetY else layoutH))
         } else {
             frames.map { rect(it).clamp(artW, artH) ?: throw IllegalArgumentException("a screen of $family $orientation is outside its art") }
-                .sortedBy { it.y }
+                .sortedBy { it.y }.map { it.shift(offsetY) }
         }
 
         val items = rep.optJSONArray("items") ?: JSONArray()
@@ -243,7 +243,7 @@ object PackageConversion {
             }
         }
         val layout = SkinLayout(
-            SkinSize(layoutW, layoutH), screens.map { it.shift(offsetY).skin() }, SkinBackground(TRANSPARENT),
+            SkinSize(layoutW, layoutH), screens.map { it.skin() }, SkinBackground(TRANSPARENT),
             elements = elements.map { it.element },
         )
         return PlannedLayout(family, orientation, asset, artW, artH, offsetY, rep.optBoolean("translucent", false), layout, elements)
