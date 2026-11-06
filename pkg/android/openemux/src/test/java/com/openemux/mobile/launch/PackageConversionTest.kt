@@ -340,6 +340,22 @@ class PackageConversionTest {
         assertEquals(listOf(fg, fg, 0, fg, fg, 0, 0, 0, 0), cut.toList())
     }
 
+    @Test fun aButtonHuggingItsFrameIsReadFromARingOutsideAndAStripKeyFromItsBorder() {
+        val w = 20
+        // A button filling its frame on a plain body: the ring 2 pixels out is the body.
+        val hug = PackageConversion.lift(art(w, 20, PixelRect(5, 5, 6, 6)), w, PixelRect(5, 5, 6, 6))
+        assertTrue(hug.clean)
+        assertEquals(bg, hug.surround)
+        assertEquals(36, hug.px.count { it == fg })
+        // A key on a strip across the art: the rings cross the strip, the key's own border is the strip.
+        val strip = IntArray(w * 20) { i -> if (i / w in 8..11 && i % w == 7) bg else if (i / w in 6..13) fg else bg }
+        val key = PackageConversion.lift(strip, w, PixelRect(5, 6, 5, 8))
+        assertTrue(key.clean)
+        assertEquals(fg, key.surround)
+        // A ring reaching past the art is clamped to it.
+        assertTrue(PackageConversion.lift(art(w, 20), w, PixelRect(0, 0, 3, 3)).clean)
+    }
+
     @Test fun aControlOnABusySurfaceIsNotClean() {
         val w = 10
         // A checkerboard: half the border is one colour, half the other.

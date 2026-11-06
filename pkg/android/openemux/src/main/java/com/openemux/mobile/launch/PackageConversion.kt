@@ -330,25 +330,35 @@ object PackageConversion {
         return (channel(24) shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
     }
 
+    /** How far outside a control's frame the rings its surround is read on lie, in pixels, when its own border is not plain. */
+    val RINGS = intArrayOf(2, 4, 8)
+
     /**
-     * The control in [frame] of the art [px] ([w] x [h] ARGB), lifted off it: the pixels that differ from the colour
-     * around it (the median of the frame's border) as they are, the others transparent. It is clean when at least
-     * [CLEAN_SHARE] of the border is that colour: a control on a plain surface. [frame] lies inside the art.
+     * The control in [frame] of the art [px] ([w] wide ARGB), lifted off it: the pixels that differ from the colour
+     * around it as they are, the others transparent. That colour is the median of the first ring [RINGS] pixels outside
+     * the frame (clamped to the art) of which at least [CLEAN_SHARE] is that colour (the art's frames often hug a round
+     * button, whose own pixels then fill the frame's border), else of the frame's own border when that is (a key on a
+     * strip, whose neighbours fill the rings). It is clean when one of them is: a control on a plain surface. Only the frame's pixels are taken, never a neighbour's. [frame] lies inside
+     * the art.
      */
     fun lift(px: IntArray, w: Int, frame: PixelRect): LiftedArt {
+        val h = px.size / w
         fun at(x: Int, y: Int) = px[y * w + x]
-        val border = buildList {
-            for (x in frame.x until frame.right) { add(at(x, frame.y)); if (frame.h > 1) add(at(x, frame.bottom - 1)) }
-            for (y in frame.y + 1 until frame.bottom - 1) { add(at(frame.x, y)); if (frame.w > 1) add(at(frame.right - 1, y)) }
+        fun border(r: PixelRect) = buildList {
+            for (x in r.x until r.right) { add(at(x, r.y)); if (r.h > 1) add(at(x, r.bottom - 1)) }
+            for (y in r.y + 1 until r.bottom - 1) { add(at(r.x, y)); if (r.w > 1) add(at(r.right - 1, y)) }
         }.toIntArray()
-        val surround = median(border)
-        val clean = border.count { distance(it, surround) <= EDGE_TOLERANCE } >= border.size * CLEAN_SHARE
+        fun plain(colors: IntArray, surround: Int) = colors.count { distance(it, surround) <= EDGE_TOLERANCE } >= colors.size * CLEAN_SHARE
+        val own = border(frame)
+        val rings = RINGS.asSequence().mapNotNull { g -> PixelRect(frame.x - g, frame.y - g, frame.w + 2 * g, frame.h + 2 * g).clamp(w, h) }
+        val found = (rings.map(::border) + sequenceOf(own)).map { it to median(it) }.firstOrNull { (c, m) -> plain(c, m) }
+        val surround = found?.second ?: median(own)
         val out = IntArray(frame.w * frame.h)
         for (y in 0 until frame.h) for (x in 0 until frame.w) {
             val c = at(frame.x + x, frame.y + y)
             if (distance(c, surround) > CUT_TOLERANCE) out[y * frame.w + x] = c
         }
-        return LiftedArt(out, frame.w, frame.h, surround, clean)
+        return LiftedArt(out, frame.w, frame.h, surround, found != null)
     }
 
     /** Takes [lifted] (cut at [frame]) off the art [px] ([w] wide): each of its pixels painted the colour around it. */
