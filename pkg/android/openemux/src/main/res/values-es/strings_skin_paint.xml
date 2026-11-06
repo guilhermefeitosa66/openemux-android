@@ -15,6 +15,7 @@
     <string name="editor_part_base">Base</string>
     <string name="editor_part_knob">Palanca</string>
     <string name="editor_palettes">Paletas</string>
+    <string name="editor_palette">Paleta</string>
     <string name="editor_palettes_hint">define la fila de colores</string>
     <string name="editor_palette_in_row">✓ En la fila de colores</string>
     <string name="editor_back_to_colour">Volver al color</string>
@@ -34,6 +35,7 @@
     <string name="editor_contrast_icons">Poco contraste: los iconos pueden costar de ver en el marco.</string>
     <string name="editor_contrast_active">Poco contraste: el icono puede costar de ver con la acción activada.</string>
     <string name="editor_replaces_image">Un color aquí sustituye la imagen de la parte.</string>
+    <string name="editor_colour_everywhere">El color vale para todos los diseños de esta skin. Textura, posición y tamaño se quedan solo en este.</string>
     <string name="editor_icon_when_on">Icono activado</string>
     <string name="editor_light">Claro</string>
     <string name="editor_dark">Oscuro</string>

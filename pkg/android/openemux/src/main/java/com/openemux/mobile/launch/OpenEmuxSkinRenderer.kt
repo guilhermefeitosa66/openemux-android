@@ -235,7 +235,9 @@ class OpenEmuxSkinRenderer(context: Context) {
         val mask = when (kind) {
             TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> element?.at(box.skin())?.let { e -> blank(box).also { drawFace(Canvas(it), e, faceOf(e, box)) { white } } }
             TemplateImageKind.DPAD -> element?.at(box.skin())?.let { e -> blank(box).also { drawCross(Canvas(it), faceOf(e, box), 0f, white) } }
-            TemplateImageKind.DPAD_BALL, TemplateImageKind.STICK_BASE, TemplateImageKind.STICK_KNOB -> disc(box, 0xFFFFFFFF.toInt())
+            TemplateImageKind.STICK_BASE -> disc(box, 0xFFFFFFFF.toInt())
+            // The ball and the knob at the size they are drawn from a colour, so a picture on one does not grow it.
+            TemplateImageKind.DPAD_BALL, TemplateImageKind.STICK_KNOB -> blank(box).also { Canvas(it).drawOval(thumb(box), white) }
             else -> null
         }
         mask?.let { c.drawBitmap(it, 0f, 0f, null); it.recycle() }
@@ -298,9 +300,9 @@ class OpenEmuxSkinRenderer(context: Context) {
                 drawPad(c, e!!, box, relief = e.art != SkinArt.FACE)
                 if (e.art == SkinArt.FULL) drawArrows(c, e, box)
             }
-            TemplateImageKind.DPAD_BALL -> disc(box, e!!.colors["ball"] ?: DEFAULT_BALL)
+            TemplateImageKind.DPAD_BALL -> blank(box).also { drawBall(Canvas(it), thumb(box), e!!.colors["ball"] ?: DEFAULT_BALL) }
             TemplateImageKind.STICK_BASE -> disc(box, e!!.colors["base"] ?: DEFAULT_BASE)
-            TemplateImageKind.STICK_KNOB -> disc(box, e!!.colors["knob"] ?: DEFAULT_KNOB)
+            TemplateImageKind.STICK_KNOB -> blank(box).also { drawKnob(Canvas(it), thumb(box), e!!.colors["knob"] ?: DEFAULT_KNOB) }
         }
     }
 
@@ -358,8 +360,11 @@ class OpenEmuxSkinRenderer(context: Context) {
                 listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = control(pkg, files[0], element, box, labels)))
             is ElementPlan.Action -> {
                 val frame = layout.frame?.colors ?: SkinFrameColors()
-                val art = image(pkg, files[0], box)
-                val icon = art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
+                // A button that presses an action (the menu key) is a key like any other, its face, relief and label
+                // from its own colours; a quick action on the frame is its glyph alone, in the frame's colours.
+                val key = element.type == SkinElementType.BUTTON
+                val art = if (key) null else image(pkg, files[0], box)
+                val icon = if (key) actionKey(pkg, files[0], element, box, plan.icon, labels) else art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
                 if (plan.dim) return listOf(OverlayDesc("nul", box, image = faded(icon)))
                 val lit = plan.lit?.let { state ->
                     OverlayDesc("nul", RectF(box), lit = OverlayLit(state, tile(plan.icon, box, frame, art?.copy(Bitmap.Config.ARGB_8888, false))))
@@ -485,6 +490,8 @@ class OpenEmuxSkinRenderer(context: Context) {
                         own.left + own.width() * 0.38f, own.top + own.height() * 0.3f, hypot(own.width() * 0.62f, own.height() * 0.7f),
                         intArrayOf(SkinColorMath.lighten(color, 0.22f), color, SkinColorMath.darken(color, 0.14f)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP,
                     )
+                    shapeOf(e) == SkinShape.PILL ->
+                        LinearGradient(0f, own.top, 0f, own.bottom, SkinColorMath.lighten(color, 0.12f), color, Shader.TileMode.CLAMP)
                     else -> LinearGradient(0f, own.top, 0f, own.bottom, SkinColorMath.lighten(color, 0.12f), SkinColorMath.darken(color, 0.08f), Shader.TileMode.CLAMP)
                 }
             }
@@ -612,7 +619,7 @@ class OpenEmuxSkinRenderer(context: Context) {
 
     /**
      * A D-pad's ball, about half its travel across, centred in the travel's box (the engine stretches the image over
-     * it): the skin's image, else a circle in its "ball" colour.
+     * it): the skin's image, else the ball drawn from its "ball" colour, the size the bundled art has it ([thumb]).
      */
     private fun ball(pkg: SkinPackage, file: String?, travel: RectF, color: Int): Bitmap {
         val out = blank(travel)
@@ -623,7 +630,62 @@ class OpenEmuxSkinRenderer(context: Context) {
             Canvas(out).drawBitmap(image, null, target, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
             image.recycle()
         } else {
-            Canvas(out).drawOval(target, fill(color))
+            drawBall(Canvas(out), thumb(target), color)
+        }
+        return out
+    }
+
+    /**
+     * Where the D-pad's ball, or a stick's knob, is in the [box] its image is drawn over: [THUMB_FILL] of it, centred.
+     * The bundled art leaves that margin around the circle, so one drawn from a colour, or cut out of a texture, keeps
+     * to it: repainting the ball never grows it.
+     */
+    private fun thumb(box: RectF): RectF {
+        val d = minOf(box.width(), box.height()) * THUMB_FILL
+        return RectF(box.centerX() - d / 2f, box.centerY() - d / 2f, box.centerX() + d / 2f, box.centerY() + d / 2f)
+    }
+
+    /**
+     * The D-pad's ball from its colour over [r], as the bundled art draws it: a disc the pad shows through, in a ring
+     * of the colour itself.
+     */
+    private fun drawBall(c: Canvas, r: RectF, color: Int) {
+        val ring = r.width() / 14f
+        val disc = RectF(r.left + ring, r.top + ring, r.right - ring, r.bottom - ring)
+        c.drawOval(disc, fill((color and 0xFFFFFF) or (((color ushr 24) * 0.7f).roundToInt() shl 24)))
+        val edge = RectF(r.left + ring / 2f, r.top + ring / 2f, r.right - ring / 2f, r.bottom - ring / 2f)
+        c.drawOval(edge, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = ring })
+    }
+
+    /**
+     * A stick's knob from its colour over [r], as the bundled art draws it: lit from above, with a darker rim inside
+     * its edge.
+     */
+    private fun drawKnob(c: Canvas, r: RectF, color: Int) {
+        val paint = fill(color).apply {
+            shader = RadialGradient(
+                r.left + r.width() * 0.4f, r.top + r.height() * 0.35f, hypot(r.width() * 0.6f, r.height() * 0.65f),
+                intArrayOf(SkinColorMath.lighten(color, 0.25f), color, SkinColorMath.darken(color, 0.2f)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP,
+            )
+        }
+        c.drawOval(r, paint)
+        val rim = r.width() * 0.08f
+        val dark = SkinColorMath.darken(color, 0.25f)
+        c.drawOval(
+            RectF(r.left + rim / 2f, r.top + rim / 2f, r.right - rim / 2f, r.bottom - rim / 2f),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = (dark and 0xFFFFFF) or (((dark ushr 24) * 0.35f).roundToInt() shl 24); style = Paint.Style.STROKE; strokeWidth = rim },
+        )
+    }
+
+    /**
+     * A button that presses an action, as [control] draws any button; one with no label of its own and no image gets
+     * the action's glyph ([icon]) on its face, in its "letter" colour, so it is never a blank key.
+     */
+    private fun actionKey(pkg: SkinPackage, file: String?, element: SkinElement, box: RectF, icon: String?, labels: Boolean): Bitmap {
+        val out = control(pkg, file, element, box, labels)
+        if (file == null && !SkinLabels.has(element)) {
+            val top = faceOf(element, RectF(0f, 0f, out.width.toFloat(), out.height.toFloat()))
+            drawGlyph(Canvas(out), icon, top.centerX(), top.centerY(), minOf(top.width(), top.height()) * 0.6f, SkinPaintDefaults.letter(element))
         }
         return out
     }
@@ -636,7 +698,10 @@ class OpenEmuxSkinRenderer(context: Context) {
         return out
     }
 
-    /** A stick's knob, [size] across, centred in its [range] square: the skin's image, else a circle in [color]. */
+    /**
+     * A stick's knob, its image [size] across, centred in its [range] square: the skin's image, else the knob drawn
+     * from [color], the size the bundled art has it ([thumb]).
+     */
     private fun knob(pkg: SkinPackage, file: String?, range: RectF, size: Float, color: Int): Bitmap {
         val out = blank(range)
         val target = RectF((out.width - size) / 2f, (out.height - size) / 2f, (out.width + size) / 2f, (out.height + size) / 2f)
@@ -646,7 +711,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             c.drawBitmap(image, null, target, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
             image.recycle()
         } else {
-            c.drawOval(target, fill(color))
+            drawKnob(c, thumb(target), color)
         }
         return out
     }
@@ -712,6 +777,12 @@ class OpenEmuxSkinRenderer(context: Context) {
 
         /** The D-pad's ball across, as a share of its travel's box. */
         internal const val BALL_SHARE = 0.55f
+
+        /**
+         * How much of its image the D-pad's ball, and a stick's knob, takes (tools/skins/build.py, THUMB_FILL): the
+         * bundled art's circle is this share of the image's side, and one drawn from a colour is too.
+         */
+        internal const val THUMB_FILL = 0.8f
 
         /** A D-pad's arm across, as a share of the pad (tools/skins: the engine's cross). */
         private const val ARM = 0.34f

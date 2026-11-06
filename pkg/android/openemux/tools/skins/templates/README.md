@@ -93,9 +93,9 @@ that element from its colours, shape and label in `skin.json` instead, so a skin
 | `frame.png` | the frame's rect | the bezel around the game screen, where the quick actions sit |
 | `<id>.png` | the element's rect | a button, a quick action or a keypad key |
 | `dpad.png` | the D-pad's rect | the D-pad |
-| `dpad-ball.png` | the D-pad's side × 44/60, square | the ball that moves with the thumb, edge to edge (the app fits the whole image to the ball), drawn centred on the pad |
+| `dpad-ball.png` | the D-pad's side × 44/60, square | the ball that moves with the thumb, drawn centred on the pad. The app fits the whole image to the ball's place: paint it edge to edge for the largest ball; the placeholder (and the bundled art) leave a margin, the circle four fifths of the image |
 | `stick-base.png` | the stick's rect | an analog stick's well |
-| `stick-knob.png` | half the stick's side, square | the knob that moves with the thumb |
+| `stick-knob.png` | half the stick's side, square | the knob that moves with the thumb, in its image as the ball is in its own |
 | `keypad/background.png` | the layout's `size` | the keypad page, behind everything (consoles with a keypad) |
 | `keypad/<id>.png` | as above | the keypad page's controls: its keys, the toggle, the D-pad or stick, the quick actions |
 | `top/`, `bottom/`, `side/` | as above | the DS only: each screen-layout page's own `background.png`, `frame.png` and controls (below) |
@@ -141,11 +141,11 @@ screens stay one over the other); the skin editor edits the default page and kee
 
 | Type | What it is | Colour parts |
 |---|---|---|
-| `button` | face buttons, shoulders, triggers, Start, Select, the menu key | `button`, `letter` |
-| `dpad` | the D-pad | `pad`, `ball` |
+| `button` | face buttons, shoulders, triggers, Start, Select, the menu key | `button`, `relief`, `letter` |
+| `dpad` | the D-pad | `pad`, `ball`, `relief`, `letter` (its four arrows) |
 | `stick` | an analog stick | `base`, `knob` |
 | `action` | a quick action on the frame (save, load, turbo, fast forward…) | none: the frame's `icons` and `active` |
-| `keypad` | a key of a numeric keypad | `button`, `letter` |
+| `keypad` | a key of a numeric keypad | `button`, `relief`, `letter` |
 
 Colours are `#RRGGBB`, or `#RRGGBBAA` with an alpha. The templates carry the bundled skin's colours, so an element
 without an image looks like the bundled skin's.

@@ -354,9 +354,9 @@ class SkinEditPaintTest {
         m.endGesture()
         m.tap("b")
         m.nudge(1, 0)
-        val look = m.lookEdits().getValue(SkinLayoutId.PHONE_PORTRAIT)
-        assertEquals(setOf("b"), look.colors.keys)
-        assertEquals(setOf(SkinLayoutId.PHONE_PORTRAIT), m.lookEdits().keys)
+        // The colour is the skin's: written in both of its layouts, and in each only for the control painted.
+        assertEquals(setOf(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE), m.lookEdits().keys)
+        m.lookEdits().values.forEach { assertEquals(setOf("b"), it.colors.keys) }
         // Undoing the nudge keeps the colour: one history for both.
         m.undo()
         assertEquals(red, m.element("b").colors["letter"])

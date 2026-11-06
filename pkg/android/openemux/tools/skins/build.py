@@ -187,6 +187,10 @@ ACTION_IDS = {"quickSave": "save", "quickLoad": "load", "turbo": "turbo", "toggl
 KEYPAD_IDS = dict({f"keypad{i}": f"key-{i}" for i in range(10)}, keypadStar="key-star", keypadHash="key-hash")
 DPAD_TRAVEL = 44 / 60
 STICK_KNOB = 0.5
+# How much of its image the D-pad's ball, and a stick's knob, takes: the circle is this share of the image's side,
+# centred, and the app draws one it makes from a colour the same (launch/OpenEmuxSkinRenderer.kt, THUMB_FILL). It is
+# the room the circle's soft shadow took before the art dropped its shadows, kept so both are the size they were.
+THUMB_FILL = 0.8
 # The placeholders' colours: a light body and frame, white controls outlined in dark grey, dark names.
 P_BODY, P_FRAME, P_KEY, P_LINE, P_INK, P_WELL, P_ACTION = "#E6E6E6", "#BDBDBD", "#FFFFFF", "#444444", "#222222", "#CFCFCF", "#D6D6D6"
 FONT = HERE / "SpaceGrotesk.ttf"
@@ -427,12 +431,11 @@ def placeholder(name, size, e, layout):
     d = ImageDraw.Draw(img)
     line = max(2, round(min(W, H) * 0.035))
     label = name[:-4]
-    if name.endswith("-ball.png"):
-        d.ellipse([line / 2, line / 2, W - line / 2, H - line / 2], fill=P_KEY, outline=P_LINE, width=line)
-        label = None
-    elif name.endswith("-knob.png"):
-        d.ellipse([line / 2, line / 2, W - line / 2, H - line / 2], fill=P_KEY, outline=P_LINE, width=line)
-        label = "knob"
+    if name.endswith(("-ball.png", "-knob.png")):
+        # The size the bundled art has them: THUMB_FILL of the image, centred.
+        mx, my = W * (1 - THUMB_FILL) / 2, H * (1 - THUMB_FILL) / 2
+        d.ellipse([mx + line / 2, my + line / 2, W - mx - line / 2, H - my - line / 2], fill=P_KEY, outline=P_LINE, width=line)
+        label = "knob" if name.endswith("-knob.png") else None
     elif e["type"] == "dpad":
         t = min(W, H) * 0.34
         cx, cy = W / 2, H / 2
@@ -582,6 +585,7 @@ def zip_folder(folder, out, root=""):
 
 def own_layout(console, device, orient, variant, folder, profile, ball):
     """One layout of [console]'s package in OpenEmux's own format: its skin.json entry, and its images in [folder].
+    The D-pad's ball and a stick's knob have no shadow either, and take THUMB_FILL of their image ([thumb]).
 
     The engine renders the layout in three layers, side by side in one screenshot: the console's body (background.png:
     no bezel, no control, no label beside one), the bezel on a transparent page (frame.png, cut at its rect, the game's
@@ -678,14 +682,24 @@ def own_page(console, device, orient, variant, folder, profile, ball, L, layout,
             for sc in shown["screens"]:
                 img.paste((0, 0, 0, 0), (sc["x"] - f["x"], sc["y"] - f["y"], sc["x"] - f["x"] + sc["width"], sc["y"] - f["y"] + sc["height"]))
         elif base.endswith("-ball.png"):
-            img = ball.resize((w, h), Image.LANCZOS)
+            img = thumb(ball, (w, h))
         elif base.endswith("-knob.png"):
-            img = knob_image(console, device, orient, variant, folder, profile, L, scale, sticks, query).resize((w, h), Image.LANCZOS)
+            img = thumb(knob_image(console, device, orient, variant, folder, profile, L, scale, sticks, query), (w, h))
             sticks += 1
         else:
             img = sprite(sheet, e)
         img.save(folder / file, optimize=True)
     art.save(bg, optimize=True)
+
+
+def thumb(circle, size):
+    """[circle] (the ball, or a knob, cut to its edge) as an image of [size]: THUMB_FILL of it, centred."""
+    from PIL import Image
+    w, h = size
+    dw, dh = half_up(w * THUMB_FILL), half_up(h * THUMB_FILL)
+    out = Image.new("RGBA", size, (0, 0, 0, 0))
+    out.alpha_composite(circle.resize((dw, dh), Image.LANCZOS), ((w - dw) // 2, (h - dh) // 2))
+    return out
 
 
 def knob_image(console, device, orient, variant, folder, profile, L, scale, i, query):

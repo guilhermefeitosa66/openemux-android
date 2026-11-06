@@ -15,6 +15,7 @@
     <string name="editor_part_base">Base</string>
     <string name="editor_part_knob">Tête</string>
     <string name="editor_palettes">Palettes</string>
+    <string name="editor_palette">Palette</string>
     <string name="editor_palettes_hint">définit la rangée de couleurs</string>
     <string name="editor_palette_in_row">✓ Dans la rangée de couleurs</string>
     <string name="editor_back_to_colour">Retour à la couleur</string>
@@ -34,6 +35,7 @@
     <string name="editor_contrast_icons">Contraste faible : les icônes risquent d\'être peu visibles sur le cadre.</string>
     <string name="editor_contrast_active">Contraste faible : l\'icône risque d\'être peu visible quand l\'action est active.</string>
     <string name="editor_replaces_image">Une couleur ici remplace l\'image de la partie.</string>
+    <string name="editor_colour_everywhere">Une couleur vaut pour toutes les dispositions de ce skin. Textures, positions et tailles restent propres à celle-ci.</string>
     <string name="editor_icon_when_on">Icône quand actif</string>
     <string name="editor_light">Claire</string>
     <string name="editor_dark">Foncée</string>

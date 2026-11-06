@@ -247,9 +247,22 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
             Text(stringResource(R.string.editor_active_note), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 16.sp))
         }
     }
+    // The palette the colour row shows, by name, and the way to another one: the row's last circle opens the same
+    // list (the design's), but a circle alone is easy to miss.
+    val palettes = stringResource(R.string.editor_palettes)
+    Row(
+        Modifier.fillMaxWidth().height(36.dp).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button) { actions.onPalettes(true) }.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stringResource(R.string.editor_palette), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+        Text(stringResource(paletteName(view.presets)), Modifier.weight(1f), style = Type.Body.copy(color = TextOn, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(palettes, style = Type.Small.copy(color = Lilac, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+        Icon(Icons.Chevron, Lilac, 16.dp)
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         view.presets.colors.take(7).forEach { c -> Swatch(c, 34, c == view.color, SkinColorMath.hex(c)) { actions.onColor(c, true) } }
-        PalettesButton(stringResource(R.string.editor_palettes) + ": " + stringResource(paletteName(view.presets))) { actions.onPalettes(true) }
+        PalettesButton(palettes + ": " + stringResource(paletteName(view.presets))) { actions.onPalettes(true) }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -282,6 +295,8 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
     if (view.replacesImage) {
         Text(stringResource(R.string.editor_replaces_image), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 17.sp))
     }
+    // A colour is the skin's: the other rotation and the other forms get it too (a texture, a place and a size do not).
+    Text(stringResource(R.string.editor_colour_everywhere), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 17.sp))
 }
 
 @Composable

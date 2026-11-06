@@ -498,8 +498,7 @@ const OE = (() => {
   function knobParts(S, d, size) {
     const side = 2 * size * DPAD_KNOB.travel, w = size * DPAD_KNOB.stroke;
     return [{ style: `display:flex;align-items:center;justify-content:center;` +
-      `background:radial-gradient(circle at 50% 50%, ${alpha(S.dpadMark, 0.7)} 0 ${r1(d / 2 - w)}px, ${S.dpadMark} ${r1(d / 2 - w)}px ${r1(d / 2)}px, transparent ${r1(d / 2 + 0.3)}px);` +
-      `filter:drop-shadow(0 ${r1(side * 0.017)}px ${r1(side * 0.017)}px rgba(0,0,0,.25));` }];
+      `background:radial-gradient(circle at 50% 50%, ${alpha(S.dpadMark, 0.7)} 0 ${r1(d / 2 - w)}px, ${S.dpadMark} ${r1(d / 2 - w)}px ${r1(d / 2)}px, transparent ${r1(d / 2 + 0.3)}px);` }];
   }
 
   /** The circle alone, its travel square [side] units wide, for the package's knob image. */
@@ -635,11 +634,15 @@ const OE = (() => {
     }
 
     function menuBtn(x, y, w, h) {
+      // A key like the centre keys: its face over its relief, so the editor paints it Button, Relief and Label too.
+      const d = 2, edge = darken(S.bar, 0.4), size = tab ? 22 : 18;
       own();
-      add(box(x, y, w, h) + center + `border-radius:${h / 2}px;background:${S.bar};box-shadow:inset 0 1px 0 ${alpha('#ffffff', 0.08)};`, icon(ICON.menu, S.barIcon, tab ? 22 : 18, 'none', 2));
+      add(box(x, y + d, w, h) + `border-radius:${h / 2}px;background:${edge};`);
+      add(box(x, y, w, h) + center + `border-radius:${h / 2}px;background:linear-gradient(180deg, ${lighten(S.bar, 0.12)}, ${S.bar});`, icon(ICON.menu, S.barIcon, size, 'none', 2));
       item(['menu'], x, y, w, h);
+      art(x, y, w, h, d);
       owner = null;
-      look({ group: 'menu', label: '☰', shape: 'pill', labelSize: tab ? 22 : 18, colors: { button: S.bar, letter: S.barIcon } });
+      look({ group: 'menu', label: '☰', shape: 'pill', depth: d, labelSize: size, colors: { button: S.bar, relief: edge, letter: S.barIcon } });
     }
 
     /** [spec]: a second D-pad's bind (dpad2) and inputs; the D-pad's own when left out. */
@@ -680,7 +683,7 @@ const OE = (() => {
       add(box(x, y, size, size) + `border-radius:50%;background:radial-gradient(circle at 50% 40%, ${darken(S.well || S.body, 0.34)}, ${darken(S.well || S.body, 0.2)} 72%);box-shadow:inset 0 3px 7px rgba(0,0,0,.45), 0 1px 0 ${alpha('#ffffff', S.dark ? 0.04 : 0.18)};`);
       // Half the well wide, its shadow inside the margin the travel leaves around it.
       const r = size / 2, ks = r, kc = st.knob, side = r1(2 * r * TRAVEL);
-      const knob = (ox, oy) => box(ox + (side - ks) / 2, oy + (side - ks) / 2, ks, ks) + center + `border-radius:50%;background:radial-gradient(circle at 40% 35%, ${lighten(kc, 0.25)}, ${kc} 60%, ${darken(kc, 0.2)});box-shadow:0 ${r1(r * 0.05)}px ${r1(r * 0.09)}px rgba(0,0,0,.4), inset 0 0 0 ${ks * 0.08}px ${alpha(darken(kc, 0.25), 0.35)};`;
+      const knob = (ox, oy) => box(ox + (side - ks) / 2, oy + (side - ks) / 2, ks, ks) + center + `border-radius:50%;background:radial-gradient(circle at 40% 35%, ${lighten(kc, 0.25)}, ${kc} 60%, ${darken(kc, 0.2)});box-shadow:inset 0 0 0 ${ks * 0.08}px ${alpha(darken(kc, 0.25), 0.35)};`;
       const label = st.label ? lbl(st.label, st.ink || '#333333', ks * 0.34) : {};
       const name = `knob${knobs.length}.png`;
       knobs.push({ name, size: side, parts: [Object.assign({ style: knob(0, 0), hasIcon: false, hasLabel: false, label: '', labelStyle: '' }, label)] });

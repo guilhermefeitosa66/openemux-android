@@ -15,6 +15,7 @@
     <string name="editor_part_base">Base</string>
     <string name="editor_part_knob">Pino</string>
     <string name="editor_palettes">Paletas</string>
+    <string name="editor_palette">Paleta</string>
     <string name="editor_palettes_hint">define a fileira de cores</string>
     <string name="editor_palette_in_row">✓ Na fileira de cores</string>
     <string name="editor_back_to_colour">Voltar para a cor</string>
@@ -34,6 +35,7 @@
     <string name="editor_contrast_icons">Pouco contraste: os ícones podem ficar difíceis de ver na moldura.</string>
     <string name="editor_contrast_active">Pouco contraste: o ícone pode ficar difícil de ver com a ação ligada.</string>
     <string name="editor_replaces_image">Uma cor aqui substitui a imagem da parte.</string>
+    <string name="editor_colour_everywhere">A cor vale para todos os layouts desta skin. Textura, posição e tamanho ficam só neste.</string>
     <string name="editor_icon_when_on">Ícone quando ligado</string>
     <string name="editor_light">Claro</string>
     <string name="editor_dark">Escuro</string>

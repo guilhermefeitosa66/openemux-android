@@ -15,6 +15,7 @@
     <string name="editor_part_base">台座</string>
     <string name="editor_part_knob">ノブ</string>
     <string name="editor_palettes">パレット</string>
+    <string name="editor_palette">パレット</string>
     <string name="editor_palettes_hint">カラー列を設定</string>
     <string name="editor_palette_in_row">✓ カラー列に使用中</string>
     <string name="editor_back_to_colour">カラーに戻る</string>
@@ -34,6 +35,7 @@
     <string name="editor_contrast_icons">コントラストが低いため、フレーム上のアイコンが見えにくい可能性があります。</string>
     <string name="editor_contrast_active">コントラストが低いため、オンのときアイコンが見えにくい可能性があります。</string>
     <string name="editor_replaces_image">ここで色を選ぶと、この部分の画像は置き換えられます。</string>
+    <string name="editor_colour_everywhere">色はこのスキンのすべてのレイアウトに反映されます。テクスチャ、位置、サイズはこのレイアウトだけです。</string>
     <string name="editor_icon_when_on">オンのときのアイコン</string>
     <string name="editor_light">明るい</string>
     <string name="editor_dark">暗い</string>

@@ -35,21 +35,94 @@ class SkinLayoutsPaintTest {
         endGesture()
     }
 
-    @Test fun aLayoutSwitchedOnTakesTheSourcesColoursAndIsWrittenWithItsOwn() {
+    @Test fun aLayoutSwitchedOnTakesTheSourcesColoursAndIsWrittenWhole() {
         val m = model()
         m.paintA(red)
         assertTrue(m.setForm(SkinForm.TABLET, true))
         // Derived from the phone layout as it is now: painted red.
         assertEquals(red, m.layoutOf(SkinLayoutId.TABLET_PORTRAIT)!!.elements.single().colors["button"])
         m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        // A colour picked on the new layout is the skin's too: the phone's follows.
         m.paintA(blue)
         assertEquals(blue, m.addedLayouts().getValue(SkinLayoutId.TABLET_PORTRAIT).elements.single().colors["button"])
         assertTrue(m.changed(SkinLayoutId.TABLET_PORTRAIT))
         // The new layout is written whole; its colours are not a patch of a layout the file lacks.
         assertEquals(setOf(SkinLayoutId.PHONE_PORTRAIT), m.lookEdits().keys)
         val out = JSONObject(m.json(SkinFormat.toJson(skin))).getJSONObject("layouts")
-        assertEquals("#FF0000", out.getJSONObject("phone-portrait").getJSONArray("elements").getJSONObject(0).getJSONObject("colors").getString("button"))
+        assertEquals("#0000FF", out.getJSONObject("phone-portrait").getJSONArray("elements").getJSONObject(0).getJSONObject("colors").getString("button"))
         assertEquals("#0000FF", out.getJSONObject("tablet-portrait").getJSONArray("elements").getJSONObject(0).getJSONObject("colors").getString("button"))
+    }
+
+    @Test fun aColourGoesToEveryLayoutOfTheSkin() {
+        val m = model(both)
+        m.paint(buttons, listOf("a"), SkinPart.BUTTON, red)
+        // Live already, in the layout being edited and in the other one.
+        assertEquals(red, m.layoutOf(SkinLayoutId.TABLET_PORTRAIT)!!.elements.single().colors["button"])
+        m.endGesture()
+        for (id in both.layouts.keys) assertEquals(id.id, red, m.layoutOf(id)!!.elements.single().colors["button"])
+        // The art the skin came with gives way to the colour in both: a picture would hide it.
+        assertEquals(mapOf("phone-portrait/a.png" to SkinImageEdit.Removed, "tablet-portrait/a.png" to SkinImageEdit.Removed), m.images)
+        assertTrue(m.changed(SkinLayoutId.PHONE_PORTRAIT) && m.changed(SkinLayoutId.TABLET_PORTRAIT))
+        // Where the control is and how large it is stay each layout's own.
+        assertEquals(tablet.elements.single().rect, m.layoutOf(SkinLayoutId.TABLET_PORTRAIT)!!.elements.single().rect)
+        assertTrue(m.edits().isEmpty())
+        // Both layouts are written, and one undo takes the colour back from both.
+        assertEquals(both.layouts.keys, m.lookEdits().keys)
+        m.undo()
+        assertFalse(m.dirty)
+    }
+
+    @Test fun aTextureInAnotherLayoutStaysWhenAColourIsPickedHere() {
+        // Placed in this session on the tablet's A: its face alone.
+        val m = model(both)
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        m.texture(mapOf("tablet-portrait/a.png" to "t-1.png"))
+        m.show(SkinForm.PHONE, SkinOrientation.PORTRAIT)
+        m.paintA(red)
+        assertEquals(SkinImageEdit.Removed, m.images["phone-portrait/a.png"])
+        assertEquals(SkinImageEdit.Staged("t-1.png"), m.images["tablet-portrait/a.png"])
+        // The colour is the tablet's too, under its picture: its relief follows it.
+        assertEquals(red, m.layoutOf(SkinLayoutId.TABLET_PORTRAIT)!!.elements.single().colors["button"])
+        // Saved earlier: a face is a texture, whatever the session knows of it.
+        val faced = both.copy(layouts = both.layouts + (SkinLayoutId.TABLET_PORTRAIT to tablet.copy(elements = tablet.elements.map { it.copy(art = SkinArt.FACE) })))
+        val n = model(faced)
+        n.paintA(red)
+        assertEquals(mapOf("phone-portrait/a.png" to SkinImageEdit.Removed), n.images)
+        // In the layout being edited a colour on the face takes the picture's place, as it always has.
+        n.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        n.paintA(blue)
+        assertEquals(SkinImageEdit.Removed, n.images["tablet-portrait/a.png"])
+    }
+
+    @Test fun theBodyTheFrameAndTheIconToneAreTheSkinsToo() {
+        val frame = SkinFrame(SkinRect(40f, 40f, 820f, 620f))
+        val turbo = SkinElement("turbo", SkinElementType.ACTION, "turbo", SkinRect(60f, 610f, 40f, 40f))
+        val framed = OpenEmuxSkin(
+            Console.SFC, "Mine",
+            mapOf(
+                SkinLayoutId.PHONE_PORTRAIT to phone.copy(frame = frame, elements = listOf(a, turbo)),
+                SkinLayoutId.TABLET_PORTRAIT to tablet.copy(frame = frame),
+                // No frame, and no A: nothing of it to paint, and nothing breaks.
+                SkinLayoutId.PHONE_LANDSCAPE to SkinLayout(SkinSize(1800, 900), listOf(SkinRect(500f, 50f, 800f, 550f))),
+            ),
+        )
+        val m = SkinEditorModel(framed, existing = files + "phone-portrait/background.png" + "phone-landscape/background.png" + "tablet-portrait/turbo.png")
+            .also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
+        m.paint(SkinTarget.Background, emptyList(), SkinPart.BACKGROUND, red)
+        m.paint(SkinTarget.Frame, emptyList(), SkinPart.FRAME, blue)
+        m.endGesture()
+        m.paint(SkinTarget.Background, emptyList(), SkinPart.BACKGROUND, red)
+        m.endGesture()
+        m.paintA(blue)
+        m.tone(SkinIconTone.DARK)
+        for (id in framed.layouts.keys) assertEquals(id.id, red, m.layoutOf(id)!!.background.color)
+        assertEquals(SkinFrameColors(frame = blue, activeIcon = SkinIconTone.DARK), m.layoutOf(SkinLayoutId.PHONE_PORTRAIT)!!.frame!!.colors)
+        assertEquals(SkinFrameColors(frame = blue, activeIcon = SkinIconTone.DARK), m.layoutOf(SkinLayoutId.TABLET_PORTRAIT)!!.frame!!.colors)
+        assertNull(m.layoutOf(SkinLayoutId.PHONE_LANDSCAPE)!!.frame)
+        assertTrue(m.layoutOf(SkinLayoutId.PHONE_LANDSCAPE)!!.elements.isEmpty())
+        // Every layout's background picture gave way to the body's colour.
+        assertEquals(SkinImageEdit.Removed, m.images["phone-portrait/background.png"])
+        assertEquals(SkinImageEdit.Removed, m.images["phone-landscape/background.png"])
     }
 
     @Test fun aTextureOnALayoutSwitchedOnIsKept() {
@@ -65,8 +138,8 @@ class SkinLayoutsPaintTest {
         val m = model(both)
         m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
         m.paintA(red)
-        // The tablet's own picture of A gave way to the colour.
-        assertEquals(mapOf("tablet-portrait/a.png" to SkinImageEdit.Removed), m.images)
+        // Each layout's own picture of A gave way to the colour.
+        assertEquals(mapOf("phone-portrait/a.png" to SkinImageEdit.Removed, "tablet-portrait/a.png" to SkinImageEdit.Removed), m.images)
         m.show(SkinForm.PHONE, SkinOrientation.PORTRAIT)
         m.paintA(blue)
         assertTrue(m.setForm(SkinForm.TABLET, false))
@@ -74,7 +147,7 @@ class SkinLayoutsPaintTest {
         assertEquals(mapOf("phone-portrait/a.png" to SkinImageEdit.Removed), m.images)
         assertEquals(setOf(SkinLayoutId.TABLET_PORTRAIT), m.removedLayouts())
         m.undo()
-        assertEquals(red, m.looks.getValue(SkinLayoutId.TABLET_PORTRAIT).colors.getValue("a")["button"])
+        assertEquals(blue, m.looks.getValue(SkinLayoutId.TABLET_PORTRAIT).colors.getValue("a")["button"])
         assertEquals(SkinImageEdit.Removed, m.images["tablet-portrait/a.png"])
         // Back on after the undo is redone: as the skin has it, unpainted.
         m.redo()
@@ -93,12 +166,12 @@ class SkinLayoutsPaintTest {
         assertTrue(m.changed(SkinLayoutId.TABLET_PORTRAIT))
         assertFalse(m.changed(SkinLayoutId.PHONE_PORTRAIT))
         m.show(SkinForm.PHONE, SkinOrientation.PORTRAIT)
-        // A colour changed, on a skin with no image for it.
+        // A colour changed, on a skin with no image for it: the skin's colour, so both layouts changed.
         val bare = SkinEditorModel(both).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
         bare.paintA(red)
         assertTrue(bare.images.isEmpty())
         assertTrue(bare.changed(SkinLayoutId.PHONE_PORTRAIT))
-        assertFalse(bare.changed(SkinLayoutId.TABLET_PORTRAIT))
+        assertTrue(bare.changed(SkinLayoutId.TABLET_PORTRAIT))
     }
 
     @Test fun aDraftBringsItsLayoutsColoursAndImages() {

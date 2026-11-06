@@ -746,23 +746,48 @@ class SkinEditorModel(
      * Paints [part] of [target] ([ids]: the controls it paints) in [color], live until [endGesture] (a colour being
      * dragged on the picker is one undo step). A part drawn by an image file of its own loses the image: a colour
      * and an image are one fill, and the image would hide the colour (issue 786).
+     *
+     * A colour is the skin's, not one layout's: it goes to every layout the skin offers (the same controls by id,
+     * the body, the frame), so the other rotation and the other forms are not left in the colours the skin had.
+     * Where a control is, how large it is and a texture on it stay each layout's own: in the other layouts the colour
+     * leaves a texture in place ([textured]), and replaces only the art the skin came with.
      */
     fun paint(target: SkinTarget, ids: List<String>, part: SkinPart, color: Int) {
         val id = layoutId ?: return
-        val l = layout ?: return
+        if (layout == null) return
         val base = history.current
-        val look = SkinPainter.paint(base.looks.getValue(id), l, target, ids, part, color)
-        live = base.copy(looks = base.looks + (id to look), images = dropImages(base.images, SkinPainter.files(id, l, ids, part)))
+        var looks = base.looks
+        var images = base.images
+        for (other in base.rects.keys) {
+            val l = layoutIn(base, other)
+            looks = looks + (other to SkinPainter.paint(base.looks.getValue(other), l, target, ids, part, color))
+            val files = SkinPainter.files(other, l, ids, part)
+            images = dropImages(images, if (other == id) files else files.filter { !textured(base, l, it) })
+        }
+        live = base.copy(looks = looks, images = images)
     }
 
-    /** The icon on a toggled quick action, light or dark: one undo step. */
+    /** The icon on a toggled quick action, light or dark, in every layout with a frame, as a colour is: one undo step. */
     fun tone(tone: SkinIconTone) {
-        val id = layoutId ?: return
-        val l = layout ?: return
+        if (layout == null) return
         val base = history.current
-        history.push(base.copy(looks = base.looks + (id to SkinPainter.tone(base.looks.getValue(id), l, tone))))
+        history.push(base.copy(looks = base.looks.mapValues { (other, look) -> SkinPainter.tone(look, layoutIn(base, other), tone) }))
         cancelGesture()
     }
+
+    /** Layout [id] as [state] has it: its rects and its colours. */
+    private fun layoutIn(state: SkinEditState, id: SkinLayoutId): SkinLayout =
+        base(id).withRects(state.rects.getValue(id)).withLook(state.looks.getValue(id))
+
+    /**
+     * Whether the image at [path] of [layout] is a picture the player put there, which a colour picked in another
+     * layout leaves alone: a texture placed in this session, or the face of a button, a key or the D-pad
+     * ([SkinArt.FACE], what a texture saved earlier is). A texture saved earlier on the body, a ball or a stick cannot
+     * be told from the art the skin came with, and gives way to the colour like it.
+     */
+    private fun textured(state: SkinEditState, layout: SkinLayout, path: String): Boolean =
+        state.images[path] is SkinImageEdit.Staged ||
+            layout.elements.any { it.art == SkinArt.FACE && it.imageFiles[0] == path.substringAfter('/') }
 
     /**
      * The files of [staged] (path in the skin to the staged texture's name) replace those images: one undo step. A

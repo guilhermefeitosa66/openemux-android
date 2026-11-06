@@ -354,7 +354,11 @@ the app cannot draw falls back to the drawn skin.
 - **From its colours.** A button, a key or the D-pad with no image is its face over its relief: the same shape
   `depth` units lower, in the `relief` colour, showing under the face. With a relief the face is shaded from its one
   colour the way the bundled art is (lit from above); with none it is flat. The D-pad gets an arrow near the tip of
-  each arm, in its `letter` colour. Labels are set in Space Grotesk bold, the bundled art's typeface.
+  each arm, in its `letter` colour. Labels are set in Space Grotesk bold, the bundled art's typeface. A button bound
+  to a quick action (the menu key) is drawn as any button; with no label and no image it shows the action's glyph.
+- **Ball and knob.** The D-pad's ball and a stick's knob drawn from a colour take four fifths of the box their image
+  would be drawn over, centred: the bundled art leaves that margin around the circle, so a ball repainted keeps its
+  size. An image of your own is the thing itself, as large in its image as you paint it.
 - **Labels.** The app draws a label when the element has no image, or one whose `art` leaves it out (`key`, `face`).
   One that lies inside its control is part of the control's image on the overlay; one printed beside it (`START`
   under its key) is part of the page.

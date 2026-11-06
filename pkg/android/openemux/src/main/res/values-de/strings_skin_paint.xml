@@ -15,6 +15,7 @@
     <string name="editor_part_base">Sockel</string>
     <string name="editor_part_knob">Kappe</string>
     <string name="editor_palettes">Paletten</string>
+    <string name="editor_palette">Palette</string>
     <string name="editor_palettes_hint">legt die Farbreihe fest</string>
     <string name="editor_palette_in_row">✓ In der Farbreihe</string>
     <string name="editor_back_to_colour">Zurück zur Farbe</string>
@@ -34,6 +35,7 @@
     <string name="editor_contrast_icons">Wenig Kontrast: Die Symbole sind auf dem Rahmen eventuell schwer zu erkennen.</string>
     <string name="editor_contrast_active">Wenig Kontrast: Das Symbol ist bei aktiver Aktion eventuell schwer zu erkennen.</string>
     <string name="editor_replaces_image">Eine Farbe hier ersetzt das Bild dieses Teils.</string>
+    <string name="editor_colour_everywhere">Eine Farbe gilt für alle Layouts dieser Skin. Texturen, Positionen und Größen bleiben bei diesem.</string>
     <string name="editor_icon_when_on">Symbol, wenn aktiv</string>
     <string name="editor_light">Hell</string>
     <string name="editor_dark">Dunkel</string>

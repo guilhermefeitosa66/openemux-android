@@ -107,9 +107,13 @@ key, is what lifts it. A word printed beside a control (START under its key,
 the Famicom's B and A under their buttons) is in no image: the element carries
 it as its `label`, with `labelOffset`, `labelSize` and `art: key`, and the app
 draws it, so the editor can move and paint it. A label on a key stays in the
-key's image. The D-pad's ball is the engine's circle cut edge to edge at the
-ball's size, and a stick's knob the engine's knob rendered alone
-(`render.html?knob=<n>`) and cut the same way. Headless Chrome now and then
+key's image. The D-pad's ball is the engine's circle and a stick's knob the
+engine's knob rendered alone (`render.html?knob=<n>`), each cut to its edge
+and set in its image at four fifths of the image's side, centred (`THUMB_FILL`
+in `build.py`, and in the app's renderer for one drawn from a colour): the
+room their soft shadows took before the art dropped them, so both are the size
+they were. The menu key is a key like the centre keys, its face over its
+relief. Headless Chrome now and then
 hands over a screenshot before every tile is painted; the build checks each one
 (the body covers the page, the bezel and every control have art) and renders it
 again, up to three times. The zips are dated 1980-01-01, so a rebuild that
