@@ -1,6 +1,9 @@
 package com.openemux.mobile.ui
 
+import com.openemux.mobile.data.BindWords
 import com.openemux.mobile.data.SkinElement
+import com.openemux.mobile.data.SkinForm
+import com.openemux.mobile.data.TryWord
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinOrientation
 import com.openemux.mobile.data.SkinRect
@@ -9,6 +12,7 @@ import com.openemux.mobile.data.SnapGuide
 import com.openemux.mobile.data.SnapKind
 import com.retroarch.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -29,8 +33,15 @@ class SkinEditorTextTest {
         "editor_leave_title" to listOf("%1\$s"),
     )
 
-    private fun strings(folder: String): Map<String, String> {
-        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(res, "$folder/strings_skin_editor.xml")).documentElement
+    private val layoutArgs = mapOf(
+        "editor_edit_other" to listOf("%1\$s"),
+        "editor_try_sends" to listOf("%1\$s"),
+        "editor_try_key" to listOf("%1\$s"),
+        "editor_form_off_title" to listOf("%1\$s"),
+    )
+
+    private fun strings(folder: String, file: String = "strings_skin_editor.xml"): Map<String, String> {
+        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(res, "$folder/$file")).documentElement
         val nodes = root.getElementsByTagName("string")
         return (0 until nodes.length).map { nodes.item(it) as Element }.associate { it.getAttribute("name") to it.textContent }
     }
@@ -46,6 +57,45 @@ class SkinEditorTextTest {
                 withArgs[key]?.forEach { arg -> assertTrue("$key in values$locale lacks $arg", arg in value) }
             }
         }
+    }
+
+    @Test fun everyLocaleHasEveryLayoutsAndTryStringWithItsArguments() {
+        val english = strings("values", "strings_skin_layouts.xml")
+        assertTrue(english.keys.containsAll(layoutArgs.keys))
+        for (locale in locales) {
+            val s = strings("values$locale", "strings_skin_layouts.xml")
+            assertEquals("values$locale", english.keys, s.keys)
+            s.forEach { (key, value) ->
+                assertTrue("$key in values$locale is empty", value.isNotBlank())
+                layoutArgs[key]?.forEach { arg -> assertTrue("$key in values$locale lacks $arg", arg in value) }
+            }
+        }
+    }
+
+    @Test fun everyTryWordHasItsOwnString() {
+        val ids = TryWord.entries.map(::tryWord)
+        assertEquals(ids.size, ids.toSet().size)
+        assertEquals(R.string.editor_try_dpad, tryWord(TryWord.DPAD))
+        assertEquals(R.string.editor_try_disk, tryWord(TryWord.DISK))
+        assertEquals("${R.string.editor_try_turbo}", bindText(BindWords.Word(TryWord.TURBO), { "$it" }) { r, a -> "$r:$a" })
+        assertEquals("${R.string.editor_try_key}:5", bindText(BindWords.Key("5"), { "$it" }) { r, a -> "$r:$a" })
+        assertEquals("Start", bindText(BindWords.Name("Start"), { "$it" }) { r, a -> "$r:$a" })
+    }
+
+    @Test fun theLayoutsPanelSaysWhatEachFormDoes() {
+        val forms = SkinForm.entries
+        listOf(forms.map(::layoutsBody), forms.map(::layoutsHere), forms.map(::offerTitle), forms.map { offerLine(it, true) }, forms.map { offerLine(it, false) })
+            .forEach { assertEquals(3, it.toSet().size) }
+        assertEquals(R.string.editor_layouts_body_phone, layoutsBody(SkinForm.PHONE))
+        assertEquals(R.string.editor_layouts_on_fold, layoutsHere(SkinForm.FOLD))
+        assertEquals(R.string.editor_offer_tablets, offerTitle(SkinForm.TABLET))
+        assertEquals(R.string.editor_offer_on_tablet, offerLine(SkinForm.TABLET, true))
+        assertEquals(R.string.editor_offer_off_phone, offerLine(SkinForm.PHONE, false))
+        assertEquals(R.string.editor_layout_missing, layoutState(present = false, editing = true, changed = true))
+        assertEquals(R.string.editor_editing_changed, layoutState(present = true, editing = true, changed = true))
+        assertEquals(R.string.editor_editing, layoutState(present = true, editing = true, changed = false))
+        assertEquals(R.string.editor_changed, layoutState(present = true, editing = false, changed = true))
+        assertNull(layoutState(present = true, editing = false, changed = false))
     }
 
     @Test fun groupsHaveTheirNames() {

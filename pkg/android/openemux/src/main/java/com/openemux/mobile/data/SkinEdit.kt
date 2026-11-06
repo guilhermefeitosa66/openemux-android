@@ -499,7 +499,7 @@ class SkinEditorModel(
     fun moveBy(dx: Float, dy: Float, free: Boolean = false) {
         val from = gestureFrom ?: return
         val id = layoutId ?: return
-        val size = saved.layouts.getValue(id).size
+        val size = base(id).size
         val others = history.current.getValue(id).filterKeys { it !in from }
         val result = SkinSnap.move(SkinSnap.bounds(from.values), others, size, dx, dy, snap && !free)
         guides = result.guides
@@ -558,7 +558,7 @@ class SkinEditorModel(
     fun nudge(stepsX: Int, stepsY: Int) {
         val sel = selection ?: return
         val id = layoutId ?: return
-        val moved = SkinSnap.nudge(current().filterKeys { it in sel.ids }, saved.layouts.getValue(id).size, stepsX, stepsY)
+        val moved = SkinSnap.nudge(current().filterKeys { it in sel.ids }, base(id).size, stepsX, stepsY)
         history.push(withLayout(id, moved))
     }
 
@@ -608,7 +608,7 @@ class SkinEditorModel(
 
     private fun resizeTo(from: Map<String, SkinRect>, ref: String, saved: SkinRect, target: Int, live: Boolean) {
         val id = layoutId ?: return
-        val scaled = SkinResize.scale(from, saved, ref, target, this.saved.layouts.getValue(id).size)
+        val scaled = SkinResize.scale(from, saved, ref, target, base(id).size)
         if (live) this.live = withLayout(id, scaled) else history.push(withLayout(id, scaled))
     }
 
