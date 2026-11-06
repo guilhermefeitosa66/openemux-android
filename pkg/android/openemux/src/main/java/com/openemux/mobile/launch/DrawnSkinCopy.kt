@@ -83,14 +83,11 @@ object DrawnSkinCopy {
     /** What [convert] gives: the skin and the images to paint into its layout folders. */
     data class Copy(val skin: OpenEmuxSkin, val art: List<Art>)
 
-    /** How wide OpenEmuxSkinRenderer draws a D-pad's ball against its travel. */
-    private const val BALL_DRAWN = 0.55f
-
     /**
      * The ring's share of the ball image: the drawn ring is 14 units of the D-pad's 120 in radius, the format draws the
-     * ball [BALL_DRAWN] of the travel (44/60 of the D-pad) across.
+     * ball [OpenEmuxSkinRenderer.BALL_SHARE] of the travel (44/60 of the D-pad) across.
      */
-    const val RING = 2f * 14f / (120f * OverlayLines.DPAD_TRAVEL * BALL_DRAWN)
+    const val RING = 2f * 14f / (120f * OverlayLines.DPAD_TRAVEL * OpenEmuxSkinRenderer.BALL_SHARE)
 
     /** The least a keypad key is across, in units: a grid that would go under it takes the other place. */
     const val MIN_KEY = 40f
@@ -111,7 +108,7 @@ object DrawnSkinCopy {
     /** [console]'s drawn skin as a skin of the player's own named [name]: the six layouts and their images. */
     fun convert(console: Console, name: String): Copy {
         val pages = SkinLayoutId.entries.associateWith { Page(console, console.skin, it) }
-        return Copy(OpenEmuxSkin(console, name, pages.mapValues { it.value.layout() }), pages.values.flatMap { it.art() })
+        return Copy(OpenEmuxSkin(console, name, pages.mapValues { it.value.layout }), pages.values.flatMap { it.art() })
     }
 
     /**
@@ -157,14 +154,15 @@ object DrawnSkinCopy {
             }
         }
 
-        fun layout(): SkinLayout {
+        /** The page as a layout, built once [init] has placed its pieces. */
+        val layout: SkinLayout by lazy {
             val all = listOf(
                 SkinElement("menu", SkinElementType.BUTTON, "menu", rect(menu), group = "menu", shape = SkinShape.PILL),
             ) + actions() + elements.map { (e, b) -> e.copy(rect = rect(b)) }
             // The NDS's two screens one over the other, as the core shows them in the picture's box.
             val screens = if (console == Console.NDS) listOf(picture.copy(h = picture.h / 2f), picture.copy(y = picture.y + picture.h / 2f, h = picture.h / 2f))
             else listOf(picture)
-            return SkinLayout(
+            SkinLayout(
                 size, screens.map(::rect), SkinBackground(skin.colors.body),
                 SkinFrame(rect(strip), SkinFrameColors(frame = skin.colors.strip, icons = skin.colors.icon)),
                 unique(all),
@@ -175,7 +173,7 @@ object DrawnSkinCopy {
             val out = mutableListOf<Art>(
                 Art.Background(id, size.width, size.height, skin.colors.body, skin.name, rect(name), nameFont * unit, nameSpacing, skin.colors.ink),
             )
-            val placed = layout().elements
+            val placed = layout.elements
             placed.firstOrNull { it.id == "menu" }?.let { out += Art.Menu(id, "menu.png", px(it.rect.width), px(it.rect.height), skin.colors.menu, skin.colors.menuInk) }
             placed.filter { it.type == SkinElementType.DPAD }.forEach { e ->
                 out += Art.Dpad(id, e.imageFiles[0], px(e.rect.width), px(e.rect.height), skin.colors.dpad, skin.colors.mark)
@@ -232,11 +230,12 @@ object DrawnSkinCopy {
             var m1 = top + pd - 108f
             val pillsTop = top + pd - 100f
             val upright = if (keypad) keypadUpright(96f, 290f, m0, m1, pillsTop, 1f) else null
-            if (upright != null && upright.band) m1 = upright.box.y - GAP
-            val k = if (upright != null && upright.band) minOf(1f, (m1 - m0) / CONTROLS) else 1f
+            if (upright?.band == true) m1 = upright.box.y - GAP
+            val k = if (upright?.band == true) minOf(1f, (m1 - m0) / CONTROLS) else 1f
             clusters(96f, 290f, rows(m0, m1), k, k)
             upright?.let { keys(it.box) }
-            pills(pills().mapIndexed { i, key -> key to Box(195f + (i - (pills().size - 1) / 2f) * 96f - 30f, pillsTop, 60f, 24f) })
+            val shown = pills()
+            pills(shown.mapIndexed { i, key -> key to Box(195f + (i - (shown.size - 1) / 2f) * 96f - 30f, pillsTop, 60f, 24f) })
             name = at(0f, pd - 38f, 390f, 11f)
         }
 
@@ -273,18 +272,19 @@ object DrawnSkinCopy {
             if (keypad) {
                 val m0 = g.menu.bottom + GAP
                 val upright = keypadUpright(g.lx, g.rx, m0, g.pillsTop - GAP, g.pillsTop, g.k)
-                if (upright != null && upright.band) {
+                if (upright.band) {
                     // Under the clusters: they keep the room above it, at their scale for that room.
                     val m1 = upright.box.y - GAP
                     rows = rows(m0, m1)
                     k = minOf(k, (m1 - m0) / CONTROLS)
                 }
                 clusters(g.lx, g.rx, rows, k, k)
-                upright?.let { keys(it.box) }
+                keys(upright.box)
             } else {
                 clusters(g.lx, g.rx, rows, k, k)
             }
-            pills(pills().mapIndexed { i, key -> key to Box(g.picture.cx + (i - (pills().size - 1) / 2f) * 96f - 30f, g.pillsTop, 60f, 24f) })
+            val shown = pills()
+            pills(shown.mapIndexed { i, key -> key to Box(g.picture.cx + (i - (shown.size - 1) / 2f) * 96f - 30f, g.pillsTop, 60f, 24f) })
             name = g.name
         }
 
@@ -437,7 +437,9 @@ object DrawnSkinCopy {
                     val bind = when {
                         key.label.toIntOrNull() != null -> "keypad${key.label}"
                         last.size == 3 && key === last[0] -> "keypadStar"
-                        else -> "keypadHash"
+                        last.size == 3 && key === last[2] -> "keypadHash"
+                        // A key the format has no name for (OpenEmuxBinds.keypad would press nothing): left out.
+                        else -> return@forEachIndexed
                     }
                     val eid = "key-" + bind.removePrefix("keypad").lowercase()
                     elements += SkinElement(

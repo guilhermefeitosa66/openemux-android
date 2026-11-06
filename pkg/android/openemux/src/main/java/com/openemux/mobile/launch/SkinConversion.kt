@@ -39,7 +39,7 @@ object SkinConversion {
     /** A new skin of the player's own named [name], made from [console]'s bundled skin in [variant]: its ref. */
     fun convert(context: Context, store: SkinStore, console: Console, variant: SkinVariant, name: String): String =
         when (kind({ context.assets.list(it) }, console, variant)) {
-            Kind.DRAWN -> convertDrawn(store, console, name, context.cacheDir) { art, file -> DrawnSkinArt(context).paint(art, file) }
+            Kind.DRAWN -> DrawnSkinArt(context).let { painter -> convertDrawn(store, console, name, context.cacheDir, painter::paint) }
             else -> convert(store, console, ImportedSkinRenderer.bundled(context, console, variant), name)
         }
 

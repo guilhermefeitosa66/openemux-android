@@ -343,7 +343,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         private const val TAG = "OpenEmuxSkin"
 
         /** The D-pad's ball across, as a share of its travel's box. */
-        private const val BALL_SHARE = 0.55f
+        internal const val BALL_SHARE = 0.55f
 
         // A part left unset, with no image, in the app's Dark skin family.
         private const val DEFAULT_BACKGROUND = 0xFF16161A.toInt()
