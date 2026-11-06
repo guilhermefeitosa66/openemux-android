@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -85,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.edit
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.EditedSkinSource
@@ -537,7 +539,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         if (commit) {
             mm.endGesture()
             recent = SkinPalettes.recent(recent, color)
-            prefs.edit().putString(PREF_RECENT, SkinPalettes.recentText(recent)).apply()
+            prefs.edit { putString(PREF_RECENT, SkinPalettes.recentText(recent)) }
         }
         changed(commit)
     }
@@ -653,7 +655,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                         onPalettes = { open -> panel = panel?.copy(palettes = open) },
                         onPalette = { pal ->
                             palette = pal
-                            prefs.edit().putString(PREF_PALETTE, pal.id).apply()
+                            prefs.edit { putString(PREF_PALETTE, pal.id) }
                             panel = panel?.copy(palettes = false)
                         },
                         onPickImage = { runCatching { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) }.onFailure { toast(R.string.editor_image_unreadable) } },
@@ -911,8 +913,11 @@ private fun Stage(
                     Modifier.offset { IntOffset(x.roundToInt(), 0) }.width(with(density) { panelW.toDp() }).height(with(density) { h.toDp() }),
                 )
             } else {
-                val panelH = maxOf(screenBottom, h * 0.42f).coerceAtMost(h * 0.6f)
-                PaintPanel(panel.first, panel.second, Modifier.fillMaxWidth().height(with(density) { panelH.toDp() }))
+                // Over the game's screen; the frame borders it, so for the frame the panel goes to the bottom instead.
+                val atBottom = panel.first.target == SkinTarget.Frame
+                Box(Modifier.fillMaxSize(), contentAlignment = if (atBottom) Alignment.BottomCenter else Alignment.TopCenter) {
+                    PaintPanel(panel.first, panel.second, Modifier.fillMaxWidth().heightIn(max = with(density) { (h * 0.6f).toDp() }))
+                }
             }
             return@BoxWithConstraints
         }
