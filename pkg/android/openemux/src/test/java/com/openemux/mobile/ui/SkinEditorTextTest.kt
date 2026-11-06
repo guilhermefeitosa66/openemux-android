@@ -27,7 +27,6 @@ class SkinEditorTextTest {
         "editor_guide_edge" to listOf("%1\$s"),
         "editor_guide_mirror" to listOf("%1\$s"),
         "editor_leave_title" to listOf("%1\$s"),
-        "editor_leave_body" to listOf("%1\$s"),
     )
 
     private fun strings(folder: String): Map<String, String> {

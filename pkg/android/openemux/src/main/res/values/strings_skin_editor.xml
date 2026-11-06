@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">Edge of %1$s</string>
     <string name="editor_guide_mirror">Mirrors %1$s</string>
     <string name="editor_leave_title">Save changes to %1$s?</string>
-    <string name="editor_leave_body">Your changes to %1$s are not saved yet.</string>
+    <string name="editor_leave_body">Your changes to this skin are not saved yet.</string>
     <string name="editor_save_new">Save as a new skin…</string>
     <string name="editor_discard">Discard changes</string>
     <string name="editor_draft_note">If the app closes while you edit, your work comes back as a draft the next time you open the editor.</string>

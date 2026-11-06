@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">Bord de %1$s</string>
     <string name="editor_guide_mirror">Symétrique de %1$s</string>
     <string name="editor_leave_title">Enregistrer les modifications de %1$s ?</string>
-    <string name="editor_leave_body">Vos modifications de %1$s ne sont pas encore enregistrées.</string>
+    <string name="editor_leave_body">Vos modifications de ce skin ne sont pas encore enregistrées.</string>
     <string name="editor_save_new">Enregistrer comme nouveau skin…</string>
     <string name="editor_discard">Abandonner les modifications</string>
     <string name="editor_draft_note">Si l’appli se ferme pendant que vous modifiez, votre travail revient en brouillon la prochaine fois que vous ouvrez l’éditeur.</string>

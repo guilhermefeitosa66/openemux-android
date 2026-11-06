@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">%1$sの端</string>
     <string name="editor_guide_mirror">%1$sと対称</string>
     <string name="editor_leave_title">%1$sの変更を保存しますか？</string>
-    <string name="editor_leave_body">%1$sの変更はまだ保存されていません。</string>
+    <string name="editor_leave_body">このスキンの変更はまだ保存されていません。</string>
     <string name="editor_save_new">新しいスキンとして保存…</string>
     <string name="editor_discard">変更を破棄</string>
     <string name="editor_draft_note">編集中にアプリが終了しても、次にエディターを開いたときに下書きとして復元されます。</string>

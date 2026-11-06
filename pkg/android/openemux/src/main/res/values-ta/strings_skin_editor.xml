@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">%1$s இன் விளிம்பு</string>
     <string name="editor_guide_mirror">%1$s இன் பிரதிபலிப்பு</string>
     <string name="editor_leave_title">%1$s இல் செய்த மாற்றங்களைச் சேமிக்கவா?</string>
-    <string name="editor_leave_body">%1$s இல் உங்கள் மாற்றங்கள் இன்னும் சேமிக்கப்படவில்லை.</string>
+    <string name="editor_leave_body">இந்த ஸ்கினில் உங்கள் மாற்றங்கள் இன்னும் சேமிக்கப்படவில்லை.</string>
     <string name="editor_save_new">புதிய ஸ்கினாகச் சேமி…</string>
     <string name="editor_discard">மாற்றங்களை நிராகரி</string>
     <string name="editor_draft_note">திருத்தும்போது ஆப் மூடினால், அடுத்த முறை எடிட்டரைத் திறக்கும்போது உங்கள் வேலை வரைவாகத் திரும்பும்.</string>

@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">Kante von %1$s</string>
     <string name="editor_guide_mirror">Spiegelt %1$s</string>
     <string name="editor_leave_title">Änderungen an %1$s speichern?</string>
-    <string name="editor_leave_body">Deine Änderungen an %1$s sind noch nicht gespeichert.</string>
+    <string name="editor_leave_body">Deine Änderungen an diesem Skin sind noch nicht gespeichert.</string>
     <string name="editor_save_new">Als neuen Skin speichern…</string>
     <string name="editor_discard">Änderungen verwerfen</string>
     <string name="editor_draft_note">Wenn die App beim Bearbeiten geschlossen wird, kommt deine Arbeit beim nächsten Öffnen des Editors als Entwurf zurück.</string>

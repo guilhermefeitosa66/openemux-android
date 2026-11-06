@@ -419,7 +419,6 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     if (leaving) {
         LeaveDialog(
             target.name,
-            stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
             onDismiss = { leaving = false },
             onSave = { leaving = false; save(andClose = true) },
             onSaveNew = { leaving = false; naming = true },
@@ -803,9 +802,9 @@ private fun DoneButton(onDone: () -> Unit) {
     ) { Icon(Icons.Check, Color.White, 20.dp) }
 }
 
-/** Leaving with changes: Save, Save as a new skin…, Discard. */
+/** Leaving with changes (in either rotation's layout): Save, Save as a new skin…, Discard. */
 @Composable
-private fun LeaveDialog(name: String, layout: String, onDismiss: () -> Unit, onSave: () -> Unit, onSaveNew: () -> Unit, onDiscard: () -> Unit) {
+private fun LeaveDialog(name: String, onDismiss: () -> Unit, onSave: () -> Unit, onSaveNew: () -> Unit, onDiscard: () -> Unit) {
     val opener = LocalPadScope.current
     val pad = remember { PadScope() }
     CompositionLocalProvider(LocalPadScope provides pad) {
@@ -817,7 +816,7 @@ private fun LeaveDialog(name: String, layout: String, onDismiss: () -> Unit, onS
             ) {
                 PadDialogWindow(pad, opener)
                 Text(stringResource(R.string.editor_leave_title, name), style = Type.Title.copy(fontSize = 21.sp))
-                Text(stringResource(R.string.editor_leave_body, layout), style = Type.Small.copy(fontSize = 14.sp, lineHeight = 20.sp))
+                Text(stringResource(R.string.editor_leave_body), style = Type.Small.copy(fontSize = 14.sp, lineHeight = 20.sp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton(stringResource(R.string.editor_save), onSave, Modifier.fillMaxWidth())
                     SecondaryButton(stringResource(R.string.editor_save_new), onSaveNew, Modifier.fillMaxWidth())

@@ -42,7 +42,7 @@
     <string name="editor_guide_edge">%1$s的边缘</string>
     <string name="editor_guide_mirror">与%1$s对称</string>
     <string name="editor_leave_title">保存对%1$s的更改？</string>
-    <string name="editor_leave_body">你对%1$s的更改还没有保存。</string>
+    <string name="editor_leave_body">你对此皮肤的更改还没有保存。</string>
     <string name="editor_save_new">另存为新皮肤…</string>
     <string name="editor_discard">放弃更改</string>
     <string name="editor_draft_note">如果编辑时应用关闭，下次打开编辑器时你的工作会以草稿形式恢复。</string>
