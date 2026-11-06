@@ -215,7 +215,7 @@ class SkinStore(private val base: File) {
         own(console, id)
         val list = File(stageDir(console, id), IMAGES)
         if (images.isEmpty()) {
-            if (!isLink(list)) list.delete()
+            if (!isLink(list.parentFile!!) && !isLink(list)) list.delete()
         } else {
             val text = JSONObject().apply {
                 images.forEach { (path, edit) -> put(path, if (edit is SkinImageEdit.Staged) STAGED + edit.name else REMOVED) }

@@ -269,6 +269,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     var panel by remember { mutableStateOf<PanelOpen?>(null) }
     var texture by remember { mutableStateOf<TextureSession?>(null) }
     var overrides by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
+    // The images the texture being framed fills, as last drawn: a new selection must not retarget it before it goes in.
+    var textureFor by remember { mutableStateOf<List<Pair<String, com.openemux.mobile.data.TemplateImage>>>(emptyList()) }
     val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
     var palette by remember { mutableStateOf(SkinPalettes.byId(prefs.getString(PREF_PALETTE, null))) }
     var recent by remember { mutableStateOf(SkinPalettes.recentFrom(prefs.getString(PREF_RECENT, null))) }
@@ -467,7 +469,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         val mm = model ?: return emptyList()
         val l = mm.layout ?: return emptyList()
         val id = mm.layoutId ?: return emptyList()
-        if (!p.part.texturable || p.part == SkinPart.ICONS) return emptyList()
+        if (!p.part.texturable) return emptyList()
         val files = SkinPainter.files(id, l, painted(p), p.part).toSet()
         return SkinTemplate.images(l).filter { !it.keypadPage && "${id.id}/${it.file}" in files }.map { "${id.id}/${it.file}" to it }
     }
@@ -482,7 +484,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             overrides = emptyMap()
             return after()
         }
-        val targets = textureTargets(p)
+        // What it was framed on: by now the selection may be another one (or none), which is what made this commit.
+        val targets = textureFor
         busy = true
         scope.launch {
             val staged = withContext(Dispatchers.IO) {
@@ -566,6 +569,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             return@LaunchedEffect
         }
         val targets = textureTargets(p)
+        textureFor = targets
         bake.withLock {
             overrides = withContext(Dispatchers.Default) {
                 val r = OpenEmuxSkinRenderer(context)

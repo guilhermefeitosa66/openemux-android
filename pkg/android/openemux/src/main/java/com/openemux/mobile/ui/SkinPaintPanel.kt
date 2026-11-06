@@ -422,7 +422,8 @@ private fun Picker(color: Int, actions: PaintActions) {
             }
             .pointerInput(Unit) {
                 fun at(p: Offset, commit: Boolean) = set(hsv[0], p.x / size.width, 1f - p.y / size.height, commit)
-                detectDragGestures(onDragStart = { at(it, false) }, onDragEnd = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }) { change, _ ->
+                val end = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
+                detectDragGestures(onDragStart = { at(it, false) }, onDragEnd = end, onDragCancel = end) { change, _ ->
                     at(change.position, false)
                 }
             }
@@ -450,7 +451,8 @@ private fun Picker(color: Int, actions: PaintActions) {
             }
             .pointerInput(Unit) {
                 fun at(x: Float, commit: Boolean) = set((x / size.width).coerceIn(0f, 0.999f) * 360f, hsv[1], hsv[2], commit)
-                detectDragGestures(onDragStart = { at(it.x, false) }, onDragEnd = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }) { change, _ ->
+                val end = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
+                detectDragGestures(onDragStart = { at(it.x, false) }, onDragEnd = end, onDragCancel = end) { change, _ ->
                     at(change.position.x, false)
                 }
             },
@@ -511,7 +513,7 @@ private fun HexField(color: Int, onColor: (Int) -> Unit) {
             text,
             onValueChange = { v ->
                 text = v.take(7).uppercase()
-                SkinColorMath.parseHex(text)?.takeIf { text.trim().length >= 6 }?.let(onColor)
+                SkinColorMath.parseHex(text)?.let(onColor)
             },
             singleLine = true,
             textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextOn),

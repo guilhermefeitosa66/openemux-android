@@ -149,7 +149,8 @@ class OpenEmuxSkinRenderer(context: Context) {
         val out = blank(box)
         val c = Canvas(out)
         val mask = when (kind) {
-            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> element?.let { shape(it.copy(label = null), box) }
+            // Opaque white like the others: only the outline matters, a translucent button colour must not fade the texture.
+            TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> element?.let { shape(it.copy(label = null, colors = it.colors + ("button" to 0xFFFFFFFF.toInt())), box) }
             TemplateImageKind.DPAD -> cross(box, 0xFFFFFFFF.toInt())
             TemplateImageKind.DPAD_BALL, TemplateImageKind.STICK_BASE, TemplateImageKind.STICK_KNOB -> disc(box, 0xFFFFFFFF.toInt())
             else -> null
