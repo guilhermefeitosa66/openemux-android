@@ -13,6 +13,8 @@ data class OfferGame(
     val bytes: Long,
     /** The names of the console's BIOS files this game carries (#678). */
     val bios: List<String> = emptyList(),
+    /** A controller skin, not a game ([Game.isSkin]). */
+    val skin: Boolean = false,
 )
 
 /** An incoming item that meets a file the library already has. */
@@ -62,9 +64,12 @@ class OfferModel(
         OfferGame(
             game.id, game.title, game.console, Item.ROM in kinds, kinds[Item.BATTERY_SAVE] ?: 0, kinds[Item.STATE] ?: 0,
             Item.COVER in kinds, Item.LABEL in kinds, game.items.sumOf { it.size },
-            game.items.filter { it.kind == Item.BIOS }.map { it.name },
+            game.items.filter { it.kind == Item.BIOS }.map { it.name }, game.isSkin,
         )
     }
+
+    /** Only controller skins come: the sheet speaks of a skin, not of games. */
+    val skinOnly: Boolean get() = offer.manifest.skinOnly
 
     val totalBytes: Long get() = offer.manifest.totalSize
 

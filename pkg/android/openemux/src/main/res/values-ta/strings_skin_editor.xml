@@ -6,7 +6,7 @@
     <string name="editor_undo">செயல்தவிர்</string>
     <string name="editor_redo">மீண்டும் செய்</string>
     <string name="editor_save">சேமி</string>
-    <string name="editor_snap">ஒட்டு</string>
+    <string name="editor_snap">கட்டம்</string>
     <string name="editor_more">மேலும்</string>
     <string name="editor_reset_layout">தளவமைப்பை மீட்டமை</string>
     <string name="editor_hint_tap">மாற்ற ஒரு கட்டுப்பாட்டைத் தட்டவும்.</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">வலப்புறம் நகர்த்து</string>
     <string name="editor_percent">%1$d%%</string>
     <string name="editor_tap_again">ஒன்றுக்கு மீண்டும் தட்டவும்</string>
+    <string name="editor_tap_again_label">லேபிளுக்கு மீண்டும் தட்டவும்</string>
     <string name="editor_group_face">செயல் பொத்தான்கள்</string>
     <string name="editor_group_dpad">D-pad</string>
     <string name="editor_group_center">Start மற்றும் Select</string>

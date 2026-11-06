@@ -8,6 +8,7 @@ data class MissingGame(val title: String, val console: String, val reason: Strin
  * which did not, with why. The desktop's `report.py` counts the same way, so
  * both ends of a transfer show the same numbers. BIOS files (#678) belong to a
  * console: they never make a game count as delivered, and are listed apart, by name.
+ * A controller skin ([SkinShare]) is an entry like a game, delivered when its skin went.
  */
 data class DeliveryReport(val delivered: Int, val total: Int, val missing: List<MissingGame>, val bios: List<String> = emptyList()) {
     val complete: Boolean get() = missing.isEmpty()
@@ -30,7 +31,7 @@ fun receiveReport(plan: ReceivePlan, result: ReceiveResult): DeliveryReport {
         if (game.userUnchecked) continue
         total++
         val written = game.decisions.filter { it.send && it.itemId !in notWritten && it.kind != Item.BIOS }
-        if (written.any { it.kind == Item.ROM } || game.romStatus == RomStatus.EXISTING && written.isNotEmpty()) {
+        if (written.any { it.kind == Item.ROM || it.kind == Item.SKIN } || game.romStatus == RomStatus.EXISTING && written.isNotEmpty()) {
             delivered++
             continue
         }
@@ -70,6 +71,7 @@ fun sendReport(built: BuiltManifest, excluded: List<ExcludedGame>, result: SendR
         val romIds = roms.sortedByDescending { Item.isMainRom(Item.ROM, it) }.map { it.getString("id") }
         val otherIds = others.map { it.getString("id") }
         val romsSent = romIds.isNotEmpty() && romIds.all { it in sent }
+        // Also an entry with no ROM at all, a skin: it went when its one file did.
         val romsThere = romIds.all { skipped[it] == SkipReason.EXISTS_SKIP }
         if (romsSent || romsThere && otherIds.any { it in sent }) {
             delivered++

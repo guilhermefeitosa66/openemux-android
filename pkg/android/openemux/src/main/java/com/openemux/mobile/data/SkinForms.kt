@@ -21,6 +21,13 @@ object SkinForms {
         SkinForm.FOLD to listOf(SkinForm.TABLET, SkinForm.PHONE),
     )
 
+    /**
+     * The layout of [have] that shows a skin on a device of [form] held in [orientation]: that very one, else the
+     * form's other one, else any the skin has (a skin not made for this form is still a skin to look at).
+     */
+    fun shown(have: Collection<SkinLayoutId>, form: SkinForm, orientation: SkinOrientation): SkinLayoutId? =
+        listOf(id(form, orientation)).plus(layoutsOf(form)).firstOrNull { it in have } ?: SkinLayoutId.entries.firstOrNull { it in have }
+
     /** [form]'s upright and sideways layouts. */
     fun layoutsOf(form: SkinForm): List<SkinLayoutId> = SkinLayoutId.entries.filter { it.form == form }
 
@@ -62,12 +69,13 @@ object SkinForms {
             val y = ((r.y + r.height / 2f) * sy - h / 2f).roundToInt().coerceIn(0, size.height - h)
             return SkinRect(x.toFloat(), y.toFloat(), w.toFloat(), h.toFloat())
         }
-        fun element(e: SkinElement) = e.copy(rect = map(e.rect), image = null)
+        // What a control measures in units (its relief, its label) follows it; drawn whole by the app, so its label too.
+        fun element(e: SkinElement) = e.at(map(e.rect)).copy(image = null, art = SkinArt.FULL)
         return SkinLayout(
             size = size,
             screens = source.screens.map(::map),
             background = source.background.copy(image = null),
-            frame = source.frame?.let { it.copy(rect = map(it.rect), image = null) },
+            frame = source.frame?.let { it.copy(rect = map(it.rect), image = null, radius = it.radius * k) },
             elements = source.elements.map(::element),
             keypad = source.keypad?.let { page -> SkinKeypadPage(page.elements.map(::element), page.background?.copy(image = null)) },
         )

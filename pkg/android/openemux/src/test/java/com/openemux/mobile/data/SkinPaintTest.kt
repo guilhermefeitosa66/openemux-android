@@ -12,7 +12,7 @@ import java.io.File
 import java.io.InputStream
 import java.nio.file.Files
 
-/** The skin editor's appearance rules (issue 786): parts, defaults, colour maths, palettes, Apply to, textures, contrast. */
+/** The skin editor's appearance rules (issue 786): parts, defaults, colour maths, palettes, what is painted, textures, contrast. */
 class SkinPaintTest {
     private val dpad = SkinElement("dpad", SkinElementType.DPAD, "dpad", SkinRect(100f, 1200f, 200f, 200f), group = "dpad")
     private val a = SkinElement("a", SkinElementType.BUTTON, "a", SkinRect(650f, 1250f, 100f, 100f), group = "face", label = "A")
@@ -32,11 +32,12 @@ class SkinPaintTest {
         assertEquals(0, SkinPart.BASE.imageIndex)
         assertEquals(1, SkinPart.BALL.imageIndex)
         assertEquals(1, SkinPart.KNOB.imageIndex)
-        listOf(SkinPart.LETTER, SkinPart.ICONS, SkinPart.ACTIVE, SkinPart.BACKGROUND, SkinPart.FRAME).forEach { assertNull(it.imageIndex) }
+        listOf(SkinPart.RELIEF, SkinPart.LETTER, SkinPart.ICONS, SkinPart.ACTIVE, SkinPart.BACKGROUND, SkinPart.FRAME).forEach { assertNull(it.imageIndex) }
         assertTrue(SkinPart.BACKGROUND.texturable)
         assertTrue(SkinPart.FRAME.texturable)
         assertTrue(SkinPart.KNOB.texturable)
         assertFalse(SkinPart.LETTER.texturable)
+        assertFalse(SkinPart.RELIEF.texturable)
         assertFalse(SkinPart.ICONS.texturable)
         assertFalse(SkinPart.ACTIVE.texturable)
     }
@@ -44,9 +45,10 @@ class SkinPaintTest {
     @Test fun partsFollowTheFormatsColourKeys() {
         SkinPart.entries.forEach { assertSame(it, SkinPart.byId(it.id)) }
         assertNull(SkinPart.byId("nope"))
-        assertEquals(listOf(SkinPart.BUTTON, SkinPart.LETTER), SkinPart.of(SkinElementType.BUTTON))
-        assertEquals(listOf(SkinPart.BUTTON, SkinPart.LETTER), SkinPart.of(SkinElementType.KEYPAD))
-        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL), SkinPart.of(SkinElementType.DPAD))
+        assertEquals(listOf(SkinPart.BUTTON, SkinPart.RELIEF, SkinPart.LETTER), SkinPart.of(SkinElementType.BUTTON))
+        assertEquals(listOf(SkinPart.BUTTON, SkinPart.RELIEF, SkinPart.LETTER), SkinPart.of(SkinElementType.KEYPAD))
+        // The D-pad's four: its cross, its ball, its relief and its arrows.
+        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL, SkinPart.RELIEF, SkinPart.LETTER), SkinPart.of(SkinElementType.DPAD))
         assertEquals(listOf(SkinPart.BASE, SkinPart.KNOB), SkinPart.of(SkinElementType.STICK))
         assertTrue(SkinPart.of(SkinElementType.ACTION).isEmpty())
         assertEquals(listOf(SkinPart.FRAME, SkinPart.ICONS, SkinPart.ACTIVE), SkinPart.FRAME_PARTS)
@@ -54,7 +56,7 @@ class SkinPaintTest {
 
     @Test fun aSelectionsTargetIsItsControlsOrTheFrameForAQuickAction() {
         assertEquals(SkinTarget.Controls(SkinElementType.BUTTON), SkinTarget.of(layout, listOf("a", "b")))
-        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL), SkinTarget.of(layout, listOf("dpad"))!!.parts)
+        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL, SkinPart.RELIEF, SkinPart.LETTER), SkinTarget.of(layout, listOf("dpad"))!!.parts)
         assertEquals(SkinTarget.Frame, SkinTarget.of(layout, listOf("turbo")))
         assertNull(SkinTarget.of(bare, listOf("turbo")))
         assertNull(SkinTarget.of(layout, listOf("nothing")))
@@ -77,6 +79,31 @@ class SkinPaintTest {
         assertEquals(0xFF000000.toInt(), SkinPaintDefaults.icon(SkinIconTone.DARK))
         assertEquals(0xFFFFFFFF.toInt(), SkinPaintDefaults.icon(SkinIconTone.LIGHT))
         assertEquals(0xFFFFFFFF.toInt(), SkinPaintDefaults.icon(null))
+    }
+
+    @Test fun aReliefFollowsItsFaceAndADpadsArrowsItsBall() {
+        val purple = 0xFF7C4DFF.toInt()
+        // 42 % of the way to black, channel by channel; the default is the default button's.
+        assertEquals(0xFF482D94.toInt(), SkinPaintDefaults.relief(purple))
+        assertEquals(SkinColorMath.darken(purple, SkinPaintDefaults.RELIEF_SHADE), SkinPaintDefaults.relief(purple))
+        assertEquals(0xFF1B1B1F.toInt(), SkinPaintDefaults.of(SkinPart.RELIEF))
+        // A face is a button's or a key's "button", the D-pad's "pad".
+        assertEquals(SkinPaintDefaults.BUTTON, SkinPaintDefaults.face(a))
+        assertEquals(purple, SkinPaintDefaults.face(a.copy(colors = mapOf("button" to purple))))
+        assertEquals(purple, SkinPaintDefaults.face(a.copy(type = SkinElementType.KEYPAD, colors = mapOf("button" to purple))))
+        assertEquals(SkinPaintDefaults.PAD, SkinPaintDefaults.face(dpad))
+        assertEquals(purple, SkinPaintDefaults.face(dpad.copy(colors = mapOf("pad" to purple, "ball" to 7))))
+        // The relief set wins; unset, it is its face's colour, darker.
+        assertEquals(7, SkinPaintDefaults.relief(a.copy(colors = mapOf("button" to purple, "relief" to 7))))
+        assertEquals(SkinPaintDefaults.relief(purple), SkinPaintDefaults.relief(a.copy(colors = mapOf("button" to purple))))
+        assertEquals(SkinPaintDefaults.relief(purple), SkinPaintDefaults.relief(dpad.copy(colors = mapOf("pad" to purple))))
+        assertEquals(SkinPaintDefaults.of(SkinPart.RELIEF), SkinPaintDefaults.relief(a))
+        // A button's letter is white; a D-pad's arrows take its ball's colour, set or not.
+        assertEquals(SkinPaintDefaults.LETTER, SkinPaintDefaults.letter(a))
+        assertEquals(7, SkinPaintDefaults.letter(a.copy(colors = mapOf("letter" to 7))))
+        assertEquals(SkinPaintDefaults.BALL, SkinPaintDefaults.letter(dpad))
+        assertEquals(purple, SkinPaintDefaults.letter(dpad.copy(colors = mapOf("ball" to purple))))
+        assertEquals(7, SkinPaintDefaults.letter(dpad.copy(colors = mapOf("ball" to purple, "letter" to 7))))
     }
 
     @Test fun hexReadsSixDigitsWithOrWithoutTheHash() {
@@ -119,6 +146,24 @@ class SkinPaintTest {
         assertTrue(SkinColorMath.contrast(0xFF050505.toInt(), 0xFF000000.toInt()) < SkinColorMath.MIN_CONTRAST)
     }
 
+    @Test fun coloursMixChannelByChannelKeepingTheFirstOnesAlpha() {
+        val red = 0x80FF0000.toInt()
+        val blue = 0xFF0000FF.toInt()
+        assertEquals(red, SkinColorMath.mix(red, blue, 0f))
+        assertEquals(0x800000FF.toInt(), SkinColorMath.mix(red, blue, 1f))
+        assertEquals(0x80800080.toInt(), SkinColorMath.mix(red, blue, 0.5f))
+        // The share is kept between none and all of the way.
+        assertEquals(red, SkinColorMath.mix(red, blue, -1f))
+        assertEquals(0x800000FF.toInt(), SkinColorMath.mix(red, blue, 3f))
+        // Lighter is toward white, darker toward black.
+        assertEquals(0xFF808080.toInt(), SkinColorMath.lighten(0xFF000000.toInt(), 0.5f))
+        assertEquals(0xFF808080.toInt(), SkinColorMath.darken(0xFFFFFFFF.toInt(), 0.5f))
+        assertEquals(0x40FFFFFF, SkinColorMath.lighten(0x40123456, 1f))
+        assertEquals(0x40000000, SkinColorMath.darken(0x40123456, 1f))
+        assertEquals(0x40123456, SkinColorMath.darken(0x40123456, 0f))
+        assertEquals(0x40123456, SkinColorMath.lighten(0x40123456, 0f))
+    }
+
     @Test fun palettesAreValidAndBasicIsTheFallback() {
         assertEquals(listOf("basic", "dracula", "pastel", "nord", "gruvbox", "neon", "earth", "green-screen"), SkinPalettes.ALL.map { it.id })
         SkinPalettes.ALL.forEach { p ->
@@ -142,20 +187,32 @@ class SkinPaintTest {
         assertEquals(SkinPalettes.RECENT_MAX, SkinPalettes.recentFrom((1..12).joinToString(",") { "#0000%02X".format(it) }).size)
     }
 
-    @Test fun applyToOffersOnlyScopesThatChangeMore() {
-        // One face button: itself, the face buttons, every button.
-        assertEquals(listOf(SkinScope.ONE, SkinScope.GROUP, SkinScope.ALL), SkinApply.scopes(layout, listOf("a"), SkinPart.BUTTON))
-        assertEquals(listOf("a"), SkinApply.targets(layout, listOf("a"), SkinScope.ONE, SkinPart.BUTTON))
-        assertEquals(listOf("a", "b"), SkinApply.targets(layout, listOf("a"), SkinScope.GROUP, SkinPart.BUTTON))
-        assertEquals(listOf("a", "b", "start"), SkinApply.targets(layout, listOf("a"), SkinScope.ALL, SkinPart.BUTTON))
-        // The whole group selected: the group is the selection, so its chip is not offered twice.
-        assertEquals(listOf(SkinScope.ONE, SkinScope.ALL), SkinApply.scopes(layout, listOf("a", "b"), SkinPart.LETTER))
-        // A lone control: no group; the only D-pad: nothing more than itself.
-        assertEquals(listOf(SkinScope.ONE, SkinScope.ALL), SkinApply.scopes(layout, listOf("start"), SkinPart.BUTTON))
-        assertEquals(listOf(SkinScope.ONE), SkinApply.scopes(layout, listOf("dpad"), SkinPart.BALL))
-        // A part the selection does not have paints nothing, and is offered nowhere.
-        assertTrue(SkinApply.scopes(layout, listOf("turbo"), SkinPart.ICONS).isEmpty())
-        assertTrue(SkinApply.targets(layout, emptyList(), SkinScope.GROUP, SkinPart.BUTTON).isEmpty())
+    @Test fun whatIsSelectedIsWhatIsPainted() {
+        // One control selected, one painted; a group selected, the group; in layout order, whatever the selection's.
+        assertEquals(listOf("a"), SkinPainter.painted(layout, listOf("a"), SkinPart.BUTTON))
+        assertEquals(listOf("a", "b"), SkinPainter.painted(layout, listOf("b", "a"), SkinPart.LETTER))
+        // Only the controls that have the part: a stick has no relief, a quick action no colour of its own.
+        assertEquals(listOf("dpad", "a"), SkinPainter.painted(layout, listOf("a", "dpad", "stick", "turbo"), SkinPart.RELIEF))
+        assertTrue(SkinPainter.painted(layout, listOf("turbo"), SkinPart.ICONS).isEmpty())
+        assertTrue(SkinPainter.painted(layout, emptyList(), SkinPart.BUTTON).isEmpty())
+    }
+
+    @Test fun thePartsOfferedAreTheOnesThatShow() {
+        val buttons = SkinTarget.Controls(SkinElementType.BUTTON)
+        // No relief to show (depth 0), so none to paint; "start" has no label either.
+        assertEquals(listOf(SkinPart.BUTTON, SkinPart.LETTER), SkinPainter.parts(layout, buttons, listOf("a", "b")))
+        assertEquals(listOf(SkinPart.BUTTON), SkinPainter.parts(layout, buttons, listOf("start")))
+        val raised = layout.copy(elements = layout.elements.map { it.copy(depth = 8f) })
+        assertEquals(listOf(SkinPart.BUTTON, SkinPart.RELIEF, SkinPart.LETTER), SkinPainter.parts(raised, buttons, listOf("a")))
+        // One control of the selection having the part is enough.
+        assertEquals(listOf(SkinPart.BUTTON, SkinPart.RELIEF, SkinPart.LETTER), SkinPainter.parts(raised, buttons, listOf("start", "a")))
+        // The D-pad's arrows are always there to paint; its relief with its depth.
+        val pad = SkinTarget.Controls(SkinElementType.DPAD)
+        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL, SkinPart.LETTER), SkinPainter.parts(layout, pad, listOf("dpad")))
+        assertEquals(listOf(SkinPart.PAD, SkinPart.BALL, SkinPart.RELIEF, SkinPart.LETTER), SkinPainter.parts(raised, pad, listOf("dpad")))
+        // The frame and the body offer what they have.
+        assertEquals(SkinPart.FRAME_PARTS, SkinPainter.parts(layout, SkinTarget.Frame, emptyList()))
+        assertEquals(listOf(SkinPart.BACKGROUND), SkinPainter.parts(layout, SkinTarget.Background, emptyList()))
     }
 
     @Test fun aTextureFrameStaysWithinItsLimits() {
@@ -211,6 +268,18 @@ class SkinPaintTest {
         assertEquals(frame.colors, layout.withLook(SkinLook()).frame!!.colors)
     }
 
+    @Test fun aLookCarriesWhatEachControlsImageHolds() {
+        val held = layout.copy(elements = layout.elements.map { if (it.id == "a") it.copy(art = SkinArt.KEY) else it })
+        val look = held.look()
+        assertEquals(SkinArt.KEY, look.art["a"])
+        assertEquals(layout.elements.associate { it.id to SkinArt.FULL } + ("a" to SkinArt.KEY), look.art)
+        assertEquals(held, layout.withLook(look))
+        // A control the look leaves out keeps what it had; one the layout does not have is nothing.
+        assertEquals(held, held.withLook(SkinLook()))
+        assertEquals(held, held.withLook(SkinLook(art = mapOf("nothing" to SkinArt.FACE))))
+        assertEquals(SkinArt.FACE, held.withLook(SkinLook(art = mapOf("a" to SkinArt.FACE))).elements.first { it.id == "a" }.art)
+    }
+
     @Test fun paintSetsTheRightKey() {
         val look = layout.look()
         assertEquals(7, SkinPainter.paint(look, layout, SkinTarget.Background, emptyList(), SkinPart.BACKGROUND, 7).background)
@@ -220,11 +289,12 @@ class SkinPaintTest {
         // A frame look that was never read starts from no colours.
         assertEquals(SkinFrameColors(icons = 7), SkinPainter.paint(SkinLook(), layout, SkinTarget.Frame, emptyList(), SkinPart.ICONS, 7).frame)
         assertSame(look, SkinPainter.paint(look, bare, SkinTarget.Frame, emptyList(), SkinPart.FRAME, 7))
-        val buttons = SkinPainter.paint(look, layout, SkinTarget.Controls(SkinElementType.BUTTON), listOf("a", "b", "dpad"), SkinPart.LETTER, 7)
+        val buttons = SkinPainter.paint(look, layout, SkinTarget.Controls(SkinElementType.BUTTON), listOf("a", "b", "dpad", "stick"), SkinPart.LETTER, 7)
         assertEquals(mapOf("letter" to 7), buttons.colors["a"])
         assertEquals(mapOf("letter" to 7), buttons.colors["b"])
-        // The D-pad has no letter; a control painted again keeps its other parts.
-        assertEquals(emptyMap<String, Int>(), buttons.colors["dpad"])
+        // The D-pad's letter is its arrows; a stick has none. A control painted again keeps its other parts.
+        assertEquals(mapOf("letter" to 7), buttons.colors["dpad"])
+        assertEquals(emptyMap<String, Int>(), buttons.colors["stick"])
         val again = SkinPainter.paint(buttons, layout, SkinTarget.Controls(SkinElementType.BUTTON), listOf("a"), SkinPart.BUTTON, 8)
         assertEquals(mapOf("letter" to 7, "button" to 8), again.colors["a"])
         // A control a look never read starts from the layout's colours.
@@ -246,8 +316,18 @@ class SkinPaintTest {
         assertEquals(listOf("phone-portrait/frame.png"), SkinPainter.files(id, layout, emptyList(), SkinPart.FRAME))
         assertTrue(SkinPainter.files(id, bare, emptyList(), SkinPart.FRAME).isEmpty())
         assertEquals(listOf("phone-portrait/turbo.png"), SkinPainter.files(id, layout, emptyList(), SkinPart.ICONS))
-        assertTrue(SkinPainter.files(id, layout, listOf("a"), SkinPart.LETTER).isEmpty())
         assertTrue(SkinPainter.files(id, layout, emptyList(), SkinPart.ACTIVE).isEmpty())
+        // A control's label and relief are in its image as far as the image holds them (SkinElement.art): the whole
+        // control holds both, a key without its label only the relief, a face alone neither.
+        fun art(art: SkinArt) = layout.copy(elements = layout.elements.map { it.copy(art = art) })
+        assertEquals(listOf("phone-portrait/a.png"), SkinPainter.files(id, layout, listOf("a"), SkinPart.LETTER))
+        assertEquals(listOf("phone-portrait/dpad.png", "phone-portrait/a.png"), SkinPainter.files(id, layout, listOf("a", "dpad"), SkinPart.RELIEF))
+        assertTrue(SkinPainter.files(id, art(SkinArt.KEY), listOf("a", "dpad"), SkinPart.LETTER).isEmpty())
+        assertEquals(listOf("phone-portrait/a.png"), SkinPainter.files(id, art(SkinArt.KEY), listOf("a"), SkinPart.RELIEF))
+        assertTrue(SkinPainter.files(id, art(SkinArt.FACE), listOf("a", "dpad"), SkinPart.LETTER).isEmpty())
+        assertTrue(SkinPainter.files(id, art(SkinArt.FACE), listOf("a", "dpad"), SkinPart.RELIEF).isEmpty())
+        // A face is still the face's own file.
+        assertEquals(listOf("phone-portrait/a.png"), SkinPainter.files(id, art(SkinArt.FACE), listOf("a"), SkinPart.BUTTON))
         assertEquals(listOf("phone-portrait/a.png", "phone-portrait/b.png"), SkinPainter.files(id, layout, listOf("a", "b", "dpad"), SkinPart.BUTTON))
         assertEquals(listOf("phone-portrait/dpad.png"), SkinPainter.files(id, layout, listOf("dpad"), SkinPart.PAD))
         assertEquals(listOf("phone-portrait/dpad-ball.png"), SkinPainter.files(id, layout, listOf("dpad"), SkinPart.BALL))
@@ -273,6 +353,26 @@ class SkinPaintTest {
         assertEquals(SkinPaintDefaults.KNOB, SkinPainter.colorOf(bare, listOf("nothing"), SkinPart.KNOB))
     }
 
+    @Test fun thePickerStartsOnAReliefsAndADpadsArrowsDerivedColour() {
+        val purple = 0xFF7C4DFF.toInt()
+        val painted = layout.withLook(SkinLook(colors = mapOf("a" to mapOf("button" to purple), "b" to mapOf("relief" to 5), "dpad" to mapOf("ball" to 6))))
+        // Unset, a relief is what the game draws under that face, not the default button's.
+        assertEquals(SkinPaintDefaults.relief(purple), SkinPainter.colorOf(painted, listOf("a"), SkinPart.RELIEF))
+        assertEquals(5, SkinPainter.colorOf(painted, listOf("b"), SkinPart.RELIEF))
+        assertEquals(SkinPaintDefaults.relief(SkinPaintDefaults.PAD), SkinPainter.colorOf(painted, listOf("dpad"), SkinPart.RELIEF))
+        // The D-pad's arrows: its ball's colour until they get one of their own.
+        assertEquals(6, SkinPainter.colorOf(painted, listOf("dpad"), SkinPart.LETTER))
+        assertEquals(SkinPaintDefaults.BALL, SkinPainter.colorOf(layout, listOf("dpad"), SkinPart.LETTER))
+        assertEquals(9, SkinPainter.colorOf(layout.withLook(SkinLook(colors = mapOf("dpad" to mapOf("ball" to 6, "letter" to 9)))), listOf("dpad"), SkinPart.LETTER))
+        assertEquals(SkinPaintDefaults.LETTER, SkinPainter.colorOf(painted, listOf("a"), SkinPart.LETTER))
+        // The first control that has the part, in layout order: the stick has no relief, the D-pad comes before A.
+        assertEquals(SkinPaintDefaults.relief(purple), SkinPainter.colorOf(painted, listOf("stick", "a"), SkinPart.RELIEF))
+        assertEquals(SkinPaintDefaults.relief(SkinPaintDefaults.PAD), SkinPainter.colorOf(painted, listOf("a", "dpad"), SkinPart.RELIEF))
+        // Nothing with the part: the renderer's default.
+        assertEquals(SkinPaintDefaults.of(SkinPart.RELIEF), SkinPainter.colorOf(painted, listOf("stick", "turbo"), SkinPart.RELIEF))
+        assertEquals(SkinPaintDefaults.LETTER, SkinPainter.colorOf(painted, emptyList(), SkinPart.LETTER))
+    }
+
     @Test fun aLetterTooCloseToItsButtonIsFlagged() {
         val controls = SkinTarget.Controls(SkinElementType.BUTTON)
         // The defaults (white on dark grey) read well.
@@ -284,6 +384,24 @@ class SkinPaintTest {
         val blank = layout.withLook(SkinLook(colors = mapOf("start" to mapOf("button" to 0xFFFFFFFF.toInt()))))
         assertTrue(SkinContrastCheck.issues(blank, controls, listOf("start")).isEmpty())
         assertTrue(SkinContrastCheck.issues(close, SkinTarget.Background, emptyList()).isEmpty())
+    }
+
+    @Test fun aLabelBesideItsControlIsReadOnTheBody() {
+        val controls = SkinTarget.Controls(SkinElementType.BUTTON)
+        val white = 0xFFFFFFFF.toInt()
+        fun laidOut(e: SkinElement, body: Int? = null) =
+            layout.copy(background = SkinBackground(color = body), elements = layout.elements.map { if (it.id == e.id) e else it })
+        // START printed under its key: white on the dark body reads, whatever the key's colour.
+        val word = start.copy(label = "START", labelOffset = SkinPoint(0f, 60f), colors = mapOf("button" to white))
+        assertTrue(SkinContrastCheck.issues(laidOut(word), controls, listOf("start")).isEmpty())
+        // The same word on the key itself does not.
+        assertEquals(setOf(SkinContrast.LETTER), SkinContrastCheck.issues(laidOut(word.copy(labelOffset = null)), controls, listOf("start")))
+        // On a body as light as the letter it is lost, though the key is dark.
+        assertEquals(setOf(SkinContrast.LETTER), SkinContrastCheck.issues(laidOut(word.copy(colors = emptyMap()), body = white), controls, listOf("start")))
+        assertTrue(SkinContrastCheck.issues(laidOut(word.copy(colors = emptyMap(), labelOffset = null), body = white), controls, listOf("start")).isEmpty())
+        // A D-pad's arrows are no label of its own: nothing to warn about, whatever their colour.
+        val pad = layout.withLook(SkinLook(colors = mapOf("dpad" to mapOf("pad" to white, "letter" to white))))
+        assertTrue(SkinContrastCheck.issues(pad, SkinTarget.Controls(SkinElementType.DPAD), listOf("dpad")).isEmpty())
     }
 
     @Test fun theFramesIconsAndActiveIconAreChecked() {
@@ -313,6 +431,28 @@ class SkinPaintTest {
             assertArrayEquals(byteArrayOf(4), source.open("p/c.png")!!.readBytes())
             assertNull(source.open("p/d.png"))
             assertNull(EditedSkinSource(base, edits) { null }.open("p/c.png"))
+        } finally {
+            stage.deleteRecursively()
+        }
+    }
+
+    @Test fun anEditOnAnImagesPngNameCoversTheWebpTheSkinKeepsItIn() {
+        val stage = Files.createTempDirectory("stage").toFile()
+        try {
+            File(stage, "t1.png").writeBytes(byteArrayOf(4))
+            val base = Bytes(mapOf("skin.json" to byteArrayOf(0), "p/a.webp" to byteArrayOf(1), "p/b.webp" to byteArrayOf(2), "p/c.webp" to byteArrayOf(3)))
+            val edits = mapOf("p/a.png" to SkinImageEdit.Removed, "p/b.png" to SkinImageEdit.Staged("t1.png"))
+            val source = EditedSkinSource(base, edits) { File(stage, it) }
+            // The removed image is gone under either name; the texture, a PNG, takes the WebP's place.
+            assertEquals(setOf("skin.json", "p/b.png", "p/c.webp"), source.files)
+            assertNull(source.open("p/a.webp"))
+            assertNull(source.open("p/a.png"))
+            assertArrayEquals(byteArrayOf(4), source.open("p/b.png")!!.readBytes())
+            assertNull(source.open("p/b.webp"))
+            // What no edit names is the skin's own, WebP or not.
+            assertArrayEquals(byteArrayOf(3), source.open("p/c.webp")!!.readBytes())
+            assertArrayEquals(byteArrayOf(0), source.open("skin.json")!!.readBytes())
+            assertNull(source.open("p/c.png"))
         } finally {
             stage.deleteRecursively()
         }

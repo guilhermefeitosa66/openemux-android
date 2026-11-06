@@ -10,32 +10,67 @@ const q = new URLSearchParams(location.search);
 // knob=<n> renders that stick's knob alone, on its own transparent square; dpadKnob=<side> the D-pad's circle,
 // for the package's dpad_knob.png; screens=<layout> one NDS layout's art; variant=dark the Dark skin; keypad=1 the
 // layout's keypad page (issue 772).
-// layer=background leaves the quick actions' icons out (the OpenEmux-format background), layer=controls draws only the
-// parts that belong to an element, on a transparent page (each element's image is cut out of it).
-const layer = q.get('layer');
+// layers=<a>,<b>,... draws one copy of the page per layer, side by side, each on a transparent page (the packages cut
+// their images out of one screenshot): body is the console alone (background.png: no bezel, no control, no label
+// printed beside one), frame the bezel alone, and sprites every element alone in a cell of a grid (cell=<w>x<h> units,
+// cols=<n>, in the engine's order), cut at what its image covers: two controls whose boxes touch never show in each
+// other's image. With no layers, the whole art.
+const layers = (q.get('layers') || '').split(',').filter(Boolean);
+const inLayer = (p, layer) => {
+  if (!layer) return true;
+  // A label beside a control is the app's to draw (docs/skin-format.md, labelOffset): in no layer.
+  if (p.kind === 'label') return false;
+  if (layer === 'body') return p.el == null && p.kind === 'body';
+  if (layer === 'frame') return p.kind === 'frame';
+  return false;
+};
 const variant = q.get('variant') || undefined;
 const L = q.get('dpadKnob') ? OE.dpadKnob(q.get('console'), +q.get('dpadKnob'), variant) : OE.layout(q.get('console'), q.get('device'), q.get('orient'), { export: true, screens: q.get('screens') || undefined, variant, keypad: q.get('keypad') === '1' });
 const knob = q.get('knob') == null ? null : L.knobs[+q.get('knob')];
 const W = knob ? knob.size : L.W, H = knob ? knob.size : L.H;
 const root = document.getElementById('root');
-root.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden;font-family:'Space Grotesk',sans-serif;`;
+const pages = layers.length ? layers : [null];
+root.style.cssText = `position:relative;width:${W * pages.length}px;height:${Math.max(H, +q.get('height') || 0)}px;overflow:hidden;font-family:'Space Grotesk',sans-serif;`;
 const NS = 'http://www.w3.org/2000/svg';
-for (const p of (knob ? knob.parts : L.parts)) {
-  if (layer === 'background' && p.act) continue;
-  if (layer === 'controls' && p.el == null) continue;
-  const d = document.createElement('div');
-  d.style.cssText = p.style;
-  if (p.hasIcon) {
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('style', p.iconStyle);
-    const path = document.createElementNS(NS, 'path');
-    path.setAttribute('d', p.icon); path.setAttribute('fill', p.iconFill); path.setAttribute('stroke', p.iconStroke);
-    path.setAttribute('stroke-width', p.iconWidth); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round');
-    svg.appendChild(path); d.appendChild(svg);
+const part = (p) => {
+    const d = document.createElement('div');
+    d.style.cssText = p.style;
+    if (p.hasIcon) {
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('style', p.iconStyle);
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', p.icon); path.setAttribute('fill', p.iconFill); path.setAttribute('stroke', p.iconStroke);
+      path.setAttribute('stroke-width', p.iconWidth); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path); d.appendChild(svg);
+    }
+    if (p.hasLabel) { const s = document.createElement('span'); s.setAttribute('style', p.labelStyle); s.textContent = p.label; d.appendChild(s); }
+    return d;
+};
+// The element's image in whole pixels, as build.py's px_rect cuts it: its edges rounded half up, kept inside the page.
+const dpr = window.devicePixelRatio || 1;
+const px = (v, max) => Math.min(max, Math.max(0, Math.floor(v * dpr + 0.5)));
+const [cellW, cellH] = (q.get('cell') || '0x0').split('x').map(Number), cols = +q.get('cols') || 1;
+pages.forEach((layer, i) => {
+  const page = document.createElement('div');
+  if (layer === 'sprites') {
+    page.style.cssText = `position:absolute;left:${W * i}px;top:0;`;
+    L.items.forEach((it, n) => {
+      const a = it.art || it.frame;
+      const x0 = px(a.x, W * dpr), y0 = px(a.y, H * dpr), x1 = px(a.x + a.width, W * dpr), y1 = px(a.y + a.height, H * dpr);
+      const cell = document.createElement('div');
+      cell.style.cssText = `position:absolute;left:${(n % cols) * cellW}px;top:${Math.floor(n / cols) * cellH}px;width:${(x1 - x0) / dpr}px;height:${(y1 - y0) / dpr}px;overflow:hidden;`;
+      // The parts keep the place they have on the page, to the fraction of a pixel.
+      const inner = document.createElement('div');
+      inner.style.cssText = `position:absolute;left:${-x0 / dpr}px;top:${-y0 / dpr}px;width:${W}px;height:${H}px;`;
+      for (const p of L.parts) if (p.el === n && p.kind !== 'label') inner.appendChild(part(p));
+      cell.appendChild(inner); page.appendChild(cell);
+    });
+  } else {
+    page.style.cssText = `position:absolute;left:${W * i}px;top:0;width:${W}px;height:${H}px;overflow:hidden;`;
+    for (const p of (knob ? knob.parts : L.parts)) if (inLayer(p, layer)) page.appendChild(part(p));
   }
-  if (p.hasLabel) { const s = document.createElement('span'); s.setAttribute('style', p.labelStyle); s.textContent = p.label; d.appendChild(s); }
-  root.appendChild(d);
-}
+  root.appendChild(page);
+});
 </script>
 </body></html>

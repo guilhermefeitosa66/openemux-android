@@ -168,6 +168,12 @@ object SkinFormat {
      */
     fun imageNames(file: String): List<String> = listOf(file, file.removeSuffix(PNG) + WEBP)
 
+    /** The name the model gives the image at [path] in a package: `<name>.png`, also for one kept as `<name>.webp`. */
+    fun modelName(path: String): String = if (path.endsWith(WEBP)) path.removeSuffix(WEBP) + PNG else path
+
+    /** A package's [files] under the names the model gives its images ([modelName]). */
+    fun modelFiles(files: Set<String>): Set<String> = files.map(::modelName).toSet()
+
     /** The input names of the quick actions on the frame. */
     val ACTION_BINDS = setOf(
         "menu", "quickSave", "quickLoad", "fastForward", "toggleFastForward", "turbo", "slowMotion", "screenshot",
@@ -357,7 +363,9 @@ object SkinFormat {
                 },
             )
         } ?: SkinFrameColors()
-        return SkinFrame(rect(json, path, size), colors, json.optImage("image", "$path.image"))
+        val radius = json.optFloat("radius", "$path.radius") ?: 0f
+        if (radius < 0f) throw SkinFormatException(SkinError.BAD_VALUE, "$path.radius", "$radius")
+        return SkinFrame(rect(json, path, size), colors, json.optImage("image", "$path.image"), radius)
     }
 
     private fun element(json: JSONObject, path: String, size: SkinSize): SkinElement {
@@ -381,14 +389,28 @@ object SkinFormat {
                 colors[part] = color(c.optText(part, "$path.colors.$part") ?: continue, "$path.colors.$part")
             }
         }
+        val rect = rect(json, path, size)
+        fun bad(key: String, value: Any?): Nothing = throw SkinFormatException(SkinError.BAD_VALUE, "$path.$key", "$value")
+        val radius = json.optFloat("radius", "$path.radius")?.also { if (it < 0f) bad("radius", it) }
+        val rotation = json.optFloat("rotation", "$path.rotation") ?: 0f
+        if (kotlin.math.abs(rotation) > SkinShapes.MAX_TURN) bad("rotation", rotation)
+        // The relief leaves the face some of the control: a depth as tall as the control would draw no button.
+        val depth = json.optFloat("depth", "$path.depth") ?: 0f
+        if (depth < 0f || depth > rect.height * (1f - SkinElement.MIN_FACE)) bad("depth", depth)
+        val labelSize = json.optFloat("labelSize", "$path.labelSize")?.also { if (it <= 0f) bad("labelSize", it) }
+        val labelOffset = json.optObj("labelOffset", "$path.labelOffset")?.let {
+            SkinPoint(it.float("x", "$path.labelOffset.x"), it.float("y", "$path.labelOffset.y"))
+        }
+        val art = json.optText("art", "$path.art")?.let { SkinArt.byId(it) ?: bad("art", it) } ?: SkinArt.FULL
         return SkinElement(
-            id, type, bind, rect(json, path, size),
+            id, type, bind, rect,
             group = json.optText("group", "$path.group"),
             shape = shape,
             label = json.optText("label", "$path.label"),
             // The parts in the type's order, whatever the file's.
             colors = type.colorParts.filter { it in colors }.associateWith { colors.getValue(it) },
             image = json.optImage("image", "$path.image"),
+            radius = radius, rotation = rotation, depth = depth, labelSize = labelSize, labelOffset = labelOffset, art = art,
         )
     }
 
@@ -417,6 +439,7 @@ object SkinFormat {
     private fun JSONObject.string(key: String, path: String): String = typed(key, path)
     private fun JSONObject.optText(key: String, path: String): String? = optTyped(key, path)
     private fun JSONObject.float(key: String, path: String): Float = typed<Number>(key, path).toFloat()
+    private fun JSONObject.optFloat(key: String, path: String): Float? = optTyped<Number>(key, path)?.toFloat()
 
     private fun JSONObject.int(key: String, path: String): Int {
         val n = typed<Number>(key, path)
@@ -489,6 +512,7 @@ object SkinFormat {
             c.active?.let { put("active", colorJson(it)) }
             c.activeIcon?.let { put("activeIcon", it.id) }
         }
+        if (frame.radius != 0f) put("radius", frame.radius)
         if (colors.isNotEmpty()) put("colors", colors)
         frame.image?.let { put("image", it) }
     }
@@ -506,9 +530,15 @@ object SkinFormat {
         e.group?.let { put("group", it) }
         putAll(rectJson(e.rect))
         e.shape?.let { put("shape", it.id) }
+        e.radius?.let { put("radius", it) }
+        if (e.rotation != 0f) put("rotation", e.rotation)
+        if (e.depth != 0f) put("depth", e.depth)
         e.label?.let { put("label", it) }
+        e.labelSize?.let { put("labelSize", it) }
+        e.labelOffset?.let { put("labelOffset", linkedMapOf<String, Any>("x" to it.x, "y" to it.y)) }
         if (e.colors.isNotEmpty()) put("colors", e.colors.mapValues { colorJson(it.value) })
         e.image?.let { put("image", it) }
+        if (e.art != SkinArt.FULL) put("art", e.art.id)
     }
 
     private fun rectJson(r: SkinRect) = linkedMapOf<String, Any>("x" to r.x, "y" to r.y, "width" to r.width, "height" to r.height)

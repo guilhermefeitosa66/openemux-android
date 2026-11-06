@@ -236,4 +236,22 @@
     <plurals name="share_notif_skipped">
         <item quantity="other">%1$d 本スキップ</item>
     </plurals>
+    <string name="share_skin_action">共有</string>
+    <string name="share_skin_action_sub">このネットワーク上の別の Android 端末へ</string>
+    <string name="share_items_skin">コントローラースキン</string>
+    <string name="share_kind_skin">コントローラースキン</string>
+    <string name="share_skin_device_desktop">%1$s · スキンは Android 端末にのみ送れます</string>
+    <string name="share_skin_offer_title">届いたスキン</string>
+    <string name="share_skin_offer_lead">がコントローラースキンを送ろうとしています (%1$s)。</string>
+    <string name="share_skin_notif_offer_title">%1$s からスキンが届いています</string>
+    <string name="share_skin_result_received_title">スキンを受け取りました</string>
+    <string name="share_skin_result_received_body">%1$s から。%2$s のスキンに追加されました。</string>
+    <string name="share_skin_result_received_none">スキンを受け取れませんでした</string>
+    <string name="share_skin_result_received_none_body">%1$s から。何も追加されませんでした。</string>
+    <string name="share_skin_result_sent_title">スキンを送りました</string>
+    <string name="share_skin_result_sent_body">%1$s に届きました。</string>
+    <string name="share_skin_result_sent_none">スキンを送れませんでした</string>
+    <string name="share_skin_result_sent_none_body">%1$s は受け取りませんでした。</string>
+    <string name="share_skin_result_declined_body">%1$s がスキンを拒否しました。</string>
+    <string name="share_skin_reason_sent">%1$s はこのスキンを受け取れません。OpenEmux の更新が必要かもしれません。</string>
 </resources>

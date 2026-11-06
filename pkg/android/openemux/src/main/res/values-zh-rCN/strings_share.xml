@@ -236,4 +236,22 @@
     <plurals name="share_notif_skipped">
         <item quantity="other">跳过 %1$d 个</item>
     </plurals>
+    <string name="share_skin_action">共享</string>
+    <string name="share_skin_action_sub">发送到此网络中的另一台 Android 设备</string>
+    <string name="share_items_skin">手柄皮肤</string>
+    <string name="share_kind_skin">手柄皮肤</string>
+    <string name="share_skin_device_desktop">%1$s · 皮肤只能发送到 Android 设备</string>
+    <string name="share_skin_offer_title">收到的皮肤</string>
+    <string name="share_skin_offer_lead">想向你发送一个手柄皮肤（%1$s）。</string>
+    <string name="share_skin_notif_offer_title">来自 %1$s 的皮肤</string>
+    <string name="share_skin_result_received_title">已接收皮肤</string>
+    <string name="share_skin_result_received_body">来自 %1$s。已添加到你的 %2$s 皮肤中。</string>
+    <string name="share_skin_result_received_none">未接收皮肤</string>
+    <string name="share_skin_result_received_none_body">来自 %1$s。没有添加任何内容。</string>
+    <string name="share_skin_result_sent_title">已发送皮肤</string>
+    <string name="share_skin_result_sent_body">%1$s 已收到。</string>
+    <string name="share_skin_result_sent_none">未发送皮肤</string>
+    <string name="share_skin_result_sent_none_body">%1$s 没有接收。</string>
+    <string name="share_skin_result_declined_body">%1$s 拒绝了这个皮肤。</string>
+    <string name="share_skin_reason_sent">%1$s 无法接收此皮肤。那台设备上的 OpenEmux 可能需要更新。</string>
 </resources>

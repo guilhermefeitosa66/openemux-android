@@ -124,7 +124,8 @@ fun IncomingOfferSheet() {
                     else -> when (val t = transfer) {
                         is TransferState.Running -> ProgressView(t) { share.cancel() }
                         is TransferState.Finished -> {
-                            val console = t.result.firstConsole
+                            // A skin is not in the library: its card says where it went.
+                            val console = t.result.firstConsole.takeIf { !t.result.skin }
                             ResultView(
                                 t.result, { share.dismissResult() },
                                 console?.let { { share.dismissResult(); a.nav.navigate(Routes.library(it)) } },
@@ -155,13 +156,18 @@ private fun OfferPage(model: OfferModel, share: ShareCoordinator, onConflicts: (
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.share_offer_title), style = Type.Title)
+        Text(stringResource(if (model.skinOnly) R.string.share_skin_offer_title else R.string.share_offer_title), style = Type.Title)
         val games = model.games.size
+        val lead = if (model.skinOnly) {
+            stringResource(R.string.share_skin_offer_lead, sizeText(model.totalBytes))
+        } else {
+            countString(R.plurals.share_offer_lead, games, games, sizeText(model.totalBytes))
+        }
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Oe.Text)) { append(model.sender) }
                 append(" ")
-                append(countString(R.plurals.share_offer_lead, games, games, sizeText(model.totalBytes)))
+                append(lead)
             },
             style = Type.Small.copy(fontSize = 15.sp, lineHeight = 21.sp),
         )
@@ -176,7 +182,7 @@ private fun OfferPage(model: OfferModel, share: ShareCoordinator, onConflicts: (
                     Console.byId(game.console)?.let { ConsoleChip(it, 36.dp) }
                     Column(Modifier.weight(1f)) {
                         Text(game.title, style = Type.BodyMedium, maxLines = 2)
-                        Text(gameSummary(game), style = Type.Small)
+                        Text(if (game.skin) skinSummary(game.bytes) else gameSummary(game), style = Type.Small)
                     }
                 }
             }

@@ -9,8 +9,8 @@ import kotlin.math.roundToInt
 
 /*
  * The skin editor's appearance tools (issue 786): what can be painted, the colours the game draws for parts left
- * unset, colour maths (hex, HSV, WCAG contrast), the palettes, "Apply to" and where a texture lands in its box. Pure
- * Kotlin, no Android, so every rule is unit-tested; the drawing is in launch/OpenEmuxSkinRenderer.kt.
+ * unset, colour maths (hex, HSV, WCAG contrast), the palettes and where a texture lands in its box. Pure Kotlin, no
+ * Android, so every rule is unit-tested; the drawing is in launch/OpenEmuxSkinRenderer.kt.
  */
 
 /**
@@ -19,9 +19,12 @@ import kotlin.math.roundToInt
  */
 enum class SkinPart(val id: String) {
     BACKGROUND("background"), FRAME("frame"), ICONS("icons"), ACTIVE("active"),
-    BUTTON("button"), LETTER("letter"), PAD("pad"), BALL("ball"), BASE("base"), KNOB("knob");
+    BUTTON("button"), RELIEF("relief"), LETTER("letter"), PAD("pad"), BALL("ball"), BASE("base"), KNOB("knob");
 
-    /** Which of an element's [SkinElement.imageFiles] draws this part; null for a part with no file of its own. */
+    /**
+     * Which of an element's [SkinElement.imageFiles] a picture of this part fills; null for a part no picture fills
+     * (the relief and the label are drawn in a colour, whatever image the control has).
+     */
     val imageIndex: Int?
         get() = when (this) {
             BUTTON, PAD, BASE -> 0
@@ -82,6 +85,9 @@ object SkinPaintDefaults {
     const val ACTIVE = 0xFF7C3AED.toInt()
     const val BUTTON = 0xFF2E2E35.toInt()
     const val LETTER = 0xFFFFFFFF.toInt()
+
+    /** How much darker than its face a control's relief is when the skin does not say: the face's own shade. */
+    const val RELIEF_SHADE = 0.42f
     const val PAD = 0xFF2E2E35.toInt()
     const val BALL = 0xFF6B6B76.toInt()
     const val BASE = 0xFF2E2E35.toInt()
@@ -95,6 +101,7 @@ object SkinPaintDefaults {
         SkinPart.ICONS -> ICONS
         SkinPart.ACTIVE -> ACTIVE
         SkinPart.BUTTON -> BUTTON
+        SkinPart.RELIEF -> relief(BUTTON)
         SkinPart.LETTER -> LETTER
         SkinPart.PAD -> PAD
         SkinPart.BALL -> BALL
@@ -104,6 +111,20 @@ object SkinPaintDefaults {
 
     /** The icon's colour on a toggled quick action. */
     fun icon(tone: SkinIconTone?): Int = if (tone == SkinIconTone.DARK) DARK_ICON else LIGHT_ICON
+
+    /** The relief under a face painted [face], when the skin sets none: the same hue, darker. */
+    fun relief(face: Int): Int = SkinColorMath.darken(face, RELIEF_SHADE)
+
+    /** [e]'s face colour: a button's or a key's "button", the D-pad's "pad". */
+    fun face(e: SkinElement): Int =
+        if (e.type == SkinElementType.DPAD) e.colors["pad"] ?: PAD else e.colors["button"] ?: BUTTON
+
+    /** The colour [e]'s relief is drawn in: the one set, else its face's, darker. */
+    fun relief(e: SkinElement): Int = e.colors["relief"] ?: relief(face(e))
+
+    /** The colour [e]'s label is drawn in: the one set, else white on a button, the ball's on a D-pad (its arrows). */
+    fun letter(e: SkinElement): Int =
+        e.colors["letter"] ?: if (e.type == SkinElementType.DPAD) e.colors["ball"] ?: BALL else LETTER
 }
 
 /** Colour maths: `#RRGGBB`, HSV, and WCAG 2 contrast. Colours are ARGB ints. */
@@ -158,6 +179,21 @@ object SkinColorMath {
         return (0xFF shl 24) or (byte(r) shl 16) or (byte(g) shl 8) or byte(b)
     }
 
+    /** [a] moved [t] (0 to 1) of the way to [b], channel by channel; the alpha is [a]'s. */
+    fun mix(a: Int, b: Int, t: Float): Int {
+        val k = t.coerceIn(0f, 1f)
+        fun channel(shift: Int): Int {
+            val from = a shr shift and 0xFF
+            return (from + ((b shr shift and 0xFF) - from) * k).roundToInt().coerceIn(0, 255)
+        }
+        return (a and 0xFF000000.toInt()) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+    }
+
+    /** [argb] moved [t] of the way to white, or to black: how the consoles' art shades a control from its one colour. */
+    fun lighten(argb: Int, t: Float): Int = mix(argb, 0xFFFFFF, t)
+
+    fun darken(argb: Int, t: Float): Int = mix(argb, 0x000000, t)
+
     /** WCAG 2's relative luminance of [argb] (its alpha ignored), 0 for black to 1 for white. */
     fun luminance(argb: Int): Double {
         fun channel(c: Int): Double {
@@ -210,36 +246,6 @@ object SkinPalettes {
     /** [text] as saved by [recentText]; anything that is not a colour is skipped. */
     fun recentFrom(text: String?): List<Int> =
         text.orEmpty().split(',').mapNotNull { SkinColorMath.parseHex(it) }.distinct().take(RECENT_MAX)
-}
-
-/** What a colour or texture is applied to: the selection, its group, or every control with the part. */
-enum class SkinScope { ONE, GROUP, ALL }
-
-object SkinApply {
-    /**
-     * The scopes worth offering for painting [part] on [ids] (the selection): each one changes more controls than the
-     * one before it, so a chip that would do what a narrower one does is left out.
-     */
-    fun scopes(layout: SkinLayout, ids: List<String>, part: SkinPart): List<SkinScope> {
-        val seen = mutableListOf<Set<String>>()
-        return SkinScope.entries.filter { scope ->
-            val set = targets(layout, ids, scope, part).toSet()
-            (set.isNotEmpty() && seen.none { it == set }).also { if (it) seen += set }
-        }
-    }
-
-    /** The controls [scope] paints, in layout order. */
-    fun targets(layout: SkinLayout, ids: List<String>, scope: SkinScope, part: SkinPart): List<String> {
-        val has = layout.elements.filter { part.id in it.type.colorParts }
-        return when (scope) {
-            SkinScope.ONE -> has.filter { it.id in ids }
-            SkinScope.GROUP -> {
-                val members = ids.firstOrNull()?.let { SkinSelect.members(layout, it) }.orEmpty() + ids
-                has.filter { it.id in members }
-            }
-            SkinScope.ALL -> has
-        }.map { it.id }
-    }
 }
 
 /** How a picture fills its part. */
@@ -315,21 +321,26 @@ object SkinTextureFit {
     }
 }
 
-/** A layout's colours as the editor edits them: the background's, the frame's and each control's parts. */
+/**
+ * A layout's colours as the editor edits them: the background's, the frame's and each control's parts; and, with
+ * them, what each control's image holds ([art]), which a texture changes.
+ */
 data class SkinLook(
     val background: Int? = null,
     val frame: SkinFrameColors? = null,
     val colors: Map<String, Map<String, Int>> = emptyMap(),
+    val art: Map<String, SkinArt> = emptyMap(),
 )
 
 /** [this] layout's colours. */
-fun SkinLayout.look(): SkinLook = SkinLook(background.color, frame?.colors, elements.associate { it.id to it.colors })
+fun SkinLayout.look(): SkinLook =
+    SkinLook(background.color, frame?.colors, elements.associate { it.id to it.colors }, elements.associate { it.id to it.art })
 
 /** [this] layout painted in [look]: a control [look] does not name keeps its colours. */
 fun SkinLayout.withLook(look: SkinLook): SkinLayout = copy(
     background = background.copy(color = look.background),
     frame = frame?.let { f -> f.copy(colors = look.frame ?: f.colors) },
-    elements = elements.map { e -> look.colors[e.id]?.let { e.copy(colors = it) } ?: e },
+    elements = elements.map { e -> e.copy(colors = look.colors[e.id] ?: e.colors, art = look.art[e.id] ?: e.art) },
 )
 
 /** What the editor did to one of a layout's image files: the image is gone (colours drawn instead), or replaced. */
@@ -373,35 +384,61 @@ object SkinPainter {
         if (layout.frame == null) look else look.copy(frame = (look.frame ?: SkinFrameColors()).copy(activeIcon = tone))
 
     /**
-     * The image files (paths in the skin, under [layoutId]'s folder) that draw [part] of [ids] in [layout]: an element
-     * part's own file, the background's, the frame's; for Icons, every quick action's (an image hides the glyph's
-     * colour). Letter and Active have none.
+     * The image files (paths in the skin, under [layoutId]'s folder) that draw [part] of [ids] in [layout], which a
+     * colour there replaces: an element part's own file, the background's, the frame's; for Icons, every quick
+     * action's (an image hides the glyph's colour). A control's relief and label are in its first file when its image
+     * holds them ([SkinElement.art]): the whole control for the label, all but a face alone for the relief. Active
+     * has none.
      */
     fun files(layoutId: SkinLayoutId, layout: SkinLayout, ids: List<String>, part: SkinPart): List<String> {
+        fun controls() = layout.elements.filter { it.id in ids && part.id in it.type.colorParts }
         val names = when (part) {
             SkinPart.BACKGROUND -> listOf(layout.background.imageFile)
             SkinPart.FRAME -> listOfNotNull(layout.frame?.imageFile)
             SkinPart.ICONS -> layout.elements.filter { it.type == SkinElementType.ACTION }.map { it.imageFiles[0] }
-            SkinPart.LETTER, SkinPart.ACTIVE -> emptyList()
-            else -> layout.elements.filter { it.id in ids && part.id in it.type.colorParts }.mapNotNull { e ->
-                part.imageIndex?.let { e.imageFiles.getOrNull(it) }
-            }
+            SkinPart.ACTIVE -> emptyList()
+            SkinPart.RELIEF -> controls().filter { it.art != SkinArt.FACE }.map { it.imageFiles[0] }
+            SkinPart.LETTER -> controls().filter { it.art == SkinArt.FULL }.map { it.imageFiles[0] }
+            else -> controls().mapNotNull { e -> part.imageIndex?.let { e.imageFiles.getOrNull(it) } }
         }
         return names.map { "${layoutId.id}/$it" }
     }
 
+    /** The controls among [ids] that have [part] to paint, in layout order. */
+    fun painted(layout: SkinLayout, ids: List<String>, part: SkinPart): List<String> =
+        layout.elements.filter { it.id in ids && part.id in it.type.colorParts }.map { it.id }
+
+    /**
+     * The parts worth offering for [target] on [ids]: a control's Relief only when one of them has a relief to show,
+     * its Label only when one has a label (a D-pad always has its arrows).
+     */
+    fun parts(layout: SkinLayout, target: SkinTarget, ids: List<String>): List<SkinPart> {
+        if (target !is SkinTarget.Controls) return target.parts
+        val controls = layout.elements.filter { it.id in ids }
+        return target.parts.filter { part ->
+            when (part) {
+                SkinPart.RELIEF -> controls.any { it.type.raised && it.depth > 0f }
+                SkinPart.LETTER -> controls.any { it.type == SkinElementType.DPAD || SkinLabels.has(it) }
+                else -> true
+            }
+        }
+    }
+
     /**
      * The colour [part] of [ids]'s first control (or of the background, the frame) is drawn in: the one set, else the
-     * renderer's default.
+     * renderer's default (a relief's follows its face, a D-pad's arrows its ball).
      */
     fun colorOf(layout: SkinLayout, ids: List<String>, part: SkinPart): Int {
         val f = layout.frame?.colors
+        val control = layout.elements.firstOrNull { it.id in ids && part.id in it.type.colorParts }
         val set = when (part) {
             SkinPart.BACKGROUND -> layout.background.color
             SkinPart.FRAME -> f?.frame
             SkinPart.ICONS -> f?.icons
             SkinPart.ACTIVE -> f?.active
-            else -> layout.elements.firstOrNull { it.id in ids && part.id in it.type.colorParts }?.colors?.get(part.id)
+            SkinPart.RELIEF -> control?.let(SkinPaintDefaults::relief)
+            SkinPart.LETTER -> control?.let(SkinPaintDefaults::letter)
+            else -> control?.colors?.get(part.id)
         }
         return set ?: SkinPaintDefaults.of(part)
     }
@@ -419,8 +456,10 @@ object SkinContrastCheck {
         fun low(a: Int, b: Int) = SkinColorMath.contrast(a, b) < SkinColorMath.MIN_CONTRAST
         when (target) {
             is SkinTarget.Controls -> {
-                val labelled = layout.elements.filter { it.id in ids && SkinPart.LETTER.id in it.type.colorParts && !it.label.isNullOrBlank() }
-                if (labelled.any { low(it.colors["button"] ?: SkinPaintDefaults.BUTTON, it.colors["letter"] ?: SkinPaintDefaults.LETTER) }) {
+                // A label printed beside its control is read on the console's body, not on the button.
+                val body = layout.background.color ?: SkinPaintDefaults.BACKGROUND
+                val labelled = layout.elements.filter { it.id in ids && SkinLabels.has(it) }
+                if (labelled.any { low(if (SkinLabels.beside(it)) body else SkinPaintDefaults.face(it), SkinPaintDefaults.letter(it)) }) {
                     add(SkinContrast.LETTER)
                 }
             }
@@ -436,15 +475,17 @@ object SkinContrastCheck {
 
 /**
  * A skin as the editor shows it (issue 786): [base] with [images] applied, a removed image gone and a staged texture
- * read from [staged] (null: the texture is gone, and the part is drawn in its colours).
+ * read from [staged] (null: the texture is gone, and the part is drawn in its colours). An edit names an image the
+ * way the model does (`<name>.png`) and stands for the file the skin keeps it in, PNG or WebP ([SkinFormat.modelName]):
+ * a staged texture is a PNG, and takes a WebP's place too.
  */
 class EditedSkinSource(private val base: SkinSource, private val images: SkinImageEdits, private val staged: (String) -> java.io.File?) : SkinSource {
-    override val files: Set<String> = base.files.filter { images[it] != SkinImageEdit.Removed }.toSet() +
+    override val files: Set<String> = base.files.filter { images[SkinFormat.modelName(it)] == null }.toSet() +
         images.filter { (_, e) -> e is SkinImageEdit.Staged }.keys
 
-    override fun open(path: String): java.io.InputStream? = when (val e = images[path]) {
+    override fun open(path: String): java.io.InputStream? = when (val e = images[SkinFormat.modelName(path)]) {
         SkinImageEdit.Removed -> null
-        is SkinImageEdit.Staged -> staged(e.name)?.takeIf { it.isFile }?.inputStream()
+        is SkinImageEdit.Staged -> staged(e.name)?.takeIf { path.endsWith(SkinFormat.PNG) && it.isFile }?.inputStream()
         null -> base.open(path)
     }
 }

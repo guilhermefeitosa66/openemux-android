@@ -23,7 +23,7 @@ Template: [`A2600-template.zip`](A2600-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | FIRE | `b.png` |
 | `select` | button | `select` | SELECT | `select.png` |
@@ -39,7 +39,7 @@ Template: [`A5200-template.zip`](A5200-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `stick` | stick | `analogStick` |  | `stick-base.png`, `stick-knob.png` |
 | `a` | button | `a` | 2 | `a.png` |
 | `b` | button | `b` | 1 | `b.png` |
@@ -55,7 +55,7 @@ Keypad page, in each layout's `keypad/` folder with a `background.png` of its ow
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `stick` | stick | `analogStick` |  | `stick-base.png`, `stick-knob.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
@@ -83,7 +83,7 @@ Template: [`A7800-template.zip`](A7800-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | 1 | `b.png` |
 | `a` | button | `a` | 2 | `a.png` |
@@ -101,7 +101,7 @@ Template: [`LYNX-template.zip`](LYNX-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -119,7 +119,7 @@ Template: [`CV-template.zip`](CV-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `a` | button | `a` | L | `a.png` |
 | `b` | button | `b` | R | `b.png` |
@@ -133,7 +133,7 @@ Keypad page, in each layout's `keypad/` folder with a `background.png` of its ow
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
@@ -159,7 +159,7 @@ Template: [`FDS-template.zip`](FDS-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -178,7 +178,7 @@ Template: [`FC-template.zip`](FC-template.zip).
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -196,7 +196,7 @@ Template: [`GB-template.zip`](GB-template.zip).
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -214,7 +214,7 @@ Template: [`GBC-template.zip`](GBC-template.zip).
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -234,7 +234,7 @@ Template: [`GBA-template.zip`](GBA-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -251,7 +251,7 @@ Template: [`GG-template.zip`](GG-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | 1 | `b.png` |
 | `a` | button | `a` | 2 | `a.png` |
@@ -267,7 +267,7 @@ Template: [`INTV-template.zip`](INTV-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `y` | button | `y` | 1 | `y.png` |
 | `b` | button | `b` | 2 | `b.png` |
@@ -282,7 +282,7 @@ Keypad page, in each layout's `keypad/` folder with a `background.png` of its ow
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
@@ -308,7 +308,7 @@ Template: [`NGP-template.zip`](NGP-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `a` | button | `a` | A | `a.png` |
 | `b` | button | `b` | B | `b.png` |
@@ -327,7 +327,7 @@ Template: [`N64-template.zip`](N64-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `stick` | stick | `analogStick` |  | `stick-base.png`, `stick-knob.png` |
 | `c-up` | button | `cUp` | ▲ | `c-up.png` |
 | `c-left` | button | `cLeft` | ◀ | `c-left.png` |
@@ -352,7 +352,7 @@ Template: [`NDS-template.zip`](NDS-template.zip).
 | `screens` | action | `screens` |  | `screens.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -375,7 +375,7 @@ Template: [`GC-template.zip`](GC-template.zip).
 | `l` | button | `l` | L | `l.png` |
 | `z` | button | `z` | Z | `z.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `stick` | stick | `analogStick` |  | `stick-base.png`, `stick-knob.png` |
 | `a` | button | `a` | A | `a.png` |
 | `b` | button | `b` | B | `b.png` |
@@ -395,7 +395,7 @@ Template: [`O2-template.zip`](O2-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | ACTION | `b.png` |
 | `keypad-toggle` | button | `keypadToggle` | KEYPAD | `keypad-toggle.png` |
@@ -408,7 +408,7 @@ Keypad page, in each layout's `keypad/` folder with a `background.png` of its ow
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `key-1` | keypad | `keypad1` | 1 | `key-1.png` |
 | `key-2` | keypad | `keypad2` | 2 | `key-2.png` |
@@ -434,7 +434,7 @@ Template: [`SG1000-template.zip`](SG1000-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | 1 | `b.png` |
 | `a` | button | `a` | 2 | `a.png` |
@@ -450,7 +450,7 @@ Template: [`S32X-template.zip`](S32X-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -471,7 +471,7 @@ Template: [`MCD-template.zip`](MCD-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -493,7 +493,7 @@ Template: [`MD-template.zip`](MD-template.zip).
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -515,7 +515,7 @@ Template: [`SMS-template.zip`](SMS-template.zip).
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `slow-motion` | action | `slowMotion` |  | `slow-motion.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | 1 | `b.png` |
 | `a` | button | `a` | 2 | `a.png` |
@@ -533,7 +533,7 @@ Template: [`SATURN-template.zip`](SATURN-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -558,7 +558,7 @@ Template: [`PS-template.zip`](PS-template.zip).
 | `l1` | button | `l1` | L1 | `l1.png` |
 | `r1` | button | `r1` | R1 | `r1.png` |
 | `r2` | button | `r2` | R2 | `r2.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | △ | `x.png` |
 | `y` | button | `y` | □ | `y.png` |
@@ -582,7 +582,7 @@ Template: [`PSP-template.zip`](PSP-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | △ | `x.png` |
 | `y` | button | `y` | □ | `y.png` |
@@ -605,7 +605,7 @@ Template: [`SFC-template.zip`](SFC-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `x` | button | `x` | X | `x.png` |
 | `y` | button | `y` | Y | `y.png` |
@@ -624,7 +624,7 @@ Template: [`PCE-template.zip`](PCE-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | II | `b.png` |
 | `a` | button | `a` | I | `a.png` |
@@ -641,7 +641,7 @@ Template: [`PCECD-template.zip`](PCECD-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | II | `b.png` |
 | `a` | button | `a` | I | `a.png` |
@@ -658,7 +658,7 @@ Template: [`VECTREX-template.zip`](VECTREX-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `a` | button | `a` | 1 | `a.png` |
 | `b` | button | `b` | 2 | `b.png` |
@@ -677,7 +677,7 @@ Template: [`VB-template.zip`](VB-template.zip).
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
 | `l` | button | `l` | L | `l.png` |
 | `r` | button | `r` | R | `r.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |
@@ -695,7 +695,7 @@ Template: [`WS-template.zip`](WS-template.zip).
 | `load` | action | `quickLoad` |  | `load.png` |
 | `turbo` | action | `turbo` |  | `turbo.png` |
 | `fast-forward` | action | `toggleFastForward` |  | `fast-forward.png` |
-| `menu` | button | `menu` | MENU | `menu.png` |
+| `menu` | button | `menu` | ☰ | `menu.png` |
 | `dpad` | dpad | `dpad` |  | `dpad.png`, `dpad-ball.png` |
 | `b` | button | `b` | B | `b.png` |
 | `a` | button | `a` | A | `a.png` |

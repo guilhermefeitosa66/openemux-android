@@ -65,21 +65,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openemux.mobile.data.SkinColorMath
 import com.openemux.mobile.data.SkinContrast
-import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFill
 import com.openemux.mobile.data.SkinIconTone
 import com.openemux.mobile.data.SkinPalette
 import com.openemux.mobile.data.SkinPalettes
 import com.openemux.mobile.data.SkinPart
-import com.openemux.mobile.data.SkinScope
 import com.openemux.mobile.data.SkinTarget
 import com.openemux.mobile.data.SkinTextureFit
 import com.retroarch.R
 
 /*
  * The skin editor's paint panel (issue 786), from the design of issue 666 ("Colour", "Palettes", "Texture", "Screen
- * frame parts"): a side panel over the stage with a Colour tab (the part, Apply to, presets and palettes, the picker,
- * hex and recent colours, the contrast warning) and a Texture tab (a picture as the part's fill).
+ * frame parts"): a side panel over the stage with a Colour tab (the part, presets and palettes, the picker, hex and
+ * recent colours, the contrast warning) and a Texture tab (a picture as the part's fill). It paints what is selected
+ * on the stage, all of it: a group selected is a group painted.
  */
 
 private val PanelBg = Color(0xFF1E1E25)
@@ -107,6 +106,7 @@ internal fun partName(part: SkinPart): Int = when (part) {
     SkinPart.ICONS -> R.string.editor_part_icons
     SkinPart.ACTIVE -> R.string.editor_part_active
     SkinPart.BUTTON -> R.string.editor_part_button
+    SkinPart.RELIEF -> R.string.editor_part_relief
     SkinPart.LETTER -> R.string.editor_part_letter
     SkinPart.PAD -> R.string.editor_part_pad
     SkinPart.BALL -> R.string.editor_part_ball
@@ -124,14 +124,6 @@ internal fun paletteName(palette: SkinPalette): Int = when (palette.id) {
     "earth" -> R.string.editor_palette_earth
     "green-screen" -> R.string.editor_palette_green_screen
     else -> R.string.editor_palette_basic
-}
-
-/** "All buttons", "All D-pads", "All sticks": what [SkinScope.ALL] paints for controls of [type]. */
-@StringRes
-internal fun allName(type: SkinElementType): Int = when (type) {
-    SkinElementType.DPAD -> R.string.editor_apply_all_dpads
-    SkinElementType.STICK -> R.string.editor_apply_all_sticks
-    else -> R.string.editor_apply_all_buttons
 }
 
 @StringRes
@@ -169,8 +161,10 @@ internal class PaintView(
     val editing: String?,
     val tab: PaintTab,
     val part: SkinPart,
-    val scopes: List<Pair<SkinScope, String>>,
-    val scope: SkinScope,
+    /** The parts to choose among, in the toggles' order; one part shows no toggles. */
+    val parts: List<SkinPart>,
+    /** Whether a picture can fill what is selected: the frame takes colours only. */
+    val textures: Boolean,
     val color: Int,
     val presets: SkinPalette,
     val recent: List<Int>,
@@ -187,7 +181,6 @@ internal class PaintView(
 internal class PaintActions(
     val onTab: (PaintTab) -> Unit,
     val onPart: (SkinPart) -> Unit,
-    val onScope: (SkinScope) -> Unit,
     /** A colour picked; [commit]: the pick is done (a tap, a typed hex, a drag let go). */
     val onColor: (Int, Boolean) -> Unit,
     val onTone: (SkinIconTone) -> Unit,
@@ -214,10 +207,14 @@ internal fun PaintPanel(view: PaintView, actions: PaintActions, modifier: Modifi
             return@Column
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Segmented(
-                listOf(PaintTab.COLOUR to stringResource(R.string.editor_colour), PaintTab.TEXTURE to stringResource(R.string.editor_texture)),
-                view.tab, Modifier.weight(1f), height = 32, onPick = actions.onTab,
-            )
+            if (view.textures) {
+                Segmented(
+                    listOf(PaintTab.COLOUR to stringResource(R.string.editor_colour), PaintTab.TEXTURE to stringResource(R.string.editor_texture)),
+                    view.tab, Modifier.weight(1f), height = 32, onPick = actions.onTab,
+                )
+            } else {
+                Text(stringResource(R.string.editor_colour), Modifier.weight(1f), style = Type.Body.copy(color = TextOn, fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+            }
             Done(actions.onDone)
         }
         view.editing?.let {
@@ -226,18 +223,10 @@ internal fun PaintPanel(view: PaintView, actions: PaintActions, modifier: Modifi
                 Text(it, style = Type.Body.copy(color = TextOn, fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             }
         }
-        if (view.target.parts.size > 1) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.editor_paint), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
-                Segmented(view.target.parts.map { it to stringResource(partName(it)) }, view.part, Modifier.weight(1f), height = 28, onPick = actions.onPart)
-            }
+        if (view.parts.size > 1) {
+            Segmented(view.parts.map { it to stringResource(partName(it)) }, view.part, Modifier.fillMaxWidth(), height = 32, onPick = actions.onPart)
         }
-        if (view.scopes.size > 1) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                view.scopes.forEach { (scope, label) -> Chip(label, scope == view.scope) { actions.onScope(scope) } }
-            }
-        }
-        if (view.tab == PaintTab.TEXTURE) {
+        if (view.tab == PaintTab.TEXTURE && view.textures) {
             TextureTab(view, actions)
         } else {
             ColourTab(view, actions)
@@ -258,9 +247,22 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
             Text(stringResource(R.string.editor_active_note), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 16.sp))
         }
     }
+    // The palette the colour row shows, by name, and the way to another one: the row's last circle opens the same
+    // list (the design's), but a circle alone is easy to miss.
+    val palettes = stringResource(R.string.editor_palettes)
+    Row(
+        Modifier.fillMaxWidth().height(36.dp).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button) { actions.onPalettes(true) }.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stringResource(R.string.editor_palette), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+        Text(stringResource(paletteName(view.presets)), Modifier.weight(1f), style = Type.Body.copy(color = TextOn, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(palettes, style = Type.Small.copy(color = Lilac, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+        Icon(Icons.Chevron, Lilac, 16.dp)
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         view.presets.colors.take(7).forEach { c -> Swatch(c, 34, c == view.color, SkinColorMath.hex(c)) { actions.onColor(c, true) } }
-        PalettesButton(stringResource(R.string.editor_palettes) + ": " + stringResource(paletteName(view.presets))) { actions.onPalettes(true) }
+        PalettesButton(palettes + ": " + stringResource(paletteName(view.presets))) { actions.onPalettes(true) }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -293,6 +295,8 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
     if (view.replacesImage) {
         Text(stringResource(R.string.editor_replaces_image), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 17.sp))
     }
+    // A colour is the skin's: the other rotation and the other forms get it too (a texture, a place and a size do not).
+    Text(stringResource(R.string.editor_colour_everywhere), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 17.sp))
 }
 
 @Composable

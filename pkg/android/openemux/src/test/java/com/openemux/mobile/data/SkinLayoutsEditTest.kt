@@ -32,6 +32,18 @@ class SkinLayoutsEditTest {
         assertEquals(SkinLayoutId.FOLD_LANDSCAPE, SkinForms.id(SkinForm.FOLD, SkinOrientation.LANDSCAPE))
     }
 
+    @Test fun aSkinIsShownInTheLayoutClosestToHowTheDeviceIsHeld() {
+        val have = listOf(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE, SkinLayoutId.TABLET_PORTRAIT)
+        assertEquals(SkinLayoutId.PHONE_LANDSCAPE, SkinForms.shown(have, SkinForm.PHONE, SkinOrientation.LANDSCAPE))
+        assertEquals(SkinLayoutId.TABLET_PORTRAIT, SkinForms.shown(have, SkinForm.TABLET, SkinOrientation.PORTRAIT))
+        // The form's other layout before another form's, though that one is held the same way.
+        assertEquals(SkinLayoutId.TABLET_PORTRAIT, SkinForms.shown(have, SkinForm.TABLET, SkinOrientation.LANDSCAPE))
+        // Not made for this form: still a skin to look at, in the first layout it has.
+        assertEquals(SkinLayoutId.PHONE_PORTRAIT, SkinForms.shown(have, SkinForm.FOLD, SkinOrientation.LANDSCAPE))
+        assertEquals(SkinLayoutId.TABLET_LANDSCAPE, SkinForms.shown(setOf(SkinLayoutId.FOLD_PORTRAIT, SkinLayoutId.TABLET_LANDSCAPE), SkinForm.PHONE, SkinOrientation.PORTRAIT))
+        assertNull(SkinForms.shown(emptyList(), SkinForm.PHONE, SkinOrientation.PORTRAIT))
+    }
+
     @Test fun theClosestLayoutKeepsTheOrientationThenTheFormThenAnything() {
         val tp = SkinLayoutId.TABLET_PORTRAIT
         assertEquals(SkinLayoutId.FOLD_PORTRAIT, SkinForms.closest(tp, listOf(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.FOLD_PORTRAIT)))
@@ -79,6 +91,25 @@ class SkinLayoutsEditTest {
         // A rect never leaves the layout, and is at least one unit.
         val tiny = SkinForms.derive(SkinLayout(SkinSize(100, 100), emptyList(), elements = listOf(SkinElement("x", SkinElementType.BUTTON, "a", SkinRect(99f, 99f, 1f, 1f)))), SkinSize(10, 10))
         assertEquals(SkinRect(9f, 9f, 1f, 1f), tiny.elements.single().rect)
+    }
+
+    @Test fun aDerivedControlKeepsItsProportionsAndIsDrawnWholeByTheApp() {
+        val shaped = a.copy(radius = 8f, rotation = 10f, depth = 12f, labelSize = 30f, labelOffset = SkinPoint(0f, 66f), art = SkinArt.KEY, image = "big-a")
+        val key = SkinElement("k1", SkinElementType.KEYPAD, "keypad1", SkinRect(0f, 0f, 90f, 90f), label = "1", depth = 9f, art = SkinArt.FACE)
+        val source = layout.copy(elements = listOf(shaped), keypad = SkinKeypadPage(listOf(key)))
+        // Half the size: what is measured in units halves with the control; its turn is an angle and stays.
+        val d = SkinForms.derive(source, SkinSize(450, 900))
+        // No image comes along, so none leaves anything out: the app draws the control whole, relief and label.
+        assertEquals(
+            shaped.copy(rect = SkinRect(325f, 625f, 50f, 50f), radius = 4f, depth = 6f, labelSize = 15f, labelOffset = SkinPoint(0f, 33f), art = SkinArt.FULL, image = null),
+            d.elements.single(),
+        )
+        // On the keypad page too.
+        assertEquals(key.copy(rect = SkinRect(0f, 0f, 45f, 45f), depth = 4.5f, art = SkinArt.FULL), d.keypad!!.elements.single())
+        // A label with a place of its own has it in the derived layout too, from its control there.
+        assertTrue("a#label" in d.rects())
+        // Wider but no taller: the control is the size it was, and so is its relief.
+        assertEquals(shaped.copy(rect = SkinRect(1350f, 1250f, 100f, 100f), art = SkinArt.FULL, image = null), SkinForms.derive(source, SkinSize(1800, 1800)).elements.single())
     }
 
     // The screen area.
@@ -156,6 +187,229 @@ class SkinLayoutsEditTest {
         val blind = model(OpenEmuxSkin(Console.SFC, "x", mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(screens = emptyList(), frame = null))))
         blind.selectScreen()
         assertNull(blind.selection)
+    }
+
+    // The frame and the body: painted, never moved.
+
+    @Test fun aQuickActionOnALayoutWithAFrameStaysPut() {
+        val m = model()
+        assertTrue(m.fixed("save"))
+        // Wherever it is drawn: it is painted in the frame's colours.
+        assertTrue(m.fixed("load"))
+        assertFalse(m.fixed("a"))
+        assertFalse(m.fixed("nothing"))
+        assertFalse(m.fixed(SkinArea.FRAME))
+        // A drag on one moves nothing and selects nothing.
+        assertFalse(m.beginMove("save"))
+        assertNull(m.selection)
+        m.moveBy(0f, 100f, free = true)
+        m.endGesture()
+        assertFalse(m.dirty)
+        // A tap on one selects the frame it is part of, whatever was selected.
+        m.tap("a")
+        m.tap("save")
+        assertEquals(SkinSelection.Frame, m.selection)
+        m.tap("load")
+        assertEquals(SkinSelection.Frame, m.selection)
+        // With no layout shown there is nothing to hold in place.
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        assertFalse(m.fixed("save"))
+        assertFalse(m.beginMove("save"))
+    }
+
+    @Test fun withoutAFrameAQuickActionIsAControlLikeAnother() {
+        val m = model(OpenEmuxSkin(Console.SFC, "Mine", mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(frame = null))))
+        assertFalse(m.fixed("save"))
+        m.tap("save")
+        assertEquals(SkinSelection.One("save"), m.selection)
+        assertTrue(m.beginMove("save"))
+        m.moveBy(100f, 0f, free = true)
+        m.endGesture()
+        assertEquals(120f, m.layout!!.elements.first { it.id == "save" }.rect.x, 0f)
+        m.sizeStep(1)
+        assertEquals(105, m.percent())
+        // And there is no frame to select: where the bezel would be is the body.
+        m.clearSelection()
+        m.tapAt(450f, 660f)
+        assertEquals(SkinSelection.Body, m.selection)
+        m.selectFrame()
+        assertEquals(SkinSelection.Body, m.selection)
+        // The gamepad steps onto each of them, never onto a frame.
+        m.clearSelection()
+        val seen = (1..4).map { m.step(1); m.selection }
+        assertEquals(listOf(SkinSelection.Group("face", listOf("a", "b")), SkinSelection.One("save"), SkinSelection.One("load"), SkinSelection.Group("face", listOf("a", "b"))), seen)
+    }
+
+    @Test fun aTapFindsTheControlElseTheFrameElseTheBody() {
+        val m = model()
+        m.tapAt(700f, 1300f)
+        assertEquals(SkinSelection.Group("face", listOf("a", "b")), m.selection)
+        // Each tap one step in, as on the control itself.
+        m.tapAt(700f, 1300f); m.tapAt(700f, 1300f)
+        assertEquals(SkinSelection.Label("a"), m.selection)
+        // The bezel under the screen, and beside it.
+        m.tapAt(450f, 660f)
+        assertEquals(SkinSelection.Frame, m.selection)
+        m.clearSelection()
+        m.tapAt(25f, 300f)
+        assertEquals(SkinSelection.Frame, m.selection)
+        // A quick action is the frame too, wherever it is, and within the slop as any control.
+        m.clearSelection()
+        m.tapAt(50f, 650f)
+        assertEquals(SkinSelection.Frame, m.selection)
+        m.clearSelection()
+        m.tapAt(88f, 1730f, slop = 10f)
+        assertEquals(SkinSelection.Frame, m.selection)
+        // The body, with nothing selected: its edges are the layout's.
+        m.clearSelection()
+        m.tapAt(88f, 1730f)
+        assertEquals(SkinSelection.Body, m.selection)
+        m.clearSelection()
+        m.tapAt(900f, 1800f)
+        assertEquals(SkinSelection.Body, m.selection)
+        m.clearSelection()
+        m.tapAt(0f, 721f)
+        assertEquals(SkinSelection.Body, m.selection)
+    }
+
+    @Test fun aTapOnTheBodyOrTheGameScreenLetsGoOfTheSelection() {
+        val m = model()
+        m.tap("a")
+        m.tapAt(450f, 1000f)
+        assertNull(m.selection)
+        // The body itself selected: the next tap on it lets go, the one after takes it again.
+        m.tapAt(450f, 1000f)
+        assertEquals(SkinSelection.Body, m.selection)
+        m.tapAt(450f, 1000f)
+        assertNull(m.selection)
+        // The game's screen is neither the frame around it nor the body: a tap there selects nothing.
+        m.tapAt(450f, 300f)
+        assertNull(m.selection)
+        m.selectFrame()
+        m.tapAt(450f, 300f)
+        assertNull(m.selection)
+        // On the screen's very edge it is still the screen.
+        m.tapAt(50f, 50f)
+        assertNull(m.selection)
+    }
+
+    @Test fun aTapOutsideTheLayoutSelectsNothing() {
+        val m = model()
+        listOf(-5f to 1000f, 905f to 1000f, 450f to -1f, 450f to 1805f).forEach { (x, y) ->
+            m.clearSelection()
+            m.tapAt(x, y)
+            assertNull("$x, $y", m.selection)
+            // And lets go of what was selected, as a tap on the body does.
+            m.selectBody()
+            m.tapAt(x, y)
+            assertNull("$x, $y", m.selection)
+        }
+        // With no layout shown a tap is nothing.
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        m.tapAt(450f, 1000f)
+        assertNull(m.selection)
+    }
+
+    @Test fun withTheScreenAreaSelectedATapInsideItIsOnIt() {
+        val m = model()
+        m.selectScreen()
+        val area = m.selection
+        // The screen, the bezel and a quick action on it: all the screen area while it is selected.
+        listOf(450f to 300f, 450f to 660f, 50f to 650f).forEach { (x, y) ->
+            m.tapAt(x, y)
+            assertEquals("$x, $y", area, m.selection)
+        }
+        assertEquals(SkinRect(0f, 0f, 900f, 720f), m.box())
+        // Outside it: the body, which lets go of it.
+        m.tapAt(450f, 1000f)
+        assertNull(m.selection)
+    }
+
+    @Test fun moreSelectsTheBodyOrTheFrameAndLeavesTryMode() {
+        val m = model()
+        m.tryMode(true)
+        m.selectBody()
+        assertEquals(SkinSelection.Body, m.selection)
+        assertFalse(m.trying)
+        // The body's box is the whole layout, the frame's its rect.
+        assertEquals(SkinRect(0f, 0f, 900f, 1800f), m.box())
+        m.tryMode(true)
+        m.selectFrame()
+        assertEquals(SkinSelection.Frame, m.selection)
+        assertFalse(m.trying)
+        assertEquals(layout.frame!!.rect, m.box())
+        // No frame on the sideways layout: nothing to select, and Try mode goes on.
+        m.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE)
+        m.tryMode(true)
+        m.selectFrame()
+        assertNull(m.selection)
+        assertTrue(m.trying)
+        m.selectBody()
+        assertEquals(SkinRect(0f, 0f, 1800f, 900f), m.box())
+        // No layout at all.
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        m.selectBody()
+        assertNull(m.selection)
+        assertNull(m.box())
+    }
+
+    @Test fun theFrameAndTheBodyHaveNoPlaceOrSizeToChange() {
+        val m = model()
+        for (select in listOf(m::selectFrame, m::selectBody)) {
+            select()
+            val selected = m.selection
+            assertNull(m.percent())
+            assertFalse(m.beginResize())
+            assertNull(m.resizeBy(2f))
+            m.sizeStep(1); m.nudge(1, 1); m.reset(); m.toggle()
+            m.moveBy(10f, 10f, free = true)
+            m.endGesture()
+            assertEquals(selected, m.selection)
+            assertFalse(m.dirty)
+            assertFalse(m.canUndo)
+        }
+        assertEquals(SkinSelection.Body, m.selection)
+    }
+
+    @Test fun theGamepadStepsOntoTheFrameWhereItsQuickActionsAre() {
+        // The quick actions in one group, as the app's own skins have them.
+        val grouped = layout.copy(elements = listOf(a, b, save.copy(group = "actions"), load.copy(group = "actions")))
+        val m = model(OpenEmuxSkin(Console.SFC, "Mine", mapOf(SkinLayoutId.PHONE_PORTRAIT to grouped)))
+        val face = SkinSelection.Group("face", listOf("a", "b"))
+        assertEquals(listOf(face, SkinSelection.Frame, face, SkinSelection.Frame), (1..4).map { m.step(1); m.selection })
+        assertEquals(listOf(face, SkinSelection.Frame), (1..2).map { m.step(-1); m.selection })
+        // From the body: the first unit, or the last.
+        m.selectBody()
+        m.step(1)
+        assertEquals(face, m.selection)
+        m.selectBody()
+        m.step(-1)
+        assertEquals(SkinSelection.Frame, m.selection)
+        // The frame has no group to open.
+        m.toggle()
+        assertEquals(SkinSelection.Frame, m.selection)
+    }
+
+    @Test fun aFrameWithNoQuickActionIsNoStopForTheGamepad() {
+        val m = model(OpenEmuxSkin(Console.SFC, "Mine", mapOf(SkinLayoutId.PHONE_PORTRAIT to layout.copy(elements = listOf(a, b)))))
+        val face = SkinSelection.Group("face", listOf("a", "b"))
+        m.selectFrame()
+        m.step(1)
+        assertEquals(face, m.selection)
+        m.step(1)
+        assertEquals(face, m.selection)
+        m.selectFrame()
+        m.step(-1)
+        assertEquals(face, m.selection)
+    }
+
+    @Test fun theGamepadNeverSelectsAQuickActionOnTheFrameToMoveIt() {
+        // Quick actions with no group, as a hand-written skin has them (the one in docs/skin-format.md): Save and Load
+        // are two units to step through, and each is part of the frame.
+        val m = model()
+        val seen = (1..6).map { m.step(1); m.selection!! }
+        assertTrue("$seen", seen.none { s -> s.ids.any(m::fixed) })
+        assertEquals("$seen", setOf(SkinSelection.Group("face", listOf("a", "b")), SkinSelection.Frame), seen.toSet())
     }
 
     // The Layouts panel's switches.

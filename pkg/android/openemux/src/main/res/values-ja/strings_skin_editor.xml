@@ -6,7 +6,7 @@
     <string name="editor_undo">元に戻す</string>
     <string name="editor_redo">やり直す</string>
     <string name="editor_save">保存</string>
-    <string name="editor_snap">スナップ</string>
+    <string name="editor_snap">グリッド</string>
     <string name="editor_more">その他</string>
     <string name="editor_reset_layout">レイアウトをリセット</string>
     <string name="editor_hint_tap">コントロールをタップして変更します。</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">右へ移動</string>
     <string name="editor_percent">%1$d%%</string>
     <string name="editor_tap_again">もう一度タップで単体</string>
+    <string name="editor_tap_again_label">もう一度タップでラベル</string>
     <string name="editor_group_face">アクションボタン</string>
     <string name="editor_group_dpad">十字キー</string>
     <string name="editor_group_center">スタートとセレクト</string>

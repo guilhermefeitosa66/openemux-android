@@ -11,9 +11,15 @@ import org.json.JSONObject
  */
 class Manifest(val games: List<Game>, val totalSize: Long, val fileCount: Long, val json: JSONObject) {
     val items: List<Item> get() = games.flatMap { it.items }
+
+    /** Only controller skins come: the screens then speak of a skin, not of games. */
+    val skinOnly: Boolean get() = games.isNotEmpty() && games.all { it.isSkin }
 }
 
-class Game(val id: String, val console: String, val title: String, val items: List<Item>, val metadata: JSONObject?, val json: JSONObject)
+class Game(val id: String, val console: String, val title: String, val items: List<Item>, val metadata: JSONObject?, val json: JSONObject) {
+    /** A controller skin, not a game ([SkinShare]): an entry with a skin item and no ROM. */
+    val isSkin: Boolean get() = items.any { it.kind == Item.SKIN } && items.none { it.kind == Item.ROM }
+}
 
 class Item(
     val id: String,
@@ -41,7 +47,9 @@ class Item(
         const val LABEL = "label"
         /** A BIOS file of the game's console (#678): carried by the first game of each console only. */
         const val BIOS = "bios"
-        val KINDS = setOf(ROM, BATTERY_SAVE, STATE, COVER, LABEL, BIOS)
+        /** A controller skin, zipped ([SkinShare]): the one item of an entry that is no game. Android only. */
+        const val SKIN = "skin"
+        val KINDS = setOf(ROM, BATTERY_SAVE, STATE, COVER, LABEL, BIOS, SKIN)
 
         /** [Item.isMainRom] for a manifest item still in its JSON form. */
         fun isMainRom(kind: String, json: JSONObject): Boolean =

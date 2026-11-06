@@ -6,7 +6,7 @@
     <string name="editor_undo">Undo</string>
     <string name="editor_redo">Redo</string>
     <string name="editor_save">Save</string>
-    <string name="editor_snap">Snap</string>
+    <string name="editor_snap">Grid</string>
     <string name="editor_more">More</string>
     <string name="editor_reset_layout">Reset layout</string>
     <string name="editor_hint_tap">Tap a control to change it.</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">Move right</string>
     <string name="editor_percent">%1$d%%</string>
     <string name="editor_tap_again">tap again for one</string>
+    <string name="editor_tap_again_label">tap again for its label</string>
     <string name="editor_group_face">Face buttons</string>
     <string name="editor_group_dpad">D-pad</string>
     <string name="editor_group_center">Start and Select</string>

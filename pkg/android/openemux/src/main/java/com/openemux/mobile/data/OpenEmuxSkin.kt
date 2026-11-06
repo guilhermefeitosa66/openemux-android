@@ -43,13 +43,17 @@ enum class SkinLayoutId(val form: SkinForm, val orientation: SkinOrientation) {
  * its base name ([imageSuffixes]: a D-pad has the pad and its ball, a stick its base and its knob).
  */
 enum class SkinElementType(val id: String, val colorParts: List<String>, val imageSuffixes: List<String>) {
-    BUTTON("button", listOf("button", "letter"), listOf("")),
-    DPAD("dpad", listOf("pad", "ball"), listOf("", "-ball")),
+    BUTTON("button", listOf("button", "relief", "letter"), listOf("")),
+    /** Its "letter" is its four arrows. */
+    DPAD("dpad", listOf("pad", "ball", "relief", "letter"), listOf("", "-ball")),
     STICK("stick", listOf("base", "knob"), listOf("-base", "-knob")),
     /** A quick action on the screen's frame: drawn in the frame's colours, so it has none of its own. */
     ACTION("action", emptyList(), listOf("")),
-    KEYPAD("keypad", listOf("button", "letter"), listOf("")),
+    KEYPAD("keypad", listOf("button", "relief", "letter"), listOf("")),
     ;
+
+    /** Whether it is drawn as a face over a relief, with a label: a button, a key, the D-pad. */
+    val raised: Boolean get() = "relief" in colorParts
 
     companion object {
         fun byId(id: String): SkinElementType? = entries.firstOrNull { it.id == id }
@@ -74,12 +78,35 @@ enum class SkinIconTone(val id: String) {
     }
 }
 
+/**
+ * What an element's image holds, so what is left for the app to draw (docs/skin-format.md): the whole control
+ * ([FULL], the default), the control without its label ([KEY]: the app draws the label, where [SkinElement.labelOffset]
+ * puts it), or its face alone ([FACE], what a texture picked in the editor is: the app draws the relief under it and
+ * the label over it).
+ */
+enum class SkinArt(val id: String) {
+    FULL("full"), KEY("key"), FACE("face");
+
+    companion object {
+        fun byId(id: String): SkinArt? = entries.firstOrNull { it.id == id }
+    }
+}
+
 /** A layout's pixel space: every rect in the layout is in these units, and its images at this scale. */
 data class SkinSize(val width: Int, val height: Int)
+
+/** A point, or an offset, in a layout's units. */
+data class SkinPoint(val x: Float, val y: Float)
 
 data class SkinRect(val x: Float, val y: Float, val width: Float, val height: Float) {
     /** Whether the rect lies wholly inside [size]. */
     fun inside(size: SkinSize) = x >= 0f && y >= 0f && x + width <= size.width && y + height <= size.height
+
+    /** Whether ([px], [py]) is in the rect, its edges included. */
+    fun contains(px: Float, py: Float) = px >= x && px <= x + width && py >= y && py <= y + height
+
+    /** Whether the rect lies wholly inside [other]. */
+    fun within(other: SkinRect) = x >= other.x && y >= other.y && x + width <= other.x + other.width && y + height <= other.y + other.height
 }
 
 /** [color] is ARGB, null for the renderer's default; [image] replaces "background" as the image's base name. */
@@ -95,8 +122,11 @@ data class SkinFrameColors(
     val activeIcon: SkinIconTone? = null,
 )
 
-/** The bezel around the game screen, where the quick actions sit; [image] replaces "frame" as its base name. */
-data class SkinFrame(val rect: SkinRect, val colors: SkinFrameColors = SkinFrameColors(), val image: String? = null) {
+/**
+ * The bezel around the game screen, where the quick actions sit; [image] replaces "frame" as its base name, [radius]
+ * rounds its corners when it is drawn from its colour.
+ */
+data class SkinFrame(val rect: SkinRect, val colors: SkinFrameColors = SkinFrameColors(), val image: String? = null, val radius: Float = 0f) {
     val imageFile: String get() = "${image ?: "frame"}.png"
 }
 
@@ -104,6 +134,11 @@ data class SkinFrame(val rect: SkinRect, val colors: SkinFrameColors = SkinFrame
  * One control. [bind] is its input name (docs/skin-format.md; "dpad" for a D-pad, "dpad2" for a second one), [group] what the editor moves it
  * with, [colors] its colour parts (ARGB, keys from [SkinElementType.colorParts]), [shape] and [label] what it is drawn
  * as without an image, [image] a base name for its image files other than [id].
+ *
+ * [rect] is the whole control: its face and, under it, [depth] units of relief (0: flat). [rotation] turns the face
+ * (degrees, clockwise) inside [rect], which is then the box around the turned shape; [radius] rounds a "rect" shape's
+ * corners. [labelSize] is the label's type size and [labelOffset] where its centre is from [rect]'s centre (null: on
+ * the face's centre); [art] says how much of all this the element's image already holds.
  */
 data class SkinElement(
     val id: String,
@@ -115,9 +150,36 @@ data class SkinElement(
     val label: String? = null,
     val colors: Map<String, Int> = emptyMap(),
     val image: String? = null,
+    val radius: Float? = null,
+    val rotation: Float = 0f,
+    val depth: Float = 0f,
+    val labelSize: Float? = null,
+    val labelOffset: SkinPoint? = null,
+    val art: SkinArt = SkinArt.FULL,
 ) {
     /** The element's image files, one per [SkinElementType.imageSuffixes] entry, in that order. */
     val imageFiles: List<String> get() = type.imageSuffixes.map { "${image ?: id}$it.png" }
+
+    /** The face: [rect] without the relief under it. */
+    val face: SkinRect get() = rect.copy(height = (rect.height - depth).coerceAtLeast(rect.height * MIN_FACE))
+
+    /**
+     * [this] in [to]: what is measured in the layout's units ([depth], [radius], the label's size and place) follows
+     * the width, so a control resized keeps its proportions.
+     */
+    fun at(to: SkinRect): SkinElement {
+        val k = to.width / rect.width
+        if (k == 1f) return copy(rect = to)
+        return copy(
+            rect = to, radius = radius?.times(k), depth = depth * k, labelSize = labelSize?.times(k),
+            labelOffset = labelOffset?.let { SkinPoint(it.x * k, it.y * k) },
+        )
+    }
+
+    companion object {
+        /** The least of a control's height its face keeps, whatever [depth] says. */
+        const val MIN_FACE = 0.25f
+    }
 }
 
 /**

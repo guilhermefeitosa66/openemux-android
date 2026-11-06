@@ -122,6 +122,17 @@ class SkinEditorTextTest {
         assertEquals("K1", name(SkinElementType.KEYPAD, id = "k1"))
     }
 
+    @Test fun theMenuKeysThreeLinesAreReadAsMenu() {
+        fun name(label: String, type: SkinElementType = SkinElementType.BUTTON) =
+            elementName(SkinElement("menu", type, "menu", SkinRect(0f, 0f, 1f, 1f), label = label)) { if (it == R.string.editor_group_menu) "Menu" else "?" }
+        assertEquals("Menu", name("☰"))
+        assertEquals("Menu", name("☰", SkinElementType.ACTION))
+        // The other glyphs are what the console prints on the button: they say it themselves, and so does the word.
+        assertEquals("△", name("△"))
+        assertEquals("▶", name("▶"))
+        assertEquals("MENU", name("MENU"))
+    }
+
     @Test fun aGuideSaysWhatItSnappedTo() {
         fun text(kind: SnapKind) = guideText(SnapGuide(SnapAxis.X, 0f, kind, "dpad"), "D-pad") { res, arg -> "$res:$arg" }
         assertEquals("${R.string.editor_guide_center}:null", text(SnapKind.CENTER))

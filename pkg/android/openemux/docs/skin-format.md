@@ -66,6 +66,10 @@ Each layout folder holds **one image per element**, PNG, at the element's exact 
 (an element 180 × 180 in the layout is a 180 × 180 image). **Every image is optional**: a missing one is drawn from
 the element's colours, shape and label.
 
+**Each image holds its own element and nothing else.** The background is the console's body alone (its plastic, a
+panel, a logo): no control, no shadow of one and no word printed beside one, so a control moved in the editor leaves
+nothing behind. A button's image is the whole button, its relief included, inside the element's rect.
+
 Any image may be **WebP** instead: `<name>.webp` in place of `<name>.png` (`a.webp` for `a.png`,
 `keypad/background.webp`), read, drawn, copied and imported the same way. Each image is one or the other: a layout
 with both `<name>.png` and `<name>.webp` is refused (`DUPLICATE_ID`). The names below say `.png` for either. The app's
@@ -74,9 +78,9 @@ converted or drawn copy, a template's images) is PNG.
 
 | File | What it is |
 |---|---|
-| `background.png` | the whole layout, behind everything (the layout's `size`) |
-| `frame.png` | the bezel around the game screen, where the quick actions sit (the frame's rect) |
-| `<id>.png` | a button, a keypad key or a quick action |
+| `background.png` | the console's body, behind everything (the layout's `size`) |
+| `frame.png` | the bezel around the game screen, where the quick actions sit (the frame's rect; transparent outside its rounded corners) |
+| `<id>.png` | a button, a keypad key or a quick action (what it holds of a button or key: the element's `art`) |
 | `<id>.png`, `<id>-ball.png` | a D-pad: the pad, and the ball that moves like a stick (`dpad2.png`, `dpad2-ball.png` for a second D-pad) |
 | `<id>-base.png`, `<id>-knob.png` | an analog stick: the base, and the knob that moves |
 
@@ -89,7 +93,9 @@ background's and the frame's `image` keys replace `background` and `frame` (for 
 layouts' names, or to keep a texture's own name). Within a layout, no two images may end up with the same file name.
 
 A texture picked in the editor (stretched, fitted or repeated, moved, zoomed) is baked into the element's image at
-its exact size: the format carries the finished picture, not the editor's fill settings.
+its exact size: the format carries the finished picture, not the editor's fill settings. On a button, a key or the
+D-pad the picture fills the face alone, and the element's `art` becomes `face`: the relief and the label stay the
+app's to draw, in their own colours.
 
 ## skin.json
 
@@ -108,18 +114,19 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
       "screens": [{ "x": 0, "y": 180, "width": 1080, "height": 720 }],
       "background": { "color": "#2B1F3A" },
       "frame": {
-        "x": 0, "y": 140, "width": 1080, "height": 860,
+        "x": 0, "y": 140, "width": 1080, "height": 860, "radius": 30,
         "colors": { "frame": "#1A1324", "icons": "#FFFFFF", "active": "#7C4DFF", "activeIcon": "light" }
       },
       "elements": [
-        { "id": "dpad", "type": "dpad", "group": "dpad", "x": 60, "y": 1320, "width": 420, "height": 420,
-          "colors": { "pad": "#3A2C4F", "ball": "#9E8CB8" } },
-        { "id": "a", "type": "button", "bind": "a", "group": "face", "x": 840, "y": 1380, "width": 180, "height": 180,
-          "shape": "circle", "label": "A", "colors": { "button": "#7C4DFF", "letter": "#FFFFFF" } },
+        { "id": "dpad", "type": "dpad", "group": "dpad", "x": 60, "y": 1320, "width": 420, "height": 432, "depth": 12,
+          "colors": { "pad": "#3A2C4F", "ball": "#9E8CB8", "relief": "#1F1729", "letter": "#9E8CB8" } },
+        { "id": "a", "type": "button", "bind": "a", "group": "face", "x": 840, "y": 1380, "width": 180, "height": 192,
+          "shape": "circle", "depth": 12, "label": "A", "colors": { "button": "#7C4DFF", "relief": "#472C94", "letter": "#FFFFFF" } },
         { "id": "b", "type": "button", "bind": "b", "group": "face", "x": 620, "y": 1500, "width": 180, "height": 180,
           "shape": "circle", "label": "B" },
         { "id": "start", "type": "button", "bind": "start", "group": "center", "x": 560, "y": 2100, "width": 160,
-          "height": 60, "shape": "pill", "label": "START" },
+          "height": 66, "shape": "pill", "depth": 6, "label": "START", "labelSize": 30, "labelOffset": { "x": 0, "y": 66 },
+          "art": "key" },
         { "id": "save", "type": "action", "bind": "quickSave", "x": 40, "y": 920, "width": 64, "height": 64 }
       ]
     }
@@ -144,7 +151,7 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
 | `size` | object | yes | `width`, `height`: whole numbers above 0. The layout's pixel space: every rect below is in these units, and the images are at this scale. The renderer scales the layout to the screen. |
 | `screens` | array of rects | yes | Where the game's picture goes. Exactly one rect; exactly two for `NDS` (top screen first). |
 | `background` | object | no | `color` (colour) and `image` (base name, default `background`). |
-| `frame` | object | no | The bezel around the game screen: a rect (`x`, `y`, `width`, `height`), `colors` and `image` (base name, default `frame`). |
+| `frame` | object | no | The bezel around the game screen: a rect (`x`, `y`, `width`, `height`), `radius` (how round its corners are when it is drawn from its colour; left out: square), `colors` and `image` (base name, default `frame`). |
 | `elements` | array | no | The controls (below). Empty or left out: a layout with only the picture. |
 | `keypad` | object | no | The layout's keypad page (below). |
 | `screenLayouts` | object | no | NDS only: the layout's screen-layout pages (below). |
@@ -158,7 +165,8 @@ The frame's `colors`:
 | `active` | colour | The background of a quick action while it is toggled on (turbo, fast forward…). |
 | `activeIcon` | `light` or `dark` | The icon's tone on that `active` background. |
 
-Quick actions (`action` elements) use these colours; they have none of their own.
+Quick actions (`action` elements) use these colours; they have none of their own. In the editor the frame and its
+quick actions are painted and never moved.
 
 ### Keypad page
 
@@ -218,23 +226,33 @@ The skin editor edits the default page (its subtitle says "One above the other")
 | `type` | string | yes | `button`, `dpad`, `stick`, `action` or `keypad` (below). |
 | `bind` | string | yes, except `dpad` | The input it presses (below). A D-pad's is `dpad`, and may be left out; a second D-pad's is `dpad2`. |
 | `group` | string | no | The group the editor moves it with (`face`, `dpad`, `shoulders-left`, `center`…). Free text; elements with the same value move together. |
-| `x`, `y`, `width`, `height` | numbers | yes | The element's rect (see Rect). |
+| `x`, `y`, `width`, `height` | numbers | yes | The element's rect (see Rect): the whole control, its relief included. |
 | `shape` | string | no | `circle`, `pill` or `rect`: the outline drawn when the element has no image. |
-| `label` | string | no | The letter or word drawn on it when it has no image (`A`, `START`, `1`). |
+| `radius` | number | no | How round a `rect` shape's corners are. 0 or more; left out, a share of its shorter side. |
+| `rotation` | number | no | Degrees the shape is turned, clockwise (-40 to 40). The rect is then the box around the turned shape. |
+| `depth` | number | no | A button's, a key's or the D-pad's relief: how many units of the rect's height, at the bottom, show the same shape again under the face, in the `relief` colour. Left out or 0: flat. At most three quarters of the height. |
+| `label` | string | no | The letter or word drawn on it (`A`, `START`, `1`). A PlayStation shape (`△` `○` `✕` `□`), an arrow (`▲` `▶` `▼` `◀`) or the menu's lines (`☰`) is drawn as that glyph. |
+| `labelSize` | number | no | The label's type size (a glyph's side). Above 0; left out, a share of the face, a long word shrunk to fit it. |
+| `labelOffset` | object | no | `x`, `y`: where the label's centre is, from the centre of the element's rect. Left out: on the middle of the face. A label may sit beside its control (`START` under its key). |
 | `colors` | object | no | Its colour parts (below), each a colour. Only the parts of its type. |
 | `image` | string | no | A base name for its images other than `id` (lowercase letters, digits and single hyphens; no extension). |
+| `art` | string | no | What a button's, a key's or the D-pad's image holds: `full` (the default: all of it, label and relief included), `key` (all but the label, which the app draws where `labelOffset` puts it) or `face` (the face alone: the app draws the relief under it and the label over it). |
+
+`radius`, `depth`, `labelSize` and `labelOffset` are in the layout's units. A control resized in the editor keeps its
+proportions: all four follow its width.
 
 ### Element types and their colour parts
 
 | Type | What it is | Colour parts | Images |
 |---|---|---|---|
-| `button` | A button: face buttons, shoulders, triggers, Start, Select, a menu button… | `button`, `letter` | `<id>.png` |
-| `dpad` | The D-pad (its four directions) | `pad`, `ball` | `<id>.png`, `<id>-ball.png` |
+| `button` | A button: face buttons, shoulders, triggers, Start, Select, a menu button… | `button`, `relief`, `letter` | `<id>.png` |
+| `dpad` | The D-pad (its four directions) | `pad`, `ball`, `relief`, `letter` (its four arrows) | `<id>.png`, `<id>-ball.png` |
 | `stick` | An analog stick | `base`, `knob` | `<id>-base.png`, `<id>-knob.png` |
 | `action` | A quick action on the screen's frame | none: the frame's `icons`, `active`, `activeIcon` | `<id>.png` |
-| `keypad` | A key of a numeric keypad | `button`, `letter` | `<id>.png` |
+| `keypad` | A key of a numeric keypad | `button`, `relief`, `letter` | `<id>.png` |
 
-A colour part that is not set is drawn in the renderer's default for it.
+A colour part that is not set is drawn in the renderer's default for it. A `relief` left unset follows its face: the
+same colour, darker.
 
 ### Colours
 
@@ -290,7 +308,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 | `TOO_LARGE` | `skin.json` is over 1 MiB. |
 | `BAD_JSON` | `skin.json` is not JSON, or not an object. |
 | `MISSING_KEY` | A required key is missing (or `null`). |
-| `BAD_VALUE` | A key holds the wrong kind of value: a string for a number, a decimal for a whole number, an empty name, an `activeIcon` that is not `light` or `dark`. |
+| `BAD_VALUE` | A key holds the wrong kind of value: a string for a number, a decimal for a whole number, an empty name, an `activeIcon` that is not `light` or `dark`, an `art` that is not `full`, `key` or `face`, a negative `radius` or `depth`, a `depth` over three quarters of the height, a `rotation` past 40 degrees, a `labelSize` of 0 or less. |
 | `UNSUPPORTED_FORMAT` | `format` is not 1. |
 | `UNKNOWN_CONSOLE` | `console` is not one of the app's console ids. |
 | `NO_LAYOUTS` | `layouts` is empty. |
@@ -330,11 +348,24 @@ the app cannot draw falls back to the drawn skin.
   the background colour. The game's picture goes in `screens`; with two (NDS), in the box around both, the core showing
   the screens one over the other: put the two screens one over the other.
 - **Images.** A button, keypad key or quick action image is stretched over the element's rect, a stick base over the
-  stick's rect. The D-pad ball is drawn 55% as wide as its travel (the D-pad's rect times 44/60), the stick knob half
-  as wide as the stick, both centred, and both move with the thumb. A missing or unreadable image is drawn from the element's colours.
+  stick's rect. The D-pad ball is drawn 55% as wide as its travel (the D-pad's face, its rect without the relief,
+  times 44/60), the stick knob half as wide as the stick, both centred (the ball on the face), and both move with the
+  thumb. A missing or unreadable image is drawn from the element's colours.
+- **From its colours.** A button, a key or the D-pad with no image is its face over its relief: the same shape
+  `depth` units lower, in the `relief` colour, showing under the face. With a relief the face is shaded from its one
+  colour the way the bundled art is (lit from above); with none it is flat. The D-pad gets an arrow near the tip of
+  each arm, in its `letter` colour. Labels are set in Space Grotesk bold, the bundled art's typeface. A button bound
+  to a quick action (the menu key) is drawn as any button; with no label and no image it shows the action's glyph.
+- **Ball and knob.** The D-pad's ball and a stick's knob drawn from a colour take four fifths of the box their image
+  would be drawn over, centred: the bundled art leaves that margin around the circle, so a ball repainted keeps its
+  size. An image of your own is the thing itself, as large in its image as you paint it.
+- **Labels.** The app draws a label when the element has no image, or one whose `art` leaves it out (`key`, `face`).
+  One that lies inside its control is part of the control's image on the overlay; one printed beside it (`START`
+  under its key) is part of the page.
 - **Defaults.** A colour part left unset: background `#16161A`, frame `#0E0E11`, icons `#FFFFFF`, active `#7C3AED`
-  (light icon), button and pad and stick base `#2E2E35`, letter `#FFFFFF`, ball and knob `#6B6B76`. A button with no
-  `shape` is a circle, a keypad key a rounded rect.
+  (light icon), button and pad and stick base `#2E2E35`, letter `#FFFFFF` (a D-pad's arrows: its ball's colour), ball
+  and knob `#6B6B76`, relief its face's colour 42% of the way to black. A button with no `shape` is a circle, a keypad
+  key a rounded rect.
 - **Keypad pages.** When both layouts of the window's form have a keypad page with a `keypadToggle` key on it, the
   skin has four pages: portrait, landscape and their keypad pages (`keypad-portrait`, `keypad-landscape`). The toggle
   switches between a layout's two pages, and turning the device keeps the kind of page. Otherwise the skin plays
@@ -378,7 +409,8 @@ Manic EMU package, and **Download as template** (a skin of your own → its shee
   and **one image per element in every layout the skin has** (the ones this device cannot edit too), all under one
   folder named after the skin. An image the skin has as a PNG at the right size is copied as is, a WebP one or one at
   another size is written as a PNG at that size, and a missing one is drawn the way the game draws it (colours,
-  shape, label). Sizes: the element's
+  shape, relief, and the label when the element's `art` says the image holds it). A bundled skin's Download as
+  template gives the same, from the app's own package. Sizes: the element's
   rect; the background the layout's `size`; the frame its rect; a D-pad's `-ball` image `min(width, height) × 44/60`;
   a stick's `-knob` image half its shorter side (rounded half up). A layout's keypad page adds its own images in the
   layout's `keypad/` folder, at the same sizes (its background only when it names one of its own), and an NDS layout's

@@ -681,4 +681,223 @@ class SkinFormatTest {
         assertEquals(listOf("top", "bottom", "side"), SkinScreenPage.IDS)
         assertEquals(mapOf("top" to 1, "bottom" to 1, "side" to 2), SkinScreenPage.SCREENS)
     }
+
+    // A control's relief, its turn, its label's place, and how much of them its image holds.
+
+    /** Each of those keys set somewhere: a raised D-pad and button, a turned shoulder, a word under its pill, a rounded frame. */
+    private val shaped = OpenEmuxSkin(
+        Console.GBA, "Shaped",
+        mapOf(
+            SkinLayoutId.PHONE_PORTRAIT to SkinLayout(
+                SkinSize(1080, 2340),
+                listOf(rect(0f, 120f, 1080f, 720f)),
+                frame = SkinFrame(rect(0f, 100f, 1080f, 840f), radius = 30f),
+                elements = listOf(
+                    SkinElement("dpad", SkinElementType.DPAD, "dpad", rect(60f, 1300f, 400f, 412f), depth = 12f, art = SkinArt.FACE,
+                        colors = mapOf("pad" to 0xFF333333.toInt(), "relief" to 0xFF111111.toInt(), "letter" to 0xFFAAAAAA.toInt())),
+                    SkinElement("a", SkinElementType.BUTTON, "a", rect(800f, 1350f, 180f, 192f), shape = SkinShape.CIRCLE, label = "A", depth = 12f,
+                        colors = mapOf("button" to 0xFF7C4DFF.toInt(), "relief" to 0xFF472C94.toInt())),
+                    SkinElement("l", SkinElementType.BUTTON, "l", rect(60f, 1000f, 200f, 120f), shape = SkinShape.RECT, label = "L", radius = 16.5f, rotation = -12f),
+                    SkinElement("start", SkinElementType.BUTTON, "start", rect(560f, 2100f, 160f, 66f), shape = SkinShape.PILL, label = "START",
+                        depth = 6f, labelSize = 30f, labelOffset = SkinPoint(0f, 66f), art = SkinArt.KEY),
+                    SkinElement("key-1", SkinElementType.KEYPAD, "keypad1", rect(400f, 1900f, 80f, 80f), label = "1", radius = 0f, labelOffset = SkinPoint(-2.5f, 0f)),
+                ),
+            ),
+        ),
+    )
+
+    @Test fun theReliefTheTurnAndTheLabelsPlaceReadBackTheSame() {
+        assertEquals(shaped, SkinFormat.parse(SkinFormat.toJson(shaped)))
+        val text = SkinFormat.toJson(shaped)
+        val root = JSONObject(text)
+        // Whole numbers without decimals, the others as they are; square corners asked for are said (left out is not square).
+        assertTrue("\"depth\": 12," in text)
+        assertTrue("\"radius\": 16.5," in text)
+        assertTrue("\"rotation\": -12," in text)
+        assertTrue("\"radius\": 0," in text)
+        assertEquals(30, root.layout().getJSONObject("frame").getInt("radius"))
+        val under = root.element(3).getJSONObject("labelOffset")
+        assertEquals(listOf<Any>(0, 66), listOf(under.get("x"), under.get("y")))
+        assertEquals(-2.5, root.element(4).getJSONObject("labelOffset").getDouble("x"), 0.0)
+        assertEquals("key", root.element(3).getString("art"))
+        assertEquals("face", root.element(0).getString("art"))
+        // The whole image is the default: it is not said, and neither is anything else left unset.
+        assertFalse(root.element(1).has("art") || root.element(1).has("radius") || root.element(1).has("rotation") || root.element(1).has("labelSize") || root.element(1).has("labelOffset"))
+        assertFalse(root.element(2).has("depth"))
+        assertFalse(Regex("\"(radius|rotation|depth|labelSize|labelOffset|art)\"").containsMatchIn(SkinFormat.toJson(full)))
+    }
+
+    @Test fun theWriterPutsThoseKeysWhereTheDocumentsTablesDo() {
+        val text = SkinFormat.toJson(shaped)
+        fun inOrder(chunk: String, vararg keys: String) {
+            val at = keys.map { chunk.indexOf("\"$it\":") }
+            assertTrue("${keys.toList()} at $at", at.all { it >= 0 } && at == at.sorted())
+        }
+        fun element(id: String, next: String) = text.substringAfter("\"id\": \"$id\"").substringBefore("\"id\": \"$next\"")
+        inOrder(element("dpad", "a"), "height", "depth", "colors", "art")
+        inOrder(element("l", "start"), "shape", "radius", "rotation", "label")
+        inOrder(element("start", "key-1"), "shape", "depth", "label", "labelSize", "labelOffset", "art")
+        inOrder(text.substringAfter("\"frame\": {").substringBefore("\"elements\""), "height", "radius")
+        // The frame's radius before its colours and its image.
+        val coloured = shaped.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).let { it.copy(frame = it.frame!!.copy(colors = SkinFrameColors(frame = 1), image = "bezel")) }
+        val frame = SkinFormat.toJson(shaped.copy(layouts = mapOf(SkinLayoutId.PHONE_PORTRAIT to coloured))).substringAfter("\"frame\": {").substringBefore("\"elements\"")
+        inOrder(frame, "radius", "colors", "image")
+    }
+
+    @Test fun aControlsReliefTurnAndLabelAreChecked() {
+        val e = "layouts.phone-portrait.elements[2]"
+        refused(SkinError.BAD_VALUE, "$e.radius") { element(2).put("radius", -1) }
+        refused(SkinError.BAD_VALUE, "$e.radius") { element(2).put("radius", "round") }
+        refused(SkinError.BAD_VALUE, "$e.rotation") { element(2).put("rotation", 40.5) }
+        refused(SkinError.BAD_VALUE, "$e.rotation") { element(2).put("rotation", -41) }
+        refused(SkinError.BAD_VALUE, "$e.rotation") { element(2).put("rotation", "left") }
+        refused(SkinError.BAD_VALUE, "$e.depth") { element(2).put("depth", -1) }
+        // Start is 60 tall: its relief may take 45 of them and no more, or there would be no face left to press.
+        refused(SkinError.BAD_VALUE, "$e.depth") { element(2).put("depth", 45.5) }
+        refused(SkinError.BAD_VALUE, "$e.depth") { element(2).put("depth", 60) }
+        refused(SkinError.BAD_VALUE, "$e.depth") { element(2).put("depth", true) }
+        refused(SkinError.BAD_VALUE, "$e.labelSize") { element(2).put("labelSize", 0) }
+        refused(SkinError.BAD_VALUE, "$e.labelSize") { element(2).put("labelSize", -12) }
+        refused(SkinError.BAD_VALUE, "$e.labelSize") { element(2).put("labelSize", "big") }
+        refused(SkinError.BAD_VALUE, "$e.labelOffset") { element(2).put("labelOffset", 12) }
+        refused(SkinError.MISSING_KEY, "$e.labelOffset.y") { element(2).put("labelOffset", JSONObject().put("x", 0)) }
+        refused(SkinError.MISSING_KEY, "$e.labelOffset.x") { element(2).put("labelOffset", JSONObject()) }
+        refused(SkinError.BAD_VALUE, "$e.labelOffset.x") { element(2).put("labelOffset", JSONObject().put("x", "left").put("y", 0)) }
+        refused(SkinError.BAD_VALUE, "$e.art") { element(2).put("art", "half") }
+        refused(SkinError.BAD_VALUE, "$e.art") { element(2).put("art", "FULL") }
+        refused(SkinError.BAD_VALUE, "$e.art") { element(2).put("art", 1) }
+        refused(SkinError.BAD_VALUE, "layouts.phone-portrait.frame.radius") { layout().getJSONObject("frame").put("radius", -0.5) }
+        refused(SkinError.BAD_VALUE, "layouts.phone-portrait.frame.radius") { layout().getJSONObject("frame").put("radius", "round") }
+        // On a keypad page too, with its own path.
+        refusedText(SkinError.BAD_VALUE, "layouts.phone-portrait.keypad.elements[1].depth") {
+            json(withKeypad).apply { keypad().getJSONArray("elements").getJSONObject(1).put("depth", 100) }.toString()
+        }
+    }
+
+    @Test fun theLimitsThemselvesAreTaken() {
+        val text = json().apply {
+            element(1).put("rotation", 40).put("art", "face")
+            element(2).put("radius", 0).put("rotation", -40).put("depth", 45).put("labelSize", 0.5).put("art", "full")
+                .put("labelOffset", JSONObject().put("x", -5000).put("y", 0.25))
+            layout().getJSONObject("frame").put("radius", 0)
+        }.toString()
+        val layout = SkinFormat.parse(text).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        assertEquals(40f, layout.elements[1].rotation, 0f)
+        assertEquals(SkinArt.FACE, layout.elements[1].art)
+        val start = layout.elements[2]
+        assertEquals(0f, start.radius)
+        assertEquals(-40f, start.rotation, 0f)
+        assertEquals(45f, start.depth, 0f)
+        assertEquals(0.5f, start.labelSize)
+        assertEquals(SkinArt.FULL, start.art)
+        // A label may be put anywhere, off the layout too: it is the control's rect that has to be inside.
+        assertEquals(SkinPoint(-5000f, 0.25f), start.labelOffset)
+        assertEquals(0f, layout.frame!!.radius, 0f)
+        // Each of them set to null reads as left out, like any other key.
+        val nulled = json().apply {
+            listOf("radius", "rotation", "depth", "labelSize", "labelOffset", "art").forEach { element(2).put(it, JSONObject.NULL) }
+            layout().getJSONObject("frame").put("radius", JSONObject.NULL)
+        }.toString()
+        assertEquals(full, SkinFormat.parse(nulled))
+    }
+
+    @Test fun whatIsRaisedHasAReliefToPaintAndTheDpadItsArrows() {
+        assertEquals(listOf(SkinElementType.BUTTON, SkinElementType.DPAD, SkinElementType.KEYPAD), SkinElementType.entries.filter { it.raised })
+        val text = json().apply {
+            element(0).put("colors", JSONObject().put("letter", "#111111").put("relief", "#222222").put("ball", "#333333").put("pad", "#444444"))
+            element(1).put("colors", JSONObject().put("letter", "#111111").put("relief", "#222222").put("button", "#444444"))
+            element(5).put("colors", JSONObject().put("relief", "#222222"))
+        }.toString()
+        val e = SkinFormat.parse(text).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements
+        // In the type's order, whatever the file's.
+        assertEquals(listOf("pad", "ball", "relief", "letter"), e[0].colors.keys.toList())
+        assertEquals(listOf("button", "relief", "letter"), e[1].colors.keys.toList())
+        assertEquals(mapOf("relief" to 0xFF222222.toInt()), e[5].colors)
+        // A stick and a quick action are flat, and a stick has no arrows.
+        refused(SkinError.UNKNOWN_COLOR_PART, "layouts.phone-portrait.elements[3].colors.relief") { element(3).getJSONObject("colors").put("relief", "#000000") }
+        refused(SkinError.UNKNOWN_COLOR_PART, "layouts.phone-portrait.elements[3].colors.letter") { element(3).getJSONObject("colors").put("letter", "#000000") }
+        refused(SkinError.UNKNOWN_COLOR_PART, "layouts.phone-portrait.elements[4].colors.relief") { element(4).put("colors", JSONObject().put("relief", "#000000")) }
+    }
+
+    @Test fun artSaysHowMuchOfTheControlItsImageHolds() {
+        assertEquals(listOf("full", "key", "face"), SkinArt.entries.map { it.id })
+        SkinArt.entries.forEach { assertEquals(it, SkinArt.byId(it.id)) }
+        assertNull(SkinArt.byId("Face"))
+        assertNull(SkinArt.byId(""))
+        // Left out, the image is the whole control: what every skin made before the key meant.
+        assertEquals(SkinArt.FULL, SkinElement("a", SkinElementType.BUTTON, "a", rect(0f, 0f, 1f, 1f)).art)
+    }
+
+    @Test fun theFaceIsTheControlWithoutTheReliefUnderIt() {
+        val e = SkinElement("a", SkinElementType.BUTTON, "a", rect(10f, 20f, 100f, 80f))
+        assertEquals(e.rect, e.face)
+        assertEquals(rect(10f, 20f, 100f, 60f), e.copy(depth = 20f).face)
+        // The deepest the format takes: a quarter of the control is left.
+        assertEquals(rect(10f, 20f, 100f, 20f), e.copy(depth = 60f).face)
+        // Whatever a depth says (the model can be built without the reader), the face keeps that quarter.
+        assertEquals(rect(10f, 20f, 100f, 20f), e.copy(depth = 70f).face)
+        assertEquals(rect(10f, 20f, 100f, 20f), e.copy(depth = 500f).face)
+    }
+
+    @Test fun aControlResizedKeepsItsProportions() {
+        val e = SkinElement(
+            "a", SkinElementType.BUTTON, "a", rect(100f, 100f, 100f, 80f), label = "A",
+            radius = 8f, rotation = 10f, depth = 12f, labelSize = 30f, labelOffset = SkinPoint(4f, -60f), art = SkinArt.KEY,
+        )
+        // Moved, it is the same control somewhere else.
+        assertEquals(e.copy(rect = rect(300f, 500f, 100f, 80f)), e.at(rect(300f, 500f, 100f, 80f)))
+        // Twice as wide: what is measured in units doubles; a turn is an angle, and what the image holds is the image's.
+        assertEquals(
+            e.copy(rect = rect(0f, 0f, 200f, 160f), radius = 16f, depth = 24f, labelSize = 60f, labelOffset = SkinPoint(8f, -120f)),
+            e.at(rect(0f, 0f, 200f, 160f)),
+        )
+        // What the skin left to the app stays left to it; and it is the width that decides.
+        val plain = SkinElement("b", SkinElementType.BUTTON, "b", rect(0f, 0f, 100f, 80f), depth = 12f)
+        assertEquals(plain.copy(rect = rect(0f, 0f, 50f, 80f), depth = 6f), plain.at(rect(0f, 0f, 50f, 80f)))
+        assertEquals(plain.copy(rect = rect(0f, 0f, 100f, 40f)), plain.at(rect(0f, 0f, 100f, 40f)))
+    }
+
+    @Test fun aRectKnowsWhatIsInIt() {
+        val r = rect(10f, 20f, 100f, 50f)
+        // Its edges are in it.
+        assertTrue(r.contains(10f, 20f) && r.contains(110f, 70f) && r.contains(60f, 45f))
+        assertFalse(r.contains(9.9f, 45f) || r.contains(110.1f, 45f) || r.contains(60f, 19.9f) || r.contains(60f, 70.1f))
+        assertTrue(rect(20f, 30f, 10f, 10f).within(r))
+        assertTrue(r.within(r))
+        listOf(rect(5f, 30f, 10f, 10f), rect(105f, 30f, 10f, 10f), rect(20f, 15f, 10f, 10f), rect(20f, 65f, 10f, 10f)).forEach { assertFalse("$it", it.within(r)) }
+        assertFalse(r.within(rect(20f, 30f, 10f, 10f)))
+    }
+
+    @Test fun aWebpImageGoesByItsPngNameInTheModel() {
+        assertEquals("phone-portrait/a.png", SkinFormat.modelName("phone-portrait/a.webp"))
+        assertEquals("phone-portrait/a.png", SkinFormat.modelName("phone-portrait/a.png"))
+        assertEquals("phone-portrait/keypad/key-1.png", SkinFormat.modelName("phone-portrait/keypad/key-1.webp"))
+        // Only an image's extension: anything else keeps its name.
+        assertEquals("skin.json", SkinFormat.modelName("skin.json"))
+        assertEquals("phone-portrait/webp.txt", SkinFormat.modelName("phone-portrait/webp.txt"))
+        // And back: the model's name is the first a package is looked up by, the WebP the second.
+        assertEquals(listOf("p/a.png", "p/a.webp"), SkinFormat.imageNames(SkinFormat.modelName("p/a.webp")))
+        assertEquals(setOf("skin.json", "p/a.png", "p/b.png"), SkinFormat.modelFiles(setOf("skin.json", "p/a.webp", "p/b.png")))
+        assertTrue(SkinFormat.modelFiles(emptySet()).isEmpty())
+    }
+
+    @Test fun theDocumentsExampleShowsAReliefAndAWordBesideItsKey() {
+        val doc = File("docs/skin-format.md").readText()
+        val layout = SkinFormat.parse(doc.substringAfter("```json\n").substringBefore("```")).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
+        assertEquals(30f, layout.frame!!.radius, 0f)
+        val byId = layout.elements.associateBy { it.id }
+        assertEquals(12f, byId.getValue("dpad").depth, 0f)
+        assertEquals(setOf("pad", "ball", "relief", "letter"), byId.getValue("dpad").colors.keys)
+        assertEquals(12f, byId.getValue("a").depth, 0f)
+        val start = byId.getValue("start")
+        assertEquals(SkinArt.KEY, start.art)
+        assertEquals(30f, start.labelSize)
+        assertEquals(SkinPoint(0f, 66f), start.labelOffset)
+        assertTrue(SkinLabels.beside(start))
+        // B sets none of it: flat, its image (if it has one) the whole button.
+        assertEquals(byId.getValue("b").copy(depth = 0f, art = SkinArt.FULL, labelSize = null, labelOffset = null, radius = null, rotation = 0f), byId.getValue("b"))
+        // What the reader refuses of those keys is in the table's BAD_VALUE row.
+        val row = doc.lines().single { it.startsWith("| `BAD_VALUE` |") }
+        listOf("`art`", "`radius`", "`depth`", "`rotation`", "`labelSize`").forEach { assertTrue(it, it in row) }
+    }
 }

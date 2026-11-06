@@ -317,13 +317,14 @@ class OwnFormatBundledSkinsTest {
                     page.elements.filter { it.type == SkinElementType.DPAD || it.type == SkinElementType.STICK }.map { it.rect })
                 val face = layout.elements.filter { it.group == "face" }
                 assertTrue(where, face.isNotEmpty() && page.elements.none { it.group == "face" })
-                // On every layout's right side, centred on the same row as the D-pad or stick.
+                // On every layout's right side, centred on the same row as the D-pad or stick: face to face, the
+                // relief under a key (the rect's last rows) being no part of where it is.
                 val left = page.elements.first { it.type == SkinElementType.DPAD || it.type == SkinElementType.STICK }
                 assertTrue(where, keys.all { it.rect.x > left.rect.x + left.rect.width })
                 if (id.orientation == SkinOrientation.LANDSCAPE) {
-                    val top = keys.minOf { it.rect.y }
-                    val bottom = keys.maxOf { it.rect.y + it.rect.height }
-                    assertEquals(where, left.rect.y + left.rect.height / 2f, (top + bottom) / 2f, 1.5f)
+                    val top = keys.minOf { it.face.y }
+                    val bottom = keys.maxOf { it.face.y + it.face.height }
+                    assertEquals(where, left.face.y + left.face.height / 2f, (top + bottom) / 2f, 1.5f)
                 }
             }
         }

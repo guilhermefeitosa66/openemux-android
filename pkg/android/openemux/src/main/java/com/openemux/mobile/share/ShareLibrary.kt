@@ -8,6 +8,7 @@ import com.openemux.mobile.data.Paths
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.RomMeta
 import com.openemux.mobile.data.SaveState
+import com.openemux.mobile.data.SkinStore
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.concurrent.thread
@@ -30,6 +31,15 @@ interface ShareLibrary {
      * hold that answer back (the sender waits for it under a read timeout).
      */
     fun onReceived(placed: List<File>)
+
+    /** The player's controller skins: where one to send is read and a received one is imported. */
+    val skins: SkinStore get() = SkinStore(paths.base)
+
+    /**
+     * Right before a received skin is imported. Until the app has saved which skin each console plays with, the first
+     * by name is the one in use: a new folder must not show up before that is settled, or it could become it.
+     */
+    fun beforeSkinImport() = Unit
 }
 
 /** The library key of a ROM file of [console], as [Library.scan] builds it. */
@@ -43,6 +53,8 @@ class LibraryShareAdapter(private val library: Library, private val covers: Cove
     override fun states(rom: Rom) = library.states(rom)
     override fun playtimeSeconds(rom: Rom) = library.playtimeSeconds(rom)
     override fun updateRom(key: String, change: (RomMeta) -> RomMeta) = library.updateRom(key, change)
+    override val skins: SkinStore get() = library.skins
+    override fun beforeSkinImport() = library.migrateSkins()
 
     override fun onReceived(placed: List<File>) {
         covers.forget(Console.entries.flatMap { console ->

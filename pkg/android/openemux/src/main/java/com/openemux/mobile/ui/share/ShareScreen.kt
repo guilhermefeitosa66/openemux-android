@@ -60,6 +60,7 @@ import com.openemux.mobile.share.SendSelection
 import com.openemux.mobile.share.ShareAvailability
 import com.openemux.mobile.share.ShareFormat
 import com.openemux.mobile.share.ShareProtocol
+import com.openemux.mobile.share.SkinShare
 import com.openemux.mobile.share.TransferState
 import com.openemux.mobile.share.Tri
 import com.openemux.mobile.ui.BackLink
@@ -107,6 +108,8 @@ fun ShareScreen(receive: Boolean) {
     val lan by share.lan.collectAsState()
     val prep by share.sendPrep.collectAsState()
     val roms by share.sendRoms.collectAsState()
+    // One of the player's controller skins goes instead of games (the skin list's "Share").
+    val skin = share.sendSkin.collectAsState().value
     val outgoing = !receive && when (val t = transfer) {
         is TransferState.Waiting -> true
         is TransferState.Running -> t.outgoing
@@ -128,13 +131,19 @@ fun ShareScreen(receive: Boolean) {
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) {
         Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
             Column(Modifier.padding(horizontal = 20.dp).padding(top = 6.dp)) {
-                BackLink(stringResource(if (receive) R.string.settings_tab_import else R.string.settings_tab_library)) {
+                val from = when {
+                    receive -> R.string.settings_tab_import
+                    skin != null -> R.string.skins_title
+                    else -> R.string.settings_tab_library
+                }
+                BackLink(stringResource(from)) {
                     if (outgoing && transfer.busy) confirmCancel = true else a.nav.popBackStack()
                 }
                 FitText(stringResource(if (receive) R.string.share_receive_title else R.string.share_title), Type.Display, Modifier.padding(top = 4.dp))
                 Text(
                     when {
                         receive -> stringResource(R.string.share_receive_subtitle)
+                        skin != null -> listOfNotNull(skin.name, selection?.let { sizeText(it.totalBytes) }).joinToString(" · ")
                         selection != null -> countString(R.plurals.share_subtitle, selection.gameCount, selection.gameCount, sizeText(selection.totalBytes))
                         else -> countString(R.plurals.share_games, roms.size, roms.size)
                     },
@@ -157,11 +166,11 @@ fun ShareScreen(receive: Boolean) {
                 )
                 !lan -> EmptyState(stringResource(R.string.share_unavailable_title), stringResource(R.string.share_unavailable_wifi), null, {})
                 wide -> Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                    Column(Modifier.weight(1f)) { Devices(receive, selection) }
+                    Column(Modifier.weight(1f)) { Devices(receive, selection, skin != null) }
                     Column(Modifier.weight(1f).padding(top = 22.dp)) {
                         Text(stringResource(R.string.share_items_title), style = Type.Section, modifier = Modifier.padding(bottom = 10.dp))
                         when (val p = prep) {
-                            is SendPrep.Ready -> WhatToSendList(p.selection, share::updateSelection)
+                            is SendPrep.Ready -> if (skin != null) Card { SkinToSendRow(skin, p.selection.totalBytes) } else WhatToSendList(p.selection, share::updateSelection)
                             else -> PrepLine(p)
                         }
                     }
@@ -171,7 +180,7 @@ fun ShareScreen(receive: Boolean) {
                         Spacer(Modifier.height(16.dp))
                         Card {
                             when (val p = prep) {
-                                is SendPrep.Ready -> ListRow(
+                                is SendPrep.Ready -> if (skin != null) SkinToSendRow(skin, p.selection.totalBytes) else ListRow(
                                     stringResource(R.string.share_items_title), subtitle = whatSummary(p.selection), minHeight = 60.dp,
                                     onClick = { a.nav.navigate(Routes.SHARE_ITEMS) },
                                 )
@@ -179,7 +188,7 @@ fun ShareScreen(receive: Boolean) {
                             }
                         }
                     }
-                    Devices(receive, selection)
+                    Devices(receive, selection, skin != null)
                 }
             }
             Spacer(Modifier.height(28.dp + hintBarInset))
@@ -220,9 +229,12 @@ private fun whatSummary(selection: SendSelection): String {
     return names + " · " + countString(R.plurals.share_files, selection.fileCount, selection.fileCount)
 }
 
-/** "DEVICES ON THIS NETWORK", the nothing-found state, and "THIS DEVICE". */
+/**
+ * "DEVICES ON THIS NETWORK", the nothing-found state, and "THIS DEVICE". With [skin], a computer is listed but cannot
+ * be picked: a controller skin only goes to another Android device.
+ */
 @Composable
-private fun Devices(receive: Boolean, selection: SendSelection?) {
+private fun Devices(receive: Boolean, selection: SendSelection?, skin: Boolean) {
     val a = LocalActions.current
     val share = a.app.shareCoordinator
     val peers by share.peers.collectAsState()
@@ -255,9 +267,10 @@ private fun Devices(receive: Boolean, selection: SendSelection?) {
         if (peers.isNotEmpty()) Card {
             peers.forEachIndexed { i, peer ->
                 key(peer.id, peer.fp) {
-                    val enabled = peer.compatible && (receive || canSend)
+                    val noSkins = skin && !receive && !SkinShare.accepts(peer)
+                    val enabled = peer.compatible && (receive || canSend) && !noSkins
                     Box(Modifier.restorableFocus("peer-${peer.id}-${peer.fp}", focus, initial = i == 0)) {
-                        PeerRow(peer, i > 0, enabled, if (receive) null else ({ share.send(peer) }))
+                        PeerRow(peer, i > 0, enabled, if (receive) null else ({ share.send(peer) }), noSkins)
                     }
                 }
             }
@@ -277,14 +290,15 @@ private fun Devices(receive: Boolean, selection: SendSelection?) {
     }
 }
 
+/** [noSkins]: a device that cannot take the skin being sent, which is said in place of how it was found. */
 @Composable
-private fun PeerRow(peer: Peer, divider: Boolean, enabled: Boolean, onClick: (() -> Unit)?) {
+private fun PeerRow(peer: Peer, divider: Boolean, enabled: Boolean, onClick: (() -> Unit)?, noSkins: Boolean = false) {
     val platform = platformName(peer.platform)
-    val subtitle = if (peer.compatible) {
-        stringResource(R.string.share_device_subtitle, platform, pathsText(peer.paths))
-    } else {
-        stringResource(R.string.share_device_incompatible, platform) + "\n" +
+    val subtitle = when {
+        !peer.compatible -> stringResource(R.string.share_device_incompatible, platform) + "\n" +
             stringResource(R.string.share_device_versions, peer.versions.max.toString(), ShareProtocol.VERSION.toString())
+        noSkins -> stringResource(R.string.share_skin_device_desktop, platform)
+        else -> stringResource(R.string.share_device_subtitle, platform, pathsText(peer.paths))
     }
     ListRow(
         peer.name, subtitle = subtitle, divider = divider, minHeight = 64.dp, subtitleLines = 2, enabled = enabled,

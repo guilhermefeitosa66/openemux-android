@@ -257,4 +257,22 @@
         <item quantity="one">%1$d தவிர்க்கப்பட்டது</item>
         <item quantity="other">%1$d தவிர்க்கப்பட்டன</item>
     </plurals>
+    <string name="share_skin_action">பகிர்</string>
+    <string name="share_skin_action_sub">இந்த நெட்வொர்க்கில் உள்ள மற்றொரு Android சாதனத்துடன்</string>
+    <string name="share_items_skin">கண்ட்ரோலர் ஸ்கின்</string>
+    <string name="share_kind_skin">கண்ட்ரோலர் ஸ்கின்</string>
+    <string name="share_skin_device_desktop">%1$s · ஸ்கின்கள் Android சாதனங்களுக்கு மட்டுமே செல்லும்</string>
+    <string name="share_skin_offer_title">வரும் ஸ்கின்</string>
+    <string name="share_skin_offer_lead">உங்களுக்கு ஒரு கண்ட்ரோலர் ஸ்கினை அனுப்ப விரும்புகிறது (%1$s).</string>
+    <string name="share_skin_notif_offer_title">%1$s-இடமிருந்து வரும் ஸ்கின்</string>
+    <string name="share_skin_result_received_title">ஸ்கின் பெறப்பட்டது</string>
+    <string name="share_skin_result_received_body">%1$s-இடமிருந்து. அது உங்கள் %2$s ஸ்கின்களில் உள்ளது.</string>
+    <string name="share_skin_result_received_none">ஸ்கின் பெறப்படவில்லை</string>
+    <string name="share_skin_result_received_none_body">%1$s-இடமிருந்து. எதுவும் சேர்க்கப்படவில்லை.</string>
+    <string name="share_skin_result_sent_title">ஸ்கின் அனுப்பப்பட்டது</string>
+    <string name="share_skin_result_sent_body">இப்போது அது %1$s-இடம் உள்ளது.</string>
+    <string name="share_skin_result_sent_none">ஸ்கின் அனுப்பப்படவில்லை</string>
+    <string name="share_skin_result_sent_none_body">%1$s அதை ஏற்கவில்லை.</string>
+    <string name="share_skin_result_declined_body">%1$s ஸ்கினை நிராகரித்தது.</string>
+    <string name="share_skin_reason_sent">%1$s-ஆல் இந்த ஸ்கினைப் பெற முடியவில்லை. அங்குள்ள OpenEmux-ஐப் புதுப்பிக்க வேண்டியிருக்கலாம்.</string>
 </resources>

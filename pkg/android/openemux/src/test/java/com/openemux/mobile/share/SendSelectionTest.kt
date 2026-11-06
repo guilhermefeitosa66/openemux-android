@@ -38,7 +38,8 @@ class SendSelectionTest {
         val full = s.games[0]
         assertEquals("Full", full.title)
         assertEquals("SFC", full.console)
-        assertEquals(SendPart.entries - SendPart.BIOS, full.parts.map { it.part })
+        // A skin is an entry of its own, never one of a game's parts.
+        assertEquals(SendPart.entries - SendPart.BIOS - SendPart.SKIN, full.parts.map { it.part })
         assertEquals(2, full.parts.single { it.part == SendPart.STATES }.count)
         assertEquals(50L, full.parts.single { it.part == SendPart.STATES }.bytes)
         assertEquals(listOf(SendPart.GAME), s.games[1].parts.map { it.part })

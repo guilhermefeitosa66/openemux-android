@@ -158,6 +158,28 @@ class OpenEmuxSkinLayoutsTest {
         assertEquals(listOf("up", "down", "left", "right"), d.binds)
     }
 
+    @Test fun aRaisedDpadsBallTravelsOnItsFaceNotOnTheReliefUnderIt() {
+        val pad = element(SkinElementType.DPAD, "dpad", 100f, 1000f, 300f, 240f).copy(depth = 40f)
+        val d = plan(Console.GBA, pad).single() as ElementPlan.Dpad
+        // Drawn over its whole rect; the cross is the 200 above the relief, and the ball moves about the cross's centre.
+        assertEquals(SkinBox(100f, 1000f, 300f, 240f), d.box)
+        val tx = 150f * OverlayLines.DPAD_TRAVEL
+        val ty = 100f * OverlayLines.DPAD_TRAVEL
+        assertEquals(SkinBox(250f - tx, 1100f - ty, 2f * tx, 2f * ty), d.travel)
+        // Its reach takes a touch on the cross's edge, and stops there: the relief under it presses nothing.
+        assertEquals(100f, ty * d.reach[3], 0.001f)
+        assertEquals(150f, tx * d.reach[0], 0.001f)
+        // Scaled with the page like the rest.
+        val half = planPage(Console.GBA, layout.copy(elements = listOf(pad)), 500, 1000, hardcore = false).elements.single() as ElementPlan.Dpad
+        assertEquals(SkinBox(50f, 500f, 150f, 120f), half.box)
+        assertEquals(SkinBox(125f - tx / 2f, 550f - ty / 2f, tx, ty), half.travel)
+        // A depth past what the format takes (the model can be built without the reader) still leaves a cross to travel on.
+        val deep = plan(Console.GBA, pad.copy(depth = 500f)).single() as ElementPlan.Dpad
+        assertEquals(1030f, deep.travel.y + deep.travel.h / 2f, 0.001f)
+        // A second D-pad is raised the same way.
+        assertEquals(d.travel, (plan(Console.VB, pad.copy(bind = "dpad2")).single() as ElementPlan.Dpad).travel)
+    }
+
     @Test fun aSecondDpadPressesTheConsolesSecondPadOrNothing() {
         val pad = element(SkinElementType.DPAD, "dpad2", 100f, 1000f, 300f, 300f)
         // The Virtual Boy's right pad: Beetle VB's L2, L3, R2 and R3.

@@ -104,7 +104,6 @@ import com.openemux.mobile.data.SkinTry
 import com.openemux.mobile.data.TryWord
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.EditedSkinSource
-import com.openemux.mobile.data.SkinApply
 import com.openemux.mobile.data.SkinContrastCheck
 import com.openemux.mobile.data.SkinEditJson
 import com.openemux.mobile.data.SkinEditorModel
@@ -113,10 +112,12 @@ import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFill
 import com.openemux.mobile.data.SkinFormat
 import com.openemux.mobile.data.SkinImageEdit
+import com.openemux.mobile.data.SkinLabelKind
+import com.openemux.mobile.data.SkinLabels
+import com.openemux.mobile.data.SkinPaintDefaults
 import com.openemux.mobile.data.SkinPainter
 import com.openemux.mobile.data.SkinPalettes
 import com.openemux.mobile.data.SkinPart
-import com.openemux.mobile.data.SkinScope
 import com.openemux.mobile.data.SkinTarget
 import com.openemux.mobile.data.SkinTemplate
 import com.openemux.mobile.data.SkinTextureFit
@@ -136,7 +137,6 @@ import com.openemux.mobile.data.SnapAxis
 import com.openemux.mobile.data.SnapGuide
 import com.openemux.mobile.data.SnapKind
 import com.openemux.mobile.data.SkinStore
-import com.openemux.mobile.data.rects
 import com.openemux.mobile.launch.OpenEmuxSkinRenderer
 import com.openemux.mobile.launch.PreviewSkinSource
 import com.openemux.mobile.launch.SkinFit
@@ -192,9 +192,9 @@ internal fun groupName(group: String): Int = when (group) {
     else -> R.string.editor_group
 }
 
-/** A control's name: its own label, else what it is; [res] is used when it has no label. */
+/** A control's name: its own label (the menu key's three lines read "Menu"), else what it is; [res] is used when it has no label. */
 internal fun elementName(element: SkinElement, res: (Int) -> String): String =
-    element.label?.takeIf { it.isNotBlank() } ?: when (element.type) {
+    element.label?.takeIf { it.isNotBlank() }?.let { if (SkinLabels.kind(it) == SkinLabelKind.MENU) res(R.string.editor_group_menu) else it } ?: when (element.type) {
         SkinElementType.DPAD -> res(R.string.editor_group_dpad)
         SkinElementType.STICK -> res(R.string.editor_stick)
         SkinElementType.ACTION -> res(R.string.editor_action)
@@ -295,20 +295,22 @@ internal fun layoutState(present: Boolean, editing: Boolean, changed: Boolean): 
 
 /**
  * The preview of one layout: its page, its frame and each control, drawn by the game's renderer at [scale] of its
- * units. [pageKey], [frameKey] and [keys] are what each was drawn from (colours and image edits, issue 786): only what
- * changed is drawn again.
+ * units, and each label the app draws as a piece of its own ([labels], by control), so a label moves with the finger.
+ * [pageKey], [frameKey], [keys] and [labelKeys] are what each was drawn from (colours and image edits, issue 786):
+ * only what changed is drawn again.
  */
 private class EditorArt(
     val layout: SkinLayoutId, val page: ImageBitmap, val frame: ImageBitmap?, val elements: Map<String, ImageBitmap>,
     val pageKey: Any? = null, val frameKey: Any? = null, val keys: Map<String, Any?> = emptyMap(),
+    val labels: Map<String, ImageBitmap> = emptyMap(), val labelKeys: Map<String, Any?> = emptyMap(),
 )
 
-/** What the paint panel is open on (issue 786): the selection's controls, the background or the frame. */
-private data class PanelOpen(
-    val kind: PanelKind, val tab: PaintTab, val part: SkinPart, val scope: SkinScope = SkinScope.ONE, val palettes: Boolean = false,
-)
+/** What a label's picture is drawn from: its text, colour, size and lettering, not where it is. */
+private fun labelKey(e: SkinElement): Any =
+    listOf(e.label, SkinPaintDefaults.letter(e), SkinLabels.size(e), SkinLabels.spacing(e), if (e.labelOffset == null) e.rotation else 0f)
 
-private enum class PanelKind { CONTROLS, BACKGROUND, FRAME }
+/** The paint panel, open (issue 786) on what is selected: its tab, and the part being painted. */
+private data class PanelOpen(val tab: PaintTab, val part: SkinPart, val palettes: Boolean = false)
 
 /** A picture being framed as a texture: decoded small enough for the parts it fills. */
 private class TextureSession(val source: Bitmap, val name: String, val width: Int, val height: Int, val frame: SkinTextureFrame = SkinTextureFrame())
@@ -324,7 +326,6 @@ private enum class Gesture { NONE, MOVE, PINCH, HANDLE }
 private enum class Tool { NONE, SIZE, NUDGE }
 
 private const val ROTATE = "M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"
-private const val SCREEN = "M4 5h16v11H4zM9 20h6M12 16v4"
 
 /**
  * The skin editor (issue 784): the layout for this device's form and rotation drawn full screen, controls moved on a
@@ -360,7 +361,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     // Bumped after every change to the model, which is plain Kotlin: what reads it recomposes.
     var tick by remember { mutableIntStateOf(0) }
     var tool by remember { mutableStateOf(Tool.NONE) }
-    var resizing by remember { mutableStateOf(false) }
+    // Where the finger is while it resizes the selection (null: not resizing): the size is shown above it.
+    var resizing by remember { mutableStateOf<Offset?>(null) }
     var leaving by remember { mutableStateOf(false) }
     var naming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -401,7 +403,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             return@LaunchedEffect
         }
         val (draft, images) = read.third
-        val m = SkinEditorModel.fromDraft(read.first.skin, draft, images, read.first.source.files)
+        val m = SkinEditorModel.fromDraft(read.first.skin, draft, images, SkinFormat.modelFiles(read.first.source.files))
         m.show(form, orientation)
         loaded = Loaded(read.first, read.second)
         model = m
@@ -414,7 +416,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     }
     val layoutId = tick.let { model?.layoutId }
     val paintKey = tick.let { model?.let { mm -> mm.layoutId?.let { mm.looks[it] } to mm.images } } to overrides
-    LaunchedEffect(loaded, layoutId, paintKey) {
+    val labelsKey = tick.let { model?.layout?.elements?.filter(SkinLabels::has)?.map(::labelKey) }
+    LaunchedEffect(loaded, layoutId, paintKey, labelsKey) {
         val pkg = loaded?.pkg ?: return@LaunchedEffect
         val mm = model ?: return@LaunchedEffect
         val id = layoutId ?: return@LaunchedEffect
@@ -436,8 +439,9 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                 val page = if (before != null && before.pageKey == pageKey) before.page else renderer.previewPage(view, id, layout, scale).asImageBitmap()
                 val frameKey = listOf(look.frame, edits(listOfNotNull(layout.frame?.imageFile)))
                 val frame = if (before != null && before.frameKey == frameKey) before.frame else renderer.previewFrame(view, id, layout, scale)?.asImageBitmap()
+                // A control's relief and corners follow its size, so a control being resized is not drawn again.
                 val keys = layout.elements.associate { e ->
-                    e.id to listOf(e.colors, if (e.type == SkinElementType.ACTION) look.frame else null, edits(e.imageFiles))
+                    e.id to listOf(e.colors, e.art, if (e.type == SkinElementType.ACTION) look.frame else null, edits(e.imageFiles))
                 }
                 // Drawn at twice the size, so a control grown to 200 % stays sharp.
                 val elements = layout.elements.associate { e ->
@@ -448,7 +452,15 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                         renderer.previewElement(view, id, layout, e, w, h).asImageBitmap()
                     })
                 }
-                EditorArt(id, page, frame, elements, pageKey, frameKey, keys)
+                // The labels the app draws: of a control with no image, or with one that leaves its label out.
+                val labelKeys = layout.elements.filter { SkinLabels.has(it) && SkinLabels.drawn(it, view.image(id, it.imageFiles[0]) != null) }
+                    .associate { it.id to labelKey(it) }
+                val labels = layout.elements.mapNotNull { e ->
+                    val key = labelKeys[e.id] ?: return@mapNotNull null
+                    val kept = before?.labels?.get(e.id)?.takeIf { before.labelKeys[e.id] == key }
+                    (kept ?: renderer.previewLabel(e, scale * 2f)?.asImageBitmap())?.let { e.id to it }
+                }.toMap()
+                EditorArt(id, page, frame, elements, pageKey, frameKey, keys, labels, labelKeys)
             }.onFailure { Log.e(TAG, "${target.id}: no preview of ${id.id}", it) }.getOrNull()
         } ?: before
     }
@@ -513,7 +525,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             onChanged()
             val (pkg, json) = reread.getOrNull() ?: return@launch onClose()
             loaded = Loaded(pkg, json)
-            model = SkinEditorModel(pkg.skin, existing = pkg.source.files).also { it.snap = m.snap; it.show(form, orientation) }
+            model = SkinEditorModel(pkg.skin, existing = SkinFormat.modelFiles(pkg.source.files)).also { it.snap = m.snap; it.show(form, orientation) }
             art = null
         }
     }
@@ -547,25 +559,26 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
 
     // ---- The paint panel (issue 786). ----
 
-    /** What [p] paints now: its target and the controls it is open on (the selection's, none for the background or frame). */
-    fun panelTarget(p: PanelOpen): Pair<SkinTarget, List<String>>? {
+    /**
+     * What the panel paints: what is selected, all of it. Its target (the selection's controls, the frame or the body)
+     * and the controls it is open on (none for the frame and the body); null with nothing to paint.
+     */
+    fun panelTarget(): Pair<SkinTarget, List<String>>? {
         val mm = model ?: return null
         val l = mm.layout ?: return null
-        return when (p.kind) {
-            PanelKind.BACKGROUND -> SkinTarget.Background to emptyList()
-            PanelKind.FRAME -> if (l.frame != null) SkinTarget.Frame to emptyList() else null
-            PanelKind.CONTROLS -> {
-                val ids = mm.selection?.ids ?: return null
-                (SkinTarget.of(l, ids) ?: return null) to ids
-            }
+        return when (val sel = mm.selection) {
+            null -> null
+            SkinSelection.Body -> SkinTarget.Background to emptyList()
+            SkinSelection.Frame -> if (l.frame != null) SkinTarget.Frame to emptyList() else null
+            else -> SkinTarget.of(l, sel.ids)?.let { it to sel.ids }
         }
     }
 
-    /** The controls a colour or texture goes on, by [p]'s Apply to. */
+    /** The controls a colour or texture of [p]'s part goes on: the selected ones that have the part. */
     fun painted(p: PanelOpen): List<String> {
-        val (t, ids) = panelTarget(p) ?: return emptyList()
+        val (t, ids) = panelTarget() ?: return emptyList()
         val l = model?.layout ?: return emptyList()
-        return if (t is SkinTarget.Controls) SkinApply.targets(l, ids, p.scope, p.part) else ids
+        return if (t is SkinTarget.Controls) SkinPainter.painted(l, ids, p.part) else ids
     }
 
     /** The images a texture of [p] fills: path in the skin and the template's image (its exact size and kind). */
@@ -613,17 +626,15 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         }
     }
 
-    fun openPanel(kind: PanelKind, tab: PaintTab) {
+    /** Opens the panel on what is selected; a label selected opens on the label's colour, the frame on colours only. */
+    fun openPanel(tab: PaintTab) {
         commitTexture {
-            val l = model?.layout
-            val ids = model?.selection?.ids.orEmpty()
-            val parts = when (kind) {
-                PanelKind.BACKGROUND -> SkinTarget.Background.parts
-                PanelKind.FRAME -> SkinTarget.Frame.parts
-                PanelKind.CONTROLS -> l?.let { SkinTarget.of(it, ids) }?.let { t -> if (t is SkinTarget.Frame) listOf(SkinPart.ICONS) + t.parts else t.parts }.orEmpty()
-            }
-            val part = parts.firstOrNull() ?: return@commitTexture
-            panel = PanelOpen(kind, tab, part)
+            val mm = model ?: return@commitTexture
+            val l = mm.layout ?: return@commitTexture
+            val (target, ids) = panelTarget() ?: return@commitTexture
+            val parts = SkinPainter.parts(l, target, ids)
+            val part = SkinPart.LETTER.takeIf { mm.selection is SkinSelection.Label && it in parts } ?: parts.firstOrNull() ?: return@commitTexture
+            panel = PanelOpen(if (target == SkinTarget.Frame) PaintTab.COLOUR else tab, part)
             tool = Tool.NONE
             tick++
         }
@@ -644,7 +655,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
     fun paint(color: Int, commit: Boolean) {
         val p = panel ?: return
         val mm = model ?: return
-        val (t, _) = panelTarget(p) ?: return
+        val (t, _) = panelTarget() ?: return
         // A colour and a picture are one fill: the colour replaces the picture being framed.
         texture = null
         mm.paint(t, painted(p), p.part, color)
@@ -670,7 +681,8 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
 
     // The texture as framed, drawn small on every part it fills while the panel is open: the stage shows it live.
     val bake = remember { Mutex() }
-    LaunchedEffect(texture, panel?.part, panel?.scope, panel?.kind, layoutId) {
+    val selected = tick.let { model?.selection }
+    LaunchedEffect(texture, panel?.part, selected, layoutId) {
         val t = texture
         val p = panel
         if (t == null || p == null) {
@@ -690,18 +702,18 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         }
     }
 
-    // A new selection retargets the panel: a picture being framed goes in first; with none left, the panel closes.
-    val selectedIds = tick.let { model?.selection?.ids }
-    LaunchedEffect(selectedIds) {
-        val p = panel ?: return@LaunchedEffect
-        if (p.kind != PanelKind.CONTROLS) return@LaunchedEffect
+    // A new selection retargets the panel: a picture being framed goes in first; with nothing left to paint, the
+    // panel closes.
+    LaunchedEffect(selected) {
+        if (panel == null) return@LaunchedEffect
         commitTexture {
             val now = panel ?: return@commitTexture
-            val target = panelTarget(now)?.first
-            panel = when {
-                target == null -> null
-                now.part in target.parts || (target is SkinTarget.Frame && now.part == SkinPart.ICONS) -> now
-                else -> now.copy(part = target.parts.first(), scope = SkinScope.ONE)
+            val l = model?.layout
+            val at = panelTarget()
+            panel = if (at == null || l == null) null else {
+                val parts = SkinPainter.parts(l, at.first, at.second)
+                (now.part.takeIf { it in parts } ?: parts.firstOrNull())
+                    ?.let { now.copy(part = it, tab = if (at.first == SkinTarget.Frame) PaintTab.COLOUR else now.tab) }
             }
             tick++
         }
@@ -775,11 +787,10 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
             ) { leave() }
             else -> Stage(
                 m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy,
-                panel = panel?.let { p -> paintView(context, m, layout, p, panelTarget(p), painted(p), palette, recent, texture, overrides, textureTargets(p).firstOrNull()?.first) }?.let { v ->
+                panel = panel?.let { p -> paintView(context, m, layout, p, panelTarget(), painted(p), palette, recent, texture, overrides, textureTargets(p).firstOrNull()?.first) }?.let { v ->
                     v to PaintActions(
                         onTab = { tab -> commitTexture { panel = panel?.copy(tab = tab); tick++ } },
                         onPart = { part -> panel = panel?.copy(part = part); tick++ },
-                        onScope = { sc -> panel = panel?.copy(scope = sc); tick++ },
                         onColor = { c, commit -> paint(c, commit) },
                         onTone = { tone -> m.tone(tone); changed(commit = true) },
                         onPalettes = { open -> panel = panel?.copy(palettes = open) },
@@ -798,16 +809,18 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                         },
                         onRemoveTexture = {
                             texture = null
-                            panel?.let { p -> panelTarget(p)?.let { (t, _) -> m.removeTexture(t, painted(p), p.part) } }
+                            panel?.let { p -> panelTarget()?.let { (t, _) -> m.removeTexture(t, painted(p), p.part) } }
                             changed(commit = true)
                         },
                         onDone = { closePanel() },
                     )
                 },
-                onColour = { openPanel(PanelKind.CONTROLS, PaintTab.COLOUR) },
-                onTexture = { openPanel(PanelKind.CONTROLS, PaintTab.TEXTURE) },
-                onBackground = { m.clearSelection(); openPanel(PanelKind.BACKGROUND, PaintTab.COLOUR) },
-                onFrame = layout.frame?.let { { m.clearSelection(); openPanel(PanelKind.FRAME, PaintTab.COLOUR) } },
+                paintable = panelTarget() != null,
+                onColour = { openPanel(PaintTab.COLOUR) },
+                onTexture = { openPanel(PaintTab.TEXTURE) },
+                // More › Body and Screen frame select what a tap on them selects, and open its colours.
+                onBackground = { m.selectBody(); openPanel(PaintTab.COLOUR) },
+                onFrame = layout.frame?.let { { m.selectFrame(); openPanel(PaintTab.COLOUR) } },
                 title = target.name,
                 subtitle = editorSubtitle(
                     stringResource(R.string.editor_layout, stringResource(formLabel(form)), stringResource(orientationName(orientation))),
@@ -880,11 +893,11 @@ private fun NoLayout(name: String, layout: String, other: String?, onOther: () -
 /** The stage: the layout fitted to the window, the grid, the controls, the guides, the selection and the bars. */
 @Composable
 private fun Stage(
-    m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Boolean, busy: Boolean,
+    m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Offset?, busy: Boolean,
     panel: Pair<PaintView, PaintActions>?,
-    onColour: () -> Unit, onTexture: () -> Unit, onBackground: () -> Unit, onFrame: (() -> Unit)?,
+    paintable: Boolean, onColour: () -> Unit, onTexture: () -> Unit, onBackground: () -> Unit, onFrame: (() -> Unit)?,
     title: String, subtitle: String,
-    onChange: (Boolean) -> Unit, onResizing: (Boolean) -> Unit, onTool: (Tool) -> Unit, onSnapped: () -> Unit,
+    onChange: (Boolean) -> Unit, onResizing: (Offset?) -> Unit, onTool: (Tool) -> Unit, onSnapped: () -> Unit,
     onClose: () -> Unit, onSave: () -> Unit, onRotate: () -> Unit, onLayouts: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -895,11 +908,19 @@ private fun Stage(
         val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
         val px = { dp: Float -> with(density) { dp.dp.toPx() } }
         val latest = rememberUpdatedState(m)
-        val selected = m.selection?.ids.orEmpty()
-        // The selection's box: controls, or the screen area's screens and frame (issue 785).
-        val all = layout.rects()
-        val selBox = selected.mapNotNull { all[it] }.takeIf { it.isNotEmpty() }?.let { SkinSnap.bounds(it) }
-        val selRect = selBox?.let { b -> fit.box(b).let { Rect(it.x - px(8f), it.y - px(8f), it.x + it.w + px(8f), it.y + it.h + px(8f)) } }
+        // The selection's box: controls with their labels, one label, the screen area (issue 785), the frame or the
+        // body. The frame and the body are painted, never moved: outlined on their own edge, with no handle.
+        val selBox = m.box()
+        val fixed = m.selection?.movable == false
+        val selRect = selBox?.let { b ->
+            val out = when (m.selection) {
+                SkinSelection.Body -> -px(3f)
+                SkinSelection.Frame -> px(2f)
+                else -> px(8f)
+            }
+            fit.box(b).let { Rect(it.x - out, it.y - out, it.x + it.w + out, it.y + it.h + out) }
+        }
+        val safeTop = WindowInsets.safeDrawing.getTop(density).toFloat()
 
         Canvas(
             Modifier.fillMaxSize().pointerInput(fit, layout.size) {
@@ -920,20 +941,23 @@ private fun Stage(
                         onChange(false)
                         return@awaitEachGesture
                     }
+                    // The corner handle takes a touch within its reach that is nearer to it than to the selection's
+                    // centre: on a selection as small as a label, the middle of it still moves it.
                     val handleAt = currentHandle(model, fit, px(8f))
-                    val onHandle = handleAt != null && (down.position - handleAt).getDistance() <= px(24f)
+                    val toHandle = handleAt?.let { (down.position - it).getDistance() }
+                    val toCentre = selectionCentre(model, fit)?.let { (down.position - it).getDistance() }
+                    val onHandle = toHandle != null && toHandle <= px(24f) && (toCentre == null || toHandle < toCentre)
                     val hit = if (onHandle) null else
                         model.hit((down.position.x - fit.ox) / fit.s, (down.position.y - fit.oy) / fit.s, px(10f) / fit.s)
                     var mode = Gesture.NONE
                     var startDist = 1f
                     var centre = Offset.Zero
                     var lastGuides = model.guides
-                    if (onHandle) {
-                        model.beginResize()
+                    if (onHandle && model.beginResize()) {
                         centre = selectionCentre(model, fit) ?: down.position
                         startDist = (down.position - centre).getDistance().coerceAtLeast(px(10f))
                         mode = Gesture.HANDLE
-                        onResizing(true)
+                        onResizing(down.position)
                         onChange(false)
                     }
                     while (true) {
@@ -944,6 +968,7 @@ private fun Stage(
                         when {
                             mode == Gesture.HANDLE -> {
                                 model.resizeBy((first.position - centre).getDistance() / startDist)
+                                onResizing(first.position)
                                 onChange(false)
                             }
                             mode == Gesture.MOVE -> {
@@ -955,34 +980,38 @@ private fun Stage(
                             }
                             pressed.size >= 2 -> {
                                 val d = (pressed[0].position - pressed[1].position).getDistance()
+                                // The size is shown above the upper of the two fingers.
+                                val upper = pressed.minBy { it.position.y }.position
                                 if (mode != Gesture.PINCH) {
                                     if (model.selection == null && hit != null) model.tap(hit)
-                                    if (model.selection != null) {
-                                        model.beginResize()
+                                    if (model.beginResize()) {
                                         startDist = d.coerceAtLeast(1f)
                                         mode = Gesture.PINCH
-                                        onResizing(true)
+                                        onResizing(upper)
                                     }
                                 } else {
                                     model.resizeBy(d / startDist)
+                                    onResizing(upper)
                                 }
                                 onChange(false)
                             }
                             mode == Gesture.NONE && hit != null && (first.position - down.position).getDistance() > viewConfiguration.touchSlop -> {
-                                model.beginMove(hit)
-                                mode = Gesture.MOVE
+                                // A quick action on the frame stays where it is: nothing to drag.
+                                if (model.beginMove(hit)) mode = Gesture.MOVE
                                 onChange(false)
                             }
                         }
                         event.changes.forEach { it.consume() }
                     }
                     if (mode == Gesture.NONE) {
-                        if (hit != null) model.tap(hit) else model.clearSelection()
+                        // A tap: the control under it, else the frame, else the body (SkinEditorModel.tapAt). A touch
+                        // that began on the corner handle and never resized is no tap on what lies under the handle.
+                        if (!onHandle) model.tapAt((down.position.x - fit.ox) / fit.s, (down.position.y - fit.oy) / fit.s, px(10f) / fit.s)
                         onTool(Tool.NONE)
                         onChange(false)
                     } else {
                         model.endGesture()
-                        onResizing(false)
+                        onResizing(null)
                         onChange(true)
                     }
                 }
@@ -1000,17 +1029,19 @@ private fun Stage(
                 }
             }
             layout.screens.forEach { r -> fit.box(r).let { b -> drawRect(ScreenBg, Offset(b.x, b.y), Size(b.w, b.h)) } }
-            // The grid, the whole time.
-            val step = SkinGrid.step(layout.size) * fit.s
-            val dot = px(1.2f)
-            var gy = whole.y
-            while (gy <= whole.y + whole.h + 0.5f) {
-                var gx = whole.x
-                while (gx <= whole.x + whole.w + 0.5f) {
-                    drawCircle(GridDot, dot, Offset(gx, gy))
-                    gx += step
+            // The grid, while it is on: it is what a control lands on, and without it there is nothing to line up with.
+            if (m.snap) {
+                val step = SkinGrid.step(layout.size) * fit.s
+                val dot = px(1.2f)
+                var gy = whole.y
+                while (gy <= whole.y + whole.h + 0.5f) {
+                    var gx = whole.x
+                    while (gx <= whole.x + whole.w + 0.5f) {
+                        drawCircle(GridDot, dot, Offset(gx, gy))
+                        gx += step
+                    }
+                    gy += step
                 }
-                gy += step
             }
             layout.elements.forEach { e ->
                 val b = fit.box(e.rect)
@@ -1025,6 +1056,14 @@ private fun Stage(
                     drawRoundRect(Guide, Offset(b.x - px(4f), b.y - px(4f)), Size(b.w + px(8f), b.h + px(8f)), CornerRadius(px(14f)), style = Stroke(px(3f)))
                 }
             }
+            // The labels the app draws, over every control, each where it is now: on its key, or wherever it was moved.
+            layout.elements.forEach { e ->
+                val image = art?.labels?.get(e.id) ?: return@forEach
+                val box = SkinLabels.box(e)
+                val room = box.height * OpenEmuxSkinRenderer.LABEL_ROOM
+                val b = fit.box(SkinRect(box.x - room, box.y - room, box.width + 2f * room, box.height + 2f * room))
+                drawImage(image, dstOffset = IntOffset(b.x.roundToInt(), b.y.roundToInt()), dstSize = IntSize(b.w.roundToInt().coerceAtLeast(1), b.h.roundToInt().coerceAtLeast(1)), filterQuality = FilterQuality.Medium)
+            }
             m.guides.forEach { g ->
                 if (g.axis == SnapAxis.X) {
                     val x = fit.ox + g.pos * fit.s
@@ -1036,9 +1075,11 @@ private fun Stage(
             }
             selRect?.let { r ->
                 drawRoundRect(Guide, r.topLeft, r.size, CornerRadius(px(12f)), style = Stroke(px(2f)))
-                val c = Offset(r.right - px(4f), r.bottom - px(4f))
-                drawCircle(Color.White, px(11f), c)
-                drawCircle(Oe.Accent, px(9.5f), c, style = Stroke(px(3f)))
+                if (!fixed) {
+                    val c = Offset(r.right - px(4f), r.bottom - px(4f))
+                    drawCircle(Color.White, px(11f), c)
+                    drawCircle(Oe.Accent, px(9.5f), c, style = Stroke(px(3f)))
+                }
             }
         }
 
@@ -1048,24 +1089,45 @@ private fun Stage(
             SkinArea.ids(layout).filter(SkinArea::isArea).associateWith { area }
         if (selRect != null) {
             val label = when {
-                resizing -> null
+                resizing != null -> null
                 m.guides.isNotEmpty() -> m.guides.joinToString(" · ") { g ->
                     guideText(g, g.other?.let(names::get)) { res, arg -> if (arg == null) context.getString(res) else context.getString(res, arg) }
                 }
                 else -> when (val sel = m.selection) {
                     is SkinSelection.Group -> context.getString(groupName(sel.group)) + " · " + context.getString(R.string.editor_tap_again)
-                    is SkinSelection.One -> names[sel.id].orEmpty()
+                    // One more tap goes on to its label, when it has one.
+                    is SkinSelection.One -> names[sel.id].orEmpty() +
+                        if (layout.elements.any { it.id == sel.id && SkinLabels.has(it) }) " · " + context.getString(R.string.editor_tap_again_label) else ""
+                    is SkinSelection.Label -> names[sel.id].orEmpty() + " · " + context.getString(R.string.editor_part_letter)
                     is SkinSelection.Screen -> area
+                    SkinSelection.Frame -> context.getString(R.string.editor_screen_frame)
+                    SkinSelection.Body -> context.getString(R.string.editor_background)
                     null -> null
                 }
             }
             label?.let {
                 val above = selRect.top - px(36f)
-                Pill(it, Oe.Accent, Color.White, Modifier.offset { IntOffset(selRect.left.roundToInt().coerceIn(0, (w - px(120f)).roundToInt().coerceAtLeast(0)), (if (above < px(4f)) selRect.bottom + px(8f) else above).roundToInt()) })
+                // The body is the whole page: its name goes inside its outline, at the bottom.
+                val y = when {
+                    m.selection == SkinSelection.Body -> selRect.bottom - px(38f) - WindowInsets.safeDrawing.getBottom(density)
+                    above < maxOf(px(4f), safeTop) -> selRect.bottom + px(8f)
+                    else -> above
+                }
+                val inset = if (m.selection == SkinSelection.Body) px(12f) else 0f
+                Pill(it, Oe.Accent, Color.White, Modifier.offset { IntOffset((selRect.left + inset).roundToInt().coerceIn(0, (w - px(120f)).roundToInt().coerceAtLeast(0)), y.roundToInt()) })
             }
-            if (resizing) m.percent()?.let { p ->
-                Pill(stringResource(R.string.editor_percent, p), Color.White, Color(0xFF1E1E25), Modifier.offset { IntOffset((selRect.right - px(4f)).roundToInt().coerceAtMost((w - px(64f)).roundToInt()), (selRect.bottom + px(12f)).roundToInt().coerceAtMost((h - px(32f)).roundToInt())) })
-            }
+        }
+        // The size while resizing, above the finger that does it: under it, the hand would hide the number.
+        if (resizing != null) m.percent()?.let { p ->
+            Pill(
+                stringResource(R.string.editor_percent, p), Color.White, Color(0xFF1E1E25),
+                Modifier.offset {
+                    IntOffset(
+                        (resizing.x - px(28f)).roundToInt().coerceIn(0, (w - px(64f)).roundToInt().coerceAtLeast(0)),
+                        (resizing.y - px(84f)).roundToInt().coerceAtLeast((safeTop + px(4f)).roundToInt()),
+                    )
+                },
+            )
         }
 
         // The bars float over the game's screen, the one region no thumb rests on.
@@ -1074,7 +1136,6 @@ private fun Stage(
         val screenBottom = screens.maxOf { it.y + it.h }
         val screenLeft = screens.minOf { it.x }
         val screenRight = screens.maxOf { it.x + it.w }
-        val safeTop = WindowInsets.safeDrawing.getTop(density).toFloat()
         val barW = minOf(maxOf(screenRight - screenLeft - px(16f), minOf(w - px(32f), px(340f))), px(420f), w - px(16f))
         val barX = ((screenLeft + screenRight) / 2f - barW / 2f).coerceIn(px(8f), maxOf(px(8f), w - barW - px(8f)))
         val topY = maxOf(screenTop + px(8f), safeTop + px(8f))
@@ -1083,7 +1144,8 @@ private fun Stage(
 
         if (panel != null) {
             // Away from what is being edited: sideways, the other half of the window; upright, over the game's screen.
-            val focus = selBox ?: if (panel.first.target == SkinTarget.Frame) layout.frame?.rect else null
+            // The body is everywhere: nothing to keep clear of.
+            val focus = selBox.takeIf { m.selection != SkinSelection.Body }
             val sideways = w > h
             if (sideways) {
                 val panelW = minOf(px(380f), w * 0.55f)
@@ -1131,7 +1193,8 @@ private fun Stage(
         // Panels open away from what is edited (issue 785): over the screen unless the selection is there.
         val barH = px(60f)
         val safeBottom = WindowInsets.safeDrawing.getBottom(density).toFloat()
-        val placed = selRect?.takeIf { it.overlaps(Rect(barX, bottomY, barX + barW, bottomY + barH)) }?.let { sel ->
+        // The frame and the body are not in the bar's way: the bar stays over the game's screen for them.
+        val placed = selRect?.takeIf { !fixed && it.overlaps(Rect(barX, bottomY, barX + barW, bottomY + barH)) }?.let { sel ->
             val screen = SkinRect(screenLeft, screenTop, screenRight - screenLeft, screenBottom - screenTop)
             when (SkinPanels.side(w > h, w.toFloat(), screen, SkinRect(sel.left, sel.top, sel.width, sel.height))) {
                 PanelSide.TOP -> barX to topY + px(56f)
@@ -1145,14 +1208,17 @@ private fun Stage(
             m.selection == null -> Box(bottom.width(barWidth), contentAlignment = Alignment.Center) {
                 SnapBar(
                     m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) },
-                    onScreenArea = { m.selectScreen(); onChange(false) }, onTry = { m.tryMode(true); onTool(Tool.NONE); onChange(false) },
+                    onTry = { m.tryMode(true); onTool(Tool.NONE); onChange(false) },
                     onBackground = onBackground, onFrame = onFrame,
                 )
             }
-            tool == Tool.SIZE -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
-            tool == Tool.NUDGE -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
+            tool == Tool.SIZE && !fixed -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
+            tool == Tool.NUDGE && !fixed -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
             else -> ActionsBar(
-                m.percent() ?: 100, bottom.width(barWidth), paintable = SkinTarget.of(layout, m.selection?.ids.orEmpty()) != null,
+                m.percent() ?: 100, bottom.width(barWidth), paintable = paintable,
+                // A picture fills a control or the body; the frame and a label take colours only.
+                texturable = m.selection != SkinSelection.Frame && m.selection !is SkinSelection.Label,
+                movable = !fixed,
                 onColour = onColour, onTexture = onTexture,
                 onSize = { onTool(Tool.SIZE) }, onNudge = { onTool(Tool.NUDGE) }, onReset = { m.reset(); onChange(true) },
             )
@@ -1160,8 +1226,9 @@ private fun Stage(
     }
 }
 
-/** Where the selection's corner handle is on screen, or null with nothing selected. */
+/** Where the selection's corner handle is on screen, or null with nothing selected or something that has no size to change. */
 private fun currentHandle(m: SkinEditorModel, fit: SkinFit, outset: Float): Offset? {
+    if (m.selection?.movable != true) return null
     val box = selectionBox(m, fit) ?: return null
     return Offset(box.right + outset - outset / 2f, box.bottom + outset - outset / 2f)
 }
@@ -1169,9 +1236,7 @@ private fun currentHandle(m: SkinEditorModel, fit: SkinFit, outset: Float): Offs
 private fun selectionCentre(m: SkinEditorModel, fit: SkinFit): Offset? = selectionBox(m, fit)?.center
 
 private fun selectionBox(m: SkinEditorModel, fit: SkinFit): Rect? {
-    val all = m.layout?.rects() ?: return null
-    val rects = m.selection?.ids?.mapNotNull { all[it] }?.takeIf { it.isNotEmpty() } ?: return null
-    val b = fit.box(SkinSnap.bounds(rects))
+    val b = fit.box(m.box() ?: return null)
     return Rect(b.x, b.y, b.x + b.w, b.y + b.h)
 }
 
@@ -1226,10 +1291,13 @@ private fun Toolbar(
     }
 }
 
-/** With nothing selected: the Snap toggle, Try, and More (Screen area, Background, Screen frame, Reset layout). */
+/**
+ * With nothing selected: the Grid toggle (the dots a control lands on, shown while it is on), Try, and More (Body,
+ * Screen frame, Reset layout). Moving the screen area is not offered.
+ */
 @Composable
 private fun SnapBar(
-    snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit, onScreenArea: () -> Unit, onTry: () -> Unit,
+    snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit, onTry: () -> Unit,
     onBackground: () -> Unit, onFrame: (() -> Unit)?,
 ) {
     var more by remember { mutableStateOf(false) }
@@ -1253,11 +1321,6 @@ private fun SnapBar(
         Box {
             BarIcon(Icons.Dots, stringResource(R.string.editor_more), filled = true) { more = true }
             DropdownMenu(more, { more = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.editor_screen_area), style = Type.Body) },
-                    leadingIcon = { Icon(SCREEN, Oe.Text, 18.dp) },
-                    onClick = { more = false; onScreenArea() },
-                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.editor_background), style = Type.Body) },
                     leadingIcon = { Icon(Icons.Image, Oe.Text, 18.dp) },
@@ -1292,10 +1355,14 @@ private fun ToolButton(label: String, modifier: Modifier, onClick: () -> Unit, t
     }
 }
 
-/** For a selection: Colour and Texture (issue 786; not for a quick action on a layout with no frame), Size (its percentage), Nudge, Reset. */
+/**
+ * For a selection: Colour and Texture (issue 786; not for a quick action on a layout with no frame, and no texture
+ * where only a colour goes: [texturable]), then, for what can be moved ([movable]: not the frame, not the body), Size
+ * (its percentage), Nudge and Reset.
+ */
 @Composable
 private fun ActionsBar(
-    percent: Int, modifier: Modifier, paintable: Boolean, onColour: () -> Unit, onTexture: () -> Unit,
+    percent: Int, modifier: Modifier, paintable: Boolean, texturable: Boolean, movable: Boolean, onColour: () -> Unit, onTexture: () -> Unit,
     onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit,
 ) {
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically) {
@@ -1305,13 +1372,15 @@ private fun ActionsBar(
                     listOf(0xFFC4B5FD, 0xFF8B5CF6, 0xFF6D28D9, 0xFFA78BFA).forEachIndexed { i, c -> drawArc(Color(c), -90f + i * 90f, 90f, true) }
                 }
             }
-            ToolButton(stringResource(R.string.editor_texture), Modifier.weight(1f), onTexture) { Icon(Icons.Image, BarText, 22.dp) }
+            if (texturable) ToolButton(stringResource(R.string.editor_texture), Modifier.weight(1f), onTexture) { Icon(Icons.Image, BarText, 22.dp) }
         }
-        ToolButton(stringResource(R.string.editor_size), Modifier.weight(1f), onSize) {
-            Text(stringResource(R.string.editor_percent, percent), style = Type.Body.copy(color = Lilac, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+        if (movable) {
+            ToolButton(stringResource(R.string.editor_size), Modifier.weight(1f), onSize) {
+                Text(stringResource(R.string.editor_percent, percent), style = Type.Body.copy(color = Lilac, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+            }
+            ToolButton(stringResource(R.string.editor_nudge), Modifier.weight(1f), onNudge) { Icon(NUDGE, BarText, 22.dp) }
+            ToolButton(stringResource(R.string.editor_reset), Modifier.weight(1f), onReset) { Icon(Icons.Reset, BarText, 22.dp) }
         }
-        ToolButton(stringResource(R.string.editor_nudge), Modifier.weight(1f), onNudge) { Icon(NUDGE, BarText, 22.dp) }
-        ToolButton(stringResource(R.string.editor_reset), Modifier.weight(1f), onReset) { Icon(Icons.Reset, BarText, 22.dp) }
     }
 }
 
@@ -1389,17 +1458,9 @@ private fun paintView(
     palette: com.openemux.mobile.data.SkinPalette, recent: List<Int>, texture: TextureSession?, overrides: Map<String, Bitmap>, first: String?,
 ): PaintView? {
     val (target, ids) = at ?: return null
-    val sel = m.selection
-    val scopes = if (target is SkinTarget.Controls) {
-        SkinApply.scopes(layout, ids, p.part).map { sc ->
-            sc to when (sc) {
-                SkinScope.ONE -> if (sel is SkinSelection.Group) context.getString(groupName(sel.group)) else context.getString(R.string.editor_apply_one)
-                SkinScope.GROUP -> layout.elements.firstOrNull { it.id == ids.first() }?.group?.let { context.getString(groupName(it)) }.orEmpty()
-                SkinScope.ALL -> context.getString(allName(target.type))
-            }
-        }
-    } else emptyList()
-    val textured = m.textured(painted, p.part)
+    // An image the colour would take the place of: the part's own, or the control's when it holds the part.
+    val image = m.textured(painted, p.part)
+    val textured = p.part.texturable && image
     return PaintView(
         target = target,
         editing = when (target) {
@@ -1409,13 +1470,13 @@ private fun paintView(
         },
         tab = p.tab,
         part = p.part,
-        scopes = scopes,
-        scope = p.scope,
+        parts = SkinPainter.parts(layout, target, ids),
+        textures = target != SkinTarget.Frame && m.selection !is SkinSelection.Label,
         color = SkinPainter.colorOf(layout, painted, p.part),
         presets = palette,
         recent = recent,
         contrast = contrastFor(p.part, SkinContrastCheck.issues(layout, target, painted)),
-        replacesImage = p.part.texturable && textured,
+        replacesImage = image,
         tone = layout.frame?.colors?.activeIcon,
         palettes = p.palettes,
         textured = textured,
@@ -1500,9 +1561,8 @@ private fun LayoutsPanel(
         val h = constraints.maxHeight
         val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
         fun stage(r: SkinRect) = fit.box(r).let { SkinRect(it.x, it.y, it.w, it.h) }
-        val rects = layout.rects()
         val screen = stage(SkinSnap.bounds(layout.screens.ifEmpty { listOf(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height / 2f)) }))
-        val selected = m.selection?.ids?.mapNotNull { rects[it] }?.takeIf { it.isNotEmpty() }?.let { stage(SkinSnap.bounds(it)) }
+        val selected = m.box()?.takeIf { m.selection?.movable == true }?.let(::stage)
         val side = SkinPanels.side(w > h, w.toFloat(), screen, selected)
         Box(Modifier.fillMaxSize().background(Color(0x66050508)).pointerInput(Unit) { detectTapGestures { onClose() } })
         val wide = minOf(360.dp, maxWidth * 0.5f)

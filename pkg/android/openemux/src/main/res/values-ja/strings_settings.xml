@@ -290,8 +290,8 @@
     <string name="skins_broken">読み込めません</string>
     <string name="skins_actions">%1$s の操作</string>
     <string name="skins_use">使う</string>
-    <string name="skins_use_as_is">そのまま使う</string>
     <string name="skins_bundled_locked">同梱のスキンは変更されません。</string>
+    <string name="skins_bundled_copies">「%1$s」と「%2$s」は自分用のコピーを作ります。</string>
     <string name="skins_imported_locked">インポートしたスキンはそのまま残ります。複製すると自分用のコピーができます。</string>
     <string name="skins_copy_working">コピーを作成しています…</string>
     <string name="skins_rename">名前を変更</string>
@@ -300,16 +300,12 @@
     <string name="skins_save">保存</string>
     <string name="skins_duplicate">複製</string>
     <string name="skins_copy_name">%1$s（コピー）</string>
+    <string name="skins_edited_name">%1$s - 編集済み</string>
     <string name="skins_delete">削除</string>
     <string name="skins_delete_sub">本体は %1$s に戻ります</string>
     <string name="skins_delete_title">%1$s を削除しますか？</string>
     <string name="skins_delete_body">スキンとその画像がこの端末から削除されます。</string>
     <string name="skins_error">スキンを変更できませんでした。</string>
-    <string name="skins_create_copy">コピーを作成して編集</string>
-    <string name="skins_create_copy_title">コピーの名前</string>
-    <string name="skins_create_copy_lead">同梱のスキンはそのまま残ります。コピーにはすべてのレイアウトが含まれ、名前はあとで変更できます。</string>
-    <string name="skins_create_copy_save">コピーを作成</string>
-    <string name="skins_bundled_copy_name">%1$s のコピー</string>
     <string name="skins_template">テンプレートとしてダウンロード</string>
     <string name="skins_template_sub">すべてのレイアウト(スマホ、タブレット、折りたたみ)を含む .zip</string>
     <string name="skins_template_title">テンプレートとしてダウンロード</string>

@@ -6,7 +6,7 @@
     <string name="editor_undo">Deshacer</string>
     <string name="editor_redo">Rehacer</string>
     <string name="editor_save">Guardar</string>
-    <string name="editor_snap">Imán</string>
+    <string name="editor_snap">Cuadrícula</string>
     <string name="editor_more">Más</string>
     <string name="editor_reset_layout">Restablecer diseño</string>
     <string name="editor_hint_tap">Toca un control para cambiarlo.</string>
@@ -27,6 +27,7 @@
     <string name="editor_right">Mover a la derecha</string>
     <string name="editor_percent">%1$d%%</string>
     <string name="editor_tap_again">toca otra vez para uno solo</string>
+    <string name="editor_tap_again_label">toca otra vez para la etiqueta</string>
     <string name="editor_group_face">Botones de acción</string>
     <string name="editor_group_dpad">Cruceta</string>
     <string name="editor_group_center">Start y Select</string>

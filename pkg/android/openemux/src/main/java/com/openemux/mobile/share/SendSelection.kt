@@ -7,9 +7,10 @@ import org.json.JSONObject
 /**
  * What can go along with a game, as "What to Send" lists it; [DETAILS] is the
  * game's metadata, not a file. [BIOS] belongs to the console (#678): only the
- * game that carries the console's BIOS lists it.
+ * game that carries the console's BIOS lists it. [SKIN] is a controller skin
+ * ([SkinShare]): the one part of an entry that is no game.
  */
-enum class SendPart { GAME, SAVE, STATES, COVER, LABEL, BIOS, DETAILS }
+enum class SendPart { GAME, SAVE, STATES, COVER, LABEL, BIOS, DETAILS, SKIN }
 
 /** One check of a game: its files of that kind (none for [SendPart.DETAILS]). */
 data class SendPartInfo(val part: SendPart, val itemIds: List<String>, val bytes: Long) {
@@ -152,6 +153,7 @@ data class SendSelection(
         private val PART_OF = mapOf(
             Item.ROM to SendPart.GAME, Item.BATTERY_SAVE to SendPart.SAVE, Item.STATE to SendPart.STATES,
             Item.COVER to SendPart.COVER, Item.LABEL to SendPart.LABEL, Item.BIOS to SendPart.BIOS,
+            Item.SKIN to SendPart.SKIN,
         )
 
         /** The [unchecked] key of a console's BIOS check. */

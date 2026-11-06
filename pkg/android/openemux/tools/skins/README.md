@@ -85,16 +85,43 @@ conversion of a player's Delta/Manic package is tested on.
 
 Each package has `skin.json` (written by the same code as the templates) and
 the six layouts, phone, tablet and fold, at the templates' scale (3, 2 and 3 px
-per unit). The engine renders each layout twice: the whole art without the
-quick actions' icons, which is `background.png` with the screens cut out, and
-only the controls on a transparent page (`render.html?layer=controls`: every
-part the engine draws records the element it belongs to). Each element's image
-is that second render cut at the element's rect, so it lands on the same pixels
-of the background; `frame.png` is the bezel cut out of the background, and the
-D-pad's ball the engine's circle cut edge to edge at the ball's size, and a
-stick's knob the engine's knob rendered alone (`render.html?knob=<n>`) and cut
-the same way. The zips are dated 1980-01-01, so a rebuild that changes nothing
-changes no binary.
+per unit). The engine renders each layout in three layers, side by side in one
+screenshot (`render.html?layers=body,frame,sprites`; every part the engine
+draws records what it is and the element it belongs to):
+
+- **body**: the console alone, which is `background.png`: its plastic, a panel,
+  a face well, the logo. No bezel, no control, no shadow of one and no word
+  printed beside one, so a control moved in the app's skin editor leaves
+  nothing behind.
+- **frame**: the bezel alone on a transparent page, which is `frame.png` cut at
+  the frame's rect with the game's screens cut out of it. Its rounded corners
+  are transparent, and `skin.json` carries its `radius` for when it is drawn
+  from a colour.
+- **sprites**: every control alone in a cell of a grid, cut at its rect. An
+  element's rect is what its image covers (the engine's `art`): the key as it
+  is turned and, under it, its relief (`depth`). Two controls whose boxes touch
+  (the GameCube's X and A) never show in each other's image.
+
+No control has a soft shadow: its relief, a part of its own straight under the
+key, is what lifts it. A word printed beside a control (START under its key,
+the Famicom's B and A under their buttons) is in no image: the element carries
+it as its `label`, with `labelOffset`, `labelSize` and `art: key`, and the app
+draws it, so the editor can move and paint it. A label on a key stays in the
+key's image. The D-pad's ball is the engine's circle and a stick's knob the
+engine's knob rendered alone (`render.html?knob=<n>`), each cut to its edge
+and set in its image at four fifths of the image's side, centred (`THUMB_FILL`
+in `build.py`, and in the app's renderer for one drawn from a colour): the
+room their soft shadows took before the art dropped them, so both are the size
+they were. The menu key is a key like the centre keys, its face over its
+relief. Headless Chrome now and then
+hands over a screenshot before every tile is painted; the build checks each one
+(the body covers the page, the bezel and every control have art) and renders it
+again, up to three times. The zips are dated 1980-01-01, so a rebuild that
+changes nothing changes no binary.
+
+A full build is a hundred packages; it can be split over several runs at once,
+one per group of consoles (`python3 tools/skins/build.py GBA GBC &`), which all
+write the same `engine.js` and `variants.json`.
 
 The consoles whose games need the controller's keypad (issue 772: A5200, CV,
 INTV, O2, those with a `keypad` in the engine's `C`) have a keypad page in every
@@ -102,8 +129,8 @@ layout: the engine draws it with `layout(..., { keypad: true })`
 (`render.html?keypad=1`), the twelve keys (`keypad1` … `keypad9`, `keypadStar`,
 `keypad0`, `keypadHash`) in the face buttons' place and the centre row's
 `keypadToggle` key labelled CONTROLS instead of KEYPAD. It is rendered the same
-two ways into the layout's `keypad/` folder, with a `background.png` of its own
-(the controls' labels are painted in the layout's); the frame is the layout's.
+way into the layout's `keypad/` folder, with a `background.png` of its own;
+the frame is the layout's.
 The keys press what the drawn skin's keypad presses (`OpenEmuxBinds.keypad`),
 so the art only names them.
 

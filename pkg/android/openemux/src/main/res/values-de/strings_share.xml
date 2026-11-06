@@ -257,4 +257,22 @@
         <item quantity="one">%1$d übersprungen</item>
         <item quantity="other">%1$d übersprungen</item>
     </plurals>
+    <string name="share_skin_action">Teilen</string>
+    <string name="share_skin_action_sub">Mit einem anderen Android-Gerät in diesem Netzwerk</string>
+    <string name="share_items_skin">Controller-Skin</string>
+    <string name="share_kind_skin">Controller-Skin</string>
+    <string name="share_skin_device_desktop">%1$s · Skins gehen nur an Android-Geräte</string>
+    <string name="share_skin_offer_title">Eingehender Skin</string>
+    <string name="share_skin_offer_lead">möchte dir einen Controller-Skin senden (%1$s).</string>
+    <string name="share_skin_notif_offer_title">Eingehender Skin von %1$s</string>
+    <string name="share_skin_result_received_title">Skin empfangen</string>
+    <string name="share_skin_result_received_body">Von %1$s. Du findest ihn bei den Skins von %2$s.</string>
+    <string name="share_skin_result_received_none">Skin nicht empfangen</string>
+    <string name="share_skin_result_received_none_body">Von %1$s. Es wurde nichts hinzugefügt.</string>
+    <string name="share_skin_result_sent_title">Skin gesendet</string>
+    <string name="share_skin_result_sent_body">%1$s hat ihn jetzt.</string>
+    <string name="share_skin_result_sent_none">Skin nicht gesendet</string>
+    <string name="share_skin_result_sent_none_body">%1$s hat ihn nicht angenommen.</string>
+    <string name="share_skin_result_declined_body">%1$s hat den Skin abgelehnt.</string>
+    <string name="share_skin_reason_sent">%1$s kann diesen Skin nicht annehmen. OpenEmux muss dort vielleicht aktualisiert werden.</string>
 </resources>
