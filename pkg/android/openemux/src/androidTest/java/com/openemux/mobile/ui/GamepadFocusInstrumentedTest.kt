@@ -66,10 +66,15 @@ class GamepadFocusInstrumentedTest {
 
             pad(KeyEvent.KEYCODE_BUTTON_A)
             expectFocus(Regex("Play|Continue"), "Play on the game's detail")
-            // Above Play there are only the back arrow, the star (X) and ⋯ (Y): none is a stop.
+            // Above Play the pencil after the name is a stop (issue 790); the header's back arrow, star (X)
+            // and Share (Y) are not.
             pad(KeyEvent.KEYCODE_DPAD_UP)
-            pad(KeyEvent.KEYCODE_DPAD_UP)
-            assertTrue("focus left Play for the header: '${focused()}'", focused()?.contains(Regex("Play|Continue")) == true)
+            expectFocus(Regex("Rename"), "the pencil after the game's name")
+            repeat(2) {
+                pad(KeyEvent.KEYCODE_DPAD_UP)
+                val label = focused().orEmpty()
+                assertTrue("the header took focus: '$label'", chrome.none { label.equals(it, ignoreCase = true) })
+            }
 
             pad(KeyEvent.KEYCODE_BUTTON_B)
             expectFocus(titles[0], "the game that was opened")
@@ -88,7 +93,7 @@ class GamepadFocusInstrumentedTest {
         }
     }
 
-    private val chrome = listOf("Shelf", "Search", "Back", "More options", "All", "Favorites", "SNES", "NES", "GBA")
+    private val chrome = listOf("Shelf", "Search", "Back", "Share Nearby", "All", "Favorites", "SNES", "NES", "GBA")
 
     private fun expectFocus(title: String, what: String) = expectFocus(Regex(Regex.escape(title)), what)
 

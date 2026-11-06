@@ -85,6 +85,9 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -514,6 +517,73 @@ fun OeTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    OeFieldFrame(label, isError, interaction, modifier, trailing = {
+        if (onReveal != null) {
+            Box(
+                Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
+                    .semantics { contentDescription = revealLabel },
+                contentAlignment = Alignment.Center,
+            ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
+        }
+    }) { fieldModifier ->
+        BasicTextField(
+            value, onChange,
+            fieldModifier.let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
+            readOnly = readOnly,
+            singleLine = true,
+            textStyle = Type.Body,
+            cursorBrush = SolidColor(Oe.AccentText),
+            visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            interactionSource = interaction,
+        )
+    }
+}
+
+/**
+ * The same field over a [TextFieldValue], so it can open with its text selected (issue 790's
+ * rename); [suffix] is fixed text after what is typed, such as the extension a rename keeps.
+ */
+@Composable
+fun OeTextField(
+    label: String,
+    value: TextFieldValue,
+    onChange: (TextFieldValue) -> Unit,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    suffix: String? = null,
+    focusRequester: FocusRequester? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    OeFieldFrame(label, isError, interaction, modifier, trailing = {
+        if (suffix != null) Text(suffix, style = Type.Body.copy(color = Oe.Muted), modifier = Modifier.padding(start = 4.dp, end = 10.dp))
+    }) { fieldModifier ->
+        BasicTextField(
+            value, onChange,
+            fieldModifier.let { m -> if (focusRequester != null) m.focusRequester(focusRequester) else m },
+            singleLine = true,
+            textStyle = Type.Body,
+            cursorBrush = SolidColor(Oe.AccentText),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            interactionSource = interaction,
+        )
+    }
+}
+
+/** The label, border and focus ring both [OeTextField]s share; [field] gets the modifier its text field takes. */
+@Composable
+private fun OeFieldFrame(
+    label: String,
+    isError: Boolean,
+    interaction: MutableInteractionSource,
+    modifier: Modifier,
+    trailing: @Composable () -> Unit,
+    field: @Composable (Modifier) -> Unit,
+) {
     val focused by interaction.collectIsFocusedAsState()
     Column(modifier) {
         Text(label, style = Type.Caption.copy(color = Oe.Muted), modifier = Modifier.padding(bottom = 6.dp))
@@ -528,25 +598,8 @@ fun OeTextField(
                 .padding(start = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BasicTextField(
-                value, onChange,
-                Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically().let { m -> if (contentType != null) m.semantics { this.contentType = contentType } else m },
-                readOnly = readOnly,
-                singleLine = true,
-                textStyle = Type.Body,
-                cursorBrush = SolidColor(Oe.AccentText),
-                visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                interactionSource = interaction,
-            )
-            if (onReveal != null) {
-                Box(
-                    Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
-                        .semantics { contentDescription = revealLabel },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
-            }
+            field(Modifier.weight(1f).padding(vertical = 14.dp).leaveFieldVertically())
+            trailing()
         }
     }
 }

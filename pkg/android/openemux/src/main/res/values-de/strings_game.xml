@@ -45,12 +45,25 @@
     <string name="detail_continue">Weiterspielen</string>
     <string name="detail_play">Spielen</string>
     <string name="detail_favorite">Favorit</string>
-    <string name="detail_menu">Menü ⋯</string>
     <string name="detail_back">Zurück</string>
     <string name="detail_favorite_remove">Aus Favoriten entfernen</string>
     <string name="detail_favorite_add">Zu Favoriten hinzufügen</string>
-    <string name="detail_more_options">Weitere Optionen</string>
     <string name="detail_remove_from_library">Aus Bibliothek entfernen</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">Umbenennen…</string>
+    <string name="rename_title">Spiel umbenennen</string>
+    <string name="rename_label">Dateiname</string>
+    <string name="rename_hint">Die Endung bleibt. Spielstände, Speicherpunkte, Artwork und Einstellungen ziehen mit.</string>
+    <string name="rename_action">Umbenennen</string>
+    <string name="rename_error_empty">Gib einen Namen ein.</string>
+    <string name="rename_error_chars">Ein Name darf diese Zeichen nicht enthalten: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">Ein Name darf nicht mit einem Punkt beginnen.</string>
+    <string name="rename_error_long">Der Name ist zu lang.</string>
+    <string name="rename_error_clash">Ein anderes %1$s-Spiel hat bereits diesen Namen.</string>
+    <string name="rename_error_leftovers">Unter diesem Namen gibt es bereits Spielstände oder Artwork.</string>
+    <string name="rename_error_failed">Das Spiel konnte nicht umbenannt werden. Es wurde nichts geändert.</string>
+    <string name="rename_error_shared">%1$s nutzt dieselben Spielstände und dasselbe Artwork, daher lässt sich dieses Spiel nicht allein umbenennen.</string>
+    <string name="rename_error_busy">Das Artwork wird gerade synchronisiert. Versuche es danach noch einmal.</string>
     <string name="detail_restart">Neu starten</string>
     <string name="detail_save_states">Savestates</string>
     <string name="detail_see_all">Alle anzeigen (%1$d)</string>

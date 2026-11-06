@@ -45,12 +45,25 @@
     <string name="detail_continue">தொடர்</string>
     <string name="detail_play">விளையாடு</string>
     <string name="detail_favorite">பிடித்தது</string>
-    <string name="detail_menu">மெனு ⋯</string>
     <string name="detail_back">பின்</string>
     <string name="detail_favorite_remove">பிடித்தவற்றிலிருந்து நீக்கு</string>
     <string name="detail_favorite_add">பிடித்தவற்றில் சேர்</string>
-    <string name="detail_more_options">மேலும் விருப்பங்கள்</string>
     <string name="detail_remove_from_library">நூலகத்திலிருந்து நீக்கு</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">பெயர்மாற்று…</string>
+    <string name="rename_title">கேமின் பெயரை மாற்று</string>
+    <string name="rename_label">கோப்புப் பெயர்</string>
+    <string name="rename_hint">நீட்டிப்பு மாறாது. சேமிப்புகள், நிலைகள், படங்கள், அமைப்புகள் கேமுடன் செல்லும்.</string>
+    <string name="rename_action">பெயர்மாற்று</string>
+    <string name="rename_error_empty">ஒரு பெயரை உள்ளிடவும்.</string>
+    <string name="rename_error_chars">பெயரில் இந்த எழுத்துகள் இருக்கக்கூடாது: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">பெயர் புள்ளியுடன் தொடங்கக்கூடாது.</string>
+    <string name="rename_error_long">பெயர் மிக நீளமாக உள்ளது.</string>
+    <string name="rename_error_clash">மற்றொரு %1$s கேம் ஏற்கனவே இந்தப் பெயரைக் கொண்டுள்ளது.</string>
+    <string name="rename_error_leftovers">இந்தப் பெயரில் சேமிப்புகள் அல்லது படங்கள் ஏற்கனவே உள்ளன.</string>
+    <string name="rename_error_failed">கேமின் பெயரை மாற்ற முடியவில்லை. எதுவும் மாற்றப்படவில்லை.</string>
+    <string name="rename_error_shared">%1$s அதே சேமிப்புகளையும் படங்களையும் பயன்படுத்துகிறது, எனவே இந்தக் கேமின் பெயரைத் தனியாக மாற்ற முடியாது.</string>
+    <string name="rename_error_busy">படங்கள் ஒத்திசைக்கப்படுகின்றன. முடிந்ததும் மீண்டும் முயலவும்.</string>
     <string name="detail_restart">மீண்டும் தொடங்கு</string>
     <string name="detail_save_states">சேமிப்பு நிலைகள்</string>
     <string name="detail_see_all">அனைத்தும் (%1$d)</string>

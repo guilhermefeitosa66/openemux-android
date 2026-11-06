@@ -83,6 +83,21 @@ class ArtSources(val dir: File, private val now: () -> Long = System::currentTim
         apply { it.remove(stem) != null }
     }
 
+    /**
+     * Moves the record of [oldStem] to [newStem] when a game is renamed (issue 790): its file name
+     * follows the art's. A stale record under the new name goes, so it cannot describe the moved art.
+     */
+    fun rename(oldStem: String, newStem: String) {
+        if (!file.exists()) return
+        apply { entries ->
+            val stale = entries.remove(newStem) != null
+            val entry = entries.remove(oldStem) ?: return@apply stale
+            entry.optString("file").takeIf { it.startsWith(oldStem) }?.let { entry.put("file", newStem + it.substring(oldStem.length)) }
+            entries[newStem] = entry
+            true
+        }
+    }
+
     /** Buffers records and writes the file once on exit, also when [block] throws. */
     fun <T> batch(block: (Batch) -> T): T {
         val batch = Batch()

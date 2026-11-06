@@ -37,7 +37,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -70,6 +69,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -104,10 +106,14 @@ fun DetailScreen(key: String) {
 /**
  * A game's detail in [style]. [active] tells whether its buttons answer the
  * gamepad (the pane only while it holds focus); [onClose] runs after the game
- * is removed, and [onOpenFull] opens the pane's game on its own screen.
+ * is removed, [onOpenFull] opens the pane's game on its own screen, and
+ * [onRenamed] gets the game's new key after a rename (issue 790).
  */
 @Composable
-fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: (() -> Unit)? = null, onOpenFull: (() -> Unit)? = null) {
+fun RomDetail(
+    key: String, style: DetailStyle, active: Boolean = true, onClose: (() -> Unit)? = null, onOpenFull: (() -> Unit)? = null,
+    onRenamed: ((String) -> Unit)? = null,
+) {
     val a = LocalActions.current
     val lib = a.app.library
     val roms by lib.roms.collectAsState()
@@ -135,9 +141,14 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
     // Read again when the skin sheet closes: a skin may have been picked, renamed or deleted there.
     var skinRevision by remember { mutableIntStateOf(0) }
     val skinList = rememberSkinList(lib, rom.console, skinRevision)
-    var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var renaming by rememberSaveable { mutableStateOf(false) }
     val close = onClose ?: { a.nav.popBackStack(); Unit }
+    fun share() {
+        a.app.shareCoordinator.startSend(listOf(rom))
+        a.nav.navigate(Routes.SHARE)
+    }
+    val rename = { renaming = true }
     // L1/R1 walk this console's games in the library's order; in the pane they stay the library's.
     val siblings = roms.filter { it.console == rom.console }
     fun sibling(step: Int) {
@@ -153,13 +164,13 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         hints = listOf(
             "A" to stringResource(if (!playHeld) R.string.settings_hint_choose else if (auto != null) R.string.detail_continue else R.string.detail_play),
             "X" to stringResource(R.string.detail_favorite),
-            "Y" to stringResource(R.string.detail_menu),
+            "Y" to stringResource(R.string.detail_share),
             "B" to stringResource(if (walk) R.string.detail_back else R.string.library_hint_list),
         ),
         l1 = if (walk) ({ sibling(-1) }) else null,
         r1 = if (walk) ({ sibling(1) }) else null,
         x = { lib.updateRom(key) { it.copy(favorite = !it.favorite) } },
-        y = { menu = true },
+        y = ::share,
         enabled = active,
     )
     val playFocus = rememberSaveable { mutableStateOf<String?>(null) }
@@ -184,33 +195,9 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             padFocus = false,
         )
     }
-    val menuButton: @Composable () -> Unit = {
-        Box {
-            RoundIconButton(Icons.Dots, stringResource(R.string.detail_more_options), { menu = true }, background = Oe.Control.copy(alpha = 0.8f), filled = true, padFocus = false)
-            // A popup is a window of its own: it takes the pad's keys itself (padPopup), with its own items.
-            val opener = LocalPadScope.current
-            // Not keyed on [menu]: a new scope while the menu animates out would land focus in the closing popup.
-            val menuScope = remember { PadScope() }
-            CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
-                menu, { menu = false }, Modifier.padPopup(menuScope, opener) { menu = false }, containerColor = Oe.Surface2,
-            ) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.detail_share), style = Type.Body) },
-                    leadingIcon = { Icon(Icons.Share, Oe.Text, 20.dp) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
-                    onClick = {
-                        menu = false
-                        a.app.shareCoordinator.startSend(listOf(rom))
-                        a.nav.navigate(Routes.SHARE)
-                    },
-                )
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.detail_remove_from_library), style = Type.Body.copy(color = Oe.Danger)) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
-                    onClick = { menu = false; confirmDelete = true },
-                )
-            } }
-        }
+    // Share sits where the overflow menu was (issue 790): Y is its pad shortcut, so, like the favorite, it is no stop.
+    val shareButton: @Composable () -> Unit = {
+        RoundIconButton(Icons.Share, stringResource(R.string.detail_share), ::share, background = Oe.Control.copy(alpha = 0.8f), padFocus = false)
     }
     val header: @Composable () -> Unit = {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -218,7 +205,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
             Spacer(Modifier.weight(1f))
             favoriteButton()
             Spacer(Modifier.width(8.dp))
-            menuButton()
+            shareButton()
         }
     }
     val cartridge: @Composable (Modifier) -> Unit = { modifier ->
@@ -291,11 +278,15 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Setting(stringResource(R.string.detail_cheats), stringResource(R.string.detail_coming_soon), false, null),
     )
     val settingsCard: @Composable (Modifier) -> Unit = { modifier ->
-        Card(modifier) {
-            settings.forEachIndexed { i, it ->
-                ListRow(it.label, value = it.value, divider = i > 0, onClick = it.onClick,
-                    trailing = if (it.isDefault) ({ Tag(stringResource(R.string.detail_default_tag), Oe.Surface2, Oe.Muted) }) else null)
+        Column(modifier) {
+            Card {
+                settings.forEachIndexed { i, it ->
+                    ListRow(it.label, value = it.value, divider = i > 0, onClick = it.onClick,
+                        trailing = if (it.isDefault) ({ Tag(stringResource(R.string.detail_default_tag), Oe.Surface2, Oe.Muted) }) else null)
+                }
             }
+            // The last thing on the screen, out in the open (issue 790), still behind its confirmation.
+            RemoveCard(Modifier.padding(top = 14.dp)) { confirmDelete = true }
         }
     }
 
@@ -311,6 +302,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                     Spacer(Modifier.height(18.dp))
                     colorBlock(false)
                 }
+                RemoveCard(Modifier.padding(top = 18.dp)) { confirmDelete = true }
             } }
         }
         // The top half: the game itself, art beside the title when the half is wide enough.
@@ -323,7 +315,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 if (compact) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         cartridge(Modifier.width(minOf(264.dp, (room - 160.dp) * 1.6f).coerceAtLeast(120.dp)))
-                        DetailTitle(overline, rom.title, meta, TextAlign.Center)
+                        DetailTitle(overline, rom.title, meta, TextAlign.Center, rename)
                     }
                 } else {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
@@ -331,7 +323,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                             Box(Modifier.matchParentSize().drawBehind { drawCircle(Brush.radialGradient(listOf(Color(0x617C3AED), Color(0x007C3AED)), radius = size.maxDimension * 0.6f), radius = size.maxDimension * 0.6f) })
                             cartridge(Modifier.width(minOf(320.dp, (room - 90.dp) * 1.6f).coerceAtLeast(140.dp)))
                         }
-                        Box(Modifier.weight(1f)) { DetailTitle(overline, rom.title, meta, TextAlign.Start) }
+                        Box(Modifier.weight(1f)) { DetailTitle(overline, rom.title, meta, TextAlign.Start, rename) }
                     }
                 }
             }
@@ -346,7 +338,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 cartridge(Modifier.fillMaxWidth().padding(top = 6.dp).wrapContentWidth().width(264.dp))
 
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(rom.title, style = Type.Title, textAlign = TextAlign.Center)
+                    RenamableTitle(rom.title, Type.Title, TextAlign.Center, onRename = rename)
                     Text(
                         "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
                         style = Type.Small, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
@@ -371,12 +363,12 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                 Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                     if (onOpenFull != null) RoundIconButton(Icons.Expand, stringResource(R.string.library_open_full), onOpenFull, background = Oe.Control.copy(alpha = 0.8f))
                     favoriteButton()
-                    menuButton()
+                    shareButton()
                 }
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Cartridge(rom.console, labelFor(rom), rom.title, color, Modifier.width(236.dp), pending = labelPending(rom), cover = coverFor(rom))
                     if (showsNoArt(rom)) SearchArtworkButton(rom, Modifier.padding(top = 12.dp))
-                    Text(rom.title, style = Type.Title.copy(fontSize = 23.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(top = 18.dp))
+                    RenamableTitle(rom.title, Type.Title.copy(fontSize = 23.sp), TextAlign.Center, Modifier.padding(top = 18.dp), onRename = rename)
                     Text(
                         "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
                         style = Type.Small, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
@@ -407,7 +399,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                         cartridge(Modifier.width(width))
                     }
                     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(rom.title, style = Type.Title, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        RenamableTitle(rom.title, Type.Title, TextAlign.Center, maxLines = 1, onRename = rename)
                         Text(
                             "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
                             style = Type.Small, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -470,7 +462,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                     Row(verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f)) {
                             Text("${rom.console.short} · ${core.name}".uppercase(), style = Type.Eyebrow)
-                            Text(rom.title, style = Type.Display.copy(fontSize = 34.sp, lineHeight = 38.sp), modifier = Modifier.padding(top = 4.dp))
+                            RenamableTitle(rom.title, Type.Display.copy(fontSize = 34.sp, lineHeight = 38.sp), TextAlign.Start, Modifier.padding(top = 4.dp), onRename = rename)
                             val last = romMeta?.lastPlayed ?: 0L
                             Text(
                                 if (last > 0) stringResource(R.string.detail_played_last, formatPlaytime(playtime), formatAgo(last)) else formatPlaytime(playtime),
@@ -479,7 +471,7 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
                         }
                         Row(Modifier.padding(start = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             favoriteButton()
-                            menuButton()
+                            shareButton()
                         }
                     }
                     // Restart never takes more than 40% of a narrow column from Continue.
@@ -507,6 +499,13 @@ fun RomDetail(key: String, style: DetailStyle, active: Boolean = true, onClose: 
         Sheet.None -> {}
     }
 
+    if (renaming) {
+        RenameSheet(rom, onClose = { renaming = false }) { renamed ->
+            renaming = false
+            // The screen is keyed on the game: it follows the game to its new key, as L1/R1 do.
+            onRenamed?.invoke(renamed.key) ?: a.nav.navigate(Routes.rom(renamed.key)) { popUpTo(Routes.ROM) { inclusive = true } }
+        }
+    }
     if (confirmDelete) {
         OeConfirmDialog(
             { confirmDelete = false },
@@ -570,12 +569,51 @@ private fun StateThumb(st: SaveState, modifier: Modifier, thumb: Dp = 58.dp, onC
 
 /** The top half's words in tabletop: console and core, the title, then the time played. */
 @Composable
-private fun DetailTitle(overline: String, title: String, meta: String, align: TextAlign) {
+private fun DetailTitle(overline: String, title: String, meta: String, align: TextAlign, onRename: () -> Unit) {
     val horizontal = if (align == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = horizontal) {
         Text(overline, style = Type.Eyebrow.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold), textAlign = align)
-        Text(title, style = Type.Display, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = align, modifier = Modifier.padding(top = 6.dp))
+        RenamableTitle(title, Type.Display, align, Modifier.padding(top = 6.dp), maxLines = 2, onRename = onRename)
         Text(meta, style = Type.Small.copy(fontSize = 14.sp), textAlign = align, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/**
+ * The game's name with a pencil at its end that opens the rename sheet (issue 790). The name gives
+ * way to the pencil, which stays beside it on a centred title too.
+ */
+@Composable
+private fun RenamableTitle(
+    title: String, style: TextStyle, align: TextAlign, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, onRename: () -> Unit,
+) {
+    Row(
+        modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (align == TextAlign.Center) Arrangement.Center else Arrangement.Start,
+    ) {
+        Text(title, style = style, textAlign = align, maxLines = maxLines, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        val label = stringResource(R.string.detail_rename)
+        Box(
+            Modifier.padding(start = 6.dp).size(36.dp).gamepadFocus(corner = 18.dp).clip(CircleShape)
+                .clickable(onClickLabel = label, role = Role.Button, onClick = onRename).semantics { contentDescription = label },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Pencil, Oe.Muted, 18.dp) }
+    }
+}
+
+/** "Remove from library" on a card of its own, in the danger colour; [onClick] asks first. */
+@Composable
+private fun RemoveCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val label = stringResource(R.string.detail_remove_from_library)
+    Card(modifier) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 50.dp).gamepadFocus(corner = 0.dp, inset = true).rowFocus(label)
+                .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.Trash, Oe.Danger, 20.dp)
+            Text(label, style = Type.Body.copy(color = Oe.Danger))
+        }
     }
 }
 

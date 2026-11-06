@@ -45,12 +45,25 @@
     <string name="detail_continue">Continuar</string>
     <string name="detail_play">Jogar</string>
     <string name="detail_favorite">Favoritar</string>
-    <string name="detail_menu">Menu ⋯</string>
     <string name="detail_back">Voltar</string>
     <string name="detail_favorite_remove">Remover dos favoritos</string>
     <string name="detail_favorite_add">Adicionar aos favoritos</string>
-    <string name="detail_more_options">Mais opções</string>
     <string name="detail_remove_from_library">Remover da biblioteca</string>
+    <!-- Rename a game from its detail screen (issue 790). -->
+    <string name="detail_rename">Renomear…</string>
+    <string name="rename_title">Renomear jogo</string>
+    <string name="rename_label">Nome do arquivo</string>
+    <string name="rename_hint">A extensão continua a mesma. Saves, estados, artes e ajustes acompanham o jogo.</string>
+    <string name="rename_action">Renomear</string>
+    <string name="rename_error_empty">Digite um nome.</string>
+    <string name="rename_error_chars">O nome não pode ter estes caracteres: / \\ : * ? \" &lt; &gt; |</string>
+    <string name="rename_error_dot">O nome não pode começar com ponto.</string>
+    <string name="rename_error_long">O nome é longo demais.</string>
+    <string name="rename_error_clash">Outro jogo de %1$s já tem este nome.</string>
+    <string name="rename_error_leftovers">Já existem saves ou artes com este nome.</string>
+    <string name="rename_error_failed">Não foi possível renomear o jogo. Nada foi alterado.</string>
+    <string name="rename_error_shared">%1$s usa os mesmos saves e artes, então este jogo não pode ser renomeado sozinho.</string>
+    <string name="rename_error_busy">As artes estão sendo sincronizadas. Tente de novo quando terminar.</string>
     <string name="detail_restart">Reiniciar</string>
     <string name="detail_save_states">Estados salvos</string>
     <string name="detail_see_all">Ver todos (%1$d)</string>

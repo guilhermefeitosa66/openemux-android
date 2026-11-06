@@ -115,6 +115,13 @@ data class Meta(
 /** The metadata without the games [keys] names; console settings and order stay. */
 fun Meta.withoutRoms(keys: Set<String>): Meta = copy(roms = roms - keys)
 
+/** The metadata with [oldKey]'s game under [newKey] (issue 790); a stale entry under [newKey] goes. */
+fun Meta.renamedRom(oldKey: String, newKey: String): Meta {
+    val kept = roms[oldKey]
+    val rest = roms - oldKey - newKey
+    return copy(roms = if (kept != null) rest + (newKey to kept) else rest)
+}
+
 /** A cue sheet's FILE line: quoted or bare name. */
 internal val CUE_FILE = Regex("""(?im)^\s*FILE\s+(?:"([^"]+)"|(\S+))""")
 
@@ -409,6 +416,20 @@ class Library(
         _meta.update { it.withoutRoms(gone) }
         saveMeta()
         return gone.size
+    }
+
+    /**
+     * [old] is now [new] (issue 790): the file was renamed and its metadata goes with it. The list
+     * keeps its order, and the index and the metadata are written once each.
+     */
+    @Synchronized
+    fun renamed(old: Rom, new: Rom) {
+        // Both in memory before either write, so a write that throws leaves them consistent and the rename can be undone.
+        _roms.update { list -> (list.filterNot { it.key == old.key || it.key == new.key } + new).sortedWith(ROM_ORDER) }
+        _meta.update { it.renamedRom(old.key, new.key) }
+        _revision.value++
+        saveIndex(_roms.value)
+        saveMeta()
     }
 
     private fun loadIndex() {

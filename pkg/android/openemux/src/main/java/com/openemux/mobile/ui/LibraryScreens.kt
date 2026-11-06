@@ -1082,6 +1082,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 RomDetail(
                     pickedRom, DetailStyle.Pane, active = focusInDetail,
                     onClose = { picked = null }, onOpenFull = { openFull(pickedRom) },
+                    onRenamed = { picked = it },
                 )
             }
         },
