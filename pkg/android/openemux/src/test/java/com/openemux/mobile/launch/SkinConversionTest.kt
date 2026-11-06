@@ -59,10 +59,14 @@ class SkinConversionTest {
         assertNull(SkinConversion.kind(delta, Console.FC, SkinVariant.RED))
     }
 
-    @Test fun theAppsOwnAssetsAnswerForTheEightOwnFormatConsolesOnly() {
+    @Test fun theAppsOwnAssetsAnswerForTheOwnFormatConsolesOnly() {
         val list = { dir: String -> File(assets, dir).list() }
         val convertible = Console.entries.filter { SkinConversion.kind(list, it, SkinVariant.CONSOLE) != null }.map { it.id }.sorted()
-        assertEquals(listOf("FDS", "GG", "MCD", "PCE", "PCECD", "S32X", "SATURN", "SG1000"), convertible)
+        // Issue 770 shipped eight consoles in OpenEmux's format, issue 771 seven more.
+        assertEquals(
+            listOf("A2600", "A7800", "FDS", "GG", "LYNX", "MCD", "NGP", "PCE", "PCECD", "S32X", "SATURN", "SG1000", "VB", "VECTREX", "WS"),
+            convertible,
+        )
     }
 
     @Test fun noPackageOrOneNotInOpenEmuxsFormatIsRefused() {
@@ -79,7 +83,7 @@ class SkinConversionTest {
 
     @Test fun everyOwnFormatBundledSkinCopiesWithEveryLayoutElementAndFile() {
         val packages = ownFormatPackages()
-        assertEquals(16, packages.size)
+        assertEquals(30, packages.size)
         for ((variant, zip) in packages) {
             val where = "${variant.id} ${zip.name}"
             val source = SkinFormat.readZip(zip)
