@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.createBitmap
 import com.retroarch.R
 import java.io.File
 
@@ -20,7 +21,7 @@ class DrawnSkinArt(context: Context) {
 
     /** [art] as a PNG in [file]. */
     fun paint(art: DrawnSkinCopy.Art, file: File) {
-        val bitmap = Bitmap.createBitmap(art.width, art.height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(art.width, art.height)
         try {
             val c = Canvas(bitmap)
             when (art) {
