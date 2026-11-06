@@ -96,6 +96,8 @@ that element from its colours, shape and label in `skin.json` instead, so a skin
 | `dpad-ball.png` | the D-pad's side × 44/60, square | the ball that moves with the thumb, edge to edge (the app fits the whole image to the ball), drawn centred on the pad |
 | `stick-base.png` | the stick's rect | an analog stick's well |
 | `stick-knob.png` | half the stick's side, square | the knob that moves with the thumb |
+| `keypad/background.png` | the layout's `size` | the keypad page, behind everything (consoles with a keypad) |
+| `keypad/<id>.png` | as above | the keypad page's controls: its keys, the toggle, the D-pad or stick, the quick actions |
 
 `<id>` is the element's `id` in `skin.json` (`a`, `start`, `l2`, `c-up`, `save`, `fast-forward`…): the file is
 named after it. The game's screens are left clear whatever the background has there. `README.txt` in each template
@@ -152,6 +154,15 @@ own names:
   `screenshot`, `menu`, `restart`, and on the DS `screens` (the next screen layout).
 - **`dpad`**: `dpad`. **`stick`**: `analogStick`, `rightAnalogStick`. **`keypad`**: `keypad0` … `keypad9`,
   `keypadStar`, `keypadHash`.
+- **`keypadToggle`** (a `button`): opens the layout's keypad page, and on that page goes back to the controls.
+
+### The keypad page
+
+The consoles whose games need the controller's keypad (Atari 5200, ColecoVision, Intellivision, Odyssey 2) have a
+second page in each layout, under `keypad` in `skin.json`: the same size, screens and frame, with controls of its own
+(the twelve keys in the face buttons' place, the D-pad or stick, the quick actions and the `keypadToggle` key) and a
+`background.png` of its own, all in the layout's `keypad/` folder. `sources/<layout>-keypad.svg` puts it together. The
+app uses the keypad pages only when both layouts of a form have one with a `keypadToggle` key on it.
 
 ## Editing
 

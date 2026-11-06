@@ -94,11 +94,22 @@ class SkinAssetPlanTest {
         return rows
     }
 
-    /** A template's elements (its phone portrait layout: every layout has the same ones). */
-    private fun templateRows(console: Console): List<Row>? {
+    /**
+     * A template's elements (its phone portrait layout: every layout has the same ones), and its keypad page's when
+     * it has one ([keypad]: null when it has none).
+     */
+    private fun templateRows(console: Console, keypad: Boolean = false): List<Row>? {
         val zip = File(templates, "${console.id}-template.zip").takeIf { it.isFile } ?: return null
         val layout = SkinFormat.readZip(zip).skin.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT)
-        return layout.elements.map { Row(it.id, it.type, it.bind, it.label) }
+        if (keypad && layout.keypad == null) return null
+        return layout.elements(keypad).map { Row(it.id, it.type, it.bind, it.label) }
+    }
+
+    private fun table(out: StringBuilder, rows: List<Row>) {
+        out.append("| Element | Type | Bind | Label | Images |\n|---|---|---|---|---|\n")
+        for (r in rows) {
+            out.append("| `${r.id}` | ${r.type.id} | `${r.bind}` | ${cell(r.label)} | ${r.images.joinToString(", ") { "`$it`" }} |\n")
+        }
     }
 
     private fun cell(s: String?) = s?.replace("|", "\\|") ?: ""
@@ -132,9 +143,10 @@ class SkinAssetPlanTest {
                 if (fromTemplate != null) "Template: [`${console.id}-template.zip`](${console.id}-template.zip).\n\n"
                 else "No template yet: the controls of the skin the app draws.\n\n",
             )
-            out.append("| Element | Type | Bind | Label | Images |\n|---|---|---|---|---|\n")
-            for (r in rows) {
-                out.append("| `${r.id}` | ${r.type.id} | `${r.bind}` | ${cell(r.label)} | ${r.images.joinToString(", ") { "`$it`" }} |\n")
+            table(out, rows)
+            templateRows(console, keypad = true)?.let { keypad ->
+                out.append("\nKeypad page, in each layout's `keypad/` folder with a `background.png` of its own (the frame is the layout's):\n\n")
+                table(out, keypad)
             }
         }
         return out.toString()

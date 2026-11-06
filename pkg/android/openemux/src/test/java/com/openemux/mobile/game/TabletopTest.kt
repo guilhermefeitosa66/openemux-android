@@ -116,7 +116,9 @@ class TabletopTest {
         assertEquals("min-pad-$TABLETOP", tabletopTarget("min-pad-portrait", true, packaged, null, null))
         assertEquals("portrait", gamepadTarget("min-pad-portrait", false, packaged))
         assertEquals("portrait", available(OverlayName(portrait = true, collapsed = true), packaged))
-        assertNull(available(OverlayName(portrait = true, keypad = true), packaged))
+        // No keypad page of its own (issue 772): its controls.
+        assertEquals("portrait", available(OverlayName(portrait = true, keypad = true), packaged))
+        assertNull(available(OverlayName(portrait = true, keypad = true), listOf("landscape")))
     }
 
     @Test fun theGamepadSwitchesTheLayoutAndKeepsEverythingElse() {
@@ -130,5 +132,15 @@ class TabletopTest {
         assertNull(gamepadTarget("landscape", false, all))
         assertNull(gamepadTarget("portrait", true, listOf("portrait", "landscape")))
         assertNull(gamepadTarget("something", true, all))
+    }
+
+    @Test fun aPackageWithNoKeypadPageLeavesTheDrawnKeypadForItsControls() {
+        // Issue 772: under a package with no keypad page, the gamepad layout's drawn keypad closes when the gamepad goes.
+        val overlays = listOf("portrait", "landscape", "pad-portrait", "pad-keypad-portrait", "min-pad-keypad-portrait")
+        assertEquals("portrait", gamepadTarget("pad-keypad-portrait", gamepad = false, overlays))
+        assertEquals("portrait", gamepadTarget("min-pad-keypad-portrait", gamepad = false, overlays))
+        // A package with its keypad pages keeps the keypad open.
+        assertEquals("keypad-portrait", gamepadTarget("pad-keypad-portrait", gamepad = false, overlays + "keypad-portrait"))
+        assertEquals(null, gamepadTarget("pad-keypad-portrait", gamepad = false, listOf("landscape")))
     }
 }

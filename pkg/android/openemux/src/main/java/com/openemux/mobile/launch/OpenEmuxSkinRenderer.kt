@@ -46,31 +46,33 @@ class OpenEmuxSkinRenderer(context: Context) {
     private val inter: Typeface = ResourcesCompat.getFont(context, R.font.inter_bold) ?: Typeface.DEFAULT_BOLD
 
     /**
-     * Writes [pkg]'s [layouts] (the form's portrait and landscape, LayoutChoice.Use) for [console] into [outDir], the
-     * window [width] x [height] less the [cutout]. [tablet] and [first] order the pages as a package's (packagePages);
-     * [hardcore] dims the speed keys and leaves them out.
+     * Writes [pkg]'s [layouts] (the form's portrait and landscape, LayoutChoice.Use) for [console], played on [coreId],
+     * into [outDir], the window [width] x [height] less the [cutout]. [first] is the page that opens (ownPages), with
+     * the layouts' keypad pages when both have one (keypadPages); [hardcore] dims the speed keys and leaves them out.
      */
     fun render(
         pkg: SkinPackage, layouts: LayoutChoice.Use, console: Console,
-        width: Int, height: Int, outDir: File, cutout: Int = 0, tablet: Boolean = false, hardcore: Boolean = false, first: String? = null,
+        width: Int, height: Int, outDir: File, cutout: Int = 0, hardcore: Boolean = false, first: String? = null,
         coreId: String? = null,
     ): File {
         outDir.mkdirs()
         val portraitW = minOf(width, height)
         val portraitH = maxOf(width, height) - cutout
-        Log.i(TAG, "drawing ${pkg.skin.name} (${layouts.portrait.id}, ${layouts.landscape.id})")
-        val pages = packagePages(null, tablet, first)
+        val keypad = keypadPages(pkg.skin, layouts)
+        Log.i(TAG, "drawing ${pkg.skin.name} (${layouts.portrait.id}, ${layouts.landscape.id}${if (keypad) ", keypad pages" else ""})")
+        val pages = ownPages(keypad, first)
         val cfg = StringBuilder("overlays = ${pages.size}\n")
         pages.forEachIndexed { i, page ->
             val id = if (page.portrait) layouts.portrait else layouts.landscape
             val layout = pkg.skin.layouts.getValue(id)
             val w = if (page.portrait) portraitW else portraitH
             val h = if (page.portrait) portraitH else portraitW
-            val plan = planPage(console, layout, w, h, hardcore, coreId)
+            val plan = planPage(console, layout, w, h, hardcore, coreId, page.keypad, page.toggle)
             val prefix = "oe-${page.name}"
             val image = "$prefix.png"
-            val bitmap = page(pkg, id, layout, plan, w, h)
-            val descs = plan.elements.flatMap { descs(pkg, id, layout, layout.elements[it.index], it) }
+            val bitmap = page(pkg, id, layout, plan, w, h, page.keypad)
+            val elements = layout.elements(page.keypad)
+            val descs = plan.elements.flatMap { descs(pkg, id, layout, elements[it.index], it, page.keypad) }
             OverlayWriter.saveImages(outDir, image, bitmap, descs, prefix)
             bitmap.recycle()
             val viewport = plan.viewport.rect()
@@ -88,7 +90,7 @@ class OpenEmuxSkinRenderer(context: Context) {
      * without an image (its colours, shape, label or glyph) when the skin has none or it cannot be read.
      */
     fun templateImage(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage): ByteArray {
-        val path = pkg.image(id, image.file)
+        val path = pkg.image(id, image.path)
         val own = path?.let { p -> runCatching { pkg.source.open(p)?.use { it.readBytes() } }.getOrNull() }
         if (own != null && SkinTemplate.pngSize(own) == image.width to image.height) return own
         val box = RectF(0f, 0f, image.width.toFloat(), image.height.toFloat())
@@ -105,7 +107,7 @@ class OpenEmuxSkinRenderer(context: Context) {
         val layout = pkg.skin.layouts.getValue(id)
         val e = image.element
         return when (image.kind) {
-            TemplateImageKind.BACKGROUND -> blank(box).also { it.eraseColor(layout.background.color ?: DEFAULT_BACKGROUND) }
+            TemplateImageKind.BACKGROUND -> blank(box).also { it.eraseColor(layout.background(image.keypadPage).color ?: DEFAULT_BACKGROUND) }
             TemplateImageKind.FRAME -> blank(box).also { it.eraseColor(layout.frame?.colors?.frame ?: DEFAULT_FRAME) }
             TemplateImageKind.BUTTON, TemplateImageKind.KEYPAD -> shape(e!!, box)
             TemplateImageKind.ACTION -> glyph(OpenEmuxBinds.action(pkg.skin.console, e!!.bind, false)?.icon, box, layout.frame?.colors?.icons ?: DEFAULT_ICONS)
@@ -116,13 +118,13 @@ class OpenEmuxSkinRenderer(context: Context) {
         }
     }
 
-    /** The page's own image: the background, the frame, and the game's screens cut out of them. */
-    private fun page(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, plan: PagePlan, w: Int, h: Int): Bitmap {
+    /** The page's own image: the background ([keypad]: the keypad page's), the frame, and the game's screens cut out of them. */
+    private fun page(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, plan: PagePlan, w: Int, h: Int, keypad: Boolean): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(layout.background.color ?: DEFAULT_BACKGROUND)
+        canvas.drawColor(layout.background(keypad).color ?: DEFAULT_BACKGROUND)
         val whole = plan.fit.box(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height.toFloat())).rect()
-        pkg.background(id)?.let { draw(canvas, pkg, it, whole) }
+        pkg.background(id, keypad)?.let { draw(canvas, pkg, it, whole) }
         layout.frame?.let { frame ->
             val box = plan.fit.box(frame.rect).rect()
             val drawn = pkg.frame(id)?.let { draw(canvas, pkg, it, box) } == true
@@ -133,14 +135,20 @@ class OpenEmuxSkinRenderer(context: Context) {
         return bitmap
     }
 
-    /** The descs [plan] makes of [element]: its images and its touch area. */
-    private fun descs(pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, plan: ElementPlan): List<OverlayDesc> {
-        val files = pkg.images(id, element)
+    /** The descs [plan] makes of [element] (on the [keypad] page or the controls): its images and its touch area. */
+    private fun descs(
+        pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, plan: ElementPlan, keypad: Boolean,
+    ): List<OverlayDesc> {
+        val files = pkg.images(id, element, keypad)
         val box = plan.box.rect()
         return when (plan) {
             is ElementPlan.Button -> {
                 val image = image(pkg, files[0], box) ?: shape(element, box)
                 listOf(OverlayDesc(plan.bind ?: "nul", box, image = image))
+            }
+            is ElementPlan.Toggle -> {
+                val image = image(pkg, files[0], box) ?: shape(element, box)
+                listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = image))
             }
             is ElementPlan.Action -> {
                 val frame = layout.frame?.colors ?: SkinFrameColors()

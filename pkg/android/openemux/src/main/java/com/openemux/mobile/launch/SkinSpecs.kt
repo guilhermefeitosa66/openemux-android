@@ -70,17 +70,25 @@ fun withAppModes(touch: List<OverlaySpec>, collapsible: Boolean = true): List<Ov
  * without a fold), then the gamepad layout and its collapsed twin for each of its own pages and each tabletop one.
  * Its own pages are a plain "portrait" and "landscape", or, for an NDS package with one art per layout ([ndsLayouts],
  * the saved portrait and landscape ones), [ndsFlatSpecs]' pages; an NDS package without them shows the two screens
- * one over the other, [PACKAGE_NDS_LAYOUT].
+ * one over the other, [PACKAGE_NDS_LAYOUT]. On a console with a [keypad], the gamepad layout's keypad key opens the
+ * drawn keypad, as on the drawn skin: its keypad pages' gamepad twins too.
  */
 fun packageSpecs(
     gameAspect: Float, nds: Boolean, tabletop: List<OverlaySpec>,
-    ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, tablet: Boolean = false,
+    ndsLayouts: Pair<ScreenLayout, ScreenLayout>? = null, tablet: Boolean = false, keypad: Boolean = false,
 ): List<OverlaySpec> {
     val aspect = if (nds) PACKAGE_NDS_ASPECT else gameAspect
     val flat = ndsLayouts?.takeIf { nds }?.let { ndsFlatSpecs(it, tablet) }
-        ?: listOf(OverlaySpec("portrait", true, aspect, "landscape"), OverlaySpec("landscape", false, aspect, "portrait"))
+        ?: (listOf(OverlaySpec("portrait", true, aspect, "landscape"), OverlaySpec("landscape", false, aspect, "portrait")) +
+            if (keypad) keypadSpecs(aspect) else emptyList())
     return tabletop + listOf(false, true).flatMap { collapsed -> (flat + tabletop).map { it.twin(true, collapsed) } }
 }
+
+/** The keypad's pages, one per orientation, switched to by the keypad key; turning keeps the keypad open. */
+private fun keypadSpecs(aspect: Float) = listOf(
+    OverlaySpec("keypad-portrait", true, aspect, "keypad-landscape", keypadOpen = true),
+    OverlaySpec("keypad-landscape", false, aspect, "keypad-portrait", keypadOpen = true),
+)
 
 /** The NDS screens one over the other, as a package skin shows them. */
 const val PACKAGE_NDS_ASPECT = 256f / 384f
@@ -104,10 +112,7 @@ fun overlaySpecs(
     specs += OverlaySpec("portrait", true, gameAspect, "landscape")
     specs += OverlaySpec("landscape", false, gameAspect, "portrait")
     // The keypad is an overlay of its own per orientation, switched to by the keypad key.
-    if (keypad) {
-        specs += OverlaySpec("keypad-portrait", true, gameAspect, "keypad-landscape", keypadOpen = true)
-        specs += OverlaySpec("keypad-landscape", false, gameAspect, "keypad-portrait", keypadOpen = true)
-    }
+    if (keypad) specs += keypadSpecs(gameAspect)
     if (tabletop) {
         specs += OverlaySpec(TABLETOP, true, gameAspect, "landscape", tabletop = true)
         if (keypad) specs += OverlaySpec("keypad-$TABLETOP", true, gameAspect, "keypad-landscape", keypadOpen = true, tabletop = true)
@@ -117,13 +122,19 @@ fun overlaySpecs(
 
 /**
  * The tabletop overlays drawn under a package skin (ImportedSkinRenderer), which has no tabletop art of its own: its
- * overlays are a plain "portrait" and "landscape" pair with no keypad, and on NDS they show the screens [PACKAGE_NDS_LAYOUT].
+ * overlays are a plain "portrait" and "landscape" pair, and on NDS they show the screens [PACKAGE_NDS_LAYOUT]. On a
+ * console with a [keypad], the drawn keypad's tabletop page too; turning it switches to the package's keypad page when
+ * it has one ([packageKeypad], a skin in OpenEmux's format with keypad pages), else to its landscape page.
  */
 fun packageTabletopSpecs(
     gameAspect: Float, nds: Boolean, ndsTabletop: ScreenLayout? = null, ndsLandscape: ScreenLayout? = null, tablet: Boolean = false,
+    keypad: Boolean = false, packageKeypad: Boolean = false,
 ): List<OverlaySpec> =
     if (nds) ndsTabletopSpecs(ndsTabletop, ndsLandscape?.let { "landscape@${it.id}" } ?: "landscape", tablet)
-    else listOf(OverlaySpec(TABLETOP, true, gameAspect, "landscape", tabletop = true))
+    else listOf(OverlaySpec(TABLETOP, true, gameAspect, "landscape", tabletop = true)) + listOfNotNull(
+        OverlaySpec("keypad-$TABLETOP", true, gameAspect, if (packageKeypad) "keypad-landscape" else "landscape", keypadOpen = true, tabletop = true)
+            .takeIf { keypad },
+    )
 
 /** DeSmuME's screen layout under a package skin: its art draws the two screens one over the other. */
 const val PACKAGE_NDS_LAYOUT = "top/bottom"

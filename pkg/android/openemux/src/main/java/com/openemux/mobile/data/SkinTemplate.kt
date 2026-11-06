@@ -9,8 +9,21 @@ import kotlin.math.min
 /** What a template image is: the layout's background, the frame, or one of an element's images. */
 enum class TemplateImageKind { BACKGROUND, FRAME, BUTTON, KEYPAD, ACTION, DPAD, DPAD_BALL, STICK_BASE, STICK_KNOB }
 
-/** One image of a template: its [file] name in the layout's folder, its exact size, and the [element] it draws (if any). */
-data class TemplateImage(val file: String, val width: Int, val height: Int, val kind: TemplateImageKind, val element: SkinElement? = null)
+/**
+ * One image of a template: its [file] name, its exact size, and the [element] it draws (if any); [keypadPage] when it
+ * belongs to the layout's keypad page (issue 772), whose images are in the layout's `keypad/` folder.
+ */
+data class TemplateImage(
+    val file: String,
+    val width: Int,
+    val height: Int,
+    val kind: TemplateImageKind,
+    val element: SkinElement? = null,
+    val keypadPage: Boolean = false,
+) {
+    /** Where it is in the layout's folder: [file], or `keypad/<file>` on the keypad page. */
+    val path: String get() = if (keypadPage) "${SkinKeypadPage.FOLDER}/$file" else file
+}
 
 /**
  * "Download as template" (issue 787): a skin of the player's as a zip a creator can repaint on a computer and import
@@ -27,29 +40,39 @@ object SkinTemplate {
 
     const val README = "README.txt"
 
-    /** Every image [layout] can have, in the order the README lists them. */
+    /**
+     * Every image [layout] can have, in the order the README lists them: the controls page's, then its keypad page's
+     * (its own background, when it names one, and its controls).
+     */
     fun images(layout: SkinLayout): List<TemplateImage> = buildList {
         add(TemplateImage(layout.background.imageFile, layout.size.width, layout.size.height, TemplateImageKind.BACKGROUND))
         layout.frame?.let { add(TemplateImage(it.imageFile, px(it.rect.width), px(it.rect.height), TemplateImageKind.FRAME)) }
-        for (e in layout.elements) {
-            val w = px(e.rect.width)
-            val h = px(e.rect.height)
-            val files = e.imageFiles
-            when (e.type) {
-                SkinElementType.DPAD -> {
-                    val side = px(min(w, h) * BALL_SHARE)
-                    add(TemplateImage(files[0], w, h, TemplateImageKind.DPAD, e))
-                    add(TemplateImage(files[1], side, side, TemplateImageKind.DPAD_BALL, e))
-                }
-                SkinElementType.STICK -> {
-                    val side = px(min(w, h) * KNOB_SHARE)
-                    add(TemplateImage(files[0], w, h, TemplateImageKind.STICK_BASE, e))
-                    add(TemplateImage(files[1], side, side, TemplateImageKind.STICK_KNOB, e))
-                }
-                SkinElementType.BUTTON -> add(TemplateImage(files[0], w, h, TemplateImageKind.BUTTON, e))
-                SkinElementType.KEYPAD -> add(TemplateImage(files[0], w, h, TemplateImageKind.KEYPAD, e))
-                SkinElementType.ACTION -> add(TemplateImage(files[0], w, h, TemplateImageKind.ACTION, e))
+        layout.elements.forEach { addAll(elementImages(it, keypadPage = false)) }
+        layout.keypad?.let { page ->
+            page.background?.let {
+                add(TemplateImage(it.imageFile, layout.size.width, layout.size.height, TemplateImageKind.BACKGROUND, keypadPage = true))
             }
+            page.elements.forEach { addAll(elementImages(it, keypadPage = true)) }
+        }
+    }
+
+    private fun elementImages(e: SkinElement, keypadPage: Boolean): List<TemplateImage> {
+        val w = px(e.rect.width)
+        val h = px(e.rect.height)
+        val files = e.imageFiles
+        fun image(i: Int, iw: Int, ih: Int, kind: TemplateImageKind) = TemplateImage(files[i], iw, ih, kind, e, keypadPage)
+        return when (e.type) {
+            SkinElementType.DPAD -> {
+                val side = px(min(w, h) * BALL_SHARE)
+                listOf(image(0, w, h, TemplateImageKind.DPAD), image(1, side, side, TemplateImageKind.DPAD_BALL))
+            }
+            SkinElementType.STICK -> {
+                val side = px(min(w, h) * KNOB_SHARE)
+                listOf(image(0, w, h, TemplateImageKind.STICK_BASE), image(1, side, side, TemplateImageKind.STICK_KNOB))
+            }
+            SkinElementType.BUTTON -> listOf(image(0, w, h, TemplateImageKind.BUTTON))
+            SkinElementType.KEYPAD -> listOf(image(0, w, h, TemplateImageKind.KEYPAD))
+            SkinElementType.ACTION -> listOf(image(0, w, h, TemplateImageKind.ACTION))
         }
     }
 
@@ -76,7 +99,7 @@ object SkinTemplate {
             }
             for (image in images(layout)) {
                 val bind = image.element?.let { ", bind ${it.bind}" }.orEmpty()
-                lines += "  ${image.file.padEnd(22)} ${image.width.toString().padStart(5)} x ${image.height.toString().padEnd(5)} px  ${what(image.kind)}$bind"
+                lines += "  ${image.path.padEnd(22)} ${image.width.toString().padStart(5)} x ${image.height.toString().padEnd(5)} px  ${what(image.kind)}$bind"
             }
             lines += ""
         }
@@ -99,7 +122,7 @@ object SkinTemplate {
         put(SkinFormat.SKIN_JSON, skinJson.toByteArray(Charsets.UTF_8))
         put(README, readme(skin).toByteArray(Charsets.UTF_8))
         for ((id, layout) in skin.layouts) {
-            for (img in images(layout)) put("${id.id}/${img.file}", image(id, img))
+            for (img in images(layout)) put("${id.id}/${img.path}", image(id, img))
         }
         zip.finish()
     }
