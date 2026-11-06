@@ -194,6 +194,14 @@ exact sizes, and a guide (`tools/skins/templates/README.md`) to the files,
 layouts, colours, binds and the install step. `ASSET-PLAN.md` there lists the
 elements of a skin for every console the app runs.
 
+One of the player's own skins can go to another Android device on the local
+network: "Share" in its actions sheet opens Share nearby with that one skin
+(`share/SkinShare.kt`). It travels as a zip of the skin's folder, an item of
+kind `skin` in an entry with no ROM, and the other device imports it as a new
+skin of its own for the same console, which is not put in use by arriving. The
+desktop app has no skins, so a computer cannot be picked; an OpenEmux from
+before the kind answers it `skip`, like any kind it does not know.
+
 On a foldable, `SkinRenderer` also draws a tabletop shape for the half-open
 posture with the fold across the screen: the picture on the top half, the
 controls on the bottom one, nothing within 12 dp of the fold, and on NDS one

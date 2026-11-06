@@ -2,6 +2,7 @@ package com.openemux.mobile.share
 
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.RomMeta
+import com.openemux.mobile.data.SkinFormat
 import org.json.JSONArray
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -149,6 +150,45 @@ class ShareTransferLoopbackTest {
         val newer = transfer(sender.buildManifest(senderLib, listOf(rom)))
         assertEquals(listOf(File(r.saves(Console.SFC), "Game (USA).srm")), newer.received.replaced)
         same(save, File(r.saves(Console.SFC), "Game (USA).srm"))
+    }
+
+    private fun skinManifest() = SkinShare.build(senderLib, SkinToSend(Console.SFC, "night", "Night"), File(senderLib.paths.internal, "share-skin"))
+
+    @Test
+    fun `a controller skin goes from one device's skins to the other's`() {
+        val images = mapOf("phone-portrait/a.png" to PNG, "phone-landscape/background.png" to JPEG)
+        val mine = senderLib.ownSkin("night", images = images)
+        // The receiver has a skin of its own by that name: it stays, and the one that comes is another.
+        val theirs = receiverLib.ownSkin("night", images = mapOf("phone-portrait/a.png" to WEBP))
+
+        val run = transfer(skinManifest())
+        assertEquals(SendResult(SendResult.DONE, listOf("g1i1")), run.sent)
+        assertEquals(TransferStatus.DONE, run.received.status)
+        val dir = File(receiverLib.skins.root(Console.SFC), "night-2")
+        assertEquals(listOf(dir), run.received.placed)
+        val arrived = SkinFormat.readFolder(dir)
+        assertEquals(SkinFormat.readFolder(mine).skin.copy(name = "Night (2)"), arrived.skin)
+        assertEquals(images.keys + "skin.json", arrived.source.files)
+        for ((path, bytes) in images) assertArrayEquals(path, bytes, File(dir, path).readBytes())
+        assertArrayEquals(WEBP, File(theirs, "phone-portrait/a.png").readBytes())
+        assertEquals(listOf("Night", "Night (2)"), receiverLib.skins.list(Console.SFC).map { it.name })
+        // The sender keeps its skin as it was.
+        assertEquals(listOf("Night"), senderLib.skins.list(Console.SFC).map { it.name })
+        assertEquals(listOf(listOf("night")), receiverLib.skinImports)
+    }
+
+    @Test
+    fun `a receiver from before skins answers the kind with a skip, and the send ends with nothing gone`() {
+        senderLib.ownSkin("night")
+        val done = CountDownLatch(1)
+        val sent = AtomicReference<SendResult>()
+        sender.send(client(), skinManifest(), onDone = { sent.set(it); done.countDown() })
+        val offer = awaitOffer()
+        // What it does with a kind it does not know (and what the desktop app does): invalid_item, nothing asked for.
+        receiver.accept(offer.offerId, listOf(ItemAnswer.skip("g1i1", SkipReason.INVALID_ITEM)))
+        assertTrue(done.await(20, TimeUnit.SECONDS))
+        assertEquals(SendResult(SendResult.DONE, emptyList(), listOf("g1i1" to SkipReason.INVALID_ITEM)), sent.get())
+        assertTrue(receiverLib.skins.list(Console.SFC).isEmpty())
     }
 
     @Test

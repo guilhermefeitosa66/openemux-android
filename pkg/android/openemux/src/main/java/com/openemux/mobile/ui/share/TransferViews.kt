@@ -146,7 +146,7 @@ fun ResultView(result: ShareResult, onClose: () -> Unit, onShow: (() -> Unit)?) 
     val short = ok && result.missing.isNotEmpty()
     val none = short && result.games == 0
     val peer = result.peer
-    val (title, body) = when (result.kind) {
+    val (title, body) = (if (result.skin) skinResultText(result) else null) ?: when (result.kind) {
         ResultKind.RECEIVED -> when {
             none -> stringResource(R.string.share_result_received_none) to stringResource(R.string.share_result_received_none_body, peer)
             short -> countString(R.plurals.share_result_received_partial, result.total, result.games, result.total) to
@@ -202,7 +202,11 @@ fun ResultView(result: ShareResult, onClose: () -> Unit, onShow: (() -> Unit)?) 
             )
             Card {
                 result.missing.forEachIndexed { i, game ->
-                    val reason = if (result.outgoing) sentSkipText(game.reason, peer) else skipText(game.reason.orEmpty())
+                    val reason = when {
+                        !result.outgoing -> skipText(game.reason.orEmpty())
+                        result.skin -> skinSentSkipText(game.reason, peer)
+                        else -> sentSkipText(game.reason, peer)
+                    }
                     ListRow(game.title, subtitle = consoleShort(game.console) + " · " + reason, divider = i > 0, subtitleLines = 2)
                 }
             }

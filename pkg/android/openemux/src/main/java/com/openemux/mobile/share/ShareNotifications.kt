@@ -57,23 +57,27 @@ class ShareNotifications(private val app: Context) : ShareNotifier {
         builder.setContentTitle(title)
         if (!notice.waiting) {
             builder.setContentText(
-                c.resources.getQuantityString(
-                    R.plurals.share_notif_progress_text, notice.games, notice.games,
-                    sizeLabel(c, notice.done), sizeLabel(c, notice.total),
-                ),
+                if (notice.skin) {
+                    c.getString(R.string.share_progress_bytes, sizeLabel(c, notice.done), sizeLabel(c, notice.total))
+                } else {
+                    c.resources.getQuantityString(
+                        R.plurals.share_notif_progress_text, notice.games, notice.games,
+                        sizeLabel(c, notice.done), sizeLabel(c, notice.total),
+                    )
+                },
             )
         }
         val percent = notice.percent
         return builder.setProgress(100, percent ?: 0, percent == null).build()
     }
 
-    override fun offer(sender: String, code: String) {
+    override fun offer(sender: String, code: String, skin: Boolean) {
         val c = context
         post(
             ID_OFFER,
             NotificationCompat.Builder(c, CHANNEL_OFFERS)
                 .setSmallIcon(R.drawable.ic_stat_share)
-                .setContentTitle(c.getString(R.string.share_notif_offer_title, sender))
+                .setContentTitle(c.getString(if (skin) R.string.share_skin_notif_offer_title else R.string.share_notif_offer_title, sender))
                 .setContentText(c.getString(R.string.share_notif_offer_text, ShareFormat.formatCode(code)))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -88,7 +92,7 @@ class ShareNotifications(private val app: Context) : ShareNotifier {
 
     override fun finished(result: ShareResult) {
         val c = context
-        val title = when (result.kind) {
+        val title = skinTitle(c, result) ?: when (result.kind) {
             ResultKind.RECEIVED -> withSkipped(c.resources.getQuantityString(R.plurals.share_notif_done_received, result.games, result.games), result)
             ResultKind.SENT -> withSkipped(c.resources.getQuantityString(R.plurals.share_notif_done_sent, result.games, result.games), result)
             ResultKind.CANCELLED -> c.getString(R.string.share_result_cancelled_title)
@@ -107,6 +111,17 @@ class ShareNotifications(private val app: Context) : ShareNotifier {
                 .setContentIntent(openApp(2))
                 .build(),
         )
+    }
+
+    /** How a transfer of a controller skin ended, when that is to say it went or it did not; null for the rest. */
+    private fun skinTitle(c: Context, result: ShareResult): String? {
+        if (!result.skin) return null
+        val went = result.games > 0
+        return when (result.kind) {
+            ResultKind.RECEIVED -> c.getString(if (went) R.string.share_skin_result_received_title else R.string.share_skin_result_received_none)
+            ResultKind.SENT -> c.getString(if (went) R.string.share_skin_result_sent_title else R.string.share_skin_result_sent_none)
+            else -> null
+        }
     }
 
     /** "2 games received, 1 skipped": the games that did not arrive are never left out of the count (#615). */

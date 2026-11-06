@@ -12,6 +12,7 @@ import com.openemux.mobile.data.Rom
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.SocketException
@@ -39,6 +40,8 @@ interface ShareLayer {
     fun ownAddress(): ShareAddress?
 
     fun buildManifest(roms: List<Rom>, onProgress: (Long, Long) -> Unit, cancelled: () -> Boolean): BuiltManifest
+    /** The manifest that offers one controller skin of the player's own ([SkinShare]). */
+    fun buildSkinManifest(skin: SkinToSend, cancelled: () -> Boolean): BuiltManifest
     /** Offers [built] to [peer]; the returned call cancels it. */
     fun send(peer: Peer, built: BuiltManifest, onCode: (String) -> Unit, onProgress: (TransferProgress) -> Unit, onDone: (SendResult) -> Unit): () -> Unit
     fun plan(offer: IncomingOffer, overrides: Map<String, Policy>): ReceivePlan
@@ -112,6 +115,10 @@ class ServiceShareLayer(
 
     override fun buildManifest(roms: List<Rom>, onProgress: (Long, Long) -> Unit, cancelled: () -> Boolean) =
         service.buildManifest(library, roms, onProgress, cancelled)
+
+    // The zip is only needed while it is offered: in the cache, where the next one writes over it.
+    override fun buildSkinManifest(skin: SkinToSend, cancelled: () -> Boolean) =
+        SkinShare.build(library, skin, File(context.cacheDir, "share-skin"), cancelled)
 
     override fun send(peer: Peer, built: BuiltManifest, onCode: (String) -> Unit, onProgress: (TransferProgress) -> Unit, onDone: (SendResult) -> Unit): () -> Unit {
         val transfer = service.send(service.client(peer), built, onCode, onProgress, onDone)

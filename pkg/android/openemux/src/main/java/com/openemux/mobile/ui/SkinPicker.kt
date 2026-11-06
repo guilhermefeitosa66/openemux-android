@@ -80,6 +80,7 @@ import com.openemux.mobile.launch.ImportedSkinRenderer
 import com.openemux.mobile.launch.SkinConversion
 import com.openemux.mobile.launch.OpenEmuxSkinRenderer
 import com.openemux.mobile.launch.skinForm
+import com.openemux.mobile.ui.share.rememberSkinShare
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -291,6 +292,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     var reading by remember { mutableStateOf(false) }
     // An import still writing: picking another file meanwhile would clear the cache folder under it.
     var writing by remember { mutableStateOf(false) }
+    val shareSkin = rememberSkinShare(console)
 
     // Issue 787: the template is written straight into the document the player picked.
     val saveTemplate = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -390,6 +392,9 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
                 }
                 ActionRow(Icons.Download, stringResource(R.string.skins_template), sub = stringResource(R.string.skins_template_sub)) {
                     ownSheet = null; templating = skin
+                }
+                ActionRow(Icons.Share, stringResource(R.string.share_skin_action), sub = stringResource(R.string.share_skin_action_sub)) {
+                    ownSheet = null; shareSkin(skin)
                 }
             }
             ActionRow(

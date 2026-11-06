@@ -257,4 +257,22 @@
         <item quantity="one">%1$d omitido</item>
         <item quantity="other">%1$d omitidos</item>
     </plurals>
+    <string name="share_skin_action">Compartir</string>
+    <string name="share_skin_action_sub">Con otro dispositivo Android en esta red</string>
+    <string name="share_items_skin">Skin del mando</string>
+    <string name="share_kind_skin">skin del mando</string>
+    <string name="share_skin_device_desktop">%1$s · las skins solo van a dispositivos Android</string>
+    <string name="share_skin_offer_title">Skin entrante</string>
+    <string name="share_skin_offer_lead">quiere enviarte una skin del mando (%1$s).</string>
+    <string name="share_skin_notif_offer_title">Skin entrante de %1$s</string>
+    <string name="share_skin_result_received_title">Skin recibida</string>
+    <string name="share_skin_result_received_body">De %1$s. Está en tus skins de %2$s.</string>
+    <string name="share_skin_result_received_none">Skin no recibida</string>
+    <string name="share_skin_result_received_none_body">De %1$s. No se añadió nada.</string>
+    <string name="share_skin_result_sent_title">Skin enviada</string>
+    <string name="share_skin_result_sent_body">Ahora la tiene %1$s.</string>
+    <string name="share_skin_result_sent_none">Skin no enviada</string>
+    <string name="share_skin_result_sent_none_body">%1$s no la aceptó.</string>
+    <string name="share_skin_result_declined_body">%1$s rechazó la skin.</string>
+    <string name="share_skin_reason_sent">%1$s no puede recibir esta skin. Puede que su OpenEmux necesite actualizarse.</string>
 </resources>

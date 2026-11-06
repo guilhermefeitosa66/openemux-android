@@ -257,4 +257,23 @@
         <item quantity="one">%1$d skipped</item>
         <item quantity="other">%1$d skipped</item>
     </plurals>
+    <!-- One of the player's own controller skins sent to another Android device (the skin list's Share). -->
+    <string name="share_skin_action">Share</string>
+    <string name="share_skin_action_sub">With another Android device on this network</string>
+    <string name="share_items_skin">Controller Skin</string>
+    <string name="share_kind_skin">controller skin</string>
+    <string name="share_skin_device_desktop">%1$s · skins only go to Android devices</string>
+    <string name="share_skin_offer_title">Incoming Skin</string>
+    <string name="share_skin_offer_lead">wants to send you a controller skin (%1$s).</string>
+    <string name="share_skin_notif_offer_title">Incoming skin from %1$s</string>
+    <string name="share_skin_result_received_title">Skin Received</string>
+    <string name="share_skin_result_received_body">From %1$s. It’s in your %2$s skins.</string>
+    <string name="share_skin_result_received_none">Skin Not Received</string>
+    <string name="share_skin_result_received_none_body">From %1$s. Nothing was added.</string>
+    <string name="share_skin_result_sent_title">Skin Sent</string>
+    <string name="share_skin_result_sent_body">%1$s has it now.</string>
+    <string name="share_skin_result_sent_none">Skin Not Sent</string>
+    <string name="share_skin_result_sent_none_body">%1$s didn’t take it.</string>
+    <string name="share_skin_result_declined_body">%1$s declined the skin.</string>
+    <string name="share_skin_reason_sent">%1$s can’t take this skin. OpenEmux there may need an update.</string>
 </resources>

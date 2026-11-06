@@ -257,4 +257,22 @@
         <item quantity="one">%1$d ignorado</item>
         <item quantity="other">%1$d ignorados</item>
     </plurals>
+    <string name="share_skin_action">Compartilhar</string>
+    <string name="share_skin_action_sub">Com outro aparelho Android nesta rede</string>
+    <string name="share_items_skin">Skin do controle</string>
+    <string name="share_kind_skin">skin do controle</string>
+    <string name="share_skin_device_desktop">%1$s · skins só vão para aparelhos Android</string>
+    <string name="share_skin_offer_title">Skin chegando</string>
+    <string name="share_skin_offer_lead">quer enviar uma skin do controle para você (%1$s).</string>
+    <string name="share_skin_notif_offer_title">Skin chegando de %1$s</string>
+    <string name="share_skin_result_received_title">Skin recebida</string>
+    <string name="share_skin_result_received_body">De %1$s. Está nas suas skins de %2$s.</string>
+    <string name="share_skin_result_received_none">Skin não recebida</string>
+    <string name="share_skin_result_received_none_body">De %1$s. Nada foi adicionado.</string>
+    <string name="share_skin_result_sent_title">Skin enviada</string>
+    <string name="share_skin_result_sent_body">Agora está em %1$s.</string>
+    <string name="share_skin_result_sent_none">Skin não enviada</string>
+    <string name="share_skin_result_sent_none_body">%1$s não aceitou a skin.</string>
+    <string name="share_skin_result_declined_body">%1$s recusou a skin.</string>
+    <string name="share_skin_reason_sent">%1$s não consegue receber esta skin. Talvez o OpenEmux de lá precise ser atualizado.</string>
 </resources>

@@ -73,6 +73,7 @@ fun partName(part: SendPart): String = stringResource(
         SendPart.LABEL -> R.string.share_items_label
         SendPart.BIOS -> R.string.share_items_bios
         SendPart.DETAILS -> R.string.share_items_details
+        SendPart.SKIN -> R.string.share_items_skin
     },
 )
 
@@ -84,6 +85,7 @@ fun kindName(kind: String): String = stringResource(
         Item.STATE -> R.string.share_kind_state
         Item.COVER -> R.string.share_kind_cover
         Item.BIOS -> R.string.share_kind_bios
+        Item.SKIN -> R.string.share_kind_skin
         else -> R.string.share_kind_label
     },
 )

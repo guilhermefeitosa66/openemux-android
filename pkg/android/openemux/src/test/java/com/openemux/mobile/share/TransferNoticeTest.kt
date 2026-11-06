@@ -30,6 +30,14 @@ class TransferNoticeTest {
     }
 
     @Test
+    fun `a skin on its way is told from games`() {
+        assertFalse(TransferNotice.of(TransferState.Running(true, "Tab", 1, progress(250, 1000)))!!.skin)
+        val skin = TransferNotice.of(TransferState.Running(true, "Tab", 1, progress(250, 1000), skin = true))!!
+        assertEquals(TransferNotice(true, "Tab", false, 1, 250, 1000, skin = true), skin)
+        assertFalse(TransferNotice.of(TransferState.Waiting("Tab", null))!!.skin)
+    }
+
+    @Test
     fun `there is nothing to show when idle or finished`() {
         assertNull(TransferNotice.of(TransferState.Idle))
         assertNull(TransferNotice.of(TransferState.Finished(ShareResult(ResultKind.SENT, true, "Desk"))))

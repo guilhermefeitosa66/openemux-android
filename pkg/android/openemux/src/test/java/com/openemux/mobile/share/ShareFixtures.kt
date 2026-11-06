@@ -2,17 +2,31 @@ package com.openemux.mobile.share
 
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.CoreDef
+import com.openemux.mobile.data.OpenEmuxSkin
 import com.openemux.mobile.data.Paths
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.RomMeta
 import com.openemux.mobile.data.SCRATCH_SLOT
 import com.openemux.mobile.data.SaveState
+import com.openemux.mobile.data.SkinBackground
+import com.openemux.mobile.data.SkinElement
+import com.openemux.mobile.data.SkinElementType
+import com.openemux.mobile.data.SkinFormat
+import com.openemux.mobile.data.SkinFrame
+import com.openemux.mobile.data.SkinLayout
+import com.openemux.mobile.data.SkinLayoutId
+import com.openemux.mobile.data.SkinRect
+import com.openemux.mobile.data.SkinSize
 import com.openemux.mobile.data.titleFromFileName
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /** PNG, JPEG and WebP heads, enough for the receiver's image check. */
 val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4)
@@ -45,6 +59,10 @@ class FakeLibrary(root: File = Files.createTempDirectory("share-lib").toFile()) 
     val consoleCore = mutableMapOf<Console, String>()
     var failOnReceived = false
     var failOnUpdate = false
+    /** The skin folders there were each time a received skin was about to be imported. */
+    val skinImports = mutableListOf<List<String>>()
+    /** Which import (1 for the first) fails before anything is written, or null. */
+    var failSkinImport: Int? = null
 
     init {
         paths.base.mkdirs()
@@ -75,6 +93,18 @@ class FakeLibrary(root: File = Files.createTempDirectory("share-lib").toFile()) 
         received += placed
     }
 
+    override fun beforeSkinImport() {
+        skinImports += File(paths.base, "skins").walkTopDown().filter { it.name == SkinFormat.SKIN_JSON }.map { it.parentFile.name }.sorted().toList()
+        if (skinImports.size == failSkinImport) throw IOException("meta.json is read-only")
+    }
+
+    /** One of the player's own skins, as the store keeps it: a folder with its skin.json and [images]. */
+    fun ownSkin(id: String, skin: OpenEmuxSkin = testSkin(), images: Map<String, ByteArray> = mapOf("phone-portrait/a.png" to PNG)): File =
+        File(skins.root(skin.console), id).apply {
+            File(this, SkinFormat.SKIN_JSON).put(SkinFormat.toJson(skin))
+            images.forEach { (path, bytes) -> File(this, path).put(bytes) }
+        }
+
     /** The same rule as `Library.states`. */
     override fun states(rom: Rom): List<SaveState> {
         val prefix = "${rom.baseName}.state"
@@ -92,6 +122,30 @@ class FakeLibrary(root: File = Files.createTempDirectory("share-lib").toFile()) 
             }
     }
 }
+
+/** A skin in OpenEmux's format with a phone's two layouts, two buttons each. */
+fun testSkin(name: String = "Night", console: Console = Console.SFC, ids: List<SkinLayoutId> = listOf(SkinLayoutId.PHONE_PORTRAIT, SkinLayoutId.PHONE_LANDSCAPE)): OpenEmuxSkin {
+    val layout = SkinLayout(
+        SkinSize(100, 200), listOf(SkinRect(0f, 0f, 100f, 60f)), SkinBackground(0xFF112233.toInt()),
+        frame = SkinFrame(SkinRect(0f, 0f, 100f, 70f)),
+        elements = listOf(
+            SkinElement("a", SkinElementType.BUTTON, "a", SkinRect(10f, 100f, 20f, 20f), colors = mapOf("button" to 0xFFCC0000.toInt())),
+            SkinElement("b", SkinElementType.BUTTON, "b", SkinRect(40f, 100f, 20f, 20f)),
+        ),
+    )
+    return OpenEmuxSkin(console, name, ids.associateWith { layout })
+}
+
+/** [files] (path to bytes) zipped, as a skin travels. */
+fun zipBytes(files: Map<String, ByteArray>): ByteArray = ByteArrayOutputStream().also { out ->
+    ZipOutputStream(out).use { zip ->
+        files.forEach { (path, bytes) -> zip.putNextEntry(ZipEntry(path)); zip.write(bytes); zip.closeEntry() }
+    }
+}.toByteArray()
+
+/** [skin] zipped with [images], as the sender's export writes it. */
+fun skinZipBytes(skin: OpenEmuxSkin = testSkin(), images: Map<String, ByteArray> = mapOf("phone-portrait/a.png" to PNG)): ByteArray =
+    zipBytes(mapOf(SkinFormat.SKIN_JSON to SkinFormat.toJson(skin).toByteArray()) + images)
 
 /** A manifest built by hand, item by item, then parsed like the server does. */
 class ManifestDsl {
