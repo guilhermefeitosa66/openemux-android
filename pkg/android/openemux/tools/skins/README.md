@@ -20,7 +20,7 @@ Every console comes in two variants. `console` is the console's own colors
 same layout run through one palette the engine applies to every console
 (`DARK` and `darkPalette` in the engine): a black body, the controls in a
 dark grey and the labels in a muted grey, for playing with the lights off.
-Only colors change; the build stops if a Dark representation's frames,
+Only colors change; the build stops if a Dark layout's frames,
 screens or knobs differ from the console's own. The app picks the variant
 per console (the "Default skin" setting).
 
