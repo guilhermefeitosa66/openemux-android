@@ -225,6 +225,19 @@ class SkinImportTest {
         assertEquals(emptyList<String>(), leftovers())
     }
 
+    @Test fun webpImagesKeepTheirNameWhenImportedAndAsTheReplacedSkinsFallback() {
+        // Issue 806: a WebP image is taken as it is, under its own name, from the zip or from the skin it replaces.
+        val old = own("mine", skin("My skin"), mapOf("phone-portrait/b.webp" to IMG_B, "phone-landscape/frame.webp" to IMG_B))
+        val z = skinZip(skin("Zip name"), images = mapOf("phone-portrait/a.webp" to IMG_A, "phone-landscape/frame.png" to IMG_A))
+        assertEquals("own:mine", store.importOwn(Console.SFC, z, "ignored", replace = "mine"))
+        assertArrayEquals(IMG_A, File(old, "phone-portrait/a.webp").readBytes())
+        assertArrayEquals(IMG_B, File(old, "phone-portrait/b.webp").readBytes())
+        // The zip's PNG wins over the old WebP of the same image: one file per image.
+        assertArrayEquals(IMG_A, File(old, "phone-landscape/frame.png").readBytes())
+        assertEquals(setOf("skin.json", "phone-portrait/a.webp", "phone-portrait/b.webp", "phone-landscape/frame.png"), files(old))
+        assertEquals(emptyList<String>(), leftovers())
+    }
+
     @Test fun replacingASkinDropsItsEditorDraft() {
         val dir = own("mine")
         store.saveDraft(Console.SFC, "mine", File(dir, SkinFormat.SKIN_JSON).readText())

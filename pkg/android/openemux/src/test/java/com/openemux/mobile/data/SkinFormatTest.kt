@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Rule
@@ -153,6 +154,31 @@ class SkinFormatTest {
         assertNull(pkg.background(SkinLayoutId.TABLET_PORTRAIT)) // a folder with no layout entry is not a layout
         assertEquals(listOf<Byte>(1, 2, 3), pkg.source.open("phone-portrait/dpad.png")!!.use { it.readBytes() }.toList())
         assertNull(pkg.source.open("phone-portrait/frame.png"))
+    }
+
+    @Test fun anImageMayBeWebpInsteadOfPng() {
+        // Issue 806: <name>.webp stands for <name>.png, in the layout's folder and its keypad page's.
+        assertEquals(listOf("a.png", "a.webp"), SkinFormat.imageNames("a.png"))
+        assertEquals(listOf("keypad/key-1.png", "keypad/key-1.webp"), SkinFormat.imageNames("keypad/key-1.png"))
+        val pkg = SkinFormat.readFolder(folder(full, "phone-portrait/bg-dark.webp", "phone-portrait/dpad.png", "phone-portrait/dpad-ball.webp"))
+        val p = SkinLayoutId.PHONE_PORTRAIT
+        assertEquals("phone-portrait/bg-dark.webp", pkg.background(p))
+        assertEquals(listOf("phone-portrait/dpad.png", "phone-portrait/dpad-ball.webp"), pkg.images(p, full.layouts.getValue(p).elements[0]))
+        assertEquals("phone-portrait/x.webp", SkinPackage(full, FolderSkinSource(folder(full, "phone-portrait/x.webp"))).image(p, "x.png"))
+        assertNull(pkg.image(p, "nothing.png"))
+    }
+
+    @Test fun anImageAsBothPngAndWebpIsADuplicate() {
+        val dir = folder(full, "phone-portrait/dpad.png", "fold-landscape/x.png", "fold-landscape/x.webp")
+        val e = assertThrows(SkinFormatException::class.java) { SkinFormat.readFolder(dir) }
+        assertEquals(SkinError.DUPLICATE_ID, e.error)
+        assertEquals("layouts.fold-landscape", e.path)
+        assertTrue(e.message!!, "x.png and x.webp" in e.message!!)
+        // One name in two layouts, or a pair in a folder that is not one of the skin's layouts, is fine.
+        SkinFormat.readFolder(folder(full, "phone-portrait/x.png", "fold-landscape/x.webp", "tablet-portrait/x.png", "tablet-portrait/x.webp", "notes/x.png", "notes/x.webp"))
+        // In a keypad page's folder too.
+        val keypad = folder(full, "phone-portrait/keypad/key-1.png", "phone-portrait/keypad/key-1.webp")
+        assertEquals("layouts.phone-portrait", assertThrows(SkinFormatException::class.java) { SkinFormat.readFolder(keypad) }.path)
     }
 
     @Test fun aFolderWithNoSkinJsonIsRefused() {

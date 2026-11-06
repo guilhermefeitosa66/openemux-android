@@ -267,15 +267,20 @@ class SkinStore(private val base: File) {
             for ((layoutId, layout) in pkg.skin.layouts.filterKeys { it in kept }) {
                 val files = SkinTemplate.images(layout).map { it.path }.distinct()
                 for (file in files) {
-                    val out = File(tmp, "${layoutId.id}/$file")
+                    // Each image keeps the name it has, PNG or WebP (issue 806), the zip's or the replaced skin's.
                     val copied = pkg.image(layoutId, file)?.let { path ->
+                        val out = File(tmp, path)
                         out.parentFile!!.mkdirs()
                         pkg.source.open(path)!!.use { input ->
                             out.outputStream().use { SkinImport.copyLimited(input, it, minOf(SkinImport.MAX_IMAGE, budget)) }
                         }
-                    } ?: target?.let { File(it, "${layoutId.id}/$file") }?.takeIf { it.isFile && !isLink(it) }?.let { old ->
+                    } ?: target?.let { dir ->
+                        SkinFormat.imageNames(file).map { "${layoutId.id}/$it" }
+                            .firstOrNull { File(dir, it).let { f -> f.isFile && !isLink(f) } }
+                    }?.let { path ->
+                        val out = File(tmp, path)
                         out.parentFile!!.mkdirs()
-                        old.copyTo(out, overwrite = true).length()
+                        File(target, path).copyTo(out, overwrite = true).length()
                     } ?: 0L
                     budget -= copied
                 }
