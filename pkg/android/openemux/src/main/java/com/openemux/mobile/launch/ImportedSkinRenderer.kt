@@ -544,6 +544,11 @@ class ImportedSkinRenderer {
                 } finally {
                     tmp.delete()
                 }
+                // A copy of a package the app no longer ships under this name (issue 806: FC.deltaskin became FC.zip)
+                // would otherwise stay in the cache for good.
+                out.parentFile?.listFiles()
+                    ?.filter { it.isFile && it.name != name && it.name.substringBeforeLast('.') == console.id }
+                    ?.forEach { it.delete() }
             }
             return out
         }
