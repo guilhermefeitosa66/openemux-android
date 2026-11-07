@@ -1,6 +1,5 @@
 package com.openemux.mobile.ui
 
-import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openemux.mobile.AppLocale
+import com.openemux.mobile.findActivity
 import com.openemux.mobile.data.AchievementsState
 import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Console
@@ -468,7 +468,7 @@ private fun LanguageOptions(background: androidx.compose.ui.graphics.Color = Oe.
     (listOf(Triple("", stringResource(R.string.settings_theme_system), "")) + AppLocale.LANGUAGES).forEach { (tag, name, flag) ->
         RadioCard(
             language == tag, name, if (tag.isEmpty()) stringResource(R.string.settings_language_system_desc) else "",
-            onClick = { onPicked(); if (tag != language) AppLocale.set(context as Activity, tag) },
+            onClick = { onPicked(); if (tag != language) AppLocale.set(context.findActivity(), tag) },
             background = background,
             leading = {
                 // The system choice has no flag: a globe of the same size keeps the column aligned.

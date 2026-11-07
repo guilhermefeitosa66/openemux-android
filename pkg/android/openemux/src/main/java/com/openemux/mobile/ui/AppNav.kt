@@ -1,6 +1,5 @@
 package com.openemux.mobile.ui
 
-import android.app.Activity
 import android.net.Uri
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -85,6 +84,7 @@ import com.openemux.mobile.ui.share.IncomingOfferSheet
 import com.openemux.mobile.ui.share.ShareScreen
 import com.openemux.mobile.ui.share.WhatToSendScreen
 import com.openemux.mobile.OpenEmuxApp
+import com.openemux.mobile.findActivity
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.Setup
 import com.retroarch.R
@@ -159,7 +159,7 @@ fun OpenEmuxRoot() {
             if (launching == null) {
                 launching = rom
                 scope.launch {
-                    runCatching { app.launcher.launch(context as Activity, rom, resume, slot) }
+                    runCatching { app.launcher.launch(context.findActivity(), rom, resume, slot) }
                         .onFailure { launching = null }
                 }
             }
