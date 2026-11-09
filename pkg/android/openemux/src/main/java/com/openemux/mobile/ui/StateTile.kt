@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.sp
 import com.retroarch.R
 import java.io.File
 
+/** Behind the slot tag and the three dots: a grey that also shows on a black bar, where a plain scrim would vanish. */
+private val ChipBackground = Color(0xCC2A2A33)
+
 /**
  * A saved state wherever states are listed: its whole picture in a 3:2 tile, the slot over it, the three-dots button,
  * and its age under it. [slot] is negative for the auto state; [ago] tints the age (white over the game). A press and
@@ -65,7 +68,7 @@ fun StateTile(
             // The modified time too: an overwritten slot keeps its file name, and would keep showing the old picture.
             val bmp = remember(thumb, modified) { thumb?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
             if (bmp != null) Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            Box(Modifier.padding(6.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xB3000000)).padding(horizontal = 6.dp, vertical = 2.dp)) {
+            Box(Modifier.padding(6.dp).clip(RoundedCornerShape(6.dp)).background(ChipBackground).padding(horizontal = 6.dp, vertical = 2.dp)) {
                 Text(tag, style = Type.Tag.copy(color = Color.White, fontSize = 10.sp))
             }
             Box(Modifier.align(Alignment.TopEnd)) {
@@ -75,7 +78,7 @@ fun StateTile(
                         .clickable(onClickLabel = label, role = Role.Button, onClick = onOptions).semantics { contentDescription = label },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.size(30.dp).clip(CircleShape).background(Color(0xB3000000)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(30.dp).clip(CircleShape).background(ChipBackground), contentAlignment = Alignment.Center) {
                         Icon(Icons.Dots, Color.White, 18.dp)
                     }
                 }
