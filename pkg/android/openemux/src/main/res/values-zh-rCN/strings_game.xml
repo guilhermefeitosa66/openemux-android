@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">声音已开启</string>
     <string name="game_toast_shader">着色器：%1$s</string>
     <string name="game_toast_state_other_core">此存档来自另一个内核</string>
+    <string name="game_toast_restart_failed">无法重启游戏</string>
     <string name="game_toast_state_saved_other_core">此存档是用另一个内核保存的</string>
     <string name="game_save_state">保存存档</string>
     <string name="game_load">读取</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">声音</string>
     <string name="game_muted">静音</string>
     <string name="game_restart">重启游戏</string>
+    <string name="game_restart_confirm_title">重启游戏？</string>
+    <string name="game_restart_confirm_body">上次存档之后的进度将会丢失。</string>
     <string name="game_retroarch_menu">RetroArch 菜单</string>
     <string name="game_retroarch_menu_note">高级设置，仅限本次会话</string>
     <string name="game_quit">退出游戏</string>

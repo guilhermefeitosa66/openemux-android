@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">Som ligado</string>
     <string name="game_toast_shader">Shader: %1$s</string>
     <string name="game_toast_state_other_core">Este estado é de outro core</string>
+    <string name="game_toast_restart_failed">Não foi possível reiniciar o jogo</string>
     <string name="game_toast_state_saved_other_core">Este estado foi salvo com outro core</string>
     <string name="game_save_state">Salvar estado</string>
     <string name="game_load">Carregar</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">Áudio</string>
     <string name="game_muted">Sem som</string>
     <string name="game_restart">Reiniciar jogo</string>
+    <string name="game_restart_confirm_title">Reiniciar jogo?</string>
+    <string name="game_restart_confirm_body">O progresso desde o último salvamento será perdido.</string>
     <string name="game_retroarch_menu">Menu do RetroArch</string>
     <string name="game_retroarch_menu_note">Ajustes avançados, só nesta sessão</string>
     <string name="game_quit">Sair do jogo</string>

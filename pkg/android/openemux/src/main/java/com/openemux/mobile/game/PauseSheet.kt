@@ -14,6 +14,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -44,6 +46,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -61,6 +64,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -96,6 +101,7 @@ import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.ui.DISABLED_ALPHA
 import com.openemux.mobile.ui.FocusOutset
 import com.openemux.mobile.ui.HintBar
+import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.MarginFocusScroll
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
@@ -116,6 +122,7 @@ import com.openemux.mobile.ui.stateTag
 import com.openemux.mobile.ui.text
 import com.openemux.mobile.ui.Tag
 import com.openemux.mobile.ui.Type
+import com.openemux.mobile.ui.holdGamepadFocus
 import com.openemux.mobile.ui.forbiddenBand
 import com.openemux.mobile.ui.formatAgo
 import com.openemux.mobile.ui.gamepadFocus
@@ -288,7 +295,23 @@ fun PauseSheet(
                     val slot = if (st.slot < 0) session.stageAuto(st) else st.slot
                     RaCommand.ask("LOAD_STATE_SLOT $slot", 3000)
                 }
-                if (reply?.contains("ERROR") == true) toast = context.getString(R.string.game_toast_state_other_core)
+                if (replyFailed(reply)) toast = context.getString(R.string.game_toast_state_other_core)
+                else onResume()
+            }
+        }
+
+        var confirmRestart by remember { mutableStateOf(false) }
+        val restartEntry = remember { FocusRequester() }
+        // Back on the entry that opened the dialog, for the pad: the dialog's own buttons are going away.
+        fun focusRestartEntry() { if (InputMode.gamepad) runCatching { restartEntry.requestFocus() } }
+        fun cancelRestart() { confirmRestart = false; focusRestartEntry() }
+
+        fun restart() {
+            // Closed before the reply: a second tap must not restart twice.
+            confirmRestart = false
+            scope.launch {
+                val reply = withContext(Dispatchers.IO) { RaCommand.restart() }
+                if (replyFailed(reply)) { toast = context.getString(R.string.game_toast_restart_failed); focusRestartEntry() }
                 else onResume()
             }
         }
@@ -311,8 +334,8 @@ fun PauseSheet(
             Page.StateDelete, Page.StateOptions -> Page.States
             else -> Page.Main
         }
-        // B on a gamepad arrives as BACK: out of a sub-page first, then back to the game.
-        BackHandler { backPage()?.let { page = it } ?: onResume() }
+        // B on a gamepad arrives as BACK: out of the dialog first, then a sub-page, then back to the game.
+        BackHandler { if (confirmRestart) cancelRestart() else backPage()?.let { page = it } ?: onResume() }
 
         Box(Modifier.fillMaxSize()) {
             // In tabletop the band takes no tap: only the top half's card resumes.
@@ -447,7 +470,7 @@ fun PauseSheet(
                                 scope.launch {
                                     // Answered once the state is on disk, which a big core takes a while to do. No answer is not taken as a failure.
                                     val reply = withContext(Dispatchers.IO) { RaCommand.ask("SAVE_STATE_SLOT $target", 8000) }
-                                    toast = context.getString(if (reply?.contains("ERROR") == true) R.string.game_toast_save_failed else R.string.game_toast_saved_slot, target)
+                                    toast = context.getString(if (replyFailed(reply)) R.string.game_toast_save_failed else R.string.game_toast_saved_slot, target)
                                     // The engine writes the picture after answering.
                                     delay(600)
                                     refresh++
@@ -477,7 +500,8 @@ fun PauseSheet(
                                 SessionToggles.muted = !SessionToggles.muted
                                 command("MUTE", context.getString(if (SessionToggles.muted) R.string.game_toast_sound_off else R.string.game_toast_sound_on))
                             },
-                            onReset = { command("RESET") { onResume() } },
+                            onReset = { confirmRestart = true },
+                            restartEntry = restartEntry,
                             onRetroArchMenu = onRetroArchMenu,
                             onQuit = onQuit.takeUnless { panel },
                         )
@@ -531,6 +555,55 @@ fun PauseSheet(
                     Modifier.padding(top = 12.dp),
                 )
             }
+            if (confirmRestart) RestartDialog(band?.endDp?.dp ?: 0.dp, ::cancelRestart, ::restart)
+        }
+    }
+}
+
+/**
+ * Restarts straight away. The bare word "RESET" is a press of the engine's reset hotkey, which confirm_reset turns into
+ * a press-twice check; with an argument it is the action, which resets on the first one. confirm_reset stays on for
+ * the skin's key and the gamepad hotkey, which sit under the player's fingers.
+ */
+internal const val RESTART_COMMAND = "RESET off"
+
+/** No reply is not a failure: the work can outlast the wait, as a state load can. */
+internal fun replyFailed(reply: String?) = reply?.contains("ERROR") == true
+
+/**
+ * Asks before restarting. Drawn in the sheet's own window and not as an OeConfirmDialog: a dialog is a window of its
+ * own that takes focus from the engine, which then stops polling the commands, and the pad only reaches the sheet's
+ * view. [top] keeps the card under the fold in tabletop.
+ */
+@Composable
+private fun RestartDialog(top: Dp, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val cancel = remember { FocusRequester() }
+    // Again when the pad wakes: opened by touch, focus could not land here and the pad would drive the sheet underneath.
+    LaunchedEffect(InputMode.gamepad) { runCatching { cancel.requestFocus() } }
+    Box(
+        Modifier.fillMaxSize().background(Color(0x8C08080A))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onCancel)
+            .padding(top = top),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.windowInsetsPadding(WindowInsets.displayCutout).padding(24.dp).widthIn(max = 320.dp).fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp)).background(Oe.Sheet)
+                .pointerInput(Unit) { detectTapGestures {} }
+                .holdGamepadFocus(true)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(stringResource(R.string.game_restart_confirm_title), style = Type.Title.copy(fontSize = 20.sp))
+            Text(stringResource(R.string.game_restart_confirm_body), style = Type.Small)
+            Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onCancel, Modifier.heightIn(min = 44.dp).focusRequester(cancel).gamepadFocus(corner = 20.dp)) {
+                    Text(stringResource(R.string.detail_cancel), style = Type.Section)
+                }
+                TextButton(onConfirm, Modifier.heightIn(min = 44.dp).gamepadFocus(corner = 20.dp)) {
+                    Text(stringResource(R.string.detail_restart), style = Type.Section.copy(color = Oe.Danger))
+                }
+            }
         }
     }
 }
@@ -574,6 +647,8 @@ private fun MainPage(
     screens: ScreenLayout?,
     onScreens: () -> Unit,
     onReset: () -> Unit,
+    /** Takes the pad back to the Restart entry after a cancelled dialog. */
+    restartEntry: FocusRequester,
     onRetroArchMenu: () -> Unit,
     /** Null on the tablet panel, which pins Quit at its foot. */
     onQuit: (() -> Unit)?,
@@ -649,7 +724,7 @@ private fun MainPage(
             tiles(Modifier.padding(top = 16.dp))
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BigButton("${stringResource(R.string.game_save_states)} · $stateCount", Icons.Chevron, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = !hardcore)
-                BigButton(stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f), onReset)
+                BigButton(stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
                 if (onQuit != null) QuitButton(Modifier.width(168.dp).height(56.dp), onQuit)
             }
             Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
@@ -674,7 +749,7 @@ private fun MainPage(
                     ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
                     ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
                 }
-                ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset)
+                Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
                 RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
             if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)

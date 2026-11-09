@@ -78,7 +78,35 @@ object RaCommand {
     fun isRunning(timeoutMs: Int = 400): Boolean = ask("GET_STATUS", timeoutMs)
         ?.let { it.startsWith("GET_STATUS PLAYING") || it.startsWith("GET_STATUS PAUSED") } == true
 
+    /** True from a restart's command until the engine has paused again after it. */
+    @Volatile private var restarting = false
+
     fun resume() {
+        // A sheet closed during a restart lands here too: the frames the reset plays read as playing.
+        while (restarting) Thread.sleep(30)
         if (isPaused()) send("PAUSE_TOGGLE")
+    }
+
+    /**
+     * Restarts the content and answers the engine's reply. Reset while paused, the engine plays 8 frames to blank the
+     * picture and pauses again: asked in between, [resume] finds it playing, sends nothing, and the game then stays
+     * paused on black. So this returns, and [resume] goes on, only once it has paused.
+     */
+    fun restart(): String? {
+        restarting = true
+        try {
+            return ask(RESTART_COMMAND, 3000).also { if (!replyFailed(it)) awaitPaused(3000) }
+        } finally {
+            restarting = false
+        }
+    }
+
+    /** Waits for the content to be paused, for [timeoutMs] at most. */
+    private fun awaitPaused(timeoutMs: Long) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (isPaused()) return
+            Thread.sleep(30)
+        }
     }
 }

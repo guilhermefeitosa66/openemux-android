@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">Son activé</string>
     <string name="game_toast_shader">Shader : %1$s</string>
     <string name="game_toast_state_other_core">Cet état vient d’un autre cœur</string>
+    <string name="game_toast_restart_failed">Impossible de redémarrer le jeu</string>
     <string name="game_toast_state_saved_other_core">Cet état a été sauvegardé avec un autre cœur</string>
     <string name="game_save_state">Sauvegarder l’état</string>
     <string name="game_load">Charger</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">Audio</string>
     <string name="game_muted">Muet</string>
     <string name="game_restart">Redémarrer le jeu</string>
+    <string name="game_restart_confirm_title">Redémarrer le jeu ?</string>
+    <string name="game_restart_confirm_body">Votre progression depuis la dernière sauvegarde sera perdue.</string>
     <string name="game_retroarch_menu">Menu RetroArch</string>
     <string name="game_retroarch_menu_note">Réglages avancés, pour cette session uniquement</string>
     <string name="game_quit">Quitter le jeu</string>

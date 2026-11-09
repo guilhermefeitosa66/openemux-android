@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">Ton an</string>
     <string name="game_toast_shader">Shader: %1$s</string>
     <string name="game_toast_state_other_core">Dieser Spielstand ist von einem anderen Kern</string>
+    <string name="game_toast_restart_failed">Spiel konnte nicht neu gestartet werden</string>
     <string name="game_toast_state_saved_other_core">Dieser Spielstand wurde mit einem anderen Kern gespeichert</string>
     <string name="game_save_state">Spielstand speichern</string>
     <string name="game_load">Laden</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">Audio</string>
     <string name="game_muted">Stumm</string>
     <string name="game_restart">Spiel neu starten</string>
+    <string name="game_restart_confirm_title">Spiel neu starten?</string>
+    <string name="game_restart_confirm_body">Der Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="game_retroarch_menu">RetroArch-Menü</string>
     <string name="game_retroarch_menu_note">Erweiterte Einstellungen, nur für diese Sitzung</string>
     <string name="game_quit">Spiel beenden</string>
