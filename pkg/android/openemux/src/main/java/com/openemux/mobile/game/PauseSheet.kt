@@ -310,7 +310,11 @@ fun PauseSheet(
             // Closed before the reply: a second tap must not restart twice.
             confirmRestart = false
             scope.launch {
-                val reply = withContext(Dispatchers.IO) { RaCommand.ask(RESTART_COMMAND, 3000) }
+                val reply = withContext(Dispatchers.IO) {
+                    // Reset while paused, the engine plays 8 frames to blank the picture and pauses again: asked in
+                    // between, resume() finds it playing, sends nothing, and the game then stays paused on black.
+                    RaCommand.ask(RESTART_COMMAND, 3000).also { if (!restartFailed(it)) RaCommand.awaitPaused(1000) }
+                }
                 if (restartFailed(reply)) { toast = context.getString(R.string.game_toast_restart_failed); focusRestartEntry() }
                 else onResume()
             }

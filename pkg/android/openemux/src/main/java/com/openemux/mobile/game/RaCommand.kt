@@ -81,4 +81,13 @@ object RaCommand {
     fun resume() {
         if (isPaused()) send("PAUSE_TOGGLE")
     }
+
+    /** Waits for the content to be paused, for [timeoutMs] at most. */
+    fun awaitPaused(timeoutMs: Long) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (isPaused()) return
+            Thread.sleep(30)
+        }
+    }
 }
