@@ -237,6 +237,18 @@ class ShareCoordinatorTest {
     }
 
     @Test
+    fun `a send left running that finds a changed file leaves the new manifest to the next screen`() {
+        ready()
+        share.send(peer())
+        share.closeScreen(send = true)
+        layer.onSendDone(SendResult(SendResult.FAILED, error = ErrorCode.SOURCE_CHANGED))
+        assertEquals(1, layer.builds)
+        assertEquals(SendPrep.None, share.sendPrep.value)
+        share.openScreen(send = true)
+        assertEquals(2, layer.builds)
+    }
+
+    @Test
     fun `nothing is sent without a manifest, a choice, a compatible peer or while busy`() {
         share.send(peer())
         assertNull(layer.sentTo)

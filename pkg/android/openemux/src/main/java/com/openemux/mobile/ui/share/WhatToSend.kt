@@ -72,7 +72,7 @@ fun WhatToSendScreen() {
     val share = a.app.shareCoordinator
     DisposableEffect(Unit) {
         share.openScreen(send = true)
-        onDispose { share.closeScreen() }
+        onDispose { share.closeScreen(send = true) }
     }
     val prep by share.sendPrep.collectAsState()
     val ready = prep as? SendPrep.Ready

@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SyncPause
 import com.openemux.mobile.data.SyncProgress
+import com.openemux.mobile.share.TransferSurface
+import com.openemux.mobile.ui.share.rememberTransferSurface
 import com.retroarch.R
 import kotlinx.coroutines.delay
 
@@ -232,10 +234,23 @@ private fun SyncRow(title: String, source: String, icon: String, tile: Color, ti
     }
 }
 
+private val ToastHeight = 48.dp
+private val ToastGap = 12.dp
+
+/** The floating pill of a toast or the transfer chip: its size, shadow, shape and fill. */
+fun Modifier.toastPill(): Modifier = this
+    .height(ToastHeight)
+    .shadow(24.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.45f))
+    .clip(RoundedCornerShape(14.dp))
+    .background(Oe.Divider)
+
 /** "Labels ready" for 3 s when a label run ends. */
 @Composable
 fun ArtworkDoneToast(modifier: Modifier = Modifier) {
-    val labels by LocalActions.current.app.labels.progress.collectAsState()
+    val app = LocalActions.current.app
+    val labels by app.labels.progress.collectAsState()
+    // A transfer's chip sits on the same spot and stays for minutes: the toast goes above it.
+    val aboveChip = if (rememberTransferSurface(app.shareCoordinator) == TransferSurface.CHIP) ToastHeight + ToastGap + hintBarInset else 0.dp
     var visible by remember { mutableStateOf(false) }
     var shown by remember { mutableStateOf(labels) }
     LaunchedEffect(labels.finishedAt) {
@@ -245,13 +260,10 @@ fun ArtworkDoneToast(modifier: Modifier = Modifier) {
         delay(3000)
         visible = false
     }
-    AnimatedVisibility(visible, modifier, enter = fadeIn(), exit = fadeOut()) {
+    AnimatedVisibility(visible, modifier.padding(bottom = aboveChip), enter = fadeIn(), exit = fadeOut()) {
         Row(
             Modifier
-                .height(48.dp)
-                .shadow(24.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.45f))
-                .clip(RoundedCornerShape(14.dp))
-                .background(Oe.Divider)
+                .toastPill()
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

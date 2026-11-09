@@ -1,21 +1,15 @@
 package com.openemux.mobile.ui.share
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
@@ -33,6 +27,7 @@ import com.openemux.mobile.ui.LocalActions
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.PadBadge
 import com.openemux.mobile.ui.Type
+import com.openemux.mobile.ui.toastPill
 import com.retroarch.R
 
 /** A transfer the player left running: what it is doing, and the way back to its progress view (a tap, or Start on a pad). */
@@ -43,10 +38,7 @@ fun TransferChip(modifier: Modifier = Modifier) {
     val notice = TransferNotice.of(share.transfer.collectAsState().value) ?: return
     Row(
         modifier
-            .height(48.dp)
-            .shadow(24.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.45f))
-            .clip(RoundedCornerShape(14.dp))
-            .background(Oe.Divider)
+            .toastPill()
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.share_chip_open), onClick = share::showProgress)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

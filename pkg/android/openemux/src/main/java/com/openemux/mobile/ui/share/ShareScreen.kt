@@ -35,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -94,11 +95,13 @@ import com.retroarch.R
 fun ShareScreen(receive: Boolean) {
     val a = LocalActions.current
     val share = a.app.shareCoordinator
+    // Left with the bytes moving: a send that ends during the way out shows its result on the sheet.
+    var leftRunning by remember { mutableStateOf(false) }
     DisposableEffect(Unit) {
         share.openScreen(send = !receive)
         onDispose {
             // A send's result belongs to this screen: the next Share opens on the devices, not on it.
-            if ((share.transfer.value as? TransferState.Finished)?.result?.outgoing == true && !receive) share.dismissResult()
+            if (!leftRunning && (share.transfer.value as? TransferState.Finished)?.result?.outgoing == true && !receive) share.dismissResult()
             share.closeScreen(send = !receive)
         }
     }
@@ -122,6 +125,7 @@ fun ShareScreen(receive: Boolean) {
         if (outgoing && transfer is TransferState.Waiting) {
             confirmCancel = true
         } else {
+            leftRunning = transfer is TransferState.Running
             share.hideProgress()
             a.nav.popBackStack()
         }
@@ -135,6 +139,8 @@ fun ShareScreen(receive: Boolean) {
         ),
     )
     val selection = (prep as? SendPrep.Ready)?.selection
+    // A receive left running is still the one transfer: send() would ignore the tap, so the devices are not offered.
+    val sendable = selection.takeUnless { transfer.busy }
     val wide = LocalWindowLayout.current.wide && !receive
 
     MarginFocusScroll(trailing = FocusMargin + hintBarInset) {
@@ -173,7 +179,7 @@ fun ShareScreen(receive: Boolean) {
                 )
                 !lan -> EmptyState(stringResource(R.string.share_unavailable_title), stringResource(R.string.share_unavailable_wifi), null, {})
                 wide -> Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                    Column(Modifier.weight(1f)) { Devices(receive, selection, skin != null) }
+                    Column(Modifier.weight(1f)) { Devices(receive, sendable, skin != null) }
                     Column(Modifier.weight(1f).padding(top = 22.dp)) {
                         Text(stringResource(R.string.share_items_title), style = Type.Section, modifier = Modifier.padding(bottom = 10.dp))
                         when (val p = prep) {
@@ -195,7 +201,7 @@ fun ShareScreen(receive: Boolean) {
                             }
                         }
                     }
-                    Devices(receive, selection, skin != null)
+                    Devices(receive, sendable, skin != null)
                 }
             }
             Spacer(Modifier.height(28.dp + hintBarInset))

@@ -17,8 +17,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -90,10 +92,11 @@ fun WaitingView(state: TransferState.Waiting, onCancel: () -> Unit) {
 /** Where the transfer shows right now, from the coordinator's state. */
 @Composable
 fun rememberTransferSurface(share: ShareCoordinator): TransferSurface {
-    val transfer by share.transfer.collectAsState()
-    val hidden by share.progressHidden.collectAsState()
-    val sendScreens by share.sendScreens.collectAsState()
-    return transferSurface(transfer, hidden, sendScreens > 0)
+    val transfer = share.transfer.collectAsState()
+    val hidden = share.progressHidden.collectAsState()
+    val sendScreens = share.sendScreens.collectAsState()
+    // Derived: the bytes tick many times a second, and the caller only cares when the surface changes.
+    return remember { derivedStateOf { transferSurface(transfer.value, hidden.value, sendScreens.value > 0) } }.value
 }
 
 /** Bytes moving, either way (spec 07); [onHide] leaves the view with the transfer going, Cancel asks first. */

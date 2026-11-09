@@ -323,7 +323,8 @@ class ShareCoordinator(
         }
         // A file changed while the screen was open: the next try needs a fresh manifest.
         if (result.error == ErrorCode.SOURCE_CHANGED) {
-            prepare((_sendPrep.value as? SendPrep.Ready)?.selection?.unchecked.orEmpty())
+            // Left running, no screen is waiting for it: hashing now would be for nobody, the next screen builds it.
+            if (_sendScreens.value > 0) prepare((_sendPrep.value as? SendPrep.Ready)?.selection?.unchecked.orEmpty()) else _sendPrep.value = SendPrep.None
         }
         if (kind != ResultKind.SENT) return ShareResult(kind, true, peer, error = errorOf(kind, result.error), skin = skin)
         val report = sendReport(built, excluded, result)
