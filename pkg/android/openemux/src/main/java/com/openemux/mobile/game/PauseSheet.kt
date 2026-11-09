@@ -96,7 +96,6 @@ import com.openemux.mobile.data.SaveSlots
 import com.openemux.mobile.data.ShaderPicks
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinStore
-import com.openemux.mobile.data.StoredSkin
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.ui.DISABLED_ALPHA
 import com.openemux.mobile.ui.FocusOutset
@@ -110,11 +109,9 @@ import com.openemux.mobile.ui.LocalWindowLayout
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.OpenEmuxTheme
 import com.openemux.mobile.ui.RadioCard
+import com.openemux.mobile.ui.SkinChoices
 import com.openemux.mobile.ui.SkinListState
 import com.openemux.mobile.ui.StateTile
-import com.openemux.mobile.ui.currentSkinForm
-import com.openemux.mobile.ui.madeFor
-import com.openemux.mobile.ui.notMadeFor
 import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
@@ -523,7 +520,7 @@ fun PauseSheet(
                             page = Page.Main
                             toast = context.getString(R.string.game_toast_screens_layout, context.getString(layout.label))
                         }
-                        Page.Skin -> if (skins != null && skinList != null) SkinPage(skinList) { name, variant, custom ->
+                        Page.Skin -> if (skins != null && skinList != null) SkinPage(skins.console, skinList) { name, variant, custom ->
                             // The one already in use: nothing to redraw or to save.
                             if (variant != skins.bundledId.value || custom != skins.custom.value) skins.pick(variant, custom)
                             page = Page.Main
@@ -1052,44 +1049,19 @@ private fun rememberGameSkinList(skins: GameSkins): SkinListState? {
     return list
 }
 
-/** The same choices as the skin picker: the player's, the bundled ones and the imported ones, the one in use marked. */
+/** The skin screen's list, its miniatures and all, for picking only: copies, imports and the like stay on that screen. */
 @Composable
-private fun SkinPage(state: SkinListState, onPick: (name: String, variant: String, custom: String?) -> Unit) {
-    val form = currentSkinForm()
+private fun SkinPage(console: Console, state: SkinListState, onPick: (name: String, variant: String, custom: String?) -> Unit) {
+    val context = LocalContext.current
     val focused = remember { mutableStateOf<String?>(null) }
-    val keep = state.bundledId
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        @Composable
-        fun header(@StringRes label: Int) {
-            Text(stringResource(label), style = Type.Small.copy(color = Oe.Muted, fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(top = 8.dp))
-        }
-        @Composable
-        fun stored(skin: StoredSkin) {
-            val usable = madeFor(skin, form)
-            val inUse = state.inUse(skin)
-            Box(Modifier.restorableFocus(skin.ref, focused, initial = inUse).alpha(if (usable) 1f else DISABLED_ALPHA)) {
-                RadioCard(
-                    inUse, skin.name, if (usable) "" else stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
-                    onClick = { if (usable) onPick(skin.name, keep, skin.ref) }, background = Oe.Raised,
-                )
-            }
-        }
-        if (state.own.isNotEmpty()) {
-            header(R.string.skins_yours)
-            state.own.forEach { stored(it) }
-        }
-        header(R.string.skins_bundled)
-        state.bundled.options.forEach { swatch ->
-            val name = stringResource(swatch.variant.label)
-            val inUse = state.inUse(swatch)
-            Box(Modifier.restorableFocus(swatch.variant.id, focused, initial = inUse)) {
-                RadioCard(inUse, name, "", onClick = { onPick(name, swatch.variant.id, null) }, background = Oe.Raised)
-            }
-        }
-        if (state.imported.isNotEmpty()) {
-            header(R.string.skins_imported)
-            state.imported.forEach { stored(it) }
-        }
+    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        SkinChoices(
+            console, state,
+            onStored = { onPick(it.name, state.bundledId, it.ref) },
+            onBundled = { onPick(context.getString(it.variant.label), it.variant.id, null) },
+            background = Oe.Raised,
+            item = { key, inUse -> Modifier.restorableFocus(key, focused, initial = inUse) },
+        )
     }
 }
 

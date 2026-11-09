@@ -385,45 +385,15 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
     }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        if (state.own.isNotEmpty()) {
-            SkinGroup(stringResource(R.string.skins_yours), count = state.own.size) {
-                CardGrid(state.own) { skin ->
-                    val (body, key) = storedColors(skin)
-                    SkinCard(
-                        skin.name, body, key, rememberSkinThumbnail(console, SkinThumbSource.Own(skin.file).takeIf { !skin.broken }, drawn),
-                        skin.forms, state.inUse(skin), madeFor(skin, form),
-                        reason = stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
-                        onPick = { library.useCustomSkin(console, skin.ref) },
-                        onMenu = { ownSheet = skin },
-                    )
-                }
-            }
-        }
-        SkinGroup(stringResource(R.string.skins_bundled), locked = true) {
-            CardGrid(state.bundled.options) { swatch ->
-                val (body, key) = swatchColors(swatch)
-                SkinCard(
-                    stringResource(swatch.variant.label), body, key, rememberSkinThumbnail(console, SkinThumbSource.Bundled(swatch.variant)),
-                    SkinForm.entries.toSet(), state.inUse(swatch), true, "",
-                    onPick = { library.useBundledSkin(console, swatch.variant.id) },
-                    onMenu = { bundledSheet = swatch },
-                )
-            }
-        }
-        if (state.imported.isNotEmpty()) {
-            SkinGroup(stringResource(R.string.skins_imported)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.imported.forEach { skin ->
-                        ImportedRow(
-                            skin, state.inUse(skin), madeFor(skin, form), stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
-                            onPick = { library.useCustomSkin(console, skin.ref) },
-                            // A package with nothing to convert (unreadable, no complete art) has no menu: Duplicate would fail.
-                            onMenu = if (duplicable(skin)) { { importedSheet = skin } } else null,
-                        )
-                    }
-                }
-            }
-        }
+        SkinChoices(
+            console, state, revision = drawn,
+            onStored = { library.useCustomSkin(console, it.ref) },
+            onBundled = { library.useBundledSkin(console, it.variant.id) },
+            onOwnMenu = { ownSheet = it },
+            onBundledMenu = { bundledSheet = it },
+            // A package with nothing to convert (unreadable, no complete art) has no menu: Duplicate would fail.
+            onImportedMenu = { skin -> if (duplicable(skin)) { { importedSheet = skin } } else null },
+        )
         SecondaryButton(stringResource(R.string.skins_import), { pickZip.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), icon = Icons.Upload, busy = reading || writing)
     }
 
@@ -575,6 +545,75 @@ private fun SkinGroup(title: String, count: Int? = null, locked: Boolean = false
     }
 }
 
+/**
+ * The console's skins in their three groups, each with its miniature and its form badges, the one in use outlined: the
+ * skin screen's list and the pause sheet's (issue 827). [onStored] and [onBundled] use the skin tapped. A skin with no
+ * menu (a null `on...Menu`, or [onImportedMenu] answering null) shows no button for it, and does nothing when tapped if
+ * it cannot be used here. [item] wraps each card, by its key and whether it is in use: where a screen hangs its focus.
+ */
+@Composable
+fun SkinChoices(
+    console: Console,
+    state: SkinListState,
+    onStored: (StoredSkin) -> Unit,
+    onBundled: (SkinSwatch) -> Unit,
+    revision: Int = 0,
+    background: Color = Oe.Surface,
+    item: (key: String, inUse: Boolean) -> Modifier = { _, _ -> Modifier },
+    onOwnMenu: ((StoredSkin) -> Unit)? = null,
+    onBundledMenu: ((SkinSwatch) -> Unit)? = null,
+    onImportedMenu: (StoredSkin) -> (() -> Unit)? = { null },
+) {
+    val form = currentSkinForm()
+    if (state.own.isNotEmpty()) {
+        SkinGroup(stringResource(R.string.skins_yours), count = state.own.size) {
+            CardGrid(state.own) { skin ->
+                val (body, key) = storedColors(skin)
+                Box(item(skin.ref, state.inUse(skin))) {
+                    SkinCard(
+                        skin.name, body, key, rememberSkinThumbnail(console, SkinThumbSource.Own(skin.file).takeIf { !skin.broken }, revision),
+                        skin.forms, state.inUse(skin), madeFor(skin, form),
+                        reason = stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
+                        background = background,
+                        onPick = { onStored(skin) },
+                        onMenu = onOwnMenu?.let { menu -> { menu(skin) } },
+                    )
+                }
+            }
+        }
+    }
+    SkinGroup(stringResource(R.string.skins_bundled), locked = true) {
+        CardGrid(state.bundled.options) { swatch ->
+            val (body, key) = swatchColors(swatch)
+            Box(item(swatch.variant.id, state.inUse(swatch))) {
+                SkinCard(
+                    stringResource(swatch.variant.label), body, key, rememberSkinThumbnail(console, SkinThumbSource.Bundled(swatch.variant)),
+                    SkinForm.entries.toSet(), state.inUse(swatch), true, "",
+                    background = background,
+                    onPick = { onBundled(swatch) },
+                    onMenu = onBundledMenu?.let { menu -> { menu(swatch) } },
+                )
+            }
+        }
+    }
+    if (state.imported.isNotEmpty()) {
+        SkinGroup(stringResource(R.string.skins_imported)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.imported.forEach { skin ->
+                    Box(item(skin.ref, state.inUse(skin))) {
+                        ImportedRow(
+                            skin, state.inUse(skin), madeFor(skin, form), stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
+                            background = background,
+                            onPick = { onStored(skin) },
+                            onMenu = onImportedMenu(skin),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Two cards per row. */
 @Composable
 private fun <T> CardGrid(items: List<T>, card: @Composable (T) -> Unit) {
@@ -591,7 +630,7 @@ private fun <T> CardGrid(items: List<T>, card: @Composable (T) -> Unit) {
 @Composable
 private fun SkinCard(
     name: String, body: Color, key: Color, thumb: ImageBitmap?, forms: Set<SkinForm>, inUse: Boolean, pickable: Boolean, reason: String,
-    onPick: () -> Unit, onMenu: () -> Unit,
+    background: Color, onPick: () -> Unit, onMenu: (() -> Unit)?,
 ) {
     val menuLabel = stringResource(R.string.skins_actions, name)
     // The menu button sits inside the card, so a spatial search from the card never finds it: Right goes to it and
@@ -599,10 +638,10 @@ private fun SkinCard(
     val cardFocus = remember { FocusRequester() }
     val menuFocus = remember { FocusRequester() }
     Column(
-        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Surface)
+        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(background)
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
-            .focusRequester(cardFocus).focusProperties { right = menuFocus }
-            .clickable(role = Role.RadioButton) { if (pickable) onPick() else onMenu() }
+            .focusRequester(cardFocus).focusProperties { if (onMenu != null) right = menuFocus }
+            .clickable(enabled = pickable || onMenu != null, role = Role.RadioButton) { if (pickable) onPick() else onMenu?.invoke() }
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -617,7 +656,7 @@ private fun SkinCard(
                     !pickable -> Text(reason, style = Type.Small)
                 }
             }
-            Box(
+            if (onMenu != null) Box(
                 Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape)
                     .focusRequester(menuFocus).focusProperties { left = cardFocus }
                     .clickable(onClickLabel = menuLabel, role = Role.Button, onClick = onMenu).semantics { contentDescription = menuLabel },
@@ -630,13 +669,13 @@ private fun SkinCard(
 }
 
 @Composable
-private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, onPick: () -> Unit, onMenu: (() -> Unit)?) {
+private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, reason: String, background: Color, onPick: () -> Unit, onMenu: (() -> Unit)?) {
     val menuLabel = stringResource(R.string.skins_actions, skin.name)
     // As on a skin card: Right goes from the row to its menu button, Left comes back.
     val rowFocus = remember { FocusRequester() }
     val menuFocus = remember { FocusRequester() }
     Row(
-        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Surface)
+        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(background)
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
             .focusRequester(rowFocus).focusProperties { if (onMenu != null) right = menuFocus }
             // A package not made for this device opens its sheet: Duplicate still works there.
