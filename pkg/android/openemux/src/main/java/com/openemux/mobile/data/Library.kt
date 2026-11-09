@@ -37,6 +37,8 @@ class Paths(val base: File, val internal: File) {
     val labels = File(internal, "labels")
     /** Shaders picked in game, waiting for the library to fold them in (ShaderPicks). */
     val shaderPicks = File(internal, "shader-picks")
+    /** Skins picked in game, waiting for the library to fold them in (SkinPicks). */
+    val skinPicks = File(internal, "skin-picks")
 
     fun labels(console: Console) = File(labels, console.id)
 
@@ -185,6 +187,7 @@ class Library(
         }
         // A meta.json that cannot be written must not stop the scan: the next start migrates again.
         runCatching { migrateSkins() }.onFailure { Log.w(TAG, "skin choices not saved", it) }
+        runCatching { absorbSkinPicks() }.onFailure { Log.w(TAG, "skins picked in game not saved", it) }
         var listed = true
         try {
             listed = scanRoms()
@@ -324,6 +327,33 @@ class Library(
             }
         }
         saveMeta()
+    }
+
+    /**
+     * Folds the skins picked in game into each console's choice, oldest first, so the newest one wins. Waits for the
+     * migration: until it has run, [customSkin] answers from the folder and a pick saved now would not count, so the
+     * picks stay in their folder for the next pass. Picks naming a console, a bundled skin or a ref this build cannot
+     * read are dropped. Runs on every scan of the library and before every launch.
+     */
+    @Synchronized
+    fun absorbSkinPicks() {
+        migrateSkins()
+        if (!_meta.value.skinsMigrated) return
+        val picks = SkinPicks.drain(paths.skinPicks)
+        if (picks.isEmpty()) return
+        _meta.update { meta -> picks.fold(meta) { m, pick -> m.withSkinPick(pick) } }
+        saveMeta()
+    }
+
+    private fun Meta.withSkinPick(pick: SkinPicks.Pick): Meta {
+        val console = Console.byId(pick.console) ?: return this
+        val now = settingsFor(console)
+        val settings = when {
+            pick.custom != null -> if (SkinStore.parse(pick.custom) != null) now.copy(custom = pick.custom) else return this
+            SkinVariant.entries.any { it.id == pick.skin } -> now.copy(skin = pick.skin!!, custom = null)
+            else -> return this
+        }
+        return copy(consoles = consoles + (console.id to settings))
     }
 
     @Synchronized

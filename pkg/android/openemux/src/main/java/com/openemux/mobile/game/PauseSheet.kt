@@ -50,6 +50,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -78,11 +79,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
+import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.NdsShown
 import com.openemux.mobile.data.SHADERS
 import com.openemux.mobile.data.ShaderPicks
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.data.SkinStore
+import com.openemux.mobile.data.StoredSkin
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.ui.DISABLED_ALPHA
 import com.openemux.mobile.ui.FocusOutset
@@ -95,6 +99,13 @@ import com.openemux.mobile.ui.LocalWindowLayout
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.OpenEmuxTheme
 import com.openemux.mobile.ui.RadioCard
+import com.openemux.mobile.ui.SkinListState
+import com.openemux.mobile.ui.currentSkinForm
+import com.openemux.mobile.ui.madeFor
+import com.openemux.mobile.ui.notMadeFor
+import com.openemux.mobile.ui.readSkinList
+import com.openemux.mobile.ui.skinValue
+import com.openemux.mobile.ui.text
 import com.openemux.mobile.ui.Tag
 import com.openemux.mobile.ui.Type
 import com.openemux.mobile.ui.forbiddenBand
@@ -181,7 +192,21 @@ private object SessionToggles {
     var shader: Pair<String, String>? = null
 }
 
-private enum class Page { Main, States, Shader, Screens }
+private enum class Page { Main, States, Shader, Screens, Skin }
+
+/**
+ * The console's skins as the sheet shows them (issue 827): [bundledId] and [custom] are the ones the game plays, kept by
+ * the activity; [pick] plays another (a bundled id, or a player's skin ref with the bundled one kept to go back to);
+ * [edit] opens the editor over the game.
+ */
+class GameSkins(
+    val console: Console,
+    val store: SkinStore,
+    val bundledId: State<String>,
+    val custom: State<String?>,
+    val pick: (String, String?) -> Unit,
+    val edit: () -> Unit,
+)
 
 /**
  * The NDS screens as the sheet shows them: the layout in use for its orientation ([shown]), kept by the activity
@@ -201,6 +226,8 @@ fun PauseSheet(
     onQuit: () -> Unit,
     /** NDS: the screen layouts, the one in use and how to change it; null for other consoles. */
     screens: NdsScreens? = null,
+    /** The console's skins and how to change or edit the one in use; null: the rows are not shown. */
+    skins: GameSkins? = null,
     /**
      * The speed the fast-forward and slow-motion tiles now show. Sent by the activity after the sheet closes: the
      * engine refuses either while paused.
@@ -218,6 +245,8 @@ fun PauseSheet(
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val states = remember(refresh) { session.states() }
+        val skinList = skins?.let { rememberGameSkinList(it) }
+        val skinName = skinValue(skinList)?.text()
         val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
@@ -337,6 +366,7 @@ fun PauseSheet(
                                 Page.States -> stringResource(R.string.game_save_states)
                                 Page.Shader -> stringResource(R.string.game_shader)
                                 Page.Screens -> stringResource(R.string.game_screens)
+                                Page.Skin -> stringResource(R.string.game_change_skin)
                             },
                             style = Type.Title.copy(fontSize = 17.sp, lineHeight = 21.sp),
                             maxLines = 2,
@@ -348,6 +378,7 @@ fun PauseSheet(
                                     Page.States -> stringResource(R.string.game_tap_to_load)
                                     Page.Shader -> stringResource(R.string.game_shader_this_game)
                                     Page.Screens -> stringResource(rememberedFor(screens?.shown?.value?.orientation))
+                                    Page.Skin -> stringResource(R.string.game_skin_every_game)
                                 },
                                 style = Type.Small, modifier = Modifier.weight(1f, fill = false),
                             )
@@ -404,6 +435,10 @@ fun PauseSheet(
                             screens = screens?.let { screenLayout(it.shown.value) },
                             onScreens = { page = Page.Screens },
                             onShader = { page = Page.Shader },
+                            skinName = skinName.takeIf { skins != null },
+                            onSkin = { page = Page.Skin },
+                            canEditSkin = skinList?.let { skinToEdit(it) != null } == true,
+                            onEditSkin = { skins?.edit?.invoke() },
                             onAudio = {
                                 SessionToggles.muted = !SessionToggles.muted
                                 command("MUTE", context.getString(if (SessionToggles.muted) R.string.game_toast_sound_off else R.string.game_toast_sound_on))
@@ -417,6 +452,11 @@ fun PauseSheet(
                             screens.pick(layout)
                             page = Page.Main
                             toast = context.getString(R.string.game_toast_screens_layout, context.getString(layout.label))
+                        }
+                        Page.Skin -> if (skins != null && skinList != null) SkinPage(skinList) { name, variant, custom ->
+                            skins.pick(variant, custom)
+                            page = Page.Main
+                            toast = context.getString(R.string.game_toast_skin, name)
                         }
                         Page.Shader -> ShaderPage(SessionToggles.shader?.takeIf { it.first == session.romKey }?.second ?: session.shader) { id ->
                             SessionToggles.shader = session.romKey to id
@@ -473,6 +513,11 @@ private fun MainPage(
     onSpeed: (Speed) -> Unit,
     onScreenshot: () -> Unit,
     onShader: () -> Unit,
+    /** The name of the skin in use; null: no skin rows. */
+    skinName: String?,
+    onSkin: () -> Unit,
+    canEditSkin: Boolean,
+    onEditSkin: () -> Unit,
     onAudio: () -> Unit,
     /** NDS: the layout in use, which the Screens tile names; null for other consoles (no tile). */
     screens: ScreenLayout?,
@@ -560,6 +605,10 @@ private fun MainPage(
         Column(modifier) {
             Column(Modifier.padding(top = if (landscape) 16.dp else 20.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
                 ListRow(stringResource(R.string.game_save_states), value = stateCount.toString(), onClick = onLoad, enabled = !hardcore)
+                if (skinName != null) {
+                    ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
+                    ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
+                }
                 ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset)
                 RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
@@ -788,6 +837,61 @@ private fun LayoutGlyph(id: String, landscape: Boolean, on: Boolean) {
             val origin = Offset(left, i * (h + gap))
             if (shownScreen) drawRoundRect(fill, origin, Size(w, h), corner)
             else drawRoundRect(hidden, origin + Offset(0.75.dp.toPx(), 0.75.dp.toPx()), Size(w - 1.5.dp.toPx(), h - 1.5.dp.toPx()), corner, style = stroke)
+        }
+    }
+}
+
+/** The console's skins, read again when the one in use changes (an editor can have made a copy). */
+@Composable
+private fun rememberGameSkinList(skins: GameSkins): SkinListState? {
+    val context = LocalContext.current
+    val bundledId = skins.bundledId.value
+    val custom = skins.custom.value
+    val list by produceState<SkinListState?>(null, skins.console, bundledId, custom) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { readSkinList(context, skins.store, skins.console).copy(bundledId = bundledId, custom = custom) }.getOrNull()
+        }
+    }
+    return list
+}
+
+/** The same choices as the skin picker: the player's, the bundled ones and the imported ones, the one in use marked. */
+@Composable
+private fun SkinPage(state: SkinListState, onPick: (name: String, variant: String, custom: String?) -> Unit) {
+    val form = currentSkinForm()
+    val focused = remember { mutableStateOf<String?>(null) }
+    val keep = state.bundledId
+    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        @Composable
+        fun header(@StringRes label: Int) {
+            Text(stringResource(label), style = Type.Small.copy(color = Oe.Muted, fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(top = 8.dp))
+        }
+        @Composable
+        fun stored(skin: StoredSkin) {
+            val usable = madeFor(skin, form)
+            val inUse = state.inUse(skin)
+            Box(Modifier.restorableFocus(skin.ref, focused, initial = inUse).alpha(if (usable) 1f else DISABLED_ALPHA)) {
+                RadioCard(
+                    inUse, skin.name, if (usable) "" else stringResource(if (skin.broken) R.string.skins_broken else notMadeFor(form)),
+                    onClick = { if (usable) onPick(skin.name, keep, skin.ref) }, background = Oe.Raised,
+                )
+            }
+        }
+        if (state.own.isNotEmpty()) {
+            header(R.string.skins_yours)
+            state.own.forEach { stored(it) }
+        }
+        header(R.string.skins_bundled)
+        state.bundled.options.forEach { swatch ->
+            val name = stringResource(swatch.variant.label)
+            val inUse = state.inUse(swatch)
+            Box(Modifier.restorableFocus(swatch.variant.id, focused, initial = inUse)) {
+                RadioCard(inUse, name, "", onClick = { onPick(name, swatch.variant.id, null) }, background = Oe.Raised)
+            }
+        }
+        if (state.imported.isNotEmpty()) {
+            header(R.string.skins_imported)
+            state.imported.forEach { stored(it) }
         }
     }
 }

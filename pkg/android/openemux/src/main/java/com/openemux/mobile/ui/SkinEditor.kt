@@ -328,12 +328,21 @@ private enum class Tool { NONE, SIZE, NUDGE }
 private const val ROTATE = "M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"
 
 /**
+ * What the editor needs from whoever opens it: the [store] it edits, [prepare] before it makes a new skin, and [use],
+ * called when a skin saved as new takes over from the one in use. The library in the app; the pause sheet's own
+ * session in game, where there is no library (issue 827).
+ */
+class SkinEditorHost(val store: SkinStore, val prepare: () -> Unit, val use: (Console, String) -> Unit)
+
+fun Library.skinEditorHost() = SkinEditorHost(skins, ::migrateSkins, ::useCustomSkin)
+
+/**
  * The skin editor (issue 784): the layout for this device's form and rotation drawn full screen, controls moved on a
  * magnetic grid and resized, saved into the player's skin [target]. Work in progress is kept as a draft.
  * [onChanged]: the skin list should be read again.
  */
 @Composable
-fun SkinEditor(library: Library, console: Console, target: SkinEditTarget, onChanged: () -> Unit, onClose: () -> Unit) {
+fun SkinEditor(host: SkinEditorHost, console: Console, target: SkinEditTarget, onChanged: () -> Unit, onClose: () -> Unit) {
     val opener = LocalPadScope.current
     val pad = remember { PadScope() }
     CompositionLocalProvider(LocalPadScope provides pad) {
@@ -343,18 +352,18 @@ fun SkinEditor(library: Library, console: Console, target: SkinEditTarget, onCha
         ) {
             Box(Modifier.fillMaxSize().background(StageBg).padRoot(pad)) {
                 PadDialogWindow(pad, opener)
-                EditorBody(library, console, target, onChanged, onClose)
+                EditorBody(host, console, target, onChanged, onClose)
             }
         }
     }
 }
 
 @Composable
-private fun EditorBody(library: Library, console: Console, target: SkinEditTarget, onChanged: () -> Unit, onClose: () -> Unit) {
+private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditTarget, onChanged: () -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val store: SkinStore = library.skins
+    val store: SkinStore = host.store
     var loaded by remember { mutableStateOf<Loaded?>(null) }
     var model by remember { mutableStateOf<SkinEditorModel?>(null) }
     var art by remember { mutableStateOf<EditorArt?>(null) }
@@ -539,7 +548,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
         busy = true
         scope.launch {
             val ref = withContext(Dispatchers.IO) {
-                runCatching { library.migrateSkins() }
+                runCatching { host.prepare() }
                 drafts.withLock {
                     runCatching { store.saveAsNew(console, target.id, text, name, images).also { store.dropDraft(console, target.id) } }.getOrNull()
                 }
@@ -550,7 +559,7 @@ private fun EditorBody(library: Library, console: Console, target: SkinEditTarge
                 return@launch
             }
             // The console played the skin edited: it goes on with the edited copy.
-            if (target.inUse) library.useCustomSkin(console, ref)
+            if (target.inUse) host.use(console, ref)
             toast(R.string.editor_saved)
             onChanged()
             onClose()

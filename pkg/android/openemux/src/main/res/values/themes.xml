@@ -11,6 +11,8 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
     <style name="Theme.OpenEmux" parent="Theme.OpenEmux.Base" />
+    <!-- The skin editor over a paused game: translucent, so the game under it stays started. -->
+    <style name="Theme.OpenEmux.GameSkin" parent="android:Theme.Translucent.NoTitleBar.Fullscreen" />
     <style name="Theme.OpenEmux.Game" parent="android:Theme.NoTitleBar.Fullscreen">
         <item name="android:windowBackground">@android:color/black</item>
     </style>

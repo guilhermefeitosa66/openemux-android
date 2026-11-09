@@ -358,6 +358,13 @@
              when the content closes, and the library must survive that. Same
              task as the library, so the game opens inside the app. -->
         <activity
+            android:name="com.openemux.mobile.game.GameSkinActivity"
+            android:process=":game"
+            android:exported="false"
+            android:screenOrientation="fullUser"
+            android:theme="@style/Theme.OpenEmux.GameSkin"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale" />
+        <activity
             android:name="com.openemux.mobile.game.GameActivity"
             android:process=":game"
             android:exported="false"
