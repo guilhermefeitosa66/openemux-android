@@ -79,9 +79,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import android.widget.Toast
 import androidx.compose.runtime.LaunchedEffect
 import com.openemux.mobile.share.ShareEvent
+import com.openemux.mobile.share.TransferSurface
 import com.openemux.mobile.ui.share.ConnectByAddressScreen
 import com.openemux.mobile.ui.share.IncomingOfferSheet
 import com.openemux.mobile.ui.share.TransferChip
+import com.openemux.mobile.ui.share.rememberTransferSurface
 import com.openemux.mobile.ui.share.ShareScreen
 import com.openemux.mobile.ui.share.WhatToSendScreen
 import com.openemux.mobile.OpenEmuxApp
@@ -184,10 +186,17 @@ fun OpenEmuxRoot() {
                         .coerceIn(0, MAIN_TABS.lastIndex)
                     nav.navigateTab(MAIN_TABS[i])
                 }
+                // The D-pad stays inside the screen, so the transfer chip answers to Start while it shows (its badge says so).
+                val transferChip = rememberTransferSurface(app.shareCoordinator) == TransferSurface.CHIP
                 GamepadButtons(
                     l1 = { if (route in MAIN_TABS || route == Routes.LIBRARY) tab(-1) },
                     r1 = { if (route in MAIN_TABS || route == Routes.LIBRARY) tab(1) },
-                    start = { if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                    start = {
+                        when {
+                            transferChip -> app.shareCoordinator.showProgress()
+                            route != Routes.SETTINGS -> nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
+                        }
+                    },
                 )
                 val showTabs = route in setOf(Routes.SHELF, Routes.LIBRARY, Routes.RECENT, Routes.IMPORT, Routes.SETTINGS)
                 // Where this box sits in the window, top and bottom in dp: the fold is in window coordinates.

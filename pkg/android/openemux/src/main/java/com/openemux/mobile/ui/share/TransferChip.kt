@@ -28,13 +28,14 @@ import com.openemux.mobile.share.TransferNotice
 import com.openemux.mobile.share.TransferSurface
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
+import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.LocalActions
 import com.openemux.mobile.ui.Oe
+import com.openemux.mobile.ui.PadBadge
 import com.openemux.mobile.ui.Type
-import com.openemux.mobile.ui.gamepadFocus
 import com.retroarch.R
 
-/** A transfer the player left running: what it is doing, and the way back to its progress view. */
+/** A transfer the player left running: what it is doing, and the way back to its progress view (a tap, or Start on a pad). */
 @Composable
 fun TransferChip(modifier: Modifier = Modifier) {
     val share = LocalActions.current.app.shareCoordinator
@@ -44,7 +45,6 @@ fun TransferChip(modifier: Modifier = Modifier) {
         modifier
             .height(48.dp)
             .shadow(24.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black.copy(alpha = 0.45f), spotColor = Color.Black.copy(alpha = 0.45f))
-            .gamepadFocus(corner = 14.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(Oe.Divider)
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.share_chip_open), onClick = share::showProgress)
@@ -62,5 +62,9 @@ fun TransferChip(modifier: Modifier = Modifier) {
             style = Type.Body.copy(fontSize = 14.sp),
             maxLines = 1,
         )
+        if (InputMode.gamepad) {
+            Spacer(Modifier.width(10.dp))
+            PadBadge("START")
+        }
     }
 }
