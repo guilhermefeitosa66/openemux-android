@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">サウンドオン</string>
     <string name="game_toast_shader">シェーダー: %1$s</string>
     <string name="game_toast_state_other_core">このステートは別のコアのものです</string>
+    <string name="game_toast_restart_failed">ゲームをリセットできませんでした</string>
     <string name="game_toast_state_saved_other_core">このステートは別のコアで保存されました</string>
     <string name="game_save_state">ステートセーブ</string>
     <string name="game_load">ロード</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">サウンド</string>
     <string name="game_muted">ミュート</string>
     <string name="game_restart">ゲームをリセット</string>
+    <string name="game_restart_confirm_title">ゲームをリセットしますか？</string>
+    <string name="game_restart_confirm_body">最後のセーブ以降の進行状況は失われます。</string>
     <string name="game_retroarch_menu">RetroArch メニュー</string>
     <string name="game_retroarch_menu_note">詳細設定（このセッションのみ）</string>
     <string name="game_quit">ゲームを終了</string>

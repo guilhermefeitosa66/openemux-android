@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">Sound on</string>
     <string name="game_toast_shader">Shader: %1$s</string>
     <string name="game_toast_state_other_core">This state is from another core</string>
+    <string name="game_toast_restart_failed">Could not restart the game</string>
     <string name="game_toast_state_saved_other_core">This state was saved with another core</string>
     <string name="game_save_state">Save state</string>
     <string name="game_load">Load</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">Audio</string>
     <string name="game_muted">Muted</string>
     <string name="game_restart">Restart game</string>
+    <string name="game_restart_confirm_title">Restart game?</string>
+    <string name="game_restart_confirm_body">Your progress since the last save will be lost.</string>
     <string name="game_retroarch_menu">RetroArch menu</string>
     <string name="game_retroarch_menu_note">Advanced settings, for this session only</string>
     <string name="game_quit">Quit game</string>

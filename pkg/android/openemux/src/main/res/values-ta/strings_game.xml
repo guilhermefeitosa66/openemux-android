@@ -21,6 +21,7 @@
     <string name="game_toast_sound_on">ஒலி இயக்கப்பட்டது</string>
     <string name="game_toast_shader">ஷேடர்: %1$s</string>
     <string name="game_toast_state_other_core">இந்த நிலை வேறொரு கோருக்குரியது</string>
+    <string name="game_toast_restart_failed">விளையாட்டை மீண்டும் தொடங்க முடியவில்லை</string>
     <string name="game_toast_state_saved_other_core">இந்த நிலை வேறொரு கோருடன் சேமிக்கப்பட்டது</string>
     <string name="game_save_state">நிலையைச் சேமி</string>
     <string name="game_load">ஏற்று</string>
@@ -30,6 +31,8 @@
     <string name="game_audio">ஒலி</string>
     <string name="game_muted">ஒலியடக்கம்</string>
     <string name="game_restart">மீண்டும் தொடங்கு</string>
+    <string name="game_restart_confirm_title">விளையாட்டை மீண்டும் தொடங்கவா?</string>
+    <string name="game_restart_confirm_body">கடைசியாகச் சேமித்ததற்குப் பிறகான முன்னேற்றம் இழக்கப்படும்.</string>
     <string name="game_retroarch_menu">RetroArch மெனு</string>
     <string name="game_retroarch_menu_note">மேம்பட்ட அமைப்புகள், இந்த அமர்வுக்கு மட்டும்</string>
     <string name="game_quit">விளையாட்டிலிருந்து வெளியேறு</string>
