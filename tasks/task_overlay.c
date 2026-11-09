@@ -1051,6 +1051,12 @@ static bool task_overlay_load_desc(
          && tmp_bool)
       desc->flags |= OVERLAY_DESC_RANGE_MOD_EXCLUSIVE;
 
+   /* OpenEmux: an analog desc is declared "radial", but its reach can
+    * be lopsided, and only a rectangle covers its travel then. */
+   strlcpy_lit(conf_key + _len, "_hitbox_rect", sizeof(conf_key) - _len);
+   if (config_get_bool(conf, conf_key, &tmp_bool) && tmp_bool)
+      desc->hitbox = OVERLAY_HITBOX_RECT;
+
    if (     (desc->reach_left == 0.0f && desc->reach_right == 0.0f)
          || (desc->reach_up   == 0.0f && desc->reach_down  == 0.0f))
       desc->hitbox = OVERLAY_HITBOX_NONE;

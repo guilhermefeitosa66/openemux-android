@@ -13,7 +13,7 @@ import java.util.Locale
  * that state on. A stick with a [well] (the circle drawn around it) has the knob's travel for its rect, [knob] the
  * image the engine moves with the thumb and [saturate] where along the travel the value peaks. [dpad] makes it an
  * eight-way D-pad area with those up, down, left, right binds, whose rect is the travel of its circle ([knob]), and
- * which is touched [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
+ * which is touched at least [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
  * drawn over its rect all the time (an app control drawn apart from the page's image, which its collapsed twin shares).
  */
 internal class OverlayDesc(
@@ -89,7 +89,7 @@ internal object OverlayWriter {
      * Overlay [index] of the cfg, [w] x [h] pixels, with the game in [picture]; [other] is the overlay of the other
      * orientation. Touch areas are [grow] times what is drawn, except a stick's range, a lit image and a D-pad's
      * circle, which RetroArch stretches over its desc's range (a D-pad's touch area grows through its reach). A
-     * stick's zone reaches past its travel up to the other controls and the [clear] areas, [gap] short of them.
+     * D-pad's or a stick's zone reaches past what is drawn up to the other controls and the [clear] areas, [gap] short of them.
      * [hidden] is where the auto-rotate switch sits, as a fraction of the height: off the fold on a tabletop overlay.
      * A null [image] writes a page with no image of its own; the descs' images are named after [prefix], as
      * [saveImages] wrote them.
@@ -100,8 +100,6 @@ internal object OverlayWriter {
         hidden: Float = 0.5f, prefix: String = image!!.removeSuffix(".png"),
     ) {
         fun touch(d: OverlayDesc) = touchArea(d, grow)
-        // What a stick's touch zone must stay clear of: every other control, as touched, and the [clear] areas.
-        val taken = descs.map { footprint(it, grow) } + clear
         val p = "overlay$index"
         cfg.append("${p}_name = \"$name\"\n")
         // Where the engine draws the game, keeping its aspect inside this box; GL counts y from the bottom.
@@ -127,12 +125,9 @@ internal object OverlayWriter {
                 )
             )
             when {
-                // A "nul" desc is an image (an app control's, a panel), no control: the stick's zone may reach over it.
-                d.well != null -> stick(cfg, p, i, d, prefix, taken.filterIndexed { j, _ -> j != i && descs.getOrNull(j)?.name != "nul" }, gap)
-                // A stick with no knob image (a package that has none), over its whole frame.
-                d.radial -> cfg.append("${p}_desc${i}_saturate_pct = 0.65\n")
+                d.radial -> stick(cfg, p, i, d, prefix, startReach(descs, i, grow, clear, gap, w, h))
                 d.dpad != null -> {
-                    OverlayLines.dpad(cfg, "${p}_desc$i", d.dpad, d.reach)
+                    OverlayLines.dpad(cfg, "${p}_desc$i", d.dpad, startReach(descs, i, grow, clear, gap, w, h))
                     if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(prefix, i))
                 }
             }
@@ -155,15 +150,19 @@ internal object OverlayWriter {
      * D-pad's circle.
      */
     internal fun touchArea(d: OverlayDesc, grow: Float): RectF {
-        val g = if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow
-        val hw = d.rect.width() / 2f * g
-        val hh = d.rect.height() / 2f * g
-        return RectF(d.rect.centerX() - hw, d.rect.centerY() - hh, d.rect.centerX() + hw, d.rect.centerY() + hh)
+        return scaled(d.rect, if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow)
+    }
+
+    /** [r] [g] times its size, about its centre. */
+    private fun scaled(r: RectF, g: Float): RectF {
+        val hw = r.width() / 2f * g
+        val hh = r.height() / 2f * g
+        return RectF(r.centerX() - hw, r.centerY() - hh, r.centerX() + hw, r.centerY() + hh)
     }
 
     /**
      * All [d] takes of the screen, as touched: a stick's well, a D-pad's rect [OverlayDesc.reach] times its half-size
-     * on each side (where a touch on it starts), anything else its [touchArea].
+     * on each side (the least a touch on it starts over), anything else its [touchArea].
      */
     internal fun footprint(d: OverlayDesc, grow: Float): RectF {
         d.well?.let { return it }
@@ -178,62 +177,53 @@ internal object OverlayWriter {
 
     /**
      * Stick [d] at desc [i], whose rect is its knob's travel: the value saturates where the knob stops (or sooner, at
-     * its [OverlayDesc.saturate]), its knob is the image the engine moves with the thumb, and the touch zone reaches
-     * past the travel up to the [taken] areas, [gap] short of them.
+     * its [OverlayDesc.saturate]; a stick with no well and so no knob's travel, over its whole frame, at 0.65), its
+     * knob is the image the engine moves with the thumb, and a touch on it starts as far as [reach] goes.
      */
-    private fun stick(cfg: StringBuilder, p: String, i: Int, d: OverlayDesc, prefix: String, taken: List<RectF>, gap: Float) {
-        val pct = if (d.saturate == 1f) "1.0" else String.format(Locale.US, "%.3f", d.saturate)
+    private fun stick(cfg: StringBuilder, p: String, i: Int, d: OverlayDesc, prefix: String, reach: FloatArray) {
+        val pct = when {
+            d.well == null -> "0.65"
+            d.saturate == 1f -> "1.0"
+            else -> String.format(Locale.US, "%.3f", d.saturate)
+        }
         cfg.append("${p}_desc${i}_saturate_pct = $pct\n")
         if (d.knob != null) OverlayLines.knob(cfg, "${p}_desc$i", knobImage(prefix, i))
-        // Never smaller than the well drawn around it, which was the whole zone before it could reach past it.
-        val floor = d.well?.let { maxOf(1f, minOf(it.width(), it.height()) / d.rect.width()) } ?: 1f
-        val reach = stickReach(d.rect, taken, gap, floor)
-        listOf("up", "down", "left", "right").forEachIndexed { k, dir ->
-            cfg.append(String.format(Locale.US, "%s_desc%d_reach_%s = %.3f\n", p, i, dir, reach[k]))
-        }
-        // Once held, the zone doubles and wins over the controls around it: drifting past the rim keeps steering.
-        cfg.append("${p}_desc${i}_range_mod = 2.0\n")
-        cfg.append("${p}_desc${i}_range_mod_exclusive = true\n")
+        OverlayLines.stickZone(cfg, "${p}_desc$i", reach)
     }
 
     /**
-     * How far past its [travel] square a stick's touch zone reaches up, down, left and right, as the engine's
-     * `reach_*` multiples of the range: 2 where it is free, short of [gap] before each of the [taken] areas,
-     * never under [floor] (the well). The engine's radial hitbox is the ellipse inscribed in that box, so each
-     * axis keeps the same reach on both sides: an off-centre ellipse would leave part of the travel circle untouchable.
-     * The screen's edge needs no pulling back, a touch never lands past it.
+     * Where a touch can start the movement control at [i] of [descs], as its reach (left, top, right, bottom): see
+     * [TouchZones]. Its neighbours are the other controls as touched and the [clear] areas. A "nul" desc is an image
+     * (an app control's, a panel), no control: the zone may reach over it.
      */
-    private fun stickReach(travel: RectF, taken: List<RectF>, gap: Float, floor: Float): FloatArray {
-        val cx = travel.centerX()
-        val cy = travel.centerY()
-        val range = travel.width() / 2f
-        // Vertical, horizontal.
-        val reach = floatArrayOf(maxOf(2f, floor), maxOf(2f, floor))
-        for (r in taken) {
-            val zone = RectF(cx - range * reach[1], cy - range * reach[0], cx + range * reach[1], cy + range * reach[0])
-            if (!RectF.intersects(RectF(zone).apply { inset(-gap, -gap) }, r)) continue
-            // Pull back the axis the area lies on; of two (a corner), the one that loses the least.
-            val vertical = when {
-                r.bottom <= travel.top -> (cy - r.bottom - gap) / range
-                r.top >= travel.bottom -> (r.top - gap - cy) / range
-                else -> -1f
-            }
-            val horizontal = when {
-                r.right <= travel.left -> (cx - r.right - gap) / range
-                r.left >= travel.right -> (r.left - gap - cx) / range
-                else -> -1f
-            }
-            // An area over the travel itself (a neighbour's extended edges): neither axis clears it, keep both short.
-            if (vertical < 0f && horizontal < 0f) {
-                reach[0] = floor
-                reach[1] = floor
-                continue
-            }
-            val axis = if (vertical >= horizontal) 0 else 1
-            val pulled = maxOf(vertical, horizontal)
-            reach[axis] = minOf(reach[axis], pulled).coerceAtLeast(floor)
-        }
-        // Up, down, left, right.
-        return floatArrayOf(reach[0], reach[0], reach[1], reach[1])
+    private fun startReach(
+        descs: List<OverlayDesc>, i: Int, grow: Float, clear: List<RectF>, gap: Float, w: Int, h: Int,
+    ): FloatArray {
+        val d = descs[i]
+        val others = descs.filterIndexed { j, o -> j != i && o.name != "nul" }
+        val (peers, neighbours) = others.partition { it.dpad != null || it.radial }
+        val zone = TouchZones.startZone(
+            drawn(d).box(), startFloor(d, grow).box(),
+            neighbours.map { footprint(it, grow).box() } + clear.map { it.box() },
+            peers.map { startFloor(it, grow).box() },
+            gap, w.toFloat(), h.toFloat(),
+        )
+        return TouchZones.reach(d.rect.box(), zone)
     }
+
+    /**
+     * The least movement control [d] is touched over, whatever crowds it: a D-pad's rect and all it takes of the
+     * screen, a stick's knob travel and the square inside its circle ([TouchZones.inscribed]).
+     */
+    private fun startFloor(d: OverlayDesc, grow: Float): RectF {
+        if (d.dpad != null) return RectF(d.rect).apply { union(footprint(d, grow)) }
+        val square = TouchZones.inscribed((d.well ?: d.rect).box())
+        return RectF(square.x, square.y, square.right, square.bottom).apply { if (d.well != null) union(d.rect) }
+    }
+
+    /** What movement control [d] shows on the screen: a D-pad's cross around its circle's travel, a stick's well. */
+    private fun drawn(d: OverlayDesc): RectF =
+        if (d.dpad == null) d.well ?: d.rect else scaled(d.rect, 1f / OverlayLines.DPAD_TRAVEL)
+
+    private fun RectF.box() = SkinBox(left, top, width(), height())
 }

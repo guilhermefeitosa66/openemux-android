@@ -165,7 +165,7 @@ class SkinRenderer(private val context: Context) {
             }
             OverlayWriter.saveImages(outDir, image.takeIf { fresh }, bitmap.takeIf { fresh }, descs, prefix)
             bitmap.recycle()
-            // Touch areas a little larger than what is drawn: thumbs are wide. A stick's zone keeps clear of the game
+            // Touch areas a little larger than what is drawn: thumbs are wide. A D-pad's or stick's zone keeps clear of the game
             // and, on a tabletop overlay, of the fold's band.
             val clear = if (spec.tabletop && band != null) {
                 listOf(layout.picture, RectF(0f, band.startPx, w.toFloat(), band.endPx))

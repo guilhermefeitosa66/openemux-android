@@ -44,7 +44,7 @@ import kotlin.math.roundToInt
  */
 class ImportedSkinRenderer {
 
-    /** What a drawOverlay laid out: the touch areas, the game's box, and what a stick's zone keeps clear of. */
+    /** What a drawOverlay laid out: the touch areas, the game's box, and what a D-pad's or stick's zone keeps clear of. */
     private class Drawn(val descs: List<OverlayDesc>, val viewport: RectF, val clear: List<RectF>, val gap: Float)
 
     /** Where the representation lands on screen: mapping units times [s], from ([ox], [oy]). */
@@ -239,7 +239,7 @@ class ImportedSkinRenderer {
             }
         }
         OverlayWriter.saveImages(outDir, image, bitmap, descs, prefix)
-        // A whole-device skin keeps the game's picture clear of the sticks' zones; one over the game cannot.
+        // A whole-device skin keeps the game's picture clear of the D-pads' and sticks' zones; one over the game cannot.
         return Drawn(descs, viewport, listOfNotNull(viewport.takeIf { screen != null }), 2f * place.s)
     }
 
