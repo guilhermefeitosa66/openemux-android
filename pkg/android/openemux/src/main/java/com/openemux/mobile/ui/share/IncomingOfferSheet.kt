@@ -54,6 +54,7 @@ import com.openemux.mobile.share.OfferGame
 import com.openemux.mobile.share.OfferModel
 import com.openemux.mobile.share.ShareCoordinator
 import com.openemux.mobile.share.TransferState
+import com.openemux.mobile.share.TransferSurface
 import com.openemux.mobile.ui.OeSheet
 import com.openemux.mobile.ui.BackLink
 import com.openemux.mobile.ui.Card
@@ -83,8 +84,9 @@ import com.openemux.mobile.ui.padSize
 
 /**
  * The incoming offer over any screen of the main activity (spec 05/06), then
- * the receive's progress and result. Never dismissed by a drag or a tap
- * outside: back (and B) declines, Decline has the first focus.
+ * the transfer's progress and result. Never dismissed by a drag or a tap
+ * outside: on an offer back (and B) declines, Decline has the first focus; on
+ * the progress it leaves the transfer running, and the chip brings it back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,15 +95,9 @@ fun IncomingOfferSheet() {
     val share = a.app.shareCoordinator
     val offer by share.pendingOffer.collectAsState()
     val transfer by share.transfer.collectAsState()
-    val receiving = when (val t = transfer) {
-        is TransferState.Running -> !t.outgoing
-        is TransferState.Finished -> !t.result.outgoing
-        else -> false
-    }
-    if (offer == null && !receiving) return
+    if (offer == null && rememberTransferSurface(share) != TransferSurface.SHEET) return
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden })
     var page by rememberSaveable { mutableStateOf(Page.OFFER) }
-    var confirmCancel by rememberSaveable { mutableStateOf(false) }
     OeSheet(
         {}, sheetState = state,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false), scroll = false,
@@ -111,7 +107,7 @@ fun IncomingOfferSheet() {
             when {
                 offer != null && page == Page.CONFLICTS -> page = Page.OFFER
                 offer != null -> share.decline()
-                transfer.busy -> confirmCancel = true
+                transfer is TransferState.Running -> share.hideProgress()
                 else -> share.dismissResult()
             }
         }
@@ -122,7 +118,7 @@ fun IncomingOfferSheet() {
                     model != null && page == Page.CONFLICTS -> ConflictsPage(model, share) { page = Page.OFFER }
                     model != null -> OfferPage(model, share) { page = Page.CONFLICTS }
                     else -> when (val t = transfer) {
-                        is TransferState.Running -> ProgressView(t) { share.cancel() }
+                        is TransferState.Running -> ProgressView(t, share::hideProgress) { share.cancel() }
                         is TransferState.Finished -> {
                             // A skin is not in the library: its card says where it went.
                             val console = t.result.firstConsole.takeIf { !t.result.skin }
@@ -137,7 +133,6 @@ fun IncomingOfferSheet() {
             }
         }
     }
-    if (confirmCancel) CancelTransferDialog({ confirmCancel = false }) { confirmCancel = false; share.cancel() }
 }
 
 private enum class Page { OFFER, CONFLICTS }

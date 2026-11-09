@@ -16,6 +16,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,10 +37,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openemux.mobile.share.ResultKind
+import com.openemux.mobile.share.ShareCoordinator
 import com.openemux.mobile.share.ShareFormat
 import com.openemux.mobile.share.ShareMessage
 import com.openemux.mobile.share.ShareResult
 import com.openemux.mobile.share.TransferState
+import com.openemux.mobile.share.TransferSurface
+import com.openemux.mobile.share.transferSurface
 import com.openemux.mobile.ui.OeConfirmDialog
 import com.openemux.mobile.ui.GamepadButtons
 import com.openemux.mobile.ui.Icon
@@ -83,9 +87,18 @@ fun WaitingView(state: TransferState.Waiting, onCancel: () -> Unit) {
     }
 }
 
-/** Bytes moving, either way (spec 07); Cancel asks first. */
+/** Where the transfer shows right now, from the coordinator's state. */
 @Composable
-fun ProgressView(state: TransferState.Running, onCancel: () -> Unit) {
+fun rememberTransferSurface(share: ShareCoordinator): TransferSurface {
+    val transfer by share.transfer.collectAsState()
+    val hidden by share.progressHidden.collectAsState()
+    val sendScreens by share.sendScreens.collectAsState()
+    return transferSurface(transfer, hidden, sendScreens > 0)
+}
+
+/** Bytes moving, either way (spec 07); [onHide] leaves the view with the transfer going, Cancel asks first. */
+@Composable
+fun ProgressView(state: TransferState.Running, onHide: () -> Unit, onCancel: () -> Unit) {
     var confirm by rememberSaveable { mutableStateOf(false) }
     val p = state.progress
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -110,7 +123,8 @@ fun ProgressView(state: TransferState.Running, onCancel: () -> Unit) {
             Icon(Icons.Info, Oe.Muted, 18.dp)
             Text(stringResource(R.string.share_progress_note), style = Type.Small)
         }
-        DangerButton(stringResource(R.string.share_progress_cancel), { confirm = true }, Modifier.padding(top = 4.dp).fillMaxWidth())
+        SecondaryButton(stringResource(R.string.share_progress_background), onHide, Modifier.padding(top = 4.dp).fillMaxWidth())
+        DangerButton(stringResource(R.string.share_progress_cancel), { confirm = true }, Modifier.fillMaxWidth())
     }
     if (confirm) CancelTransferDialog({ confirm = false }) { confirm = false; onCancel() }
 }

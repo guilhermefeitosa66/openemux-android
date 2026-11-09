@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.update
 import com.openemux.mobile.game.PadInfo
+import com.openemux.mobile.share.ShareNotifications
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.InputMode
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
             handleShareLink(intent)
             handleImport(intent)
+            handleTransferNotification(intent)
         }
     }
 
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleShareLink(intent)
         handleImport(intent)
+        handleTransferNotification(intent)
     }
 
     /** Files from "Open with" or "Share", forwarded by ImportActivity with their read grant: the library imports them. */
@@ -87,13 +90,19 @@ class MainActivity : ComponentActivity() {
 
     /**
      * An `openemux-share://` link only fills Connect by Address: it never
-     * connects or sends on its own. The incoming-offer notification needs
-     * nothing here: bringing the activity up shows the sheet from state.
+     * connects or sends on its own.
      */
     private fun handleShareLink(intent: Intent?) {
         val uri = intent?.data ?: return
         if (intent.action != Intent.ACTION_VIEW || uri.scheme != "openemux-share") return
         (application as OpenEmuxApp).shareCoordinator.link.value = uri.toString()
+    }
+
+    /** A Share nearby notification reopens the progress view; an offer or a result shows from state anyway. */
+    private fun handleTransferNotification(intent: Intent?) {
+        if (intent?.getBooleanExtra(ShareNotifications.EXTRA_OPEN_OFFER, false) == true) {
+            (application as OpenEmuxApp).shareCoordinator.showProgress()
+        }
     }
 
     /** Edge to edge, with the status and navigation bar icons following the theme, not the system. */

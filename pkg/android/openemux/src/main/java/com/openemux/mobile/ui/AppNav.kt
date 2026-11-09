@@ -81,6 +81,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.openemux.mobile.share.ShareEvent
 import com.openemux.mobile.ui.share.ConnectByAddressScreen
 import com.openemux.mobile.ui.share.IncomingOfferSheet
+import com.openemux.mobile.ui.share.TransferChip
 import com.openemux.mobile.ui.share.ShareScreen
 import com.openemux.mobile.ui.share.WhatToSendScreen
 import com.openemux.mobile.OpenEmuxApp
@@ -256,13 +257,16 @@ fun OpenEmuxRoot() {
                         // The tabs, the hints and the toast are on the bottom half.
                     } else if (rail) {
                         TabRail(route, navKind == NavKind.TabletRail, railWidth, Modifier.align(Alignment.CenterStart))
+                        TransferChip(Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = 12.dp + hintBarInset))
                         ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = 12.dp))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(start = railWidth))
                     } else if (showTabs) {
                         TabBar(route, Modifier.align(Alignment.BottomCenter))
+                        TransferChip(Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight + 12.dp + hintBarInset))
                         ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight + 12.dp))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight))
                     } else {
+                        TransferChip(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp + hintBarInset))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
                     }
                 }

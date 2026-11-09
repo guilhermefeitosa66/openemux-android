@@ -99,7 +99,7 @@ fun ShareScreen(receive: Boolean) {
         onDispose {
             // A send's result belongs to this screen: the next Share opens on the devices, not on it.
             if ((share.transfer.value as? TransferState.Finished)?.result?.outgoing == true && !receive) share.dismissResult()
-            share.closeScreen()
+            share.closeScreen(send = !receive)
         }
     }
     AskNotificationsOnce()
@@ -117,7 +117,16 @@ fun ShareScreen(receive: Boolean) {
         TransferState.Idle -> false
     }
     var confirmCancel by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = outgoing && transfer.busy) { confirmCancel = true }
+    // Bytes on the move go on without this screen; before the answer, the code on it is the point.
+    fun leave() {
+        if (outgoing && transfer is TransferState.Waiting) {
+            confirmCancel = true
+        } else {
+            share.hideProgress()
+            a.nav.popBackStack()
+        }
+    }
+    BackHandler(enabled = outgoing && transfer.busy) { leave() }
     if (confirmCancel) CancelTransferDialog({ confirmCancel = false }) { confirmCancel = false; share.cancel() }
     GamepadButtons(
         hints = listOf(
@@ -136,9 +145,7 @@ fun ShareScreen(receive: Boolean) {
                     skin != null -> R.string.skins_title
                     else -> R.string.settings_tab_library
                 }
-                BackLink(stringResource(from)) {
-                    if (outgoing && transfer.busy) confirmCancel = true else a.nav.popBackStack()
-                }
+                BackLink(stringResource(from)) { leave() }
                 FitText(stringResource(if (receive) R.string.share_receive_title else R.string.share_title), Type.Display, Modifier.padding(top = 4.dp))
                 Text(
                     when {
@@ -155,7 +162,7 @@ fun ShareScreen(receive: Boolean) {
                 outgoing -> Column(Modifier.padding(20.dp)) {
                     when (val t = transfer) {
                         is TransferState.Waiting -> WaitingView(t) { confirmCancel = true }
-                        is TransferState.Running -> ProgressView(t) { share.cancel() }
+                        is TransferState.Running -> ProgressView(t, ::leave) { share.cancel() }
                         is TransferState.Finished -> ResultView(t.result, { share.dismissResult(); a.nav.popBackStack() }, null)
                         TransferState.Idle -> Unit
                     }
