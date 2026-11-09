@@ -75,6 +75,16 @@ class TouchZonesTest {
         assertTrue(mine.right < theirs.x)
     }
 
+    @Test fun twoPeersOnADiagonalNeverOverlapOnATie() {
+        // As far apart across as down, so each side costs the same: both have to give up the same axis.
+        val lower = SkinBox(0f, 140f, 100f, 100f)
+        val upper = SkinBox(140f, 0f, 100f, 100f)
+        val a = zone(control = lower, peers = listOf(upper))
+        val b = zone(control = upper, peers = listOf(lower))
+        val apart = a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y
+        assertTrue("$a against $b", apart)
+    }
+
     @Test fun aPeerOnEverySideIsSplitAtTheMiddle() {
         assertEquals(52f, zone(peers = listOf(SkinBox(-100f, 100f, 100f, 100f))).x, 1e-4f)
         assertEquals(52f, zone(peers = listOf(SkinBox(100f, -100f, 100f, 100f))).y, 1e-4f)

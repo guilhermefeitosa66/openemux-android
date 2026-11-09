@@ -46,9 +46,10 @@ internal object TouchZones {
                     right = floor.right
                     bottom = floor.bottom
                 }
+                // Sideways first on a tie, the same choice from both ends: two peers on a diagonal must not take one axis each.
                 cuts[0] == cut -> left += cut
-                cuts[1] == cut -> top += cut
                 cuts[2] == cut -> right -= cut
+                cuts[1] == cut -> top += cut
                 else -> bottom -= cut
             }
         }

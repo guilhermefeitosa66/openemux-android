@@ -13,7 +13,7 @@ import java.util.Locale
  * that state on. A stick with a [well] (the circle drawn around it) has the knob's travel for its rect, [knob] the
  * image the engine moves with the thumb and [saturate] where along the travel the value peaks. [dpad] makes it an
  * eight-way D-pad area with those up, down, left, right binds, whose rect is the travel of its circle ([knob]), and
- * which is touched [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
+ * which is touched at least [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
  * drawn over its rect all the time (an app control drawn apart from the page's image, which its collapsed twin shares).
  */
 internal class OverlayDesc(
@@ -89,7 +89,7 @@ internal object OverlayWriter {
      * Overlay [index] of the cfg, [w] x [h] pixels, with the game in [picture]; [other] is the overlay of the other
      * orientation. Touch areas are [grow] times what is drawn, except a stick's range, a lit image and a D-pad's
      * circle, which RetroArch stretches over its desc's range (a D-pad's touch area grows through its reach). A
-     * stick's zone reaches past its travel up to the other controls and the [clear] areas, [gap] short of them.
+     * D-pad's or a stick's zone reaches past what is drawn up to the other controls and the [clear] areas, [gap] short of them.
      * [hidden] is where the auto-rotate switch sits, as a fraction of the height: off the fold on a tabletop overlay.
      * A null [image] writes a page with no image of its own; the descs' images are named after [prefix], as
      * [saveImages] wrote them.
@@ -150,15 +150,19 @@ internal object OverlayWriter {
      * D-pad's circle.
      */
     internal fun touchArea(d: OverlayDesc, grow: Float): RectF {
-        val g = if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow
-        val hw = d.rect.width() / 2f * g
-        val hh = d.rect.height() / 2f * g
-        return RectF(d.rect.centerX() - hw, d.rect.centerY() - hh, d.rect.centerX() + hw, d.rect.centerY() + hh)
+        return scaled(d.rect, if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow)
+    }
+
+    /** [r] [g] times its size, about its centre. */
+    private fun scaled(r: RectF, g: Float): RectF {
+        val hw = r.width() / 2f * g
+        val hh = r.height() / 2f * g
+        return RectF(r.centerX() - hw, r.centerY() - hh, r.centerX() + hw, r.centerY() + hh)
     }
 
     /**
      * All [d] takes of the screen, as touched: a stick's well, a D-pad's rect [OverlayDesc.reach] times its half-size
-     * on each side (where a touch on it starts), anything else its [touchArea].
+     * on each side (the least a touch on it starts over), anything else its [touchArea].
      */
     internal fun footprint(d: OverlayDesc, grow: Float): RectF {
         d.well?.let { return it }
@@ -198,23 +202,21 @@ internal object OverlayWriter {
         val d = descs[i]
         val others = descs.filterIndexed { j, o -> j != i && o.name != "nul" }
         val (peers, neighbours) = others.partition { it.dpad != null || it.radial }
-        val floor = RectF(d.rect).apply { union(footprint(d, grow)) }
         val zone = TouchZones.startZone(
-            drawn(d).box(), floor.box(),
+            drawn(d).box(), startFloor(d, grow).box(),
             neighbours.map { footprint(it, grow).box() } + clear.map { it.box() },
-            peers.map { footprint(it, grow).box() },
+            peers.map { startFloor(it, grow).box() },
             gap, w.toFloat(), h.toFloat(),
         )
         return TouchZones.reach(d.rect.box(), zone)
     }
 
+    /** The least movement control [d] is touched over, a zone or not: its rect and all it takes of the screen. */
+    private fun startFloor(d: OverlayDesc, grow: Float) = RectF(d.rect).apply { union(footprint(d, grow)) }
+
     /** What movement control [d] shows on the screen: a D-pad's cross around its circle's travel, a stick's well. */
-    private fun drawn(d: OverlayDesc): RectF {
-        if (d.dpad == null) return d.well ?: d.rect
-        val hw = d.rect.width() / 2f / OverlayLines.DPAD_TRAVEL
-        val hh = d.rect.height() / 2f / OverlayLines.DPAD_TRAVEL
-        return RectF(d.rect.centerX() - hw, d.rect.centerY() - hh, d.rect.centerX() + hw, d.rect.centerY() + hh)
-    }
+    private fun drawn(d: OverlayDesc): RectF =
+        if (d.dpad == null) d.well ?: d.rect else scaled(d.rect, 1f / OverlayLines.DPAD_TRAVEL)
 
     private fun RectF.box() = SkinBox(left, top, width(), height())
 }
