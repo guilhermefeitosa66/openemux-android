@@ -275,7 +275,8 @@ fun OpenEmuxRoot() {
                         ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight + 12.dp))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight))
                     } else {
-                        TransferChip(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp + hintBarInset))
+                        // What to Send has its own bar at the bottom, with Done on it.
+                        if (route != Routes.SHARE_ITEMS) TransferChip(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp + hintBarInset))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
                     }
                 }

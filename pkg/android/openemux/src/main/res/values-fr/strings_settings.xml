@@ -239,6 +239,7 @@
     <string name="backup_confirm_from">D’OpenEmux %1$s, créée le %2$s · %3$s</string>
     <string name="backup_confirm_note">La bibliothèque, les sauvegardes et les réglages de ce téléphone sont remplacés. OpenEmux redémarre une fois terminé.</string>
     <string name="backup_confirm">Remplacer et restaurer</string>
+    <string name="backup_transfer_running">Un transfert de jeux est en cours. Vous pourrez restaurer une fois qu’il sera terminé.</string>
     <string name="backup_err_invalid">Ce fichier n’est pas une sauvegarde OpenEmux, ou il est endommagé. Rien n’a été modifié.</string>
     <string name="backup_err_newer">Cette sauvegarde a été créée par un OpenEmux plus récent. Mettez d’abord l’application à jour. Rien n’a été modifié.</string>
     <string name="backup_err_space">Pas assez d’espace libre : la sauvegarde nécessite %1$s et %2$s sont libres. Rien n’a été modifié.</string>

@@ -228,6 +228,7 @@
     <string name="backup_confirm_from">From OpenEmux %1$s, made on %2$s · %3$s</string>
     <string name="backup_confirm_note">The library, saves and settings on this phone are replaced. OpenEmux restarts when it is done.</string>
     <string name="backup_confirm">Replace and restore</string>
+    <string name="backup_transfer_running">A game transfer is running. You can restore when it ends.</string>
     <string name="backup_err_invalid">This file is not an OpenEmux backup, or it is damaged. Nothing was changed.</string>
     <string name="backup_err_newer">This backup was made by a newer OpenEmux. Update the app first. Nothing was changed.</string>
     <string name="backup_err_space">Not enough free space: the backup needs %1$s and %2$s is free. Nothing was changed.</string>

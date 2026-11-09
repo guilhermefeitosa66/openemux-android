@@ -70,6 +70,8 @@ fun BackupScreen(embedded: Boolean = false) {
     val backup = a.app.backup
     val context = LocalContext.current
     val state by backup.state.collectAsState()
+    // A restore swaps the library's folders: a transfer left running would commit into the ones it just replaced.
+    val transferring = a.app.shareCoordinator.transfer.collectAsState().value.busy
     val sizes by backup.sizes.collectAsState()
     val roms by a.app.library.roms.collectAsState()
     var includeRoms by rememberSaveable { mutableStateOf(true) }
@@ -147,8 +149,9 @@ fun BackupScreen(embedded: Boolean = false) {
         SectionHeader(stringResource(R.string.backup_section_import))
         SecondaryButton(
             stringResource(R.string.backup_import), { if (running == null) open.launch(arrayOf("application/zip", "application/octet-stream")) },
-            Modifier.padding(horizontal = 20.dp).fillMaxWidth(), icon = Icons.Load, height = 54.dp,
+            Modifier.padding(horizontal = 20.dp).fillMaxWidth(), icon = Icons.Load, height = 54.dp, enabled = !transferring,
         )
+        if (transferring) Notice(stringResource(R.string.backup_transfer_running), NoticeKind.WARN)
         (state as? BackupState.Restored)?.let { Notice(countString(R.plurals.backup_restored, it.games, it.games, it.saves), NoticeKind.OK) }
         (state as? BackupState.Failed)?.takeIf { !it.export }?.let { Notice(it.error.message(false, ::size), it.error.kind()) }
         Note(stringResource(R.string.backup_import_note))
@@ -189,7 +192,8 @@ fun BackupScreen(embedded: Boolean = false) {
                     }
                 }
                 Text(stringResource(R.string.backup_confirm_note), style = Type.Small, modifier = Modifier.padding(top = 14.dp, bottom = 16.dp))
-                PrimaryButton(stringResource(R.string.backup_confirm), { backup.restore(confirm) }, Modifier.fillMaxWidth(), height = 54.dp)
+                if (transferring) Notice(stringResource(R.string.backup_transfer_running), NoticeKind.WARN)
+                PrimaryButton(stringResource(R.string.backup_confirm), { backup.restore(confirm) }, Modifier.fillMaxWidth(), height = 54.dp, enabled = !transferring)
                 SecondaryButton(stringResource(R.string.backup_cancel), { backup.dismiss() }, Modifier.padding(top = 10.dp).fillMaxWidth(), height = 54.dp)
             } }
         }

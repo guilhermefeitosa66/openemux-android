@@ -15,8 +15,8 @@ class StringsBackgroundTransferTest {
     private val locales = listOf("-de", "-es", "-fr", "-ja", "-pt-rBR", "-ta", "-zh-rCN")
     private val keys = listOf("share_progress_note", "share_progress_background", "share_chip_open", "share_chip_receiving", "share_chip_sending")
 
-    private fun strings(folder: String): Map<String, String> {
-        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(res, "$folder/strings_share.xml")).documentElement
+    private fun strings(folder: String, file: String = "strings_share.xml"): Map<String, String> {
+        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(res, "$folder/$file")).documentElement
         val nodes = root.getElementsByTagName("string")
         return (0 until nodes.length).map { nodes.item(it) as Element }.associate { it.getAttribute("name") to it.textContent }
     }
@@ -31,6 +31,18 @@ class StringsBackgroundTransferTest {
                 assertTrue("values$locale/$key", !s[key].isNullOrBlank())
                 assertNotEquals("values$locale/$key", english[key], s[key])
             }
+        }
+    }
+
+    @Test
+    fun theBackupNoticeIsTranslated() {
+        val key = "backup_transfer_running"
+        val english = strings("values", "strings_settings.xml")[key]
+        assertFalse(english.isNullOrBlank())
+        for (locale in locales) {
+            val text = strings("values$locale", "strings_settings.xml")[key]
+            assertTrue("values$locale", !text.isNullOrBlank())
+            assertNotEquals("values$locale", english, text)
         }
     }
 
