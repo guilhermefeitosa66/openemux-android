@@ -207,7 +207,8 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
     val context = LocalContext.current
     val meta by library.meta.collectAsState()
     val settings = meta.consoles[console.id]
-    val listed by produceState<SkinListState?>(null, console, revision) {
+    // The skin in use can be one the list has not seen: made in game, it reaches the library with the next scan.
+    val listed by produceState<SkinListState?>(null, console, revision, settings?.custom) {
         value = withContext(Dispatchers.IO) { readSkinList(context, library.skins, console) }
     }
     val state = listed ?: return null

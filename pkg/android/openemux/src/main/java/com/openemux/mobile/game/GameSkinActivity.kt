@@ -50,6 +50,8 @@ import java.io.File
  */
 class GameSkinActivity : ComponentActivity() {
     private val padScope = PadScope()
+    /** The trip under way, until its editor closes: an activity destroyed before that still takes its copy back. */
+    @Volatile private var trip: SkinEditSession? = null
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLocale.wrap(newBase))
@@ -78,6 +80,16 @@ class GameSkinActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        trip?.let(::abandon)
+        super.onDestroy()
+    }
+
+    /** Off the main thread, and off the composition, which is gone by now. */
+    private fun abandon(session: SkinEditSession) {
+        Thread({ runCatching { session.close() }.onFailure { Log.w(TAG, "copy not removed", it) } }, "skin-copy").start()
+    }
+
     @Composable
     private fun Editing(console: Console, store: SkinStore, variant: String, custom: String?) {
         val context = LocalContext.current
@@ -87,6 +99,11 @@ class GameSkinActivity : ComponentActivity() {
             val opened = withContext(Dispatchers.IO) {
                 runCatching { open(context, console, store, variant, custom) }
                     .onFailure { Log.e(TAG, "no skin to edit for ${console.id}", it) }.getOrNull()
+                    ?.also { made ->
+                        trip = made
+                        // Left while the copy was being made: onDestroy has been and gone, and nothing else closes it.
+                        if (isDestroyed) abandon(made)
+                    }
             }
             if (opened == null) {
                 Toast.makeText(context, R.string.skins_error, Toast.LENGTH_SHORT).show()
@@ -100,6 +117,7 @@ class GameSkinActivity : ComponentActivity() {
         SkinEditor(host, console, open.target, onChanged = open::changed, onClose = {
             scope.launch {
                 withContext(Dispatchers.IO) { runCatching { open.close() }.onFailure { Log.w(TAG, "copy not removed", it) } }
+                trip = null
                 val ref = open.result()
                 if (ref != null) setResult(RESULT_OK, Intent().putExtra(GameExtras.SKIN_CUSTOM, ref))
                 finish()

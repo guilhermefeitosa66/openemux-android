@@ -31,10 +31,12 @@ import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.launch.GameSkin
 import com.openemux.mobile.launch.OverlayName
+import com.openemux.mobile.launch.PACKAGE_NDS_LAYOUT
 import com.openemux.mobile.launch.SkinGeometry
 import com.openemux.mobile.launch.SkinRenderer
 import com.openemux.mobile.launch.SkinSize
 import com.openemux.mobile.launch.TABLETOP
+import com.openemux.mobile.launch.ndsLaunchLayout
 import com.openemux.mobile.launch.overlayNames
 import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
@@ -110,6 +112,10 @@ class GameActivity : RetroActivityFuture() {
     /** The skin the game plays: the launch's until one is picked or edited from the sheet (read by the skin thread too). */
     private val skinVariantId = mutableStateOf(SkinVariant.CONSOLE.id)
     private val skinCustom = mutableStateOf<String?>(null)
+    /** A skin was picked or edited since the last redraw: the next one sets the core's NDS screens for it. */
+    @Volatile private var skinPicked = false
+    /** The editor is open (or opening): a second tap on its row must not stack another one. */
+    private var editingSkin = false
     private val skinWanted = AtomicReference<SkinSize?>(null)
     private var skinSeq = 0
     private var engineReady = false
@@ -235,11 +241,13 @@ class GameActivity : RetroActivityFuture() {
         val dir = File(launchDir, "skin-${++skinSeq}")
         val stale = skinStale
         skinStale = false
+        val picked = skinPicked
+        skinPicked = false
         val bounds = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(this).bounds
         val first = overlayToReopen()
-        val reply = runCatching {
+        val drawn = runCatching {
             // Chosen as at launch: the console's package skin, else the drawn one.
-            val skin = GameSkin.render(
+            GameSkin.render(
                 this, base, console, size, dir,
                 density = resources.displayMetrics.density,
                 hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
@@ -250,24 +258,37 @@ class GameActivity : RetroActivityFuture() {
                 gamepad = synchronized(ndsLayouts) { wantGamepad },
                 // Drawn upright, as the launcher does: the fold goes with it.
                 fold = SkinGeometry.portraitFold(lastFold, bounds.width(), bounds.height()),
-            ).file
-            RaCommand.ask("OVERLAY_LOAD ${skin.absolutePath}", 2000)
+            )
         }.getOrNull()
+        val reply = drawn?.let { d -> runCatching { RaCommand.ask("OVERLAY_LOAD ${d.file.absolutePath}", 2000) }.getOrNull() }
         val ok = reply?.startsWith("OK") == true
         if (ok) {
             Log.i(SKIN_TAG, "OVERLAY_LOAD skin for $size: ${dir.name}")
             skinSize = size
             followRedrawnSkin(readTabletopSkin(dir), readOverlays(dir))
+            if (picked && drawn != null) setNdsScreensFor(drawn)
             launchDir.listFiles { f -> f.isDirectory && f.name.startsWith("skin") && f != dir }?.forEach { it.deleteRecursively() }
         } else {
             Log.w(SKIN_TAG, "Skin for $size not loaded, keeping the one shown")
             // A redraw for the fold is still owed: the next look (focus back, a new window) tries again.
             if (stale) skinStale = true
+            if (picked) skinPicked = true
             // No answer is not a refusal: the engine may be loading this skin right now, so it stays on disk.
             if (reply != null) dir.deleteRecursively()
         }
         // Only this redraw's own request is cleared: a newer one set meanwhile still runs.
         skinWanted.compareAndSet(size, null)
+    }
+
+    /**
+     * The launcher sets the core's NDS screens for the skin a game opens with; a skin picked in game may want others
+     * (a package with no layout pages draws them one over the other). Not in tabletop, whose overlay sets them itself.
+     */
+    private fun setNdsScreensFor(drawn: GameSkin.Drawn) {
+        if (!ndsScreens || synchronized(ndsLayouts) { overlay?.contains(TABLETOP) == true }) return
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val layout = drawn.ndsLayouts?.let { ndsLaunchLayout(it, landscape).value } ?: PACKAGE_NDS_LAYOUT.takeIf { drawn.packaged } ?: return
+        RaCommand.send("SET_CORE_OPTION desmume_screens_layout $layout")
     }
 
     private fun readTabletopSkin(dir: File): TabletopSkin? =
@@ -833,6 +854,7 @@ class GameActivity : RetroActivityFuture() {
     private fun pickSkin(variant: String, custom: String?) {
         skinVariantId.value = variant
         skinCustom.value = custom
+        skinPicked = true
         skinStale = true
         scheduleSkinCheck()
         val dir = intent.getStringExtra(GameExtras.SKIN_PICKS)?.let(::File) ?: return
@@ -842,6 +864,8 @@ class GameActivity : RetroActivityFuture() {
     }
 
     private fun openSkinEditor() {
+        if (editingSkin) return
+        editingSkin = true
         val edit = Intent(this, GameSkinActivity::class.java)
             .putExtra(GameExtras.CONSOLE, intent.getStringExtra(GameExtras.CONSOLE))
             .putExtra(GameExtras.SKINS_BASE, intent.getStringExtra(GameExtras.SKINS_BASE))
@@ -853,7 +877,9 @@ class GameActivity : RetroActivityFuture() {
     /** Back from the editor: a skin saved is drawn over the paused game once the window has focus again. */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_EDIT_SKIN || resultCode != RESULT_OK) return
+        if (requestCode != REQUEST_EDIT_SKIN) return
+        editingSkin = false
+        if (resultCode != RESULT_OK) return
         data?.getStringExtra(GameExtras.SKIN_CUSTOM)?.let { pickSkin(skinVariantId.value, it) }
     }
 

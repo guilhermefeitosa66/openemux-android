@@ -435,7 +435,7 @@ fun PauseSheet(
                             screens = screens?.let { screenLayout(it.shown.value) },
                             onScreens = { page = Page.Screens },
                             onShader = { page = Page.Shader },
-                            skinName = skinName.takeIf { skins != null },
+                            skinName = skinName,
                             onSkin = { page = Page.Skin },
                             canEditSkin = skinList?.let { skinToEdit(it) != null } == true,
                             onEditSkin = { skins?.edit?.invoke() },
@@ -454,7 +454,8 @@ fun PauseSheet(
                             toast = context.getString(R.string.game_toast_screens_layout, context.getString(layout.label))
                         }
                         Page.Skin -> if (skins != null && skinList != null) SkinPage(skinList) { name, variant, custom ->
-                            skins.pick(variant, custom)
+                            // The one already in use: nothing to redraw or to save.
+                            if (variant != skins.bundledId.value || custom != skins.custom.value) skins.pick(variant, custom)
                             page = Page.Main
                             toast = context.getString(R.string.game_toast_skin, name)
                         }

@@ -354,16 +354,18 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- The RetroArch engine in a process of its own: it exits the process
-             when the content closes, and the library must survive that. Same
-             task as the library, so the game opens inside the app. -->
+        <!-- The skin editor over a paused game (GameSkinActivity). density too: a fold or unfold that changes it must
+             not recreate the activity, which would make the copy it edits a second time. -->
         <activity
             android:name="com.openemux.mobile.game.GameSkinActivity"
             android:process=":game"
             android:exported="false"
             android:screenOrientation="fullUser"
             android:theme="@style/Theme.OpenEmux.GameSkin"
-            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale" />
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|density|fontScale" />
+        <!-- The RetroArch engine in a process of its own: it exits the process
+             when the content closes, and the library must survive that. Same
+             task as the library, so the game opens inside the app. -->
         <activity
             android:name="com.openemux.mobile.game.GameActivity"
             android:process=":game"
