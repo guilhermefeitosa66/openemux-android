@@ -35,6 +35,17 @@
     <string name="game_no_states">Aún no hay estados guardados.</string>
     <string name="game_state_auto">AUTO</string>
     <string name="game_state_slot">RANURA %1$d</string>
+    <string name="game_slot_empty">Ranura %1$d · Vacía</string>
+    <string name="game_slot_used">Ranura %1$d · En uso</string>
+    <string name="game_previous_slot">Ranura anterior</string>
+    <string name="game_next_slot">Ranura siguiente</string>
+    <string name="game_state_options">Opciones de %1$s</string>
+    <string name="game_state_delete">Eliminar</string>
+    <string name="game_state_delete_title">¿Eliminar este estado?</string>
+    <string name="game_state_delete_body">La ranura %1$d y su imagen se quitan de este dispositivo. Esto no se puede deshacer.</string>
+    <string name="game_state_delete_body_auto">El guardado automático y su imagen se quitan de este dispositivo. Esto no se puede deshacer.</string>
+    <string name="game_state_delete_failed">No se pudo eliminar este estado</string>
+    <string name="game_state_deleted">Estado eliminado</string>
     <string name="game_shader_blurb_none">Píxeles puros, sin efecto.</string>
     <string name="game_shader_blurb_dot">Matriz de puntos de pantalla portátil.</string>
     <string name="game_shader_blurb_sharp">Píxeles nítidos sin dientes de sierra.</string>

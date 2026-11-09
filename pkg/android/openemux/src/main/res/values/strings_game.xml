@@ -35,6 +35,17 @@
     <string name="game_no_states">No save states yet.</string>
     <string name="game_state_auto">AUTO</string>
     <string name="game_state_slot">SLOT %1$d</string>
+    <string name="game_slot_empty">Slot %1$d · Empty</string>
+    <string name="game_slot_used">Slot %1$d · In use</string>
+    <string name="game_previous_slot">Previous slot</string>
+    <string name="game_next_slot">Next slot</string>
+    <string name="game_state_options">Options for %1$s</string>
+    <string name="game_state_delete">Delete</string>
+    <string name="game_state_delete_title">Delete this save state?</string>
+    <string name="game_state_delete_body">Slot %1$d and its picture are removed from this device. This cannot be undone.</string>
+    <string name="game_state_delete_body_auto">The automatic save and its picture are removed from this device. This cannot be undone.</string>
+    <string name="game_state_delete_failed">Could not delete this save state</string>
+    <string name="game_state_deleted">Save state deleted</string>
     <string name="game_shader_blurb_none">Pure pixels, no effect.</string>
     <string name="game_shader_blurb_dot">Handheld screen dot matrix.</string>
     <string name="game_shader_blurb_sharp">Crisp pixels without jaggies.</string>

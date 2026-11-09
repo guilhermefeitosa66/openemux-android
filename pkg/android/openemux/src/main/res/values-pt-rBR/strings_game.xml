@@ -35,6 +35,17 @@
     <string name="game_no_states">Nenhum estado salvo ainda.</string>
     <string name="game_state_auto">AUTO</string>
     <string name="game_state_slot">SLOT %1$d</string>
+    <string name="game_slot_empty">Slot %1$d · Vazio</string>
+    <string name="game_slot_used">Slot %1$d · Em uso</string>
+    <string name="game_previous_slot">Slot anterior</string>
+    <string name="game_next_slot">Próximo slot</string>
+    <string name="game_state_options">Opções de %1$s</string>
+    <string name="game_state_delete">Apagar</string>
+    <string name="game_state_delete_title">Apagar este estado?</string>
+    <string name="game_state_delete_body">O slot %1$d e a imagem dele são removidos deste dispositivo. Isso não pode ser desfeito.</string>
+    <string name="game_state_delete_body_auto">O salvamento automático e a imagem dele são removidos deste dispositivo. Isso não pode ser desfeito.</string>
+    <string name="game_state_delete_failed">Não foi possível apagar este estado</string>
+    <string name="game_state_deleted">Estado apagado</string>
     <string name="game_shader_blurb_none">Pixels puros, sem efeito.</string>
     <string name="game_shader_blurb_dot">Matriz de pontos de tela portátil.</string>
     <string name="game_shader_blurb_sharp">Pixels nítidos sem serrilhado.</string>

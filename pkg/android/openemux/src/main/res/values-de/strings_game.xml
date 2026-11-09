@@ -35,6 +35,17 @@
     <string name="game_no_states">Noch keine Savestates.</string>
     <string name="game_state_auto">AUTO</string>
     <string name="game_state_slot">PLATZ %1$d</string>
+    <string name="game_slot_empty">Platz %1$d · Leer</string>
+    <string name="game_slot_used">Platz %1$d · Belegt</string>
+    <string name="game_previous_slot">Vorheriger Platz</string>
+    <string name="game_next_slot">Nächster Platz</string>
+    <string name="game_state_options">Optionen für %1$s</string>
+    <string name="game_state_delete">Löschen</string>
+    <string name="game_state_delete_title">Diesen Spielstand löschen?</string>
+    <string name="game_state_delete_body">Platz %1$d und sein Bild werden von diesem Gerät entfernt. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="game_state_delete_body_auto">Der automatische Spielstand und sein Bild werden von diesem Gerät entfernt. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="game_state_delete_failed">Dieser Spielstand konnte nicht gelöscht werden</string>
+    <string name="game_state_deleted">Spielstand gelöscht</string>
     <string name="game_shader_blurb_none">Reine Pixel, kein Effekt.</string>
     <string name="game_shader_blurb_dot">Punktmatrix wie am Handheld.</string>
     <string name="game_shader_blurb_sharp">Scharfe Pixel ohne Treppen.</string>

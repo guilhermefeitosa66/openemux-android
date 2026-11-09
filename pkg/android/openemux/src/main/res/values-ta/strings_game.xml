@@ -35,6 +35,17 @@
     <string name="game_no_states">இன்னும் சேமிப்பு நிலைகள் இல்லை.</string>
     <string name="game_state_auto">தானியங்கி</string>
     <string name="game_state_slot">ஸ்லாட் %1$d</string>
+    <string name="game_slot_empty">ஸ்லாட் %1$d · காலி</string>
+    <string name="game_slot_used">ஸ்லாட் %1$d · பயன்பாட்டில்</string>
+    <string name="game_previous_slot">முந்தைய ஸ்லாட்</string>
+    <string name="game_next_slot">அடுத்த ஸ்லாட்</string>
+    <string name="game_state_options">%1$s விருப்பங்கள்</string>
+    <string name="game_state_delete">நீக்கு</string>
+    <string name="game_state_delete_title">இந்த நிலையை நீக்கவா?</string>
+    <string name="game_state_delete_body">ஸ்லாட் %1$d மற்றும் அதன் படம் இந்தச் சாதனத்திலிருந்து அகற்றப்படும். இதைச் செயல்தவிர்க்க முடியாது.</string>
+    <string name="game_state_delete_body_auto">தானியங்கி சேமிப்பும் அதன் படமும் இந்தச் சாதனத்திலிருந்து அகற்றப்படும். இதைச் செயல்தவிர்க்க முடியாது.</string>
+    <string name="game_state_delete_failed">இந்த நிலையை நீக்க முடியவில்லை</string>
+    <string name="game_state_deleted">நிலை நீக்கப்பட்டது</string>
     <string name="game_shader_blurb_none">தூய பிக்சல்கள், விளைவு இல்லை.</string>
     <string name="game_shader_blurb_dot">கையடக்கத் திரையின் புள்ளி அணி.</string>
     <string name="game_shader_blurb_sharp">கூர்மையான பிக்சல்கள், கரடுமுரடு இல்லாமல்.</string>
