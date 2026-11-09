@@ -211,8 +211,15 @@ internal object OverlayWriter {
         return TouchZones.reach(d.rect.box(), zone)
     }
 
-    /** The least movement control [d] is touched over, a zone or not: its rect and all it takes of the screen. */
-    private fun startFloor(d: OverlayDesc, grow: Float) = RectF(d.rect).apply { union(footprint(d, grow)) }
+    /**
+     * The least movement control [d] is touched over, whatever crowds it: a D-pad's rect and all it takes of the
+     * screen, a stick's knob travel and the square inside its circle ([TouchZones.inscribed]).
+     */
+    private fun startFloor(d: OverlayDesc, grow: Float): RectF {
+        if (d.dpad != null) return RectF(d.rect).apply { union(footprint(d, grow)) }
+        val square = TouchZones.inscribed((d.well ?: d.rect).box())
+        return RectF(square.x, square.y, square.right, square.bottom).apply { if (d.well != null) union(d.rect) }
+    }
 
     /** What movement control [d] shows on the screen: a D-pad's cross around its circle's travel, a stick's well. */
     private fun drawn(d: OverlayDesc): RectF =

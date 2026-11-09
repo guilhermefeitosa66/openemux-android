@@ -10,6 +10,8 @@ internal object TouchZones {
     /** The least a zone goes past what is drawn, as a share of the screen's short side: a small control's is still thumb-sized. */
     const val SCREEN_SHARE = 0.12f
 
+    private const val SQRT2 = 1.4142135f
+
     /**
      * The start zone of a control that shows [drawn] and is touched over [floor] already. Each side goes past [drawn]
      * by the larger of its half-size and [SCREEN_SHARE] of the [screenW] x [screenH] screen's short side, then is
@@ -39,12 +41,13 @@ internal object TouchZones {
             )
             val cut = cuts.min()
             when {
-                // Over the control's own area (a package's extended edges): nothing clears it, keep what it had.
+                // Over the control's own area (a package's extended edges): no side clears it. Each side it sticks out
+                // past stays where it was, so the zone adds no overlap, and the free sides keep their reach.
                 cut == none -> {
-                    left = floor.x
-                    top = floor.y
-                    right = floor.right
-                    bottom = floor.bottom
+                    if (o.x < floor.x) left = floor.x
+                    if (o.y < floor.y) top = floor.y
+                    if (o.right > floor.right) right = floor.right
+                    if (o.bottom > floor.bottom) bottom = floor.bottom
                 }
                 // Sideways first on a tie, the same choice from both ends: two peers on a diagonal must not take one axis each.
                 cuts[0] == cut -> left += cut
@@ -54,6 +57,15 @@ internal object TouchZones {
             }
         }
         return SkinBox(left, top, right - left, bottom - top)
+    }
+
+    /**
+     * The square inside the circle drawn in [circle]. It is what a stick keeps whatever crowds it: unlike the circle's
+     * bounding box, it has no corners outside the art, where a button set diagonally to the stick would share touches.
+     */
+    fun inscribed(circle: SkinBox): SkinBox {
+        val half = minOf(circle.w, circle.h) / 2f / SQRT2
+        return SkinBox(circle.x + circle.w / 2f - half, circle.y + circle.h / 2f - half, 2f * half, 2f * half)
     }
 
     /** [peer] grown towards [own] up to the middle of the space between them, on each side that faces it. */

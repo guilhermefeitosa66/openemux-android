@@ -51,8 +51,33 @@ class TouchZonesTest {
         assertEquals(listOf(50f, 50f, 238f, 250f), edges(zone(neighbours = listOf(SkinBox(240f, 210f, 40f, 40f)))))
     }
 
-    @Test fun aNeighbourOverTheControlLeavesItWhatItAlreadyHad() {
-        assertEquals(edges(drawn), edges(zone(neighbours = listOf(SkinBox(150f, 150f, 10f, 10f)))))
+    @Test fun aNeighbourInsideTheControlTakesNothing() {
+        assertEquals(listOf(50f, 50f, 250f, 250f), edges(zone(neighbours = listOf(SkinBox(150f, 150f, 10f, 10f)))))
+    }
+
+    @Test fun aNeighbourStickingOutOfTheControlStopsOnlyTheSidesItCrosses() {
+        // Over the bottom right corner: those two sides stay at the art, the free two keep their reach.
+        assertEquals(listOf(50f, 50f, 200f, 200f), edges(zone(neighbours = listOf(SkinBox(190f, 190f, 40f, 40f)))))
+        // Over the top left corner.
+        assertEquals(listOf(100f, 100f, 250f, 250f), edges(zone(neighbours = listOf(SkinBox(70f, 70f, 40f, 40f)))))
+    }
+
+    @Test fun theSquareInACircleStaysInsideItAndIsCentred() {
+        val square = TouchZones.inscribed(SkinBox(0f, 0f, 200f, 200f))
+        assertEquals(141.42f, square.w, 0.01f)
+        assertEquals(square.w, square.h, 0f)
+        assertEquals(100f, square.x + square.w / 2f, 0.001f)
+        assertEquals(100f, square.y + square.h / 2f, 0.001f)
+        // Its corner is on the circle.
+        val dx = square.x - 100f
+        val dy = square.y - 100f
+        assertEquals(100f, kotlin.math.sqrt(dx * dx + dy * dy), 0.01f)
+    }
+
+    @Test fun anOvalFrameTakesTheSquareFromItsShortSide() {
+        val square = TouchZones.inscribed(SkinBox(0f, 0f, 300f, 100f))
+        assertEquals(70.71f, square.w, 0.01f)
+        assertEquals(150f, square.x + square.w / 2f, 0.001f)
     }
 
     @Test fun aNeighbourHardAgainstTheControlNeverEatsIntoIt() {
