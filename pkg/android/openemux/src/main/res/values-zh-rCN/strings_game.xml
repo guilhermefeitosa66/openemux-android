@@ -12,6 +12,7 @@
     <string name="game_paused">已暂停</string>
     <string name="game_shader_this_game">为此游戏保存</string>
     <string name="game_toast_saved_slot">已保存到存档位 %1$d</string>
+    <string name="game_toast_save_failed">无法保存到存档位 %1$d</string>
     <string name="game_toast_fast_forward_on">继续时快进</string>
     <string name="game_toast_slow_motion_on">继续时慢动作</string>
     <string name="game_toast_fast_forward_off">正常速度</string>
@@ -35,6 +36,17 @@
     <string name="game_no_states">还没有即时存档。</string>
     <string name="game_state_auto">自动</string>
     <string name="game_state_slot">存档位 %1$d</string>
+    <string name="game_slot_empty">存档位 %1$d · 空</string>
+    <string name="game_slot_used">存档位 %1$d · 已使用</string>
+    <string name="game_previous_slot">上一个存档位</string>
+    <string name="game_next_slot">下一个存档位</string>
+    <string name="game_state_options">%1$s 的选项</string>
+    <string name="game_state_delete">删除</string>
+    <string name="game_state_delete_title">删除此存档?</string>
+    <string name="game_state_delete_body">存档位 %1$d 及其图片将从此设备上移除。此操作无法撤销。</string>
+    <string name="game_state_delete_body_auto">自动存档及其图片将从此设备上移除。此操作无法撤销。</string>
+    <string name="game_state_delete_failed">无法删除此存档</string>
+    <string name="game_state_deleted">存档已删除</string>
     <string name="game_shader_blurb_none">纯净像素，无效果。</string>
     <string name="game_shader_blurb_dot">掌机屏幕的点阵效果。</string>
     <string name="game_shader_blurb_sharp">清晰像素，无锯齿。</string>

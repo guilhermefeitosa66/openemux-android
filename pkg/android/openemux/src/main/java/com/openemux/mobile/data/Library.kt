@@ -422,6 +422,9 @@ class Library(
 
     fun autoState(rom: Rom): SaveState? = states(rom).firstOrNull { it.isAuto }
 
+    /** Removes [st] and its picture; whether it is gone. The lists are read again. */
+    fun deleteState(st: SaveState): Boolean = SaveSlots.delete(st.file).also { _revision.value++ }
+
     fun playtimeFile(rom: Rom) = paths.playtime(rom.console, rom.baseName)
 
     fun playtimeSeconds(rom: Rom): Long =

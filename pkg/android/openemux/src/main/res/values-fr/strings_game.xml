@@ -12,6 +12,7 @@
     <string name="game_paused">En pause</string>
     <string name="game_shader_this_game">Enregistré pour ce jeu</string>
     <string name="game_toast_saved_slot">État sauvegardé dans l’emplacement %1$d</string>
+    <string name="game_toast_save_failed">Impossible de sauvegarder dans l’emplacement %1$d</string>
     <string name="game_toast_fast_forward_on">Avance rapide à la reprise</string>
     <string name="game_toast_slow_motion_on">Ralenti à la reprise</string>
     <string name="game_toast_fast_forward_off">Vitesse normale</string>
@@ -35,6 +36,17 @@
     <string name="game_no_states">Aucun état sauvegardé pour l’instant.</string>
     <string name="game_state_auto">AUTO</string>
     <string name="game_state_slot">EMPL. %1$d</string>
+    <string name="game_slot_empty">Emplacement %1$d · Vide</string>
+    <string name="game_slot_used">Emplacement %1$d · Utilisé</string>
+    <string name="game_previous_slot">Emplacement précédent</string>
+    <string name="game_next_slot">Emplacement suivant</string>
+    <string name="game_state_options">Options de %1$s</string>
+    <string name="game_state_delete">Supprimer</string>
+    <string name="game_state_delete_title">Supprimer cet état ?</string>
+    <string name="game_state_delete_body">L’emplacement %1$d et son image sont retirés de cet appareil. Cette action est irréversible.</string>
+    <string name="game_state_delete_body_auto">La sauvegarde automatique et son image sont retirées de cet appareil. Cette action est irréversible.</string>
+    <string name="game_state_delete_failed">Impossible de supprimer cet état</string>
+    <string name="game_state_deleted">État supprimé</string>
     <string name="game_shader_blurb_none">Pixels purs, sans effet.</string>
     <string name="game_shader_blurb_dot">Matrice de points d’écran portable.</string>
     <string name="game_shader_blurb_sharp">Pixels nets, sans crénelage.</string>

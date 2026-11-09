@@ -1,6 +1,5 @@
 package com.openemux.mobile.ui
 
-import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -64,7 +63,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -149,6 +147,12 @@ fun RomDetail(
         a.nav.navigate(Routes.SHARE)
     }
     val rename = { renaming = true }
+    // The state whose menu is open, and the one being confirmed.
+    var stateMenu by remember { mutableStateOf<SaveState?>(null) }
+    var deletingState by remember { mutableStateOf<SaveState?>(null) }
+    fun deleteState(st: SaveState) {
+        Toast.makeText(context, if (lib.deleteState(st)) R.string.game_state_deleted else R.string.game_state_delete_failed, Toast.LENGTH_SHORT).show()
+    }
     // L1/R1 walk this console's games in the library's order; in the pane they stay the library's.
     val siblings = roms.filter { it.console == rom.console }
     fun sibling(step: Int) {
@@ -225,7 +229,7 @@ fun RomDetail(
             }
         }
     }
-    val statesSection: @Composable (Int, Dp) -> Unit = { count, thumb ->
+    val statesSection: @Composable (Int) -> Unit = { count ->
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.detail_save_states), style = Type.Section, modifier = Modifier.weight(1f))
@@ -241,7 +245,10 @@ fun RomDetail(
             } else {
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     states.take(count).forEach { st ->
-                        StateThumb(st, Modifier.weight(1f), thumb) { playState(st) }
+                        StateTile(
+                            st.slot, st.thumbnail, st.modified, Modifier.weight(1f), onClick = { playState(st) }, onOptions = { stateMenu = st },
+                            menu = { StateOptionsMenu(stateMenu == st, { stateMenu = null }) { deletingState = st } },
+                        )
                     }
                     repeat(count - states.size.coerceAtMost(count)) { Spacer(Modifier.weight(1f)) }
                 }
@@ -295,7 +302,7 @@ fun RomDetail(
             MarginFocusScroll { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 28.dp, end = 28.dp, top = 20.dp, bottom = 20.dp)) {
                 playButtons(54.dp, if (compact) 120.dp else 160.dp)
                 Spacer(Modifier.height(18.dp))
-                statesSection(if (compact) 3 else 4, 76.dp)
+                statesSection(if (compact) 3 else 4)
                 Spacer(Modifier.height(18.dp))
                 SettingTiles(settings, columns = if (compact) 2 else 4)
                 if (rom.console.frame != null) {
@@ -346,7 +353,7 @@ fun RomDetail(
                 }
 
                 Box(Modifier.padding(horizontal = 20.dp)) { playButtons(52.dp, 120.dp) }
-                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) { statesSection(3, 58.dp) }
+                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) { statesSection(3) }
 
                 if (rom.console.frame != null) Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) { colorBlock(false) }
 
@@ -375,7 +382,7 @@ fun RomDetail(
                     )
                 }
                 Box(Modifier.padding(top = 16.dp)) { playButtons(52.dp, 120.dp) }
-                Box(Modifier.padding(top = 18.dp)) { statesSection(3, 62.dp) }
+                Box(Modifier.padding(top = 18.dp)) { statesSection(3) }
                 settingsCard(Modifier.padding(top = 16.dp))
                 Spacer(Modifier.height(TabBarHeight + 24.dp))
                 Spacer(Modifier.height(hintBarInset))
@@ -415,7 +422,7 @@ fun RomDetail(
                 // A focused row stops above the fade, not under it.
                 MarginFocusScroll(trailing = maxOf(FocusMargin, EndFade) + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 12.dp, end = 20.dp, top = 12.dp)) {
                     playButtons(48.dp, 112.dp)
-                    Box(Modifier.padding(top = 14.dp)) { statesSection(3, 50.dp) }
+                    Box(Modifier.padding(top = 14.dp)) { statesSection(3) }
                     if (rom.console.frame != null) Box(Modifier.padding(top = 14.dp)) { colorBlock(true) }
                     Text(stringResource(R.string.detail_settings_for_game), style = Type.Section, modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
                     settingsCard(Modifier)
@@ -476,7 +483,7 @@ fun RomDetail(
                     }
                     // Restart never takes more than 40% of a narrow column from Continue.
                     Box(Modifier.padding(top = 22.dp)) { playButtons(56.dp, minOf(160.dp, right * 0.4f)) }
-                    Box(Modifier.padding(top = 26.dp)) { statesSection(detailStatesCount(right.value), 78.dp) }
+                    Box(Modifier.padding(top = 26.dp)) { statesSection(detailStatesCount(right.value)) }
                     Text(stringResource(R.string.detail_settings_for_game), style = Type.Section, modifier = Modifier.padding(top = 26.dp, bottom = 10.dp))
                     settingsCard(Modifier)
                     // A stat of the file: off the main thread, like the other reads of this screen.
@@ -494,7 +501,7 @@ fun RomDetail(
     when (sheet) {
         Sheet.Core -> CoreSheet(rom) { sheet = Sheet.None }
         Sheet.Shader -> ShaderSheet(rom) { sheet = Sheet.None }
-        Sheet.States -> StatesSheet(states, ::playState) { sheet = Sheet.None }
+        Sheet.States -> StatesSheet(states, ::playState, ::deleteState) { sheet = Sheet.None }
         Sheet.Skin -> SkinSheet(lib, rom.console) { sheet = Sheet.None; skinRevision++ }
         Sheet.None -> {}
     }
@@ -514,6 +521,7 @@ fun RomDetail(
             stringResource(R.string.detail_cancel),
         )
     }
+    deletingState?.let { st -> DeleteStateDialog(st.slot, { deletingState = null }) { deleteState(st) } }
 }
 
 /**
@@ -550,21 +558,6 @@ private fun Glow(modifier: Modifier) {
             )
         }
     )
-}
-
-@Composable
-private fun StateThumb(st: SaveState, modifier: Modifier, thumb: Dp = 58.dp, onClick: () -> Unit) {
-    val corner = if (thumb > 58.dp) 12.dp else 10.dp
-    Column(modifier.gamepadFocus(corner = corner).clickable(role = Role.Button, onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().height(thumb).clip(RoundedCornerShape(corner)).background(Color.Black)) {
-            val bmp = remember(st.thumbnail) { st.thumbnail?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
-            if (bmp != null) Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            Box(Modifier.padding(6.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xB3000000)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                Text(if (st.isAuto) stringResource(R.string.game_state_auto) else stringResource(R.string.game_state_slot, st.slot), style = Type.Tag.copy(color = Color.White, fontSize = 10.sp))
-            }
-        }
-        Text(formatAgo(st.modified), style = Type.Caption, modifier = Modifier.padding(top = 5.dp, start = 2.dp))
-    }
 }
 
 /** The top half's words in tabletop: console and core, the title, then the time played. */
@@ -733,7 +726,11 @@ private fun ShaderSheet(rom: Rom, onClose: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, onClose: () -> Unit) {
+private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, onDelete: (SaveState) -> Unit, onClose: () -> Unit) {
+    var menu by remember { mutableStateOf<SaveState?>(null) }
+    var deleting by remember { mutableStateOf<SaveState?>(null) }
+    // The last one deleted: nothing left to list.
+    LaunchedEffect(states.isEmpty()) { if (states.isEmpty()) onClose() }
     OeSheet(onClose, scroll = false) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
@@ -745,20 +742,15 @@ private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, on
                 contentPadding = PaddingValues(vertical = FocusOutset),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(states) { st ->
-                    Column(Modifier.gamepadFocus(corner = 10.dp).clickable(role = Role.Button) { onClose(); onPick(st) }) {
-                        Box(Modifier.fillMaxWidth().aspectRatio(1.5f).clip(RoundedCornerShape(10.dp)).background(Color.Black)) {
-                            val bmp = remember(st.thumbnail) { st.thumbnail?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
-                            if (bmp != null) Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            Box(Modifier.padding(6.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xB3000000)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                                Text(if (st.isAuto) stringResource(R.string.game_state_auto) else stringResource(R.string.game_state_slot, st.slot), style = Type.Tag.copy(color = Color.White, fontSize = 10.sp))
-                            }
-                        }
-                        Text(formatAgo(st.modified), style = Type.Caption, modifier = Modifier.padding(top = 5.dp, start = 2.dp))
-                    }
+                items(states, key = { it.file.path }) { st ->
+                    StateTile(
+                        st.slot, st.thumbnail, st.modified, onClick = { onClose(); onPick(st) }, onOptions = { menu = st },
+                        menu = { StateOptionsMenu(menu == st, { menu = null }) { deleting = st } },
+                    )
                 }
             } }
         }
+        deleting?.let { st -> DeleteStateDialog(st.slot, { deleting = null }) { onDelete(st) } }
     }
 }
 

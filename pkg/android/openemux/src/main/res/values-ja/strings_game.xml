@@ -12,6 +12,7 @@
     <string name="game_paused">一時停止中</string>
     <string name="game_shader_this_game">このゲーム用に保存されます</string>
     <string name="game_toast_saved_slot">スロット %1$d にステートを保存しました</string>
+    <string name="game_toast_save_failed">スロット %1$d に保存できませんでした</string>
     <string name="game_toast_fast_forward_on">再開時に早送り</string>
     <string name="game_toast_slow_motion_on">再開時にスローモーション</string>
     <string name="game_toast_fast_forward_off">通常速度</string>
@@ -35,6 +36,17 @@
     <string name="game_no_states">ステートセーブはまだありません。</string>
     <string name="game_state_auto">オート</string>
     <string name="game_state_slot">スロット %1$d</string>
+    <string name="game_slot_empty">スロット %1$d · 空き</string>
+    <string name="game_slot_used">スロット %1$d · 使用中</string>
+    <string name="game_previous_slot">前のスロット</string>
+    <string name="game_next_slot">次のスロット</string>
+    <string name="game_state_options">%1$s のオプション</string>
+    <string name="game_state_delete">削除</string>
+    <string name="game_state_delete_title">このステートを削除しますか?</string>
+    <string name="game_state_delete_body">スロット %1$d とその画像をこのデバイスから削除します。元に戻すことはできません。</string>
+    <string name="game_state_delete_body_auto">オートセーブとその画像をこのデバイスから削除します。元に戻すことはできません。</string>
+    <string name="game_state_delete_failed">このステートを削除できませんでした</string>
+    <string name="game_state_deleted">ステートを削除しました</string>
     <string name="game_shader_blurb_none">ピクセルそのまま、効果なし。</string>
     <string name="game_shader_blurb_dot">携帯機の画面のドットマトリクス。</string>
     <string name="game_shader_blurb_sharp">ギザギザのないくっきりしたピクセル。</string>
