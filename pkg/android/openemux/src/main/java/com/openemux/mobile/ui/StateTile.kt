@@ -20,6 +20,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +30,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -38,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.retroarch.R
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Behind the slot tag and the three dots: a grey that also shows on a black bar, where a plain scrim would vanish. */
 private val ChipBackground = Color(0xCC2A2A33)
@@ -53,7 +58,7 @@ fun StateTile(
     slot: Int, thumb: File?, modified: Long, modifier: Modifier = Modifier, ago: Color? = null,
     onClick: () -> Unit, onOptions: () -> Unit, menu: @Composable () -> Unit = {},
 ) {
-    val tag = if (slot < 0) stringResource(R.string.game_state_auto) else stringResource(R.string.game_state_slot, slot)
+    val tag = stateTag(slot)
     val label = stringResource(R.string.game_state_options, tag)
     // The button sits inside the tile, so a spatial search from the tile never finds it: Right goes to it and Left
     // comes back, and from the button Right goes on to the next tile (as on a skin card).
@@ -65,9 +70,12 @@ fun StateTile(
             .combinedClickable(role = Role.Button, onClick = onClick, onLongClick = onOptions),
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.5f).clip(RoundedCornerShape(10.dp)).background(Color.Black)) {
-            // The modified time too: an overwritten slot keeps its file name, and would keep showing the old picture.
-            val bmp = remember(thumb, modified) { thumb?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
-            if (bmp != null) Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            // The picture's own time: an overwritten slot keeps its file name, and the engine writes the picture after the state.
+            val pictureTime = thumb?.lastModified()
+            val bmp by produceState<ImageBitmap?>(null, thumb, pictureTime) {
+                value = thumb?.let { withContext(Dispatchers.IO) { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
+            }
+            bmp?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
             Box(Modifier.padding(6.dp).clip(RoundedCornerShape(6.dp)).background(ChipBackground).padding(horizontal = 6.dp, vertical = 2.dp)) {
                 Text(tag, style = Type.Tag.copy(color = Color.White, fontSize = 10.sp))
             }
@@ -106,6 +114,11 @@ fun StateOptionsMenu(open: Boolean, onDismiss: () -> Unit, onDelete: () -> Unit)
         }
     }
 }
+
+/** The name the state in [slot] goes by; negative for the auto state. */
+@Composable
+fun stateTag(slot: Int): String =
+    if (slot < 0) stringResource(R.string.game_state_auto) else stringResource(R.string.game_state_slot, slot)
 
 /** What deleting the state in [slot] removes, for the confirmation; negative for the auto state. */
 @Composable

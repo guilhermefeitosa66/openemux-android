@@ -12,6 +12,7 @@
     <string name="game_paused">Pausado</string>
     <string name="game_shader_this_game">Fica salvo para este jogo</string>
     <string name="game_toast_saved_slot">Estado salvo no slot %1$d</string>
+    <string name="game_toast_save_failed">Não foi possível salvar no slot %1$d</string>
     <string name="game_toast_fast_forward_on">Acelerado ao voltar</string>
     <string name="game_toast_slow_motion_on">Câmera lenta ao voltar</string>
     <string name="game_toast_fast_forward_off">Velocidade normal</string>

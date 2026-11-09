@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +46,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -76,6 +78,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -109,6 +112,7 @@ import com.openemux.mobile.ui.notMadeFor
 import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
+import com.openemux.mobile.ui.stateTag
 import com.openemux.mobile.ui.text
 import com.openemux.mobile.ui.Tag
 import com.openemux.mobile.ui.Type
@@ -254,6 +258,9 @@ fun PauseSheet(
         // The state the options and the confirmation pages are about.
         var chosen by remember { mutableStateOf<PauseSession.State?>(null) }
         fun options(st: PauseSession.State) { chosen = st; page = Page.StateOptions }
+        // Here and not on the page, which the options replace: coming back lands on the same tile, scrolled as it was.
+        val statesFocus = remember { mutableStateOf<String?>(null) }
+        val statesGrid = remember(refresh) { LazyGridState() }
         val skinList = skins?.let { rememberGameSkinList(it) }
         val skinName = skinValue(skinList)?.text()
         val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
@@ -301,8 +308,7 @@ fun PauseSheet(
         // The page a sub-page's back leads to; null on the main page.
         fun backPage(): Page? = when (page) {
             Page.Main -> null
-            Page.StateDelete -> Page.StateOptions
-            Page.StateOptions -> Page.States
+            Page.StateDelete, Page.StateOptions -> Page.States
             else -> Page.Main
         }
         // B on a gamepad arrives as BACK: out of a sub-page first, then back to the game.
@@ -381,7 +387,7 @@ fun PauseSheet(
                             when (page) {
                                 Page.Main -> session.title
                                 Page.States -> stringResource(R.string.game_save_states)
-                                Page.StateOptions -> chosen?.let { stateName(it) } ?: ""
+                                Page.StateOptions -> chosen?.let { stateTag(it.slot) } ?: ""
                                 Page.StateDelete -> stringResource(R.string.game_state_delete_title)
                                 Page.Shader -> stringResource(R.string.game_shader)
                                 Page.Screens -> stringResource(R.string.game_screens)
@@ -437,8 +443,14 @@ fun PauseSheet(
                             slotInUse = states.any { it.slot == slot },
                             onSlot = { delta -> slot = SaveSlots.step(slot, delta) },
                             onSave = {
-                                command("SAVE_STATE_SLOT $slot", context.getString(R.string.game_toast_saved_slot, slot)) {
-                                    scope.launch { delay(600); refresh++ }
+                                val target = slot
+                                scope.launch {
+                                    // Answered once the state is on disk, which a big core takes a while to do. No answer is not taken as a failure.
+                                    val reply = withContext(Dispatchers.IO) { RaCommand.ask("SAVE_STATE_SLOT $target", 8000) }
+                                    toast = context.getString(if (reply?.contains("ERROR") == true) R.string.game_toast_save_failed else R.string.game_toast_saved_slot, target)
+                                    // The engine writes the picture after answering.
+                                    delay(600)
+                                    refresh++
                                 }
                             },
                             onLoad = { page = Page.States },
@@ -469,13 +481,14 @@ fun PauseSheet(
                             onRetroArchMenu = onRetroArchMenu,
                             onQuit = onQuit.takeUnless { panel },
                         )
-                        Page.States -> StatesPage(states, ::load, ::options)
+                        Page.States -> StatesPage(states, statesFocus, statesGrid, ::load, ::options)
                         Page.StateOptions -> StateOptionsPage { page = Page.StateDelete }
                         Page.StateDelete -> chosen?.let { st ->
                             StateDeletePage(st, onCancel = { page = Page.States }) {
                                 scope.launch {
                                     val gone = withContext(Dispatchers.IO) { SaveSlots.delete(st.file) }
                                     toast = context.getString(if (gone) R.string.game_state_deleted else R.string.game_state_delete_failed)
+                                    statesFocus.value = null
                                     refresh++
                                     page = Page.States
                                 }
@@ -708,7 +721,7 @@ private fun SheetButton(text: String, bg: Color, fg: Color, modifier: Modifier, 
 }
 
 /** Below this width, a tabletop's bottom half puts the save selector on a row of its own. */
-private val TabletopSelectorRowWidth = 560.dp
+private val TabletopSelectorRowWidth = 800.dp
 
 /** The second line's tint on a slot in use: readable on the accent, which is the same in both themes. */
 private val SlotInUseColor = Color(0xFFFFE2B0)
@@ -729,11 +742,11 @@ private fun SaveSlotSelector(slot: Int, inUse: Boolean, modifier: Modifier, focu
             Icon(Icons.SaveState, Color.White, 22.dp, filled = true)
             Spacer(Modifier.width(8.dp))
             Column {
-                Text(stringResource(R.string.game_save_state), style = Type.Button.copy(color = Color.White, fontSize = 15.sp), maxLines = 1)
+                Text(stringResource(R.string.game_save_state), style = Type.Button.copy(color = Color.White, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
                     style = Type.Caption.copy(color = if (inUse) SlotInUseColor else Color.White.copy(alpha = 0.85f), fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
-                    maxLines = 1,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -848,15 +861,15 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
 }
 
 @Composable
-private fun StatesPage(states: List<PauseSession.State>, onPick: (PauseSession.State) -> Unit, onOptions: (PauseSession.State) -> Unit) {
+private fun StatesPage(states: List<PauseSession.State>, focused: MutableState<String?>, grid: LazyGridState, onPick: (PauseSession.State) -> Unit, onOptions: (PauseSession.State) -> Unit) {
     if (states.isEmpty()) {
         Text(stringResource(R.string.game_no_states), style = Type.Small, modifier = Modifier.padding(vertical = 28.dp))
         return
     }
-    val focused = remember { mutableStateOf<String?>(null) }
     MarginFocusScroll { LazyVerticalGrid(
         GridCells.Adaptive(160.dp),
         Modifier.padding(top = 16.dp - FocusOutset).height(380.dp),
+        state = grid,
         contentPadding = PaddingValues(vertical = FocusOutset),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -866,11 +879,6 @@ private fun StatesPage(states: List<PauseSession.State>, onPick: (PauseSession.S
         }
     } }
 }
-
-/** The name a state goes by on its options page. */
-@Composable
-private fun stateName(st: PauseSession.State): String =
-    if (st.slot < 0) stringResource(R.string.game_state_auto) else stringResource(R.string.game_state_slot, st.slot)
 
 /**
  * A state's options, a page of the sheet rather than a popup: this window cannot take focus (the engine keeps it, see

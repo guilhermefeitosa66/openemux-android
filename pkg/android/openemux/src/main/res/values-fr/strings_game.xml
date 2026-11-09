@@ -12,6 +12,7 @@
     <string name="game_paused">En pause</string>
     <string name="game_shader_this_game">Enregistré pour ce jeu</string>
     <string name="game_toast_saved_slot">État sauvegardé dans l’emplacement %1$d</string>
+    <string name="game_toast_save_failed">Impossible de sauvegarder dans l’emplacement %1$d</string>
     <string name="game_toast_fast_forward_on">Avance rapide à la reprise</string>
     <string name="game_toast_slow_motion_on">Ralenti à la reprise</string>
     <string name="game_toast_fast_forward_off">Vitesse normale</string>
