@@ -295,7 +295,7 @@ fun PauseSheet(
                     val slot = if (st.slot < 0) session.stageAuto(st) else st.slot
                     RaCommand.ask("LOAD_STATE_SLOT $slot", 3000)
                 }
-                if (reply?.contains("ERROR") == true) toast = context.getString(R.string.game_toast_state_other_core)
+                if (replyFailed(reply)) toast = context.getString(R.string.game_toast_state_other_core)
                 else onResume()
             }
         }
@@ -310,12 +310,8 @@ fun PauseSheet(
             // Closed before the reply: a second tap must not restart twice.
             confirmRestart = false
             scope.launch {
-                val reply = withContext(Dispatchers.IO) {
-                    // Reset while paused, the engine plays 8 frames to blank the picture and pauses again: asked in
-                    // between, resume() finds it playing, sends nothing, and the game then stays paused on black.
-                    RaCommand.ask(RESTART_COMMAND, 3000).also { if (!restartFailed(it)) RaCommand.awaitPaused(1000) }
-                }
-                if (restartFailed(reply)) { toast = context.getString(R.string.game_toast_restart_failed); focusRestartEntry() }
+                val reply = withContext(Dispatchers.IO) { RaCommand.restart() }
+                if (replyFailed(reply)) { toast = context.getString(R.string.game_toast_restart_failed); focusRestartEntry() }
                 else onResume()
             }
         }
@@ -474,7 +470,7 @@ fun PauseSheet(
                                 scope.launch {
                                     // Answered once the state is on disk, which a big core takes a while to do. No answer is not taken as a failure.
                                     val reply = withContext(Dispatchers.IO) { RaCommand.ask("SAVE_STATE_SLOT $target", 8000) }
-                                    toast = context.getString(if (reply?.contains("ERROR") == true) R.string.game_toast_save_failed else R.string.game_toast_saved_slot, target)
+                                    toast = context.getString(if (replyFailed(reply)) R.string.game_toast_save_failed else R.string.game_toast_saved_slot, target)
                                     // The engine writes the picture after answering.
                                     delay(600)
                                     refresh++
@@ -571,8 +567,8 @@ fun PauseSheet(
  */
 internal const val RESTART_COMMAND = "RESET off"
 
-/** No reply is not a failure: the reset can outlast the wait, as a state load can. */
-internal fun restartFailed(reply: String?) = reply?.contains("ERROR") == true
+/** No reply is not a failure: the work can outlast the wait, as a state load can. */
+internal fun replyFailed(reply: String?) = reply?.contains("ERROR") == true
 
 /**
  * Asks before restarting. Drawn in the sheet's own window and not as an OeConfirmDialog: a dialog is a window of its
@@ -582,7 +578,8 @@ internal fun restartFailed(reply: String?) = reply?.contains("ERROR") == true
 @Composable
 private fun RestartDialog(top: Dp, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val cancel = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    // Again when the pad wakes: opened by touch, focus could not land here and the pad would drive the sheet underneath.
+    LaunchedEffect(InputMode.gamepad) { runCatching { cancel.requestFocus() } }
     Box(
         Modifier.fillMaxSize().background(Color(0x8C08080A))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onCancel)

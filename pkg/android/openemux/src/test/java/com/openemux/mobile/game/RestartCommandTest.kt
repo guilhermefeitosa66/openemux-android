@@ -12,11 +12,11 @@ class RestartCommandTest {
     }
 
     @Test fun anErrorReplyIsAFailure() {
-        assertTrue(restartFailed("RESET ERROR no content is running"))
+        assertTrue(replyFailed("RESET ERROR no content is running"))
     }
 
     @Test fun aReplyOrNoReplyIsNot() {
-        assertFalse(restartFailed("RESET"))
-        assertFalse(restartFailed(null))
+        assertFalse(replyFailed("RESET"))
+        assertFalse(replyFailed(null))
     }
 }
