@@ -39,6 +39,25 @@ class OverlayLinesTest {
     }
 
     @Test
+    fun aStickStartsOverARectangleReachingEachSideOnItsOwn() {
+        val cfg = StringBuilder()
+        OverlayLines.stickZone(cfg, "k", floatArrayOf(1.25f, 2f, 3f, 4.5f))
+        assertEquals(
+            """
+            k_reach_left = 1.250
+            k_reach_up = 2.000
+            k_reach_right = 3.000
+            k_reach_down = 4.500
+            k_hitbox_rect = true
+            k_range_mod = 2.0
+            k_range_mod_exclusive = true
+
+            """.trimIndent(),
+            cfg.toString(),
+        )
+    }
+
+    @Test
     fun knobIsAMovableImage() {
         val cfg = StringBuilder()
         OverlayLines.knob(cfg, "overlay1_desc7", "landscape-knob7.png")

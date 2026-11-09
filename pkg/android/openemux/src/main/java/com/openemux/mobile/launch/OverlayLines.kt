@@ -28,6 +28,20 @@ internal object OverlayLines {
         }
     }
 
+    /**
+     * A stick's touch zone: it starts [reach] times its range on each side of its centre (left, top, right, bottom,
+     * as [TouchZones.reach]), over a rectangle, so a neighbour on one side does not take the other side's reach with
+     * it. Once held, the zone doubles and wins over the controls around it: drifting past the rim keeps steering.
+     */
+    fun stickZone(cfg: StringBuilder, key: String, reach: FloatArray) {
+        listOf("left", "up", "right", "down").forEachIndexed { k, dir ->
+            cfg.append(String.format(Locale.US, "%s_reach_%s = %.3f\n", key, dir, reach[k]))
+        }
+        cfg.append("${key}_hitbox_rect = true\n")
+        cfg.append("${key}_range_mod = 2.0\n")
+        cfg.append("${key}_range_mod_exclusive = true\n")
+    }
+
     /** One axis's reach: both sides in one key when they match, each on its own otherwise. */
     private fun reach(cfg: StringBuilder, key: String, axis: String, a: String, b: String, ra: Float, rb: Float) {
         if (ra == rb) {
