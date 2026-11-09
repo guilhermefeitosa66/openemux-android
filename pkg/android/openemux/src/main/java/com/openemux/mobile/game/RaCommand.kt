@@ -29,6 +29,8 @@ object GameExtras {
     const val SKIN_VARIANT = "OE_SKIN_VARIANT"
     /** The player's skin the console plays with (SkinStore.ref), absent for the bundled one (issue 782). */
     const val SKIN_CUSTOM = "OE_SKIN_CUSTOM"
+    /** The folder a skin picked in game is dropped into for the library (SkinPicks). */
+    const val SKIN_PICKS = "OE_SKIN_PICKS"
 }
 
 /**

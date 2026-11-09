@@ -207,20 +207,27 @@ fun rememberSkinList(library: Library, console: Console, revision: Int = 0): Ski
     val context = LocalContext.current
     val meta by library.meta.collectAsState()
     val settings = meta.consoles[console.id]
-    val listed by produceState<SkinListState?>(null, console, revision) {
-        value = withContext(Dispatchers.IO) {
-            val list = { dir: String -> context.assets.list(dir) }
-            val choice = SkinChoice.of(skinCatalog(context), console) { ImportedSkinRenderer.bundledName(list(it.assetDir), console) != null }
-            val stored = library.skins.list(console)
-            val kinds = choice.options.associate { it.variant.id to SkinConversion.kind(list, console, it.variant) }
-            SkinListState(
-                choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null,
-                kinds.filterValues { it != null }.keys,
-            )
-        }
+    // The skin in use can be one the list has not seen: made in game, it reaches the library with the next scan.
+    val listed by produceState<SkinListState?>(null, console, revision, settings?.custom) {
+        value = withContext(Dispatchers.IO) { readSkinList(context, library.skins, console) }
     }
     val state = listed ?: return null
     return state.copy(bundledId = settings?.skin ?: SkinVariant.CONSOLE.id, custom = remember(meta, console) { library.customSkin(console) })
+}
+
+/**
+ * [console]'s skins as [store] and the APK have them, with nothing said yet about the ones in use (bundledId, custom:
+ * the caller knows them). Blocks: call off the main thread. No [Library] here: the game's process has none.
+ */
+fun readSkinList(context: Context, store: SkinStore, console: Console): SkinListState {
+    val list = { dir: String -> context.assets.list(dir) }
+    val choice = SkinChoice.of(skinCatalog(context), console) { ImportedSkinRenderer.bundledName(list(it.assetDir), console) != null }
+    val stored = store.list(console)
+    val kinds = choice.options.associate { it.variant.id to SkinConversion.kind(list, console, it.variant) }
+    return SkinListState(
+        choice, stored.filter { it.kind == StoredSkinKind.OWN }, stored.filter { it.kind == StoredSkinKind.IMPORTED }, "", null,
+        kinds.filterValues { it != null }.keys,
+    )
 }
 
 /** The catalog's JSON, read from the APK once per process: it only changes with an update, which restarts the app. */
@@ -509,7 +516,7 @@ fun SkinList(library: Library, console: Console, state: SkinListState, onChanged
         }
     }
     editing?.let { target ->
-        SkinEditor(library, console, target, onChanged = changed, onClose = { editing = null })
+        SkinEditor(library.skinEditorHost(), console, target, onChanged = changed, onClose = { editing = null })
     }
     templating?.let { of ->
         TemplateSheet(of.name, saving, onClose = { if (!saving) templating = null }) {

@@ -113,4 +113,8 @@
     <string name="game_hardcore_note">O modo hardcore está ativo: carregar estado e acelerar estão desativados neste jogo. Desative em Ajustes › RetroAchievements.</string>
     <string name="detail_settings_for_game">Ajustes deste jogo</string>
     <string name="detail_played_last">%1$s · última vez %2$s</string>
+    <string name="game_change_skin">Trocar skin</string>
+    <string name="game_edit_skin">Editar skin</string>
+    <string name="game_skin_every_game">Para todos os jogos deste console</string>
+    <string name="game_toast_skin">Skin: %1$s</string>
 </resources>

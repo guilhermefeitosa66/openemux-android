@@ -170,6 +170,8 @@ class GameLauncher(
             val metrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).maximumWindowMetrics
             val size = SkinSize.of(metrics)
             val core = library.effectiveCore(rom)
+            // A skin picked in game since the library last resumed is this console's now.
+            runCatching { library.absorbSkinPicks() }
             val skinVariant = library.skinVariant(rom.console)
             val customSkin = library.customSkin(rom.console)
             val density = context.resources.displayMetrics.density
@@ -225,6 +227,7 @@ class GameLauncher(
                 putExtra(GameExtras.SHADER, shader.id)
                 putExtra(GameExtras.ROM_KEY, rom.key)
                 putExtra(GameExtras.SHADER_PICKS, paths.shaderPicks.absolutePath)
+                putExtra(GameExtras.SKIN_PICKS, paths.skinPicks.absolutePath)
                 putExtra(GameExtras.CORE_NAME, core.name)
                 putExtra(GameExtras.HARDCORE, hardcore)
                 putExtra(GameExtras.LAUNCH_DIR, dir.absolutePath)
