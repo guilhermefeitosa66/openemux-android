@@ -227,6 +227,7 @@
     <string name="backup_confirm_from">Do OpenEmux %1$s, feito em %2$s · %3$s</string>
     <string name="backup_confirm_note">A biblioteca, os salvamentos e os ajustes deste celular são substituídos. O OpenEmux reinicia ao terminar.</string>
     <string name="backup_confirm">Substituir e restaurar</string>
+    <string name="backup_transfer_running">Uma transferência de jogos está em andamento. Você poderá restaurar quando ela terminar.</string>
     <string name="backup_err_invalid">Este arquivo não é um backup do OpenEmux, ou está danificado. Nada foi alterado.</string>
     <string name="backup_err_newer">Este backup foi feito por um OpenEmux mais novo. Atualize o app primeiro. Nada foi alterado.</string>
     <string name="backup_err_space">Espaço livre insuficiente: o backup precisa de %1$s e há %2$s livres. Nada foi alterado.</string>

@@ -90,8 +90,12 @@
     <string name="share_progress_receiving">正在从 %1$s 接收</string>
     <string name="share_progress_bytes">%1$s / %2$s</string>
     <string name="share_progress_files">第 %1$d 个文件，共 %2$d 个</string>
-    <string name="share_progress_note">可以关闭屏幕或离开应用，传输会继续进行。</string>
+    <string name="share_progress_note">可以继续使用应用、玩游戏、离开应用或关闭屏幕，传输会继续进行。</string>
     <string name="share_progress_cancel">取消传输</string>
+    <string name="share_progress_background">在后台继续</string>
+    <string name="share_chip_receiving">正在接收</string>
+    <string name="share_chip_sending">正在发送</string>
+    <string name="share_chip_open">显示传输进度</string>
     <string name="share_cancel_confirm_title">取消传输？</string>
     <string name="share_cancel_confirm_body">已接收的文件将被丢弃。</string>
     <string name="share_cancel_confirm_keep">继续</string>

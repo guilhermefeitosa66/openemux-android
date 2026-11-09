@@ -90,8 +90,12 @@
     <string name="share_progress_receiving">%1$s から受信中</string>
     <string name="share_progress_bytes">%1$s / %2$s</string>
     <string name="share_progress_files">ファイル %1$d / %2$d</string>
-    <string name="share_progress_note">画面を消したりアプリを離れたりしても大丈夫です。転送は続きます。</string>
+    <string name="share_progress_note">アプリの操作やゲームのプレイを続けても、アプリを離れたり画面を消したりしても大丈夫です。転送は続きます。</string>
     <string name="share_progress_cancel">転送をキャンセル</string>
+    <string name="share_progress_background">バックグラウンドで続ける</string>
+    <string name="share_chip_receiving">受信中</string>
+    <string name="share_chip_sending">送信中</string>
+    <string name="share_chip_open">転送の進行状況を表示</string>
     <string name="share_cancel_confirm_title">転送をキャンセルしますか?</string>
     <string name="share_cancel_confirm_body">ここまでに受け取ったファイルは破棄されます。</string>
     <string name="share_cancel_confirm_keep">続ける</string>

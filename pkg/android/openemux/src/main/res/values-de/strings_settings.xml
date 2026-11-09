@@ -227,6 +227,7 @@
     <string name="backup_confirm_from">Von OpenEmux %1$s, erstellt am %2$s · %3$s</string>
     <string name="backup_confirm_note">Bibliothek, Spielstände und Einstellungen auf diesem Handy werden ersetzt. OpenEmux startet danach neu.</string>
     <string name="backup_confirm">Ersetzen und wiederherstellen</string>
+    <string name="backup_transfer_running">Eine Spielübertragung läuft. Du kannst wiederherstellen, sobald sie beendet ist.</string>
     <string name="backup_err_invalid">Diese Datei ist keine OpenEmux-Sicherung oder sie ist beschädigt. Es wurde nichts geändert.</string>
     <string name="backup_err_newer">Diese Sicherung stammt von einem neueren OpenEmux. Aktualisiere zuerst die App. Es wurde nichts geändert.</string>
     <string name="backup_err_space">Nicht genug freier Speicher: Die Sicherung braucht %1$s, frei sind %2$s. Es wurde nichts geändert.</string>

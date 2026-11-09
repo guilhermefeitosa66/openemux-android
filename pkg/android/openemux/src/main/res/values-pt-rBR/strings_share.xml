@@ -90,8 +90,12 @@
     <string name="share_progress_receiving">Recebendo de %1$s</string>
     <string name="share_progress_bytes">%1$s de %2$s</string>
     <string name="share_progress_files">Arquivo %1$d de %2$d</string>
-    <string name="share_progress_note">Você pode desligar a tela ou sair do app. A transferência continua.</string>
+    <string name="share_progress_note">Você pode continuar usando o app, jogar, sair do app ou desligar a tela. A transferência continua.</string>
     <string name="share_progress_cancel">Cancelar transferência</string>
+    <string name="share_progress_background">Continuar em segundo plano</string>
+    <string name="share_chip_receiving">Recebendo</string>
+    <string name="share_chip_sending">Enviando</string>
+    <string name="share_chip_open">Ver o andamento da transferência</string>
     <string name="share_cancel_confirm_title">Cancelar a transferência?</string>
     <string name="share_cancel_confirm_body">Os arquivos recebidos até agora são descartados.</string>
     <string name="share_cancel_confirm_keep">Continuar</string>

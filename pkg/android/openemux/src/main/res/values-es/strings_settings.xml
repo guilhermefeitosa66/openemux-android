@@ -239,6 +239,7 @@
     <string name="backup_confirm_from">De OpenEmux %1$s, creada el %2$s · %3$s</string>
     <string name="backup_confirm_note">Se reemplazan la biblioteca, las partidas y los ajustes de este teléfono. OpenEmux se reinicia al terminar.</string>
     <string name="backup_confirm">Reemplazar y restaurar</string>
+    <string name="backup_transfer_running">Hay una transferencia de juegos en curso. Podrás restaurar cuando termine.</string>
     <string name="backup_err_invalid">Este archivo no es una copia de seguridad de OpenEmux o está dañado. No se cambió nada.</string>
     <string name="backup_err_newer">Esta copia la hizo un OpenEmux más reciente. Actualiza la app primero. No se cambió nada.</string>
     <string name="backup_err_space">No hay espacio libre suficiente: la copia necesita %1$s y hay %2$s libres. No se cambió nada.</string>

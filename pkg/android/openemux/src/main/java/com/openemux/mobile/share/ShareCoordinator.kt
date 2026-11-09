@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,6 +57,24 @@ sealed interface TransferState {
     data class Finished(val result: ShareResult) : TransferState
 
     val busy: Boolean get() = this is Waiting || this is Running
+}
+
+/** Where the main activity shows the transfer, besides an offer's own sheet. */
+enum class TransferSurface { NONE, SHEET, CHIP }
+
+/**
+ * [hidden] when the player left the progress view with the transfer running;
+ * [sendScreen] when a send screen is open, which draws an outgoing transfer in
+ * place. A result always shows, so the end of a hidden transfer is not missed.
+ */
+fun transferSurface(state: TransferState, hidden: Boolean, sendScreen: Boolean): TransferSurface = when (state) {
+    is TransferState.Running -> when {
+        state.outgoing && sendScreen -> TransferSurface.NONE
+        hidden -> TransferSurface.CHIP
+        else -> TransferSurface.SHEET
+    }
+    is TransferState.Finished -> if (state.result.outgoing && sendScreen) TransferSurface.NONE else TransferSurface.SHEET
+    else -> TransferSurface.NONE
 }
 
 /** What the coordinator posts when the app is not in front. */
@@ -129,6 +148,14 @@ class ShareCoordinator(
     private val _transfer = MutableStateFlow<TransferState>(TransferState.Idle)
     val transfer: StateFlow<TransferState> = _transfer.asStateFlow()
 
+    private val _progressHidden = MutableStateFlow(false)
+    /** The player left the progress view; the transfer goes on. */
+    val progressHidden: StateFlow<Boolean> = _progressHidden.asStateFlow()
+
+    private val _sendScreens = MutableStateFlow(0)
+    /** How many send screens are open: one draws an outgoing transfer in place. */
+    val sendScreens: StateFlow<Int> = _sendScreens.asStateFlow()
+
     private val _events = MutableSharedFlow<ShareEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<ShareEvent> = _events.asSharedFlow()
 
@@ -162,11 +189,16 @@ class ShareCoordinator(
     /** A share screen opened; [send] when it shows the games picked by [startSend], or the skin of [startSendSkin]. */
     fun openScreen(send: Boolean) {
         discoverability.open()
+        if (send) _sendScreens.update { it + 1 }
         val picked = _sendRoms.value.isNotEmpty() || _sendSkin.value != null
         if (send && _sendPrep.value == SendPrep.None && picked) prepare(emptySet())
     }
 
-    fun closeScreen() = discoverability.close()
+    /** A share screen closed; [send] as it was opened. */
+    fun closeScreen(send: Boolean = false) {
+        if (send) _sendScreens.update { (it - 1).coerceAtLeast(0) }
+        discoverability.close()
+    }
 
     private fun startLayer() {
         val availability = layer.availability()
@@ -291,7 +323,8 @@ class ShareCoordinator(
         }
         // A file changed while the screen was open: the next try needs a fresh manifest.
         if (result.error == ErrorCode.SOURCE_CHANGED) {
-            prepare((_sendPrep.value as? SendPrep.Ready)?.selection?.unchecked.orEmpty())
+            // Left running, no screen is waiting for it: hashing now would be for nobody, the next screen builds it.
+            if (_sendScreens.value > 0) prepare((_sendPrep.value as? SendPrep.Ready)?.selection?.unchecked.orEmpty()) else _sendPrep.value = SendPrep.None
         }
         if (kind != ResultKind.SENT) return ShareResult(kind, true, peer, error = errorOf(kind, result.error), skin = skin)
         val report = sendReport(built, excluded, result)
@@ -440,6 +473,7 @@ class ShareCoordinator(
             cancelTransfer = null
             cancelRequested = false
         }
+        _progressHidden.value = false
         _transfer.value = state
         discoverability.transferStarted()
         startService()
@@ -452,6 +486,16 @@ class ShareCoordinator(
             cancelRequested
         }
         if (now) cancel()
+    }
+
+    /** Leaves the progress view; only bytes on the move can go on without it. */
+    fun hideProgress() {
+        if (_transfer.value is TransferState.Running) _progressHidden.value = true
+    }
+
+    /** Back to the progress view: from the chip or the notification. */
+    fun showProgress() {
+        _progressHidden.value = false
     }
 
     /** From the screen or the notification. */

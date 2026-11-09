@@ -237,6 +237,18 @@ class ShareCoordinatorTest {
     }
 
     @Test
+    fun `a send left running that finds a changed file leaves the new manifest to the next screen`() {
+        ready()
+        share.send(peer())
+        share.closeScreen(send = true)
+        layer.onSendDone(SendResult(SendResult.FAILED, error = ErrorCode.SOURCE_CHANGED))
+        assertEquals(1, layer.builds)
+        assertEquals(SendPrep.None, share.sendPrep.value)
+        share.openScreen(send = true)
+        assertEquals(2, layer.builds)
+    }
+
+    @Test
     fun `nothing is sent without a manifest, a choice, a compatible peer or while busy`() {
         share.send(peer())
         assertNull(layer.sentTo)
@@ -614,6 +626,72 @@ class ShareCoordinatorTest {
         val result = (share.transfer.value as TransferState.Finished).result
         assertEquals(listOf("scph5501.bin"), result.bios)
         assertEquals(1, result.games)
+    }
+
+    @Test
+    fun `leaving the progress view keeps the transfer running, and a new transfer starts with it open`() {
+        layer.incoming.value = offer()
+        share.accept()
+        share.hideProgress()
+        assertTrue(share.progressHidden.value)
+        assertEquals(1, services)
+        assertEquals(TransferState.Running(false, "Phone", 1, null), share.transfer.value)
+        assertEquals(TransferSurface.CHIP, transferSurface(share.transfer.value, share.progressHidden.value, false))
+        share.showProgress()
+        assertFalse(share.progressHidden.value)
+        share.hideProgress()
+        layer.onReceiveDone(ReceiveResult(TransferStatus.DONE))
+        assertEquals(TransferSurface.SHEET, transferSurface(share.transfer.value, share.progressHidden.value, false))
+        share.dismissResult()
+        layer.incoming.value = offer("offer2")
+        share.accept()
+        assertFalse(share.progressHidden.value)
+    }
+
+    @Test
+    fun `only a running transfer can be hidden`() {
+        share.hideProgress()
+        assertFalse(share.progressHidden.value)
+        val roms = ready()
+        assertEquals(1, roms.size)
+        share.send(peer())
+        assertTrue(share.transfer.value is TransferState.Waiting)
+        share.hideProgress()
+        assertFalse(share.progressHidden.value)
+    }
+
+    @Test
+    fun `send screens are counted, and a receive screen is not one`() {
+        share.openScreen(send = false)
+        assertEquals(0, share.sendScreens.value)
+        share.closeScreen()
+        share.openScreen(send = true)
+        share.openScreen(send = true)
+        assertEquals(2, share.sendScreens.value)
+        share.closeScreen(send = true)
+        share.closeScreen(send = true)
+        share.closeScreen(send = true)
+        assertEquals(0, share.sendScreens.value)
+    }
+
+    @Test
+    fun `where a transfer shows`() {
+        val incoming = TransferState.Running(false, "Phone", 1, null)
+        val outgoing = TransferState.Running(true, "Phone", 1, null)
+        val received = TransferState.Finished(ShareResult(ResultKind.RECEIVED, false, "Phone"))
+        val sent = TransferState.Finished(ShareResult(ResultKind.SENT, true, "Phone"))
+        assertEquals(TransferSurface.SHEET, transferSurface(incoming, hidden = false, sendScreen = false))
+        assertEquals(TransferSurface.CHIP, transferSurface(incoming, hidden = true, sendScreen = false))
+        assertEquals(TransferSurface.CHIP, transferSurface(incoming, hidden = true, sendScreen = true))
+        assertEquals(TransferSurface.NONE, transferSurface(outgoing, hidden = false, sendScreen = true))
+        assertEquals(TransferSurface.NONE, transferSurface(outgoing, hidden = true, sendScreen = true))
+        assertEquals(TransferSurface.CHIP, transferSurface(outgoing, hidden = true, sendScreen = false))
+        assertEquals(TransferSurface.SHEET, transferSurface(outgoing, hidden = false, sendScreen = false))
+        assertEquals(TransferSurface.SHEET, transferSurface(received, hidden = true, sendScreen = true))
+        assertEquals(TransferSurface.NONE, transferSurface(sent, hidden = false, sendScreen = true))
+        assertEquals(TransferSurface.SHEET, transferSurface(sent, hidden = true, sendScreen = false))
+        assertEquals(TransferSurface.NONE, transferSurface(TransferState.Waiting("Phone", null), hidden = false, sendScreen = false))
+        assertEquals(TransferSurface.NONE, transferSurface(TransferState.Idle, hidden = true, sendScreen = false))
     }
 
     @Test

@@ -215,6 +215,7 @@
     <string name="backup_confirm_from">来自 OpenEmux %1$s，创建于 %2$s · %3$s</string>
     <string name="backup_confirm_note">这部手机上的游戏库、存档和设置将被替换。完成后 OpenEmux 会重启。</string>
     <string name="backup_confirm">替换并恢复</string>
+    <string name="backup_transfer_running">正在传输游戏。传输结束后即可恢复。</string>
     <string name="backup_err_invalid">此文件不是 OpenEmux 备份，或已损坏。没有做任何更改。</string>
     <string name="backup_err_newer">此备份由更新版本的 OpenEmux 创建。请先更新应用。没有做任何更改。</string>
     <string name="backup_err_space">可用空间不足：备份需要 %1$s，可用 %2$s。没有做任何更改。</string>

@@ -215,6 +215,7 @@
     <string name="backup_confirm_from">OpenEmux %1$s で %2$s に作成 · %3$s</string>
     <string name="backup_confirm_note">このスマートフォンのライブラリ、セーブ、設定が置き換えられます。完了すると OpenEmux が再起動します。</string>
     <string name="backup_confirm">置き換えて復元</string>
+    <string name="backup_transfer_running">ゲームの転送中です。転送が終わると復元できます。</string>
     <string name="backup_err_invalid">このファイルは OpenEmux のバックアップではないか、破損しています。何も変更されていません。</string>
     <string name="backup_err_newer">このバックアップは新しいバージョンの OpenEmux で作成されました。先にアプリを更新してください。何も変更されていません。</string>
     <string name="backup_err_space">空き容量が足りません。バックアップには %1$s が必要で、空きは %2$s です。何も変更されていません。</string>

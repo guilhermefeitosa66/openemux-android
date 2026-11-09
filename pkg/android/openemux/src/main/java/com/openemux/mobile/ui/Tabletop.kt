@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import com.openemux.mobile.ui.share.TransferChip
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -97,6 +98,7 @@ fun ColumnScope.TabletopBottom(band: Band, route: String?, showTabs: Boolean, to
     Column(Modifier.fillMaxWidth().weight(1f).onFocusChanged { focused = it.hasFocus }.focusGroup()) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
             LocalDeckSlot.current.content?.invoke()
+            TransferChip(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
             ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
         }
         HintBar(GamepadBus.hints)

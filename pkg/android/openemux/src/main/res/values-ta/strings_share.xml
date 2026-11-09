@@ -90,8 +90,12 @@
     <string name="share_progress_receiving">%1$s-இடமிருந்து பெறுகிறது</string>
     <string name="share_progress_bytes">%2$s-இல் %1$s</string>
     <string name="share_progress_files">கோப்பு %1$d / %2$d</string>
-    <string name="share_progress_note">திரையை அணைக்கலாம் அல்லது ஆப்பை விட்டு வெளியேறலாம். பரிமாற்றம் தொடரும்.</string>
+    <string name="share_progress_note">ஆப்பைத் தொடர்ந்து பயன்படுத்தலாம், விளையாடலாம், ஆப்பை விட்டு வெளியேறலாம் அல்லது திரையை அணைக்கலாம். பரிமாற்றம் தொடரும்.</string>
     <string name="share_progress_cancel">பரிமாற்றத்தை ரத்துசெய்</string>
+    <string name="share_progress_background">பின்னணியில் தொடரவும்</string>
+    <string name="share_chip_receiving">பெறுகிறது</string>
+    <string name="share_chip_sending">அனுப்புகிறது</string>
+    <string name="share_chip_open">பரிமாற்ற முன்னேற்றத்தைக் காட்டு</string>
     <string name="share_cancel_confirm_title">பரிமாற்றத்தை ரத்துசெய்யவா?</string>
     <string name="share_cancel_confirm_body">இதுவரை பெற்ற கோப்புகள் நீக்கப்படும்.</string>
     <string name="share_cancel_confirm_keep">தொடர்</string>

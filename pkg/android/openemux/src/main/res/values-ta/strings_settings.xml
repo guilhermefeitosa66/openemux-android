@@ -227,6 +227,7 @@
     <string name="backup_confirm_from">OpenEmux %1$s இலிருந்து, %2$s அன்று உருவாக்கப்பட்டது · %3$s</string>
     <string name="backup_confirm_note">இந்தப் போனில் உள்ள நூலகம், சேமிப்புகள் மற்றும் அமைப்புகள் மாற்றப்படும். முடிந்ததும் OpenEmux மறுதொடக்கம் ஆகும்.</string>
     <string name="backup_confirm">மாற்றி மீட்டமை</string>
+    <string name="backup_transfer_running">விளையாட்டு பரிமாற்றம் நடந்துகொண்டிருக்கிறது. அது முடிந்ததும் மீட்டெடுக்கலாம்.</string>
     <string name="backup_err_invalid">இந்தக் கோப்பு OpenEmux காப்புப்பிரதி அல்ல, அல்லது சேதமடைந்துள்ளது. எதுவும் மாற்றப்படவில்லை.</string>
     <string name="backup_err_newer">இந்தக் காப்புப்பிரதி புதிய OpenEmux ஆல் உருவாக்கப்பட்டது. முதலில் ஆப்ஸைப் புதுப்பிக்கவும். எதுவும் மாற்றப்படவில்லை.</string>
     <string name="backup_err_space">போதுமான இடம் இல்லை: காப்புப்பிரதிக்கு %1$s தேவை, %2$s மட்டுமே காலியாக உள்ளது. எதுவும் மாற்றப்படவில்லை.</string>
