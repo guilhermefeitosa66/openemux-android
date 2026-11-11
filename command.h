@@ -710,6 +710,7 @@ bool command_get_config_param(command_t *cmd, const char* arg);
 bool command_show_osd_msg(command_t *cmd, const char* arg);
 bool command_load_state_slot(command_t *cmd, const char* arg);
 bool command_save_state_slot(command_t* cmd, const char* arg);
+bool command_set_state_slot(command_t *cmd, const char* arg);
 bool command_play_replay_slot(command_t *cmd, const char* arg);
 bool command_seek_replay(command_t *cmd, const char *arg);
 bool command_save_savefiles(command_t *cmd, const char* arg);
@@ -1199,6 +1200,7 @@ static const struct cmd_action_map action_map[] = {
 
    { "LOAD_STATE_SLOT",command_load_state_slot, "<slot number>", "Load the save state in the given slot, replacing the current game state.", CMD_INFO_DESTRUCTIVE | CMD_INFO_NO_TOOL, cmd_params_slot },
    { "SAVE_STATE_SLOT",command_save_state_slot, "<slot number>", "Save a state to the given slot, overwriting what it held.", CMD_INFO_DESTRUCTIVE | CMD_INFO_NO_TOOL, cmd_params_slot },
+   { "SET_STATE_SLOT", command_set_state_slot, "<slot number>", "Make the given slot the one LOAD_STATE and SAVE_STATE use, as the state_slot option reports it.", CMD_INFO_NO_TOOL, cmd_params_slot },
    { "CHECKPOINT_STATE", command_checkpoint_save, "No argument", "Keep a state in memory, for ROLLBACK_STATE, until the content closes.", CMD_INFO_DESTRUCTIVE | CMD_INFO_NO_TOOL, NULL },
    { "ROLLBACK_STATE", command_checkpoint_rollback, "No argument", "Restore the state CHECKPOINT_STATE kept.", CMD_INFO_DESTRUCTIVE | CMD_INFO_NO_TOOL, NULL },
    { "STATE",         command_state,         "<save|load|checkpoint|rollback> [slot]", "Save a state to a slot, or load the one in it; or checkpoint one in memory and roll back to it.", CMD_INFO_DESTRUCTIVE, cmd_params_state },

@@ -56,7 +56,7 @@ class RomRenameTest {
         put(paths.roms(Console.SFC), "Zelda.sfc")
         val states = paths.states(Console.SFC)
         listOf("Mario (USA).state", "Mario (USA).state.png", "Mario (USA).state1", "Mario (USA).state1.png",
-            "Mario (USA).state.auto", "Mario (USA).state.auto.png", "Mario (USA).state999", "Zelda.state").forEach { put(states, it) }
+            "Mario (USA).state.auto", "Mario (USA).state.auto.png", "Mario (USA).state999", "Mario (USA).slot", "Zelda.state").forEach { put(states, it) }
         put(paths.saves(Console.SFC), "Mario (USA).srm")
         put(paths.saves(Console.SFC), "Mario (USA).rtc")
         // Another game's save whose stem starts the same: it stays.
@@ -87,7 +87,7 @@ class RomRenameTest {
         assertEquals(listOf("Super Mario World.sfc", "Zelda.sfc"), names(paths.roms(Console.SFC)))
         assertEquals(10L, renamed.file.length())
         assertEquals(
-            listOf("Super Mario World.state", "Super Mario World.state.auto", "Super Mario World.state.auto.png", "Super Mario World.state.png",
+            listOf("Super Mario World.slot", "Super Mario World.state", "Super Mario World.state.auto", "Super Mario World.state.auto.png", "Super Mario World.state.png",
                 "Super Mario World.state1", "Super Mario World.state1.png", "Super Mario World.state999", "Zelda.state"),
             names(paths.states(Console.SFC)),
         )
@@ -177,8 +177,9 @@ class RomRenameTest {
         File(paths.playtime, "SFC_Played.txt").writeText("5")
         put(paths.covers(Console.SFC), "Art.webp")
         put(paths.labels(Console.SFC), "Label.none")
+        put(paths.states(Console.SFC), "Slotted.slot")
 
-        listOf("old", "Gone", "played", "Art", "Label").forEach { assertEquals(it, RenameCheck.LEFTOVERS, renamer.check(mario, it)) }
+        listOf("old", "Gone", "played", "Art", "Label", "Slotted").forEach { assertEquals(it, RenameCheck.LEFTOVERS, renamer.check(mario, it)) }
         // Not theirs: another stem, or a file that is not a battery save.
         put(paths.saves(Console.SFC), "Other.sfc")
         put(paths.states(Console.SFC), "Other.statefile")

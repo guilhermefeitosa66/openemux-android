@@ -11,30 +11,63 @@ import java.io.File
 class SaveSlotsTest {
     @get:Rule val folder = TemporaryFolder()
 
-    @Test fun opensOnTheFirstNumberedSlotWithNothingSaved() {
-        assertEquals(1, SaveSlots.opening(emptyList()))
+    @Test fun aRomThatNeverChoseASlotIsOnSlotZero() {
+        assertEquals(0, SaveSlots.current(folder.root, "game"))
+        assertEquals(0, SaveSlots.current(File(folder.root, "missing"), "game"))
     }
 
-    @Test fun opensAfterTheHighestSlotInUse() {
-        assertEquals(6, SaveSlots.opening(listOf(5, 2)))
+    @Test fun theCurrentSlotIsKeptPerRom() {
+        assertTrue(SaveSlots.setCurrent(folder.root, "game", 3))
+        assertTrue(SaveSlots.setCurrent(folder.root, "other", 7))
+        assertEquals(3, SaveSlots.current(folder.root, "game"))
+        assertEquals(7, SaveSlots.current(folder.root, "other"))
+        assertEquals("3", File(folder.root, "game.slot").readText().trim())
     }
 
-    @Test fun theAutoStateAndSlotZeroDoNotMoveTheOpening() {
-        assertEquals(1, SaveSlots.opening(listOf(-1, 0)))
+    @Test fun choosingAgainReplacesTheSlotAndLeavesNoTemporaryFile() {
+        SaveSlots.setCurrent(folder.root, "game", 3)
+        SaveSlots.setCurrent(folder.root, "game", 99)
+        assertEquals(99, SaveSlots.current(folder.root, "game"))
+        assertEquals(listOf("game.slot"), folder.root.list()!!.toList())
     }
 
-    @Test fun pastTheEndOpensOnTheLowestFreeSlot() {
-        assertEquals(1, SaveSlots.opening(listOf(99)))
-        assertEquals(3, SaveSlots.opening(listOf(1, 2, 99)))
-        assertEquals(1, SaveSlots.opening(listOf(150)))
+    @Test fun theFolderIsCreatedForTheFirstChoice() {
+        val dir = File(folder.root, "states/GBA")
+        assertTrue(SaveSlots.setCurrent(dir, "game", 5))
+        assertEquals(5, SaveSlots.current(dir, "game"))
     }
 
-    @Test fun onlySlotZeroFreeOpensThere() {
-        assertEquals(0, SaveSlots.opening((1..99).toList()))
+    @Test fun theAutoStateAndSlotsPastTheRangeAreNeverCurrent() {
+        SaveSlots.setCurrent(folder.root, "game", 4)
+        assertFalse(SaveSlots.setCurrent(folder.root, "game", -1))
+        assertFalse(SaveSlots.setCurrent(folder.root, "game", SCRATCH_SLOT))
+        assertFalse(SaveSlots.setCurrent(folder.root, "game", 100))
+        assertEquals(4, SaveSlots.current(folder.root, "game"))
     }
 
-    @Test fun everySlotTakenOpensOnTheFirstNumberedOne() {
-        assertEquals(1, SaveSlots.opening((0..99).toList()))
+    @Test fun aDamagedOrOutOfRangeFileFallsBackToSlotZero() {
+        val file = SaveSlots.currentFile(folder.root, "game")
+        for (text in listOf("", "x", "-1", "100", "999")) {
+            file.writeText(text)
+            assertEquals(text, 0, SaveSlots.current(folder.root, "game"))
+        }
+        file.writeText(" 12 \n")
+        assertEquals(12, SaveSlots.current(folder.root, "game"))
+    }
+
+    @Test fun aSlotThatCannotBeWrittenIsReportedAndLeavesNothing() {
+        // A folder where the file goes: the rename over it fails.
+        File(folder.root, "game.slot").mkdirs()
+        File(folder.root, "game.slot/inside").writeText("x")
+        assertFalse(SaveSlots.setCurrent(folder.root, "game", 2))
+        assertFalse(File(folder.root, ".game.slot.tmp").exists())
+        // A file where the folder goes: nothing can be written in it.
+        val notDir = folder.newFile("plain")
+        assertFalse(SaveSlots.setCurrent(notDir, "game", 2))
+    }
+
+    @Test fun theStateListingsDoNotSeeTheSlotFile() {
+        assertFalse(SaveSlots.currentFile(folder.root, "game").name.startsWith("game.state"))
     }
 
     @Test fun theArrowsMoveOneSlot() {

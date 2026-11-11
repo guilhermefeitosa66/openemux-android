@@ -149,6 +149,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 data class PauseSession(
@@ -222,6 +223,31 @@ private object SessionToggles {
     var shader: Pair<String, String>? = null
 }
 
+/**
+ * The ROM's current slot (issue 857): the one the menu opens on, kept across openings, sessions and restarts. The value
+ * chosen in this process wins over the file, whose write is still on its way; writes and the engine's slot go in order.
+ */
+private object CurrentSlot {
+    private var chosen: Pair<String, Int>? = null
+    private val writer by lazy { Executors.newSingleThreadExecutor { Thread(it, "current-slot") } }
+
+    private fun key(session: PauseSession) = File(session.statesDir, session.romBase).path
+
+    fun of(session: PauseSession): Int =
+        chosen?.takeIf { it.first == key(session) }?.second ?: SaveSlots.current(session.statesDir, session.romBase)
+
+    /** Makes [slot] current, on disk and in the engine, whose Save and Load keys (strip, controller) use it. */
+    fun choose(session: PauseSession, slot: Int) {
+        if (slot !in SaveSlots.RANGE) return
+        chosen = key(session) to slot
+        writer.execute {
+            SaveSlots.setCurrent(session.statesDir, session.romBase, slot)
+            // An engine without the command answers an error: it then keeps the slot it was launched with.
+            RaCommand.ask("SET_STATE_SLOT $slot", 1000)
+        }
+    }
+}
+
 private enum class Page { Main, States, StateOptions, StateDelete, Shader, Screens, Skin }
 
 /**
@@ -280,8 +306,9 @@ fun PauseSheet(
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val states = remember(refresh) { session.states() }
-        // Every opening starts on the next free slot, so a plain "Save" overwrites nothing (issue 828).
-        var slot by remember { mutableIntStateOf(SaveSlots.opening(states.map { it.slot })) }
+        // The ROM's current slot, which only the player changes (issue 857).
+        var slot by remember { mutableIntStateOf(CurrentSlot.of(session)) }
+        fun choose(next: Int) { if (next in SaveSlots.RANGE) { slot = next; CurrentSlot.choose(session, next) } }
         // The state the options and the confirmation pages are about.
         var chosen by remember { mutableStateOf<PauseSession.State?>(null) }
         fun options(st: PauseSession.State) { chosen = st; page = Page.StateOptions }
@@ -352,7 +379,11 @@ fun PauseSheet(
                     RaCommand.ask("LOAD_STATE_SLOT $slot", 3000)
                 }
                 if (replyFailed(reply)) toast = context.getString(R.string.game_toast_state_other_core)
-                else onResume()
+                else {
+                    // A numbered state loaded here is the current slot from now on; the auto state is not a slot.
+                    if (!st.isAutoSlot()) choose(st.slot)
+                    onResume()
+                }
             }
         }
 
@@ -527,7 +558,7 @@ fun PauseSheet(
                             stateCount = states.count { !it.isAutoSlot() },
                             slot = slot,
                             slotInUse = states.any { it.slot == slot },
-                            onSlot = { delta -> slot = SaveSlots.step(slot, delta) },
+                            onSlot = { delta -> choose(SaveSlots.step(slot, delta)) },
                             onSave = {
                                 val target = slot
                                 scope.launch {

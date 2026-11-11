@@ -24,6 +24,7 @@ import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Labels
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.Rom
+import com.openemux.mobile.data.SaveSlots
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
@@ -210,6 +211,8 @@ class GameLauncher(
 
             listOf(paths.states(rom.console), paths.saves(rom.console), paths.system, paths.screenshots, paths.playtime)
                 .forEach { it.mkdirs() }
+            // A numbered state opened from the game's screen is its current slot from now on; the auto state leaves it (issue 857).
+            if (slot != null) SaveSlots.setCurrent(paths.states(rom.console), rom.baseName, slot)
             val config = File(dir, "retroarch.cfg")
             config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore, anchor))
 
@@ -296,7 +299,8 @@ class GameLauncher(
             "savestate_auto_save" to (!hardcore).toString(),
             "savestate_auto_load" to resume.toString(),
             "savestate_thumbnail_enable" to "true",
-            "state_slot" to "0",
+            // Save and Load on the strip and the controller act on the ROM's current slot, as the pause menu does (issue 857).
+            "state_slot" to SaveSlots.current(paths.states(rom.console), rom.baseName).toString(),
             "global_core_options" to "true",
             "core_options_path" to File(dir, "core-options.cfg").absolutePath,
             "network_cmd_enable" to "true",
