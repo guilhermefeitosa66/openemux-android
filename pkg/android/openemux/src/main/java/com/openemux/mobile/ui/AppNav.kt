@@ -19,6 +19,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.union
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.res.colorResource
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -131,6 +136,9 @@ class AppActions(
 
 val LocalActions = staticCompositionLocalOf<AppActions> { error("no actions") }
 
+/** How long the launch cover takes to leave once the bars are gone. */
+private const val LAUNCH_FADE_MS = 150
+
 @Composable
 fun OpenEmuxRoot() {
     val context = LocalContext.current
@@ -170,10 +178,20 @@ fun OpenEmuxRoot() {
     }
 
     OpenEmuxTheme {
-        // Edge to edge with the system bars kept on screen (only the game hides them): the content is padded away
-        // from them and from the cutout, never drawn under them. Padded here once, so the screens' own bar
-        // paddings read 0.
-        Box(Modifier.fillMaxSize().background(Oe.Bg).windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))) {
+        // The app runs full screen: the bars, when a swipe brings them back, sit over it without moving anything,
+        // so their insets are spent here and only the camera cutout keeps the content away. In split screen or a
+        // freeform window they cannot be hidden, so the content is padded away from them there. Either way the
+        // screens' own bar paddings read 0.
+        val insets = if (AppWindow.multiWindow) Modifier.windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
+        else Modifier.consumeWindowInsets(WindowInsets.systemBars).windowInsetsPadding(WindowInsets.displayCutout)
+        // A launch keeps the starting window's look (its background, whatever theme the app picked) over the
+        // content until the bars it brought are gone; from API 31 the held system splash sits on top of it anyway.
+        val cover by animateFloatAsState(if (AppWindow.gate.open) 0f else 1f, tween(LAUNCH_FADE_MS), label = "launch")
+        val starting = colorResource(R.color.oe_bg)
+        Box(Modifier.fillMaxSize().background(Oe.Bg).then(insets).drawWithContent {
+            drawContent()
+            if (cover > 0f) drawRect(starting, alpha = cover)
+        }) {
             val setup by app.setup.state.collectAsState()
             // Nothing opens until the cores are on the device.
             if (setup !is Setup.State.Done) SetupScreen(setup) { scope.launch { app.setup.run() } }

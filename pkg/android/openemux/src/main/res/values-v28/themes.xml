@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Into the camera cutout, as enableEdgeToEdge sets it, so the starting window lines up with the app. -->
+    <!-- Into the camera cutout, as the full-screen app is, so the starting window lines up with it. -->
     <style name="Theme.OpenEmux" parent="Theme.OpenEmux.Base">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
