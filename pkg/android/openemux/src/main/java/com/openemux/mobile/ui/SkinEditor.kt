@@ -1046,8 +1046,11 @@ private fun Stage(
                             event.changes.forEach { it.consume() }
                             if (event.changes.none { it.pressed }) break
                         }
-                        s.touch = emptySet()
-                        s.update(SystemClock.uptimeMillis())
+                        // Picking keeps what its tap said ("up to 3 buttons"); holding starts over with no finger down.
+                        if (s.picking == null) {
+                            s.touch = emptySet()
+                            s.update(SystemClock.uptimeMillis())
+                        }
                         return@awaitEachGesture
                     }
                     if (model.trying) {
