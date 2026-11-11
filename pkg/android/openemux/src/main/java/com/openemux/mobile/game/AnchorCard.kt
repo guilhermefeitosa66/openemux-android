@@ -81,20 +81,19 @@ fun AnchorCard(timeoutMs: Long, onClosed: () -> Unit) {
                 onClosed()
             }
         }
-        // A finger on the card (a drag included) holds the countdown; letting go resumes it.
+        // A finger on the card (a drag included) holds the countdown; letting go resumes it, from the full time if the
+        // card was dragged (a drag that springs back means the player is still on it; one that closes it ends it anyway).
         var held by remember { mutableStateOf(false) }
+        var moved by remember { mutableStateOf(false) }
         val countdown = remember { AnchorCardCountdown(timeoutMs) }
-        var restarts by remember { mutableIntStateOf(0) }
-        LaunchedEffect(entered, held, closing, restarts) {
+        LaunchedEffect(entered, held, closing) {
             if (!entered || held || closing) return@LaunchedEffect
-            val run = restarts
             val from = SystemClock.uptimeMillis()
             try {
                 delay(countdown.left)
                 close()
             } finally {
-                // A restart already put the full time back: what this run spent is not taken from it.
-                if (run == restarts) countdown.ran(SystemClock.uptimeMillis() - from)
+                countdown.ran(SystemClock.uptimeMillis() - from)
             }
         }
         // Where the finger has the card, kept as each delta comes: the snaps run later, and letting go is judged here.
@@ -122,6 +121,10 @@ fun AnchorCard(timeoutMs: Long, onClosed: () -> Unit) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
                             } while (event.changes.any { it.pressed })
                         } finally {
+                            // Restarted before held drops, so the countdown resumes from the full time, never from
+                            // what was left when the drag began.
+                            if (moved) countdown.restart()
+                            moved = false
                             held = false
                         }
                     }
@@ -129,15 +132,13 @@ fun AnchorCard(timeoutMs: Long, onClosed: () -> Unit) {
                 .draggable(
                     state = drag,
                     orientation = Orientation.Vertical,
-                    onDragStarted = { dragged = offset.value },
+                    onDragStarted = {
+                        moved = true
+                        dragged = offset.value
+                    },
                     onDragStopped = { velocity ->
                         if (AnchorCardSwipe.closes(dragged, velocity, height.toFloat())) close()
-                        else {
-                            dragged = 0f
-                            countdown.restart()
-                            restarts++
-                            offset.animateTo(0f)
-                        }
+                        else { dragged = 0f; offset.animateTo(0f) }
                     },
                 )
                 .semantics { dismiss { close(); true } }
