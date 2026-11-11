@@ -660,10 +660,6 @@ class GameActivity : RetroActivityFuture() {
     /** The card explaining anchor mode, over the game's box [viewport] (the top of the screen without one). */
     private fun showAnchorCard(viewport: ScreenBox?) {
         if (!started || isFinishing || isDestroyed || window.decorView.windowToken == null) return
-        val dp = resources.displayMetrics.density
-        val screen = window.decorView
-        val place = AnchorCardPlace.of(viewport, screen.width, screen.height, (12 * dp).toInt(), (360 * dp).toInt())
-        val at = IntArray(2).also(screen::getLocationOnScreen)
         val d = ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar)
         val view = ComposeView(d.context).apply {
             setContent {
@@ -677,12 +673,10 @@ class GameActivity : RetroActivityFuture() {
         d.window?.let { w ->
             // Only the card takes touches: around it, the pad and the strip stay the game's.
             w.attributes = overGameParams(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL).apply {
-                width = place.width
                 height = WindowManager.LayoutParams.WRAP_CONTENT
-                x = at[0] + place.x
-                y = at[1] + place.y
                 title = "OpenEmux anchor card"
             }
+            placeAnchorCard(w, viewport)
             w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             if (Build.VERSION.SDK_INT >= 30) {
                 w.setDecorFitsSystemWindows(false)
@@ -694,6 +688,31 @@ class GameActivity : RetroActivityFuture() {
         }
         anchorCard = d
         d.show()
+    }
+
+    /** Puts the card's window [w] over the game's box [viewport], as the game's window is now. */
+    private fun placeAnchorCard(w: android.view.Window, viewport: ScreenBox?) {
+        val dp = resources.displayMetrics.density
+        val screen = window.decorView
+        val place = AnchorCardPlace.of(viewport, screen.width, screen.height, (12 * dp).toInt(), (360 * dp).toInt())
+        val at = IntArray(2).also(screen::getLocationOnScreen)
+        w.attributes = w.attributes.apply {
+            width = place.width
+            x = at[0] + place.x
+            y = at[1] + place.y
+        }
+    }
+
+    /**
+     * The overlay changed (a rotation, a fold, another skin or NDS layout) while the card shows: it moves over the new
+     * game box, which is read off the engine thread this is called on.
+     */
+    private fun followAnchorCard(name: String) {
+        val dir = shownSkinDir ?: return
+        Thread({
+            val viewport = readViewports(dir)[name]
+            runOnUiThread { anchorCard?.takeIf { it.isShowing }?.window?.let { placeAnchorCard(it, viewport) } }
+        }, "anchor-card").start()
     }
 
     private fun closeAnchorCard() {
@@ -708,6 +727,7 @@ class GameActivity : RetroActivityFuture() {
      * screen layout, which is kept for the orientation.
      */
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
+        if (anchorCard != null) followAnchorCard(name)
         val previous = overlay
         overlay = name
         if (TABLETOP !in name) flatOverlay = name

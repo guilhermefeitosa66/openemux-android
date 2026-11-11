@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,8 +57,12 @@ fun AnchorCard(onClosed: () -> Unit) {
                 onClosed()
             }
         }
+        // Where the finger has the card, kept as each delta comes: the snaps run later, and letting go is judged here.
+        var dragged by remember { mutableFloatStateOf(0f) }
         val drag = rememberDraggableState { delta ->
-            scope.launch { offset.snapTo(AnchorCardSwipe.drag(offset.value, delta)) }
+            dragged = AnchorCardSwipe.drag(dragged, delta)
+            val to = dragged
+            scope.launch { offset.snapTo(to) }
         }
         Column(
             modifier = Modifier
@@ -70,9 +75,10 @@ fun AnchorCard(onClosed: () -> Unit) {
                 .draggable(
                     state = drag,
                     orientation = Orientation.Vertical,
+                    onDragStarted = { dragged = offset.value },
                     onDragStopped = { velocity ->
-                        if (AnchorCardSwipe.closes(offset.value, velocity, height.toFloat())) close()
-                        else offset.animateTo(0f)
+                        if (AnchorCardSwipe.closes(dragged, velocity, height.toFloat())) close()
+                        else { dragged = 0f; offset.animateTo(0f) }
                     },
                 )
                 .semantics { dismiss { close(); true } }
