@@ -93,6 +93,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -741,7 +742,10 @@ private fun MainPage(
                 stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
                 Modifier.weight(1.6f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
             )
-            BigButton(stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
+            BigButton(
+                stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
+                iconYields = true,
+            )
         }
     }
     val load = @Composable { modifier: Modifier ->
@@ -985,18 +989,25 @@ private fun PausedArea(states: List<PauseSession.State>, modifier: Modifier, onP
 private fun BigButton(
     text: String, icon: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit,
     enabled: Boolean = true, showIcon: Boolean = true,
+    /** The icon steps aside when the label would be cut, so the whole word shows (Tamil's Restart in landscape, issue 855). */
+    iconYields: Boolean = false,
 ) {
+    // Measured, not guessed from the width: the label's length is the locale's. A new window size asks again.
+    var iconFits by remember(text, LocalConfiguration.current.screenWidthDp) { mutableStateOf(true) }
     Row(
         modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp) else it.alpha(DISABLED_ALPHA) }
             .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showIcon) {
+        if (showIcon && iconFits) {
             Icon(icon, fg, 22.dp, filled = icon == Icons.SaveState || icon == Icons.LoadState)
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (iconYields && iconFits && it.lineCount > 0 && it.isLineEllipsized(0)) iconFits = false },
+        )
     }
 }
 
