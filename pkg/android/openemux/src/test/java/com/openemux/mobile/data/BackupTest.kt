@@ -616,6 +616,15 @@ class BackupTest {
     }
 
     @Test
+    fun aSkinsFolderThatIsALinkStaysOut() {
+        val outside = File(tmp, "outside").apply { put("FC/Retro.deltaskin", "no") }
+        roots.external.mkdirs()
+        Files.createSymbolicLink(File(roots.external, "skins").toPath(), outside.toPath())
+        assertTrue(roots.files(roots.byName("external/skins")!!).isEmpty())
+        assertFalse(roots.exported(includeRoms = true).keys.any { it.name == "external/skins" })
+    }
+
+    @Test
     fun skinsComeBackOnAFreshPhone() {
         seed()
         seedSkins()

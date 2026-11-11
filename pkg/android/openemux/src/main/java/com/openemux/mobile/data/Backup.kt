@@ -83,15 +83,21 @@ class BackupRoots(val external: File, val internal: File) {
     /** The device copy a swap set aside: kept until every root is in place. */
     fun old(root: BackupRoot) = File(root.file.path + ".old")
 
-    /** The roots of the groups to export; a single file only when there is one, a newer root only with files. */
-    fun exported(includeRoms: Boolean) = all.filter {
-        (includeRoms || it.group != BackupGroup.ROMS) && (it.isDir || it.file.isFile) && (it.since == 1 || files(it).isNotEmpty())
-    }
+    /**
+     * The roots of the groups to export, each with its files, walked once: a single file only when there is one, a
+     * newer root only with files.
+     */
+    fun exported(includeRoms: Boolean): Map<BackupRoot, List<Pair<String, File>>> = all
+        .filter { (includeRoms || it.group != BackupGroup.ROMS) && (it.isDir || it.file.isFile) }
+        .associateWith { files(it) }
+        .filter { (root, list) -> root.since == 1 || list.isNotEmpty() }
 
     /** Every file under [root], by its archive name. Half-written files stay out. */
     fun files(root: BackupRoot): List<Pair<String, File>> {
         if (!root.isDir) return if (root.file.isFile) listOf(root.name to root.file) else emptyList()
         if (!root.file.isDirectory) return emptyList()
+        // The walk follows a linked folder: one in place of the root would bring in whatever it points at.
+        if (root.skipHidden && Files.isSymbolicLink(root.file.toPath())) return emptyList()
         val hidden = { f: File -> root.skipHidden && (f.name.startsWith(".") || Files.isSymbolicLink(f.toPath())) }
         return root.file.walkTopDown()
             .onEnter { it == root.file || !hidden(it) }
@@ -260,8 +266,8 @@ private const val BUFFER = 64 * 1024
 class BackupWriter(private val roots: BackupRoots) {
     /** Sizes per group; the settings group without the preferences, which are measured on export. */
     fun measure(includeRoms: Boolean): Map<BackupGroup, BackupSize> =
-        roots.exported(includeRoms).groupBy { it.group }.mapValues { (_, list) ->
-            list.flatMap { roots.files(it) }.fold(BackupSize()) { s, (_, f) -> s + BackupSize(1, f.length()) }
+        roots.exported(includeRoms).entries.groupBy { it.key.group }.mapValues { (_, list) ->
+            list.flatMap { it.value }.fold(BackupSize()) { s, (_, f) -> s + BackupSize(1, f.length()) }
         }
 
     fun write(
@@ -274,9 +280,9 @@ class BackupWriter(private val roots: BackupRoots) {
         onProgress: BackupProgress = { _, _, _ -> },
         isCancelled: () -> Boolean = { false },
     ): BackupManifest {
-        val exported = roots.exported(includeRoms)
         // Lengths are taken once: the manifest declares them and the reader holds the archive to them.
-        val files = exported.associateWith { root -> roots.files(root).map { (name, f) -> Triple(name, f, f.length()) } }
+        val files = roots.exported(includeRoms).mapValues { (_, list) -> list.map { (name, f) -> Triple(name, f, f.length()) } }
+        val exported = files.keys
         val prefsBytes = prefs.toString().toByteArray()
         val groups = BackupGroup.entries.associateWith { g ->
             files.filterKeys { it.group == g }.values.flatten().fold(BackupSize()) { s, (_, _, len) -> s + BackupSize(1, len) }
