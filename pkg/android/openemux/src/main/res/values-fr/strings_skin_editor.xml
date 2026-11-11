@@ -67,4 +67,11 @@
     <string name="editor_combo_added">Combo %1$s ajouté à toutes les dispositions. Faites-le glisser où vous voulez : chaque disposition garde sa propre place.</string>
     <string name="editor_combo_buttons">Boutons</string>
     <string name="editor_combo_delete">Supprimer</string>
+    <string name="editor_combo_shape">Forme</string>
+    <string name="editor_shape_circle">Cercle</string>
+    <string name="editor_shape_pill">Pilule</string>
+    <string name="editor_shape_bottom_left">Triangle, en bas à gauche</string>
+    <string name="editor_shape_bottom_right">Triangle, en bas à droite</string>
+    <string name="editor_shape_top_left">Triangle, en haut à gauche</string>
+    <string name="editor_shape_top_right">Triangle, en haut à droite</string>
 </resources>

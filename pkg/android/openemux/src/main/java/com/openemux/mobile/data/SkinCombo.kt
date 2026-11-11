@@ -161,6 +161,69 @@ object SkinCombos {
 }
 
 /**
+ * A combo button's outline on one layout (issue 842): a circle (the default), a pill, or a right triangle whose square
+ * corner points at [corner] of its rect, to tuck into the gap between two round buttons. Each layout keeps its own.
+ */
+data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
+    companion object {
+        val CIRCLE = ComboOutline(SkinShape.CIRCLE)
+        val PILL = ComboOutline(SkinShape.PILL)
+
+        /** The outlines the Shape tool offers, in its order: circle, pill, then the triangle at each corner. */
+        val ALL: List<ComboOutline> = listOf(CIRCLE, PILL) + SkinCorner.entries.map { ComboOutline(SkinShape.TRIANGLE, it) }
+
+        /** A pill is this many times as wide as the circle it was, and [PILL_TALL] times as tall. */
+        const val PILL_WIDE = 1.6f
+        const val PILL_TALL = 0.8f
+
+        /**
+         * The outline a layout's `shape` and `corner` keys name: a circle when either is missing or unknown (an outline
+         * a newer app adds, or a triangle with no corner), so the skin is read both ways.
+         */
+        fun read(shape: String?, corner: String?): ComboOutline = when (SkinShape.byId(shape.orEmpty())) {
+            SkinShape.PILL -> PILL
+            SkinShape.TRIANGLE -> SkinCorner.byId(corner)?.let { ComboOutline(SkinShape.TRIANGLE, it) } ?: CIRCLE
+            else -> CIRCLE
+        }
+
+        /** [e]'s outline. */
+        fun of(e: SkinElement): ComboOutline =
+            if (e.shape == SkinShape.TRIANGLE && e.corner != null) ComboOutline(SkinShape.TRIANGLE, e.corner) else if (e.shape == SkinShape.PILL) PILL else CIRCLE
+
+        /**
+         * [rect] (drawn as [from]) drawn as [to], about the same centre: a circle and a triangle are as wide as tall, a
+         * pill [PILL_WIDE] times as wide and [PILL_TALL] times as tall as the circle it was; with a [size], moved back
+         * inside the layout (and never larger than it).
+         */
+        fun reshape(rect: SkinRect, from: ComboOutline, to: ComboOutline, size: SkinSize? = null): SkinRect {
+            val side = if (from.shape == SkinShape.PILL) rect.width / PILL_WIDE else rect.width
+            var w = if (to.shape == SkinShape.PILL) side * PILL_WIDE else side
+            var h = if (to.shape == SkinShape.PILL) side * PILL_TALL else side
+            if (size != null) {
+                val k = minOf(1f, size.width / w, size.height / h)
+                w *= k
+                h *= k
+            }
+            val x = rect.x + rect.width / 2f - w / 2f
+            val y = rect.y + rect.height / 2f - h / 2f
+            if (size == null) return SkinRect(x, y, w, h)
+            return SkinRect(x.coerceIn(0f, size.width - w), y.coerceIn(0f, size.height - h), w, h)
+        }
+
+        /** Whether ([px], [py]) is inside [e]'s triangle (within [slop]); every other outline takes its whole rect. */
+        fun holds(e: SkinElement, px: Float, py: Float, slop: Float = 0f): Boolean {
+            val corner = e.corner?.takeIf { e.shape == SkinShape.TRIANGLE } ?: return true
+            val hw = e.rect.width / 2f
+            val hh = e.rect.height / 2f
+            // How far past the long edge, in half-sizes: the edge is where the corner's two signs balance.
+            val dx = (px - e.rect.x - hw) / hw * corner.sx
+            val dy = (py - e.rect.y - hh) / hh * corner.sy
+            return dx + dy >= -slop / minOf(hw, hh) * 1.4143f
+        }
+    }
+}
+
+/**
  * The capture panel's hold (issue 842): the buttons pressed now, held unchanged for [SkinCombos.HOLD_MS], make the combo.
  * Pressing other buttons starts the wait over; more than [SkinCombos.MAX] never makes one.
  */

@@ -68,12 +68,28 @@ enum class SkinElementType(val id: String, val colorParts: List<String>, val ima
     }
 }
 
-/** The outline an element is drawn with when it has no image. */
+/**
+ * The outline an element is drawn with when it has no image. [TRIANGLE] is a combo button's alone (issue 842): a right
+ * triangle in its rect whose square corner is the element's [SkinElement.corner].
+ */
 enum class SkinShape(val id: String) {
-    CIRCLE("circle"), PILL("pill"), RECT("rect");
+    CIRCLE("circle"), PILL("pill"), RECT("rect"), TRIANGLE("triangle");
 
     companion object {
         fun byId(id: String): SkinShape? = entries.firstOrNull { it.id == id }
+    }
+}
+
+/** The corner of its rect a triangular combo button's square corner points at (issue 842). */
+enum class SkinCorner(val id: String) {
+    BOTTOM_LEFT("bottom-left"), BOTTOM_RIGHT("bottom-right"), TOP_LEFT("top-left"), TOP_RIGHT("top-right");
+
+    /** Which way the corner is from the rect's centre: -1 or 1 on each axis, y down. */
+    val sx: Float get() = if (this == BOTTOM_LEFT || this == TOP_LEFT) -1f else 1f
+    val sy: Float get() = if (this == TOP_LEFT || this == TOP_RIGHT) -1f else 1f
+
+    companion object {
+        fun byId(id: String?): SkinCorner? = entries.firstOrNull { it.id == id }
     }
 }
 
@@ -164,6 +180,8 @@ data class SkinElement(
     val labelSize: Float? = null,
     val labelOffset: SkinPoint? = null,
     val art: SkinArt = SkinArt.FULL,
+    /** Where a [SkinShape.TRIANGLE] points (issue 842); null for every other shape. */
+    val corner: SkinCorner? = null,
 ) {
     /** The element's image files, one per [SkinElementType.imageSuffixes] entry, in that order. */
     val imageFiles: List<String> get() = type.imageSuffixes.map { "${image ?: id}$it.png" }
@@ -173,10 +191,11 @@ data class SkinElement(
 
     /**
      * [this] in [to]: what is measured in the layout's units ([depth], [radius], the label's size and place) follows
-     * the width, so a control resized keeps its proportions.
+     * the width, so a control resized keeps its proportions. A combo button follows the height: a circle made a pill
+     * (issue 842) gets wider, not deeper.
      */
     fun at(to: SkinRect): SkinElement {
-        val k = to.width / rect.width
+        val k = if (isCombo) to.height / rect.height else to.width / rect.width
         if (k == 1f) return copy(rect = to)
         return copy(
             rect = to, radius = radius?.times(k), depth = depth * k, labelSize = labelSize?.times(k),

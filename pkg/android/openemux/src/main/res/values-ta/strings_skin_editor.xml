@@ -67,4 +67,11 @@
     <string name="editor_combo_added">காம்போ %1$s எல்லா தளவமைப்புகளிலும் சேர்க்கப்பட்டது. விரும்பிய இடத்திற்கு இழுக்கவும்: ஒவ்வொரு தளவமைப்பும் அதன் சொந்த இடத்தை வைத்திருக்கும்.</string>
     <string name="editor_combo_buttons">பொத்தான்கள்</string>
     <string name="editor_combo_delete">நீக்கு</string>
+    <string name="editor_combo_shape">வடிவம்</string>
+    <string name="editor_shape_circle">வட்டம்</string>
+    <string name="editor_shape_pill">மாத்திரை வடிவம்</string>
+    <string name="editor_shape_bottom_left">முக்கோணம், கீழ் இடது</string>
+    <string name="editor_shape_bottom_right">முக்கோணம், கீழ் வலது</string>
+    <string name="editor_shape_top_left">முக்கோணம், மேல் இடது</string>
+    <string name="editor_shape_top_right">முக்கோணம், மேல் வலது</string>
 </resources>

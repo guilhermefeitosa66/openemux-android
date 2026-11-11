@@ -67,4 +67,11 @@
     <string name="editor_combo_added">Combo %1$s added to every layout. Drag it where you want it: each layout keeps its own spot.</string>
     <string name="editor_combo_buttons">Buttons</string>
     <string name="editor_combo_delete">Delete</string>
+    <string name="editor_combo_shape">Shape</string>
+    <string name="editor_shape_circle">Circle</string>
+    <string name="editor_shape_pill">Pill</string>
+    <string name="editor_shape_bottom_left">Triangle, bottom left</string>
+    <string name="editor_shape_bottom_right">Triangle, bottom right</string>
+    <string name="editor_shape_top_left">Triangle, top left</string>
+    <string name="editor_shape_top_right">Triangle, top right</string>
 </resources>

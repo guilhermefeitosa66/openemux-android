@@ -312,9 +312,10 @@ object SkinFormat {
             val buttons = combos[id] ?: continue
             // Read as the button it is drawn as; its inputs, its look and its label are the combo's.
             val asButton = JSONObject(c.toString()).put("type", SkinElementType.BUTTON.id).put("bind", buttons.first())
-            listOf("image", "art", "group", "label").forEach { asButton.remove(it) }
+            listOf("image", "art", "group", "label", "shape", "corner").forEach { asButton.remove(it) }
             val e = element(asButton, at, size)
-            out += e.copy(bind = SkinCombos.bind(buttons), shape = e.shape ?: SkinShape.CIRCLE)
+            val outline = ComboOutline.read(c.optText("shape", "$at.shape"), c.optText("corner", "$at.corner"))
+            out += e.copy(bind = SkinCombos.bind(buttons), shape = outline.shape, corner = outline.corner)
         }
         return out
     }
@@ -436,7 +437,8 @@ object SkinFormat {
             throw SkinFormatException(if (known) SkinError.BIND_NOT_FOR_TYPE else SkinError.UNKNOWN_BIND, "$path.bind", bind)
         }
         val shape = json.optText("shape", "$path.shape")?.let {
-            SkinShape.byId(it) ?: throw SkinFormatException(SkinError.BAD_SHAPE, "$path.shape", it)
+            // A triangle is a combo button's alone (issue 842), and a combo's shape is read apart (layoutCombos).
+            SkinShape.byId(it)?.takeIf { s -> s != SkinShape.TRIANGLE } ?: throw SkinFormatException(SkinError.BAD_SHAPE, "$path.shape", it)
         }
         val colors = linkedMapOf<String, Int>()
         json.optObj("colors", "$path.colors")?.let { c ->
@@ -556,6 +558,7 @@ object SkinFormat {
         put("id", e.id)
         putAll(rectJson(e.rect))
         e.shape?.takeIf { it != SkinShape.CIRCLE }?.let { put("shape", it.id) }
+        e.corner?.takeIf { e.shape == SkinShape.TRIANGLE }?.let { put("corner", it.id) }
         e.radius?.let { put("radius", it) }
         if (e.rotation != 0f) put("rotation", e.rotation)
         if (e.depth != 0f) put("depth", e.depth)
