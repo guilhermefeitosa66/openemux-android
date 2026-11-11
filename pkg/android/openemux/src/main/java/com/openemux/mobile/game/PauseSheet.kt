@@ -1203,7 +1203,7 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
 }
 
 /** The smallest a tile's label shrinks to so that no word breaks in two (de "Bildschirmfoto", ta "திரைப்பிடிப்பு"). */
-private val TileLabelMinSize = 9.sp
+private val TileLabelMinSize = 8.sp
 
 /** A tile's name, centred on up to two lines; a word too long for its column shrinks the text a step at a time. */
 @Composable
