@@ -188,7 +188,7 @@
     <string name="backup_saves">存档和即时存档</string>
     <string name="backup_saves_desc">存档、即时存档、游戏时长、截图</string>
     <string name="backup_settings">设置和图像</string>
-    <string name="backup_settings_desc">设置、收藏、标签、BIOS</string>
+    <string name="backup_settings_desc">设置、收藏、标签、BIOS、皮肤</string>
     <string name="backup_include_roms">包含 ROM</string>
     <plurals name="backup_roms_count">
         <item quantity="other">%1$d 款游戏 · %2$s</item>

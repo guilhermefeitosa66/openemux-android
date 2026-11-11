@@ -198,7 +198,7 @@
     <string name="backup_saves">Saves and states</string>
     <string name="backup_saves_desc">Saves, save states, playtime, screenshots</string>
     <string name="backup_settings">Settings and artwork</string>
-    <string name="backup_settings_desc">Settings, favorites, labels, BIOS</string>
+    <string name="backup_settings_desc">Settings, favorites, labels, BIOS, skins</string>
     <string name="backup_include_roms">Include ROMs</string>
     <plurals name="backup_roms_count">
         <item quantity="one">%1$d game · %2$s</item>

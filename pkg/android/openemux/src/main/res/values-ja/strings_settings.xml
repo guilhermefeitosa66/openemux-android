@@ -188,7 +188,7 @@
     <string name="backup_saves">セーブとステート</string>
     <string name="backup_saves_desc">セーブデータ、ステートセーブ、プレイ時間、スクリーンショット</string>
     <string name="backup_settings">設定とアートワーク</string>
-    <string name="backup_settings_desc">設定、お気に入り、ラベル、BIOS</string>
+    <string name="backup_settings_desc">設定、お気に入り、ラベル、BIOS、スキン</string>
     <string name="backup_include_roms">ROM を含める</string>
     <plurals name="backup_roms_count">
         <item quantity="other">%1$d 本のゲーム · %2$s</item>

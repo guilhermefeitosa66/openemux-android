@@ -197,7 +197,7 @@
     <string name="backup_saves">சேமிப்புகள் மற்றும் நிலைகள்</string>
     <string name="backup_saves_desc">சேமிப்புகள், சேமிப்பு நிலைகள், விளையாடிய நேரம், திரைப்பிடிப்புகள்</string>
     <string name="backup_settings">அமைப்புகள் மற்றும் படங்கள்</string>
-    <string name="backup_settings_desc">அமைப்புகள், பிடித்தவை, லேபிள்கள், BIOS</string>
+    <string name="backup_settings_desc">அமைப்புகள், பிடித்தவை, லேபிள்கள், BIOS, ஸ்கின்கள்</string>
     <string name="backup_include_roms">ROM-களைச் சேர்</string>
     <plurals name="backup_roms_count">
         <item quantity="one">%1$d விளையாட்டு · %2$s</item>

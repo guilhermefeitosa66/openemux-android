@@ -128,7 +128,7 @@ class BackupTest {
 
     @Test
     fun manifestFromANewerAppIsTooNew() {
-        assertFails<BackupError.TooNew> { BackupManifest.parse("""{"format":"openemux-mobile-backup","version":2}""") }
+        assertFails<BackupError.TooNew> { BackupManifest.parse("""{"format":"openemux-mobile-backup","version":${BackupFormat.VERSION + 1}}""") }
     }
 
     // Preferences
@@ -302,7 +302,7 @@ class BackupTest {
         assertFails<BackupError.NotABackup> { reader.readManifest(ByteArrayInputStream(archive(null, "game.gba" to "x"))) }
         assertFails<BackupError.NotABackup> { reader.readManifest(ByteArrayInputStream(archive("{ nope"))) }
         assertFails<BackupError.TooNew> {
-            reader.readManifest(ByteArrayInputStream(archive("""{"format":"openemux-mobile-backup","version":2}""")))
+            reader.readManifest(ByteArrayInputStream(archive("""{"format":"openemux-mobile-backup","version":${BackupFormat.VERSION + 1}}""")))
         }
     }
 
@@ -564,5 +564,126 @@ class BackupTest {
     fun filesOfAMissingRoot() {
         assertTrue(roots.files(roots.byName("external/saves")!!).isEmpty())
         assertTrue(roots.files(roots.byName("internal/meta.json")!!).isEmpty())
+    }
+
+    // The player's skins (issue 843)
+
+    /** An edited copy, an imported package, and what is in flight or unsaved beside them. */
+    private fun seedSkins(r: BackupRoots = roots) {
+        r.external.put("skins/GBA/own-blue/skin.json", "{}")
+        r.external.put("skins/GBA/own-blue/portrait/a.webp", "art")
+        r.external.put("skins/FC/Retro.deltaskin", "zip")
+        r.external.put("skins/FC/.own-x.tmp/skin.json", "half")
+        r.external.put("skins/FC/.Retro.deltaskin.old", "aside")
+        r.external.put("skins/GBA/.own-blue.draft.json", "{}")
+        r.external.put("skins/GBA/.own-blue.draft/t1.png", "png")
+        r.external.put("skins/GBA/own-blue/.hidden", "x")
+    }
+
+    @Test
+    fun skinsGoInTheArchiveWithoutWhatIsInFlight() {
+        seed()
+        seedSkins()
+        val zip = export()
+        val skins = names(zip).filter { it.startsWith("external/skins/") }.toSet()
+        assertEquals(setOf("external/skins/FC/Retro.deltaskin", "external/skins/GBA/own-blue/portrait/a.webp", "external/skins/GBA/own-blue/skin.json"), skins)
+        val m = BackupManifest.parse(entry(zip, BackupFormat.MANIFEST))
+        assertEquals(2, m.version)
+        assertTrue("external/skins" in m.roots)
+        assertEquals(BackupSize(6, 4 + 11 + 5 + 2 + 3 + 3), BackupWriter(roots).measure(includeRoms = true)[BackupGroup.SETTINGS])
+    }
+
+    @Test
+    fun withoutSkinsTheArchiveStaysAtVersionOne() {
+        seed()
+        roots.external.put("skins/GBA/.own-x.tmp/skin.json", "half")
+        val zip = export()
+        val m = BackupManifest.parse(entry(zip, BackupFormat.MANIFEST))
+        assertEquals(1, m.version)
+        assertFalse("external/skins" in m.roots)
+        assertFalse(names(zip).any { it.startsWith("external/skins") })
+    }
+
+    @Test
+    fun linksInTheSkinsFolderStayOut() {
+        seedSkins()
+        val outside = File(tmp, "outside").apply { put("secret/skin.json", "no"); put("file.bin", "no") }
+        Files.createSymbolicLink(File(roots.external, "skins/GBA/linked").toPath(), File(outside, "secret").toPath())
+        Files.createSymbolicLink(File(roots.external, "skins/FC/linked.deltaskin").toPath(), File(outside, "file.bin").toPath())
+        val files = roots.files(roots.byName("external/skins")!!).map { it.first }
+        assertFalse(files.any { "linked" in it })
+        assertTrue("external/skins/FC/Retro.deltaskin" in files)
+    }
+
+    @Test
+    fun aSkinsFolderThatIsALinkStaysOut() {
+        val outside = File(tmp, "outside").apply { put("FC/Retro.deltaskin", "no") }
+        roots.external.mkdirs()
+        Files.createSymbolicLink(File(roots.external, "skins").toPath(), outside.toPath())
+        assertTrue(roots.files(roots.byName("external/skins")!!).isEmpty())
+        assertFalse(roots.exported(includeRoms = true).keys.any { it.name == "external/skins" })
+    }
+
+    @Test
+    fun skinsComeBackOnAFreshPhone() {
+        seed()
+        seedSkins()
+        val zip = export(includeRoms = false)
+        val fresh = device("new")
+        fresh.swapIn(BackupReader(fresh).extract(ByteArrayInputStream(zip)).roots)
+        assertEquals("art", File(fresh.external, "skins/GBA/own-blue/portrait/a.webp").readText())
+        assertEquals("zip", File(fresh.external, "skins/FC/Retro.deltaskin").readText())
+        assertFalse(File(fresh.external, "skins/GBA/.own-blue.draft.json").exists())
+        assertTrue(fresh.stagingDirs.none { it.exists() })
+    }
+
+    @Test
+    fun anArchiveWithoutSkinsLeavesThePhonesSkins() {
+        seed()
+        val zip = export()
+        seedSkins()
+        roots.swapIn(BackupReader(roots).extract(ByteArrayInputStream(zip)).roots)
+        assertEquals("zip", File(roots.external, "skins/FC/Retro.deltaskin").readText())
+    }
+
+    @Test
+    fun anArchiveFromBeforeSkinsStillRestores() {
+        // What the app wrote before issue 843: version 1, no skins root.
+        val old = archive(
+            BackupManifest("1.21.0", 1L, listOf("external/saves"), mapOf(BackupGroup.SAVES to BackupSize(1, 4)), 0, 1, version = 1).toJson(),
+            "external/saves/GBA/Game.srm" to "save",
+        )
+        seedSkins()
+        val staged = BackupReader(roots).extract(ByteArrayInputStream(old))
+        assertEquals(1, staged.manifest.version)
+        roots.swapIn(staged.roots)
+        assertEquals("save", File(roots.external, "saves/GBA/Game.srm").readText())
+        assertTrue(File(roots.external, "skins/GBA/own-blue/skin.json").exists())
+    }
+
+    @Test
+    fun aVersionOneArchiveCannotCarrySkins() {
+        val bad = archive(
+            BackupManifest("1", 1L, listOf("external/skins"), mapOf(BackupGroup.SETTINGS to BackupSize(1, 1)), 0, 0, version = 1).toJson(),
+            "external/skins/FC/x.deltaskin" to "z",
+        )
+        assertFails<BackupError.NotABackup> { BackupReader(roots).extract(ByteArrayInputStream(bad)) }
+        assertTrue(stagingGone())
+    }
+
+    @Test
+    fun recoverPutsBackTheSkinsOfASwapCutShort() {
+        seedSkins()
+        val zip = archive(
+            BackupManifest("1", 1L, listOf("external/skins", "external/saves"), mapOf(BackupGroup.SETTINGS to BackupSize(1, 1)), 0, 0, version = 2).toJson(),
+            "external/skins/FC/New.deltaskin" to "n",
+        )
+        val staged = BackupReader(roots).extract(ByteArrayInputStream(zip))
+        var renames = 0
+        roots.rename = { from, to -> if (++renames == 2) { from.renameTo(to); throw IllegalStateException("killed") } else from.renameTo(to) }
+        try { roots.swapIn(staged.roots); fail() } catch (e: IllegalStateException) { }
+        roots.recover()
+        assertEquals("zip", File(roots.external, "skins/FC/Retro.deltaskin").readText())
+        assertFalse(File(roots.external, "skins/FC/New.deltaskin").exists())
     }
 }

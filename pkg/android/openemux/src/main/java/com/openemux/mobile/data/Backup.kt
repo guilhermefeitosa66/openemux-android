@@ -9,6 +9,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
@@ -35,8 +36,20 @@ sealed class BackupError(message: String? = null) : Exception(message) {
     class Cancelled : BackupError()
 }
 
-/** One place the archive covers: a directory or a single file, under external/ or internal/. */
-class BackupRoot(val name: String, val group: BackupGroup, val file: File, val isDir: Boolean)
+/**
+ * One place the archive covers: a directory or a single file, under external/ or internal/.
+ * [since]: the format version it came in. A root newer than 1 is listed only when it has files, so an archive
+ * without any stays readable by the apps from before it (they refuse a root they do not know).
+ * [skipHidden]: entries whose path has a part starting with a dot (files in flight, drafts) and links stay out.
+ */
+class BackupRoot(
+    val name: String,
+    val group: BackupGroup,
+    val file: File,
+    val isDir: Boolean,
+    val since: Int = 1,
+    val skipHidden: Boolean = false,
+)
 
 /** The device side of the archive: where each root lives, and the staging next to it. */
 class BackupRoots(val external: File, val internal: File) {
@@ -50,6 +63,8 @@ class BackupRoots(val external: File, val internal: File) {
         BackupRoot("internal/meta.json", BackupGroup.SETTINGS, File(internal, "meta.json"), false),
         BackupRoot("internal/nds-layout", BackupGroup.SETTINGS, File(internal, "nds-layout"), false),
         BackupRoot("internal/labels", BackupGroup.SETTINGS, File(internal, "labels"), true),
+        // The player's skins (issue 843): the bundled ones live in the APK, never here. The pick per console is in meta.json.
+        BackupRoot("external/skins", BackupGroup.SETTINGS, File(external, "skins"), true, since = 2, skipHidden = true),
     )
 
     fun byName(name: String) = all.firstOrNull { it.name == name }
@@ -68,17 +83,25 @@ class BackupRoots(val external: File, val internal: File) {
     /** The device copy a swap set aside: kept until every root is in place. */
     fun old(root: BackupRoot) = File(root.file.path + ".old")
 
-    /** The roots of the groups to export; a single file only when there is one. */
-    fun exported(includeRoms: Boolean) = all.filter {
-        (includeRoms || it.group != BackupGroup.ROMS) && (it.isDir || it.file.isFile)
-    }
+    /**
+     * The roots of the groups to export, each with its files, walked once: a single file only when there is one, a
+     * newer root only with files.
+     */
+    fun exported(includeRoms: Boolean): Map<BackupRoot, List<Pair<String, File>>> = all
+        .filter { (includeRoms || it.group != BackupGroup.ROMS) && (it.isDir || it.file.isFile) }
+        .associateWith { files(it) }
+        .filter { (root, list) -> root.since == 1 || list.isNotEmpty() }
 
     /** Every file under [root], by its archive name. Half-written files stay out. */
     fun files(root: BackupRoot): List<Pair<String, File>> {
         if (!root.isDir) return if (root.file.isFile) listOf(root.name to root.file) else emptyList()
         if (!root.file.isDirectory) return emptyList()
+        // The walk follows a linked folder: one in place of the root would bring in whatever it points at.
+        if (root.skipHidden && Files.isSymbolicLink(root.file.toPath())) return emptyList()
+        val hidden = { f: File -> root.skipHidden && (f.name.startsWith(".") || Files.isSymbolicLink(f.toPath())) }
         return root.file.walkTopDown()
-            .filter { it.isFile && !it.name.endsWith(".tmp") && !it.name.endsWith(".part") }
+            .onEnter { it == root.file || !hidden(it) }
+            .filter { it.isFile && !hidden(it) && !it.name.endsWith(".tmp") && !it.name.endsWith(".part") }
             .map { root.name + "/" + it.relativeTo(root.file).invariantSeparatorsPath to it }
             .sortedBy { it.first }
             .toList()
@@ -194,7 +217,8 @@ data class BackupManifest(
 
 object BackupFormat {
     const val FORMAT = "openemux-mobile-backup"
-    const val VERSION = 1
+    /** 2: the player's skins (issue 843). An archive without them is still written as 1. */
+    const val VERSION = 2
     const val MANIFEST = "manifest.json"
     const val PREFS = "prefs/openemux.json"
     /** No settings file comes anywhere near this; a larger one is not ours. */
@@ -242,8 +266,8 @@ private const val BUFFER = 64 * 1024
 class BackupWriter(private val roots: BackupRoots) {
     /** Sizes per group; the settings group without the preferences, which are measured on export. */
     fun measure(includeRoms: Boolean): Map<BackupGroup, BackupSize> =
-        roots.exported(includeRoms).groupBy { it.group }.mapValues { (_, list) ->
-            list.flatMap { roots.files(it) }.fold(BackupSize()) { s, (_, f) -> s + BackupSize(1, f.length()) }
+        roots.exported(includeRoms).entries.groupBy { it.key.group }.mapValues { (_, list) ->
+            list.flatMap { it.value }.fold(BackupSize()) { s, (_, f) -> s + BackupSize(1, f.length()) }
         }
 
     fun write(
@@ -256,9 +280,9 @@ class BackupWriter(private val roots: BackupRoots) {
         onProgress: BackupProgress = { _, _, _ -> },
         isCancelled: () -> Boolean = { false },
     ): BackupManifest {
-        val exported = roots.exported(includeRoms)
         // Lengths are taken once: the manifest declares them and the reader holds the archive to them.
-        val files = exported.associateWith { root -> roots.files(root).map { (name, f) -> Triple(name, f, f.length()) } }
+        val files = roots.exported(includeRoms).mapValues { (_, list) -> list.map { (name, f) -> Triple(name, f, f.length()) } }
+        val exported = files.keys
         val prefsBytes = prefs.toString().toByteArray()
         val groups = BackupGroup.entries.associateWith { g ->
             files.filterKeys { it.group == g }.values.flatten().fold(BackupSize()) { s, (_, _, len) -> s + BackupSize(1, len) }
@@ -266,7 +290,8 @@ class BackupWriter(private val roots: BackupRoots) {
         groups[BackupGroup.SETTINGS] = groups.getValue(BackupGroup.SETTINGS) + BackupSize(1, prefsBytes.size.toLong())
         val saves = files.filterKeys { it.name == "external/saves" || it.name == "external/states" }.values.flatten()
             .count { !it.second.name.endsWith(".png") }
-        val manifest = BackupManifest(appVersion, now, exported.map { it.name }, groups, if (includeRoms) romCount else 0, saves)
+        val version = exported.maxOf { it.since }
+        val manifest = BackupManifest(appVersion, now, exported.map { it.name }, groups, if (includeRoms) romCount else 0, saves, version)
         val total = manifest.total.bytes
         var done = 0L
 
@@ -337,7 +362,8 @@ class BackupReader(private val roots: BackupRoots) {
     private fun extractFrom(zip: ZipInputStream, onProgress: BackupProgress, isCancelled: () -> Boolean): StagedBackup {
         val manifest = manifestOf(zip)
         if (manifest.roots.toSet().size != manifest.roots.size) throw BackupError.NotABackup("roots")
-        val listed = manifest.roots.map { roots.byName(it) ?: throw BackupError.NotABackup("root $it") }
+        // A root newer than the archive's version is not one this app wrote there.
+        val listed = manifest.roots.map { name -> roots.byName(name)?.takeIf { it.since <= manifest.version } ?: throw BackupError.NotABackup("root $name") }
         listed.filter { it.isDir }.forEach { roots.staging(it).mkdirs() }
         val declared = manifest.total
         val seen = mutableSetOf<String>()
