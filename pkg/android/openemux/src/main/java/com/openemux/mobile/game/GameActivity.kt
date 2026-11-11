@@ -588,7 +588,7 @@ class GameActivity : RetroActivityFuture() {
         if (this.anchor.report(anchor)) anchorChanged(anchor)
     }
 
-    /** Called on the engine thread when the game is muted or unmuted, whatever did it: the pause sheet or a hotkey. */
+    /** Called on the engine thread when the game is muted or unmuted, whatever did it: the sheet, a hotkey, RetroArch's menu. */
     override fun onMuteChanged(muted: Boolean) {
         mutedOn = muted
     }

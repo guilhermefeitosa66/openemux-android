@@ -70,9 +70,10 @@ when the content closes, and the library must survive that.
    motion override is left alone).
    The fourth flag is anchor mode, which the activity keeps per console.
    Mute is reported on its own: `android_app_mute_changed()` in
-   `frontend/drivers/platform_unix.c`, called from
-   `CMD_EVENT_AUDIO_MUTE_TOGGLE` in `retroarch.c` (the pause sheet's `MUTE`
-   command and the mute hotkey both end there), reaches the activity's
+   `frontend/drivers/platform_unix.c`, called by `runloop_report_mute()` in
+   `runloop.c` once per change of the engine's mute flag (whatever wrote it:
+   the pause sheet's `MUTE` command, the mute hotkey, RetroArch's own Audio >
+   Mute setting, a config override), reaches the activity's
    `onMuteChanged()`, so the sheet's Audio tile shows the engine's state.
 6. **D-pad dead zone.** An eight-way area (`dpad_area`, `abxy_area`) takes
    `overlayN_descM_dead_zone`, a radius as a fraction of the area's range

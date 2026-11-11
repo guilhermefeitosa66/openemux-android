@@ -223,8 +223,8 @@ data class PauseSession(
 }
 
 /**
- * Survives the dialog: toggles the engine keeps for the whole session. Fast forward and slow motion are not here: the
- * engine reports them (PauseSession.speed), so the sheet agrees with the skin's strip and the gamepad hotkeys.
+ * Survives the dialog: choices the sheet keeps for the whole session. Speed and mute are not here: the engine reports
+ * them (PauseSession.speed, PauseSession.muted), so the sheet agrees with the skin's strip and the gamepad hotkeys.
  */
 private object SessionToggles {
     /** The shader picked in this process, with the ROM it was picked for: a process reused for another game shows that game's own. */

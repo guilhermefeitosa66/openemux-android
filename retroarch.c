@@ -4932,10 +4932,6 @@ bool command_event(enum event_command cmd, void *data)
 
             audio_st->mute_enable  =
                !audio_st->mute_enable;
-#if defined(ANDROID)
-            /* OpenEmux: the pause sheet's Audio tile follows the engine */
-            android_app_mute_changed(audio_st->mute_enable);
-#endif
 
 #if defined(HAVE_GFX_WIDGETS)
             if (dispwidget_get_ptr()->active)
