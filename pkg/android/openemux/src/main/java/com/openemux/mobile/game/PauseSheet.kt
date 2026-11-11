@@ -231,7 +231,8 @@ private object CurrentSlot {
     private var chosen: Pair<String, Int>? = null
     private val writer by lazy { Executors.newSingleThreadExecutor { Thread(it, "current-slot") } }
 
-    private fun key(session: PauseSession) = File(session.statesDir, session.romBase).path
+    // The session too: a value chosen in an earlier game in this process must not outrank what the library wrote since.
+    private fun key(session: PauseSession) = "${File(session.statesDir, session.romBase).path}@${session.startedAt}"
 
     fun of(session: PauseSession): Int =
         chosen?.takeIf { it.first == key(session) }?.second ?: SaveSlots.current(session.statesDir, session.romBase)

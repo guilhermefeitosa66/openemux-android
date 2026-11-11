@@ -212,7 +212,8 @@ class GameLauncher(
             listOf(paths.states(rom.console), paths.saves(rom.console), paths.system, paths.screenshots, paths.playtime)
                 .forEach { it.mkdirs() }
             // A numbered state opened from the game's screen is its current slot from now on; the auto state leaves it (issue 857).
-            if (slot != null) SaveSlots.setCurrent(paths.states(rom.console), rom.baseName, slot)
+            // Not in hardcore, where the engine is not asked to load it (LOAD_SLOT below).
+            if (slot != null && !hardcore) SaveSlots.setCurrent(paths.states(rom.console), rom.baseName, slot)
             val config = File(dir, "retroarch.cfg")
             config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore, anchor))
 
@@ -301,6 +302,10 @@ class GameLauncher(
             "savestate_thumbnail_enable" to "true",
             // Save and Load on the strip and the controller act on the ROM's current slot, as the pause menu does (issue 857).
             "state_slot" to SaveSlots.current(paths.states(rom.console), rom.baseName).toString(),
+            // RetroArch's runtime log would put back the slot the last session ended on over state_slot when the content
+            // loads; the app keeps its own playtime, so the log is off and the ROM's current slot is the one the engine uses.
+            "content_runtime_log" to "false",
+            "content_runtime_log_aggregate" to "false",
             "global_core_options" to "true",
             "core_options_path" to File(dir, "core-options.cfg").absolutePath,
             "network_cmd_enable" to "true",
