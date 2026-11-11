@@ -174,6 +174,8 @@ data class PauseSession(
     val hardcore: Boolean = false,
     /** The engine's speed as the sheet opens: fast forward, slow motion or neither (GameActivity.onToggleStates). */
     val speed: Speed = Speed.NORMAL,
+    /** Whether the game is muted as the sheet opens (GameActivity.onMuteChanged). */
+    val muted: Boolean = false,
 ) {
     data class State(val slot: Int, val file: File, val thumb: File?, val modified: Long)
 
@@ -202,7 +204,7 @@ data class PauseSession(
     }
 
     companion object {
-        fun fromIntent(intent: Intent, startedAt: Long, speed: Speed = Speed.NORMAL) = PauseSession(
+        fun fromIntent(intent: Intent, startedAt: Long, speed: Speed = Speed.NORMAL, muted: Boolean = false) = PauseSession(
             title = intent.getStringExtra(GameExtras.TITLE) ?: "",
             cartPath = intent.getStringExtra(GameExtras.CART),
             statesDir = File(intent.getStringExtra(GameExtras.STATES_DIR) ?: "/"),
@@ -215,6 +217,7 @@ data class PauseSession(
             startedAt = startedAt,
             hardcore = intent.getBooleanExtra(GameExtras.HARDCORE, false),
             speed = speed,
+            muted = muted,
         )
     }
 }
@@ -224,7 +227,6 @@ data class PauseSession(
  * engine reports them (PauseSession.speed), so the sheet agrees with the skin's strip and the gamepad hotkeys.
  */
 private object SessionToggles {
-    var muted = false
     /** The shader picked in this process, with the ROM it was picked for: a process reused for another game shows that game's own. */
     var shader: Pair<String, String>? = null
 }
@@ -297,6 +299,8 @@ fun PauseSheet(
      * engine refuses either while paused.
      */
     onSpeed: (Speed) -> Unit = {},
+    /** The mute state the Audio tile just asked the engine for, so a sheet opened later starts from it. */
+    onMute: (Boolean) -> Unit = {},
     /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
     onRetroArchMenu: () -> Unit = {},
     /**
@@ -311,6 +315,7 @@ fun PauseSheet(
         var refresh by remember { mutableIntStateOf(0) }
         // Flipped at once on a tap; the engine's own value comes in again the next time the sheet opens.
         var speed by remember { mutableStateOf(if (session.hardcore) Speed.NORMAL else session.speed) }
+        var muted by remember { mutableStateOf(session.muted) }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val states = remember(refresh) { session.states() }
@@ -600,9 +605,11 @@ fun PauseSheet(
                             onSkin = { page = Page.Skin },
                             canEditSkin = skinList?.let { skinToEdit(it) != null } == true,
                             onEditSkin = { skins?.edit?.invoke() },
+                            muted = muted,
                             onAudio = {
-                                SessionToggles.muted = !SessionToggles.muted
-                                command("MUTE", context.getString(if (SessionToggles.muted) R.string.game_toast_sound_off else R.string.game_toast_sound_on))
+                                muted = !muted
+                                onMute(muted)
+                                command("MUTE", context.getString(if (muted) R.string.game_toast_sound_off else R.string.game_toast_sound_on))
                             },
                             onReset = { confirmRestart = true },
                             restartEntry = restartEntry,
@@ -753,6 +760,7 @@ private fun MainPage(
     onSkin: () -> Unit,
     canEditSkin: Boolean,
     onEditSkin: () -> Unit,
+    muted: Boolean,
     onAudio: () -> Unit,
     /** NDS: the layout in use, which the Screens tile names; null for other consoles (no tile). */
     screens: ScreenLayout?,
@@ -801,7 +809,7 @@ private fun MainPage(
             { ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot) },
             { ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader) },
             screens?.let { layout -> { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = stringResource(layout.label), onClick = onScreens) } },
-            { ActionTile(stringResource(if (SessionToggles.muted) R.string.game_muted else R.string.game_audio), if (SessionToggles.muted) Icons.Mute else Icons.Audio, SessionToggles.muted, onClick = onAudio) },
+            MuteTile.of(muted).let { tile -> { ActionTile(stringResource(tile.label), tile.icon, false, warn = tile.warn, onClick = onAudio) } },
         )
         // A grid of fixed columns that wraps from the left (issue 858): 5 tiles upright are 4 + 1, never 3 + 2.
         BoxWithConstraints(modifier.fillMaxWidth()) {
@@ -1177,7 +1185,9 @@ private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: Wi
     }
 
 @Composable
-private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, onClick: () -> Unit) {
+private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, warn: Boolean = false, onClick: () -> Unit) {
+    // [warn]: a state to notice rather than a feature that is on (the muted game, issue 861), in the danger tone.
+    val ring = when { warn -> Oe.Danger; on -> Oe.AccentBright; else -> null }
     Column(
         Modifier.let { if (enabled) it.gamepadFocus(corner = 12.dp) else it.alpha(DISABLED_ALPHA) }
             .clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(4.dp),
@@ -1185,10 +1195,10 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
     ) {
         Box(
             Modifier.size(60.dp).clip(RoundedCornerShape(18.dp))
-                .background(if (on) Oe.AccentSoft else Oe.Surface2)
-                .let { if (on) it.border(1.5.dp, Oe.AccentBright, RoundedCornerShape(18.dp)) else it },
+                .background(when { warn -> Oe.DangerBg; on -> Oe.AccentSoft; else -> Oe.Surface2 })
+                .let { if (ring != null) it.border(1.5.dp, ring, RoundedCornerShape(18.dp)) else it },
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, if (on) Oe.AccentOnSoft else Oe.Text, 22.dp, filled = filled) }
+        ) { Icon(icon, when { warn -> Oe.Danger; on -> Oe.AccentOnSoft; else -> Oe.Text }, 22.dp, filled = filled) }
         TileLabel(label)
         // What the tile is set to now (the NDS layout), under its name: as narrow as the tile, two lines at most.
         if (detail != null) {

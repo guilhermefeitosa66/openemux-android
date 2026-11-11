@@ -35,8 +35,8 @@
     <string name="game_fast_forward">Fast forward</string>
     <string name="game_slow_motion">Slow motion</string>
     <string name="game_screenshot">Screenshot</string>
-    <string name="game_audio">Audio</string>
-    <string name="game_muted">Muted</string>
+    <string name="game_mute">Mute</string>
+    <string name="game_unmute">Unmute</string>
     <string name="game_restart">Restart game</string>
     <string name="game_restart_confirm_title">Restart game?</string>
     <string name="game_restart_confirm_body">Your progress since the last save will be lost.</string>
