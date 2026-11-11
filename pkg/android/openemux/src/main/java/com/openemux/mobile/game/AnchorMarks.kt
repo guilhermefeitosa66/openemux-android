@@ -29,7 +29,16 @@ data class AnchorMark(
         return if (rect) abs(dx) > 1f || abs(dy) > 1f else dx * dx + dy * dy > 1f
     }
 
+    /**
+     * Whether the ring is round for a button drawn [pxW] x [pxH] pixels: a round button, or a rectangular box about
+     * as wide as tall (a face button whose touch box is a square); a wider or taller one (a shoulder) gets a pill.
+     */
+    fun ringRound(pxW: Float, pxH: Float): Boolean =
+        !rect || (pxH > 0f && pxW / pxH in ROUND_ASPECT)
+
     companion object {
+        private val ROUND_ASPECT = 0.8f..1.25f
+
         /** Floats per mark in the engine's report (OVERLAY_ANCHOR_FEEDBACK_FLOATS). */
         const val FLOATS = 7
 

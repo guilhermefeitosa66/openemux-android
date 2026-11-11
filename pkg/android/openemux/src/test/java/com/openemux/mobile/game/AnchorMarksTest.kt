@@ -36,6 +36,14 @@ class AnchorMarksTest {
         assertTrue(mark(true, 0.3f, 0.59f).fingerOff())
     }
 
+    @Test fun aSquareOrRoundButtonGetsARoundRingAndAShoulderAPill() {
+        assertTrue(mark(false, 0f, 0f).ringRound(300f, 100f))
+        assertTrue(mark(true, 0f, 0f).ringRound(100f, 110f))
+        assertFalse(mark(true, 0f, 0f).ringRound(300f, 100f))
+        assertFalse(mark(true, 0f, 0f).ringRound(100f, 300f))
+        assertFalse(mark(true, 0f, 0f).ringRound(100f, 0f))
+    }
+
     @Test fun aButtonWithNoSizeAlwaysDrawsTheLine() {
         assertTrue(AnchorMark(0.2f, 0.2f, 0f, 0.1f, true, 0.2f, 0.25f).fingerOff())
         assertTrue(AnchorMark(0.2f, 0.2f, 0.1f, 0f, false, 0.25f, 0.2f).fingerOff())

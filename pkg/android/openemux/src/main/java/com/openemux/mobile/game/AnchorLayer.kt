@@ -58,12 +58,13 @@ class AnchorLayer(context: Context, private val screen: View) : View(context) {
         for (m in marks) {
             box.set(dx + m.left * w, dy + m.top * h, dx + (m.left + m.width) * w, dy + (m.top + m.height) * h)
             if (m.fingerOff()) canvas.drawLine(box.centerX(), box.centerY(), dx + m.fingerX * w, dy + m.fingerY * h, line)
+            val round = m.ringRound(box.width(), box.height())
             box.inset(-gap, -gap)
-            if (m.rect) {
-                val r = minOf(box.width(), box.height()) / 4f
-                canvas.drawRoundRect(box, r, r, ring)
-            } else {
+            if (round) {
                 canvas.drawOval(box, ring)
+            } else {
+                val r = minOf(box.width(), box.height()) / 2f
+                canvas.drawRoundRect(box, r, r, ring)
             }
         }
     }

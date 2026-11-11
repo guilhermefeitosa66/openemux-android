@@ -640,7 +640,7 @@ class GameActivity : RetroActivityFuture() {
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         android.graphics.PixelFormat.TRANSLUCENT,
     ).apply {
-        token = window.decorView.windowToken
+        // No token: the activity's window manager gives an application window the activity's own.
         gravity = android.view.Gravity.TOP or android.view.Gravity.START
         if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = window.attributes.layoutInDisplayCutoutMode
     }
