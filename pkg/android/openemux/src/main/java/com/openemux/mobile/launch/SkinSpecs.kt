@@ -155,23 +155,6 @@ fun overlayNames(cfg: String): List<String> =
     Regex("""^overlay(\d+)_name = "(.*)"$""", RegexOption.MULTILINE).findAll(cfg)
         .map { it.groupValues[1].toInt() to it.groupValues[2] }.sortedBy { it.first }.map { it.second }.toList()
 
-/** A box on the screen, as fractions of it, y down. */
-data class ScreenBox(val left: Float, val top: Float, val width: Float, val height: Float)
-
-/**
- * Where each overlay a skin.cfg names draws the game (its `_viewport`, which counts y from the bottom), by name; an
- * overlay with no viewport, or one that does not parse, is left out.
- */
-fun overlayViewports(cfg: String): Map<String, ScreenBox> {
-    val viewports = Regex("""^overlay(\d+)_viewport = "([^"]*)"$""", RegexOption.MULTILINE).findAll(cfg)
-        .mapNotNull { m ->
-            val v = m.groupValues[2].split(',').mapNotNull { it.trim().toFloatOrNull() }
-            if (v.size != 4) null else m.groupValues[1].toInt() to ScreenBox(v[0], 1f - v[1] - v[3], v[2], v[3])
-        }.toMap()
-    return Regex("""^overlay(\d+)_name = "(.*)"$""", RegexOption.MULTILINE).findAll(cfg)
-        .mapNotNull { m -> viewports[m.groupValues[1].toInt()]?.let { m.groupValues[2] to it } }.toMap()
-}
-
 /** [cfg] with [added] more overlays, written in [body] from the index after its own. */
 fun withOverlays(cfg: String, added: Int, body: String): String {
     val count = Regex("""^overlays = (\d+)$""", RegexOption.MULTILINE)

@@ -1,6 +1,5 @@
 package com.openemux.mobile.game
 
-import com.openemux.mobile.launch.ScreenBox
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,16 +69,21 @@ class AnchorMarksTest {
         assertEquals(1f, AnchorCardSwipe.alpha(50f, 0f), 0f)
     }
 
-    @Test fun theCardSitsOnTheGameNearItsTop() {
-        // Portrait phone: the game in the top 40%, the whole width.
-        assertEquals(AnchorCardPlace(12, 12, 1056), AnchorCardPlace.of(ScreenBox(0f, 0f, 1f, 0.4f), 1080, 2400, 12, 1200))
-        // Landscape: the game in the middle; a narrower card is centred on it.
-        assertEquals(AnchorCardPlace(870, 112, 660), AnchorCardPlace.of(ScreenBox(0.25f, 0.1f, 0.5f, 0.8f), 2400, 1000, 12, 660))
+    @Test fun theCardSitsAtTheBottomOfTheScreenCentred() {
+        // Portrait phone, the game filling the screen: narrower than the cap, it spans the width less the margins.
+        assertEquals(AnchorCardPlace(8, 8, 1064), AnchorCardPlace.of(0, 1080, 2400, 0, 2400, 8, 1200))
+        // Landscape with a cutout bar on the left: capped, and centred on the game's window, not the display.
+        assertEquals(AnchorCardPlace(933, 8, 660), AnchorCardPlace.of(126, 2274, 1080, 0, 1080, 8, 660))
     }
 
-    @Test fun withNoGameBoxTheCardSitsAtTheTopOfTheScreen() {
-        assertEquals(AnchorCardPlace(200, 12, 600), AnchorCardPlace.of(null, 1000, 2000, 12, 600))
-        // A box narrower than the margins gets no width rather than a negative one.
-        assertEquals(0, AnchorCardPlace.of(ScreenBox(0f, 0f, 0.01f, 0.1f), 1000, 2000, 12, 600).width)
+    @Test fun inSplitScreenTheCardStaysOnTheGamesWindow() {
+        // The game in the right half: the frame starts where the game does.
+        assertEquals(AnchorCardPlace(270, 8, 660), AnchorCardPlace.of(1200, 1200, 1080, 1200, 1080, 8, 660))
+        // A frame that runs below the game's window: the card is lifted to the game's bottom.
+        assertEquals(AnchorCardPlace(8, 1208, 1064), AnchorCardPlace.of(0, 1080, 1200, 0, 2400, 8, 1200))
+    }
+
+    @Test fun aScreenNarrowerThanTheMarginsGivesTheCardNoWidth() {
+        assertEquals(AnchorCardPlace(5, 8, 0), AnchorCardPlace.of(0, 10, 100, 0, 100, 8, 600))
     }
 }
