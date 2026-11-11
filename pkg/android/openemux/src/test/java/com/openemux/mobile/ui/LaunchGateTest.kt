@@ -53,5 +53,23 @@ class LaunchGateTest {
     fun theWindowStartsSingleAndOpen() {
         assertFalse(AppWindow.multiWindow)
         assertTrue(AppWindow.gate.open)
+        assertTrue(AppWindow.firstLaunch)
+    }
+
+    @Test
+    fun aNewLaunchIsFresh() {
+        assertTrue(LaunchGate.fresh(restored = false, firstInProcess = true))
+        assertTrue(LaunchGate.fresh(restored = false, firstInProcess = false))
+    }
+
+    @Test
+    fun aRestoreAfterTheProcessDiedIsFresh() {
+        // Reopened from Recents after the system killed the app: the splash shows, so the gate holds it.
+        assertTrue(LaunchGate.fresh(restored = true, firstInProcess = true))
+    }
+
+    @Test
+    fun aRecreationInTheSameProcessIsNot() {
+        assertFalse(LaunchGate.fresh(restored = true, firstInProcess = false))
     }
 }

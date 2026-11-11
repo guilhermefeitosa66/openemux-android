@@ -11,9 +11,7 @@ import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
@@ -494,7 +492,7 @@ fun PadDialogWindow(scope: PadScope, opener: PadScope) {
     DisposableEffect(view) {
         val window = dialogWindow(view)
         // A sheet or dialog has a window of its own, which would bring the system bars back: it stays full screen too.
-        window?.let(::immersiveDialog)
+        window?.immersive()
         val original = window?.callback
         val back = (original as? OnBackPressedDispatcherOwner)?.onBackPressedDispatcher
         val wrapped = if (window != null && original != null && original !is PadCallback) {
@@ -507,14 +505,6 @@ fun PadDialogWindow(scope: PadScope, opener: PadScope) {
         }
     }
     PadFocusIn(scope)
-}
-
-/** Full screen, as the app is: a swipe shows the bars over the window and they leave on their own. */
-private fun immersiveDialog(window: Window) {
-    WindowCompat.getInsetsController(window, window.decorView).apply {
-        hide(WindowInsetsCompat.Type.systemBars())
-        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-    }
 }
 
 /**

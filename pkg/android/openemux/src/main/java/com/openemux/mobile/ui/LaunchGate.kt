@@ -1,8 +1,12 @@
 package com.openemux.mobile.ui
 
+import android.view.Window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * Whether the app's content may show yet at launch (issue 850). The app runs full screen, but on a cold start the
@@ -27,6 +31,13 @@ class LaunchGate(fresh: Boolean, private val capMs: Long = CAP_MS) {
     companion object {
         /** The longest the content waits for the bars to leave. */
         const val CAP_MS = 700L
+
+        /**
+         * Whether an activity being created comes with the system's starting window: a new launch, or the first one
+         * in this process even when it restores state (the process was killed in the background and the app is
+         * opened again from Recents). A recreation in the same process (language, theme) has none.
+         */
+        fun fresh(restored: Boolean, firstInProcess: Boolean) = !restored || firstInProcess
     }
 }
 
@@ -37,4 +48,15 @@ object AppWindow {
 
     /** This launch's gate; open unless the activity has just been created by a launch. */
     var gate by mutableStateOf(LaunchGate(fresh = false))
+
+    /** No MainActivity has been created in this process yet. */
+    var firstLaunch = true
+}
+
+/** Full screen, as the game is: a swipe shows the bars over the window and they leave on their own. */
+fun Window.immersive() {
+    WindowCompat.getInsetsController(this, decorView).apply {
+        hide(WindowInsetsCompat.Type.systemBars())
+        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
 }

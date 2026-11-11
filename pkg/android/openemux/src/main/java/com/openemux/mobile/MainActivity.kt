@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import android.content.res.Configuration
 import kotlinx.coroutines.flow.update
 import com.openemux.mobile.game.PadInfo
@@ -47,6 +46,7 @@ import com.openemux.mobile.ui.PadRouter
 import com.openemux.mobile.ui.PadScope
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ThemePref
+import com.openemux.mobile.ui.immersive
 import com.openemux.mobile.ui.padConnected
 import com.openemux.mobile.ui.padRoot
 import com.retroarch.BuildConfig
@@ -68,7 +68,8 @@ class MainActivity : ComponentActivity() {
         Oe.syncSystem(this)
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
-        followLaunch(fresh = savedInstanceState == null)
+        followLaunch(LaunchGate.fresh(restored = savedInstanceState != null, firstInProcess = AppWindow.firstLaunch))
+        AppWindow.firstLaunch = false
         edgeToEdge(Oe.dark)
         immersive()
         setContent {
@@ -137,12 +138,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Full screen, like the game: a swipe brings the bars back over the app and they leave on their own. */
-    private fun immersive() {
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.systemBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
+    private fun immersive() = window.immersive()
 
     override fun onResume() {
         super.onResume()
@@ -178,8 +174,8 @@ class MainActivity : ComponentActivity() {
      */
     private fun followLaunch(fresh: Boolean) {
         AppWindow.multiWindow = isInMultiWindowMode
-        AppWindow.gate = LaunchGate(fresh)
-        if (AppWindow.gate.open) return
+        gate = LaunchGate(fresh).also { AppWindow.gate = it }
+        if (gate.open) return
         if (android.os.Build.VERSION.SDK_INT >= 31) holdSplash()
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, insets ->
             barsVisible = insets.isVisible(WindowInsetsCompat.Type.systemBars())
@@ -188,6 +184,9 @@ class MainActivity : ComponentActivity() {
         }
         window.decorView.postDelayed(::followGate, LaunchGate.CAP_MS)
     }
+
+    /** This activity's launch gate (the root reads it through [AppWindow]); a recreated instance gets its own. */
+    private var gate = LaunchGate(fresh = false)
 
     @RequiresApi(31)
     private fun holdSplash() {
@@ -198,7 +197,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun followGate() {
-        if (!AppWindow.gate.update(barsVisible, AppWindow.multiWindow, SystemClock.uptimeMillis() - created)) return
+        if (!gate.update(barsVisible, AppWindow.multiWindow, SystemClock.uptimeMillis() - created)) return
+        // Open for good: later insets changes (a swipe, the keyboard) have nothing to tell it.
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView, null)
         val splash = heldSplash ?: return
         heldSplash = null
         if (android.os.Build.VERSION.SDK_INT >= 31) releaseSplash(splash as SplashScreenView)
@@ -293,11 +294,14 @@ class MainActivity : ComponentActivity() {
     private val pad = PadRouter({ padScope }) { onBackPressedDispatcher.onBackPressed() }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // While a launch still covers the content, nothing under the cover takes a tap.
+        if (!gate.open) return true
         pad.touch(ev)
         return super.dispatchTouchEvent(ev)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (!gate.open) return true
         // A pad that reports late counts as connected from its first press.
         if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_JOYSTICK)) notePad(event.device, event.deviceId)
         // The pad pressed last names the buttons in the hints.
@@ -306,6 +310,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        if (!gate.open) return true
         // A pad whose first input is its stick counts as connected too: the D-pad keys the router makes from it
         // do not carry the joystick source.
         if (ev.isFromSource(InputDevice.SOURCE_JOYSTICK) && ev.actionMasked == MotionEvent.ACTION_MOVE) notePad(ev.device, ev.deviceId)

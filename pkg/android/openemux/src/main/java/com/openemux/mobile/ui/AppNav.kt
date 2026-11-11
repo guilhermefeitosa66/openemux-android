@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.res.colorResource
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.systemBars
@@ -183,11 +184,13 @@ fun OpenEmuxRoot() {
         // screens' own bar paddings read 0.
         val insets = if (AppWindow.multiWindow) Modifier.windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
         else Modifier.consumeWindowInsets(WindowInsets.systemBars).windowInsetsPadding(WindowInsets.displayCutout)
-        // A launch keeps the splash look (its background) over the content until the bars it brought are gone.
+        // A launch keeps the starting window's look (its background, whatever theme the app picked) over the
+        // content until the bars it brought are gone; from API 31 the held system splash sits on top of it anyway.
         val cover by animateFloatAsState(if (AppWindow.gate.open) 0f else 1f, tween(LAUNCH_FADE_MS), label = "launch")
+        val starting = colorResource(R.color.oe_bg)
         Box(Modifier.fillMaxSize().background(Oe.Bg).then(insets).drawWithContent {
             drawContent()
-            if (cover > 0f) drawRect(Oe.Bg, alpha = cover)
+            if (cover > 0f) drawRect(starting, alpha = cover)
         }) {
             val setup by app.setup.state.collectAsState()
             // Nothing opens until the cores are on the device.
