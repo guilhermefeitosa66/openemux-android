@@ -11,7 +11,9 @@ import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
@@ -484,13 +486,15 @@ fun Modifier.padRoot(scope: PadScope): Modifier = composed {
  * system back, the screen buttons and the stick work, a touch there turns the
  * highlight off. Opened from the pad, the window takes focus on its first
  * item; closed, it gives focus back to the item that opened it. [scope] is
- * the window's, [opener] the window's under it.
+ * the window's, [opener] the window's under it. The window stays full screen, as the app is.
  */
 @Composable
 fun PadDialogWindow(scope: PadScope, opener: PadScope) {
     val view = LocalView.current
     DisposableEffect(view) {
         val window = dialogWindow(view)
+        // A sheet or dialog has a window of its own, which would bring the system bars back: it stays full screen too.
+        window?.let(::immersiveDialog)
         val original = window?.callback
         val back = (original as? OnBackPressedDispatcherOwner)?.onBackPressedDispatcher
         val wrapped = if (window != null && original != null && original !is PadCallback) {
@@ -503,6 +507,14 @@ fun PadDialogWindow(scope: PadScope, opener: PadScope) {
         }
     }
     PadFocusIn(scope)
+}
+
+/** Full screen, as the app is: a swipe shows the bars over the window and they leave on their own. */
+private fun immersiveDialog(window: Window) {
+    WindowCompat.getInsetsController(window, window.decorView).apply {
+        hide(WindowInsetsCompat.Type.systemBars())
+        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
 }
 
 /**

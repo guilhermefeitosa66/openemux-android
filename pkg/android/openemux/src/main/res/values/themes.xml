@@ -11,6 +11,11 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
     <style name="Theme.OpenEmux" parent="Theme.OpenEmux.Base" />
+    <!-- MainActivity's starting window: full screen, as the app is. The activity swaps it for Theme.OpenEmux before
+         its window is made (FLAG_FULLSCREEN on the live window would turn adjustResize off below API 30). -->
+    <style name="Theme.OpenEmux.Launch" parent="Theme.OpenEmux">
+        <item name="android:windowFullscreen">true</item>
+    </style>
     <!-- The skin editor over a paused game: translucent, so the game under it stays started. -->
     <style name="Theme.OpenEmux.GameSkin" parent="android:Theme.Translucent.NoTitleBar.Fullscreen" />
     <style name="Theme.OpenEmux.Game" parent="android:Theme.NoTitleBar.Fullscreen">
