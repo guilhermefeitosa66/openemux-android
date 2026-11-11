@@ -16,6 +16,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.CoroutineScope
@@ -264,8 +265,8 @@ fun PauseSheet(
     /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
     onRetroArchMenu: () -> Unit = {},
     /**
-     * Where the game's picture ends, as a fraction of the window's height from its top (GameViewport); null: not
-     * known. A phone in portrait opens the sheet under it (issue 849).
+     * Where the game's picture ends on screen, in pixels from its top (GameViewport); null: not known. A phone in
+     * portrait opens the sheet under it (issue 849).
      */
     gameBottom: Float? = null,
 ) {
@@ -390,7 +391,7 @@ fun PauseSheet(
         // B on a gamepad arrives as BACK: out of the dialog first, then a sub-page, then back to the game.
         BackHandler { if (confirmRestart) cancelRestart() else backPage()?.let { page = it } ?: onResume() }
 
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().onGloballyPositioned { sheet.origin = it.localToScreen(Offset.Zero).y }) {
             // In tabletop the band takes no tap: only the top half's card resumes.
             Box(
                 Modifier.fillMaxSize().background(Color(0x8C08080A)).let {
@@ -1055,6 +1056,8 @@ private class SheetDrag {
     var stop by mutableStateOf(SheetStop.FIRST)
     /** The sheet's top while it moves; null at rest. */
     var moving by mutableStateOf<Float?>(null)
+    /** This window's top on screen, which [gameBottom][sheetPlace] is measured from. */
+    var origin by mutableStateOf(0f)
     var area = 0f
     var expanded = 0f
     var first = 0f
@@ -1104,8 +1107,8 @@ private class SheetDrag {
 private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: WindowInsets, navigation: WindowInsets): Modifier =
     layout { measurable, constraints ->
         val area = constraints.maxHeight.toFloat()
-        val window = area + cutout.getTop(this) + cutout.getBottom(this)
-        val game = (gameBottom ?: (constraints.maxWidth * GameViewport.UNKNOWN_ASPECT / window)) * window - cutout.getTop(this)
+        // The area starts under the cutout; no skin box: a 4:3 game at its top.
+        val game = gameBottom?.let { it - sheet.origin - cutout.getTop(this) } ?: (constraints.maxWidth * GameViewport.UNKNOWN_ASPECT)
         sheet.area = area
         sheet.expanded = SheetExpandedTop.toPx()
         sheet.first = firstStopTop(game, area, sheet.expanded, SheetEssentials.toPx() + navigation.getBottom(this), SheetGap.toPx())

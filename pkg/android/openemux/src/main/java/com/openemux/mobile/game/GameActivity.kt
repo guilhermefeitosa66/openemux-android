@@ -1073,7 +1073,11 @@ class GameActivity : RetroActivityFuture() {
         PadLabels.scan()
         Oe.syncSystem(this)
         if (ndsScreens) ndsShown.value = currentNdsShown()
-        val gameBottom = synchronized(ndsLayouts) { overlay ?: skinOverlays.firstOrNull() }?.let { skinBottoms[it] }
+        // The skin's box is a fraction of this window, which may start under a cutout: on screen, in pixels.
+        val gameBottom = synchronized(ndsLayouts) { overlay ?: skinOverlays.firstOrNull() }?.let { skinBottoms[it] }?.let { fraction ->
+            val origin = IntArray(2).also(window.decorView::getLocationOnScreen)
+            origin[1] + fraction * window.decorView.height
+        }
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) InputMode.gamepad = false
