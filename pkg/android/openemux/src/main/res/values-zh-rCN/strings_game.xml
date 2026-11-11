@@ -3,6 +3,9 @@
     <!-- Pause sheet (game process) -->
     <string name="game_back">返回</string>
     <string name="game_back_to_game">返回游戏</string>
+    <string name="game_continue">继续</string>
+    <string name="game_save">保存</string>
+    <string name="game_restart_short">重启</string>
     <string name="game_choose">选择</string>
     <string name="game_save_states">即时存档</string>
     <string name="game_shader">着色器</string>

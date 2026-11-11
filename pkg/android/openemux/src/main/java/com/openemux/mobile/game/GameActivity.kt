@@ -152,6 +152,8 @@ class GameActivity : RetroActivityFuture() {
 
     /** The skin's overlays, in skin.cfg's order: the launcher's, then each redrawn skin's. */
     @Volatile private var skinOverlays: List<String> = emptyList()
+    /** Where each of the skin's overlays has the game end, from the window's top (GameViewport): the pause sheet opens under it. */
+    @Volatile private var skinBottoms: Map<String, Float> = emptyMap()
     /** Whether a gamepad is connected, which picks the skin's gamepad layout (under ndsLayouts' lock). */
     private var wantGamepad = false
     /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
@@ -173,6 +175,7 @@ class GameActivity : RetroActivityFuture() {
         skinCustom.value = intent.getStringExtra(GameExtras.SKIN_CUSTOM)
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
+        skinBottoms = skinDir?.let(::readBottoms).orEmpty()
         wantGamepad = Gamepads.connected()
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
@@ -277,6 +280,7 @@ class GameActivity : RetroActivityFuture() {
         if (ok) {
             Log.i(SKIN_TAG, "OVERLAY_LOAD skin for $size: ${dir.name}")
             skinSize = size
+            skinBottoms = readBottoms(dir)
             followRedrawnSkin(readTabletopSkin(dir), readOverlays(dir))
             if (picked && drawn != null) setNdsScreensFor(drawn)
             launchDir.listFiles { f -> f.isDirectory && f.name.startsWith("skin") && f != dir }?.forEach { it.deleteRecursively() }
@@ -317,6 +321,9 @@ class GameActivity : RetroActivityFuture() {
 
     private fun readOverlays(dir: File): List<String> =
         runCatching { overlayNames(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyList())
+
+    private fun readBottoms(dir: File): Map<String, Float> =
+        runCatching { GameViewport.bottoms(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyMap())
 
     /**
      * The engine opens a redrawn skin on its first overlay and says nothing: the drawn skin puts the one shown first
@@ -1066,6 +1073,7 @@ class GameActivity : RetroActivityFuture() {
         PadLabels.scan()
         Oe.syncSystem(this)
         if (ndsScreens) ndsShown.value = currentNdsShown()
+        val gameBottom = synchronized(ndsLayouts) { overlay ?: skinOverlays.firstOrNull() }?.let { skinBottoms[it] }
         val d = object : ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen) {
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) InputMode.gamepad = false
@@ -1077,6 +1085,7 @@ class GameActivity : RetroActivityFuture() {
                 ProvideWindowLayout {
                     PauseSheet(
                         session = session,
+                        gameBottom = gameBottom,
                         onResume = { d.dismiss() },
                         onQuit = {
                             sheetOpen = false

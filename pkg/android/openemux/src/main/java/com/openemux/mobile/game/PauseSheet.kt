@@ -5,6 +5,22 @@ import android.graphics.BitmapFactory
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlin.math.roundToInt
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -247,6 +263,11 @@ fun PauseSheet(
     onSpeed: (Speed) -> Unit = {},
     /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
     onRetroArchMenu: () -> Unit = {},
+    /**
+     * Where the game's picture ends, as a fraction of the window's height from its top (GameViewport); null: not
+     * known. A phone in portrait opens the sheet under it (issue 849).
+     */
+    gameBottom: Float? = null,
 ) {
     OpenEmuxTheme {
         var page by remember { mutableStateOf(Page.Main) }
@@ -277,6 +298,41 @@ fun PauseSheet(
         val panelWidth = min(440.dp, (window.widthDp * 0.55f).dp)
         // A wide window (a phone on its side) is short: the main page goes in two columns when they fit, and whatever still overflows scrolls.
         val landscape = window.wide && !panel
+        // A phone upright: the sheet opens under the game, stretches up and is swiped down to resume (issue 849).
+        val phone = !panel && !tabletop && !landscape
+        val sheet = remember { SheetDrag() }
+        val density = LocalDensity.current
+        val flingPx = with(density) { SheetFling.toPx() }
+        fun release(velocity: Float) = sheet.release(scope, velocity, flingPx, onResume)
+        val grip = if (phone) {
+            Modifier.draggable(
+                rememberDraggableState { sheet.by(it) },
+                Orientation.Vertical,
+                onDragStopped = { release(it) },
+            )
+        } else Modifier
+        // The content scrolls first; the sheet follows once it is at its top, and stretches before it scrolls up.
+        val follow = remember(sheet) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    if (source != NestedScrollSource.UserInput) return Offset.Zero
+                    val dy = available.y
+                    val take = (dy < 0f && sheet.top > sheet.expanded) || (dy > 0f && sheet.moving != null)
+                    return if (take) Offset(0f, sheet.by(dy)) else Offset.Zero
+                }
+
+                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+                    if (source == NestedScrollSource.UserInput && available.y > 0f) Offset(0f, sheet.by(available.y)) else Offset.Zero
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (sheet.moving == null) return Velocity.Zero
+                    release(available.y)
+                    return available
+                }
+            }
+        }
+        val cutout = WindowInsets.displayCutout
+        val navigation = WindowInsets.navigationBars
 
         fun command(cmd: String, message: String? = null, after: () -> Unit = {}) {
             scope.launch {
@@ -382,6 +438,9 @@ fun PauseSheet(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .windowInsetsPadding(WindowInsets.displayCutout)
+                        .let {
+                            if (!phone) it else it.sheetPlace(sheet, gameBottom, cutout, navigation).nestedScroll(follow)
+                        }
                         .widthIn(max = if (landscape) 760.dp else 520.dp)
                         .fillMaxWidth()
                         .clip(shape)
@@ -392,11 +451,13 @@ fun PauseSheet(
                 },
             ) {
                 if (!panel && !tabletop) {
-                    Box(Modifier.align(Alignment.CenterHorizontally).size(40.dp, 5.dp).clip(CircleShape).background(Oe.Chevron))
-                    Spacer(Modifier.height(14.dp))
+                    // On a phone upright the pill is the handle the sheet is dragged by, with some room around it.
+                    Box(Modifier.fillMaxWidth().height(19.dp).then(grip), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.size(40.dp, 5.dp).clip(CircleShape).background(Oe.Chevron))
+                    }
                 }
                 // In tabletop the top half's card names the game: the main page needs no header.
-                if (!tabletop || page != Page.Main) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!tabletop || page != Page.Main) Row(grip, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (page != Page.Main) {
                         SheetIconButton(Icons.Back, stringResource(R.string.game_back)) { backPage()?.let { page = it } }
                     } else if (cart != null) {
@@ -455,6 +516,7 @@ fun PauseSheet(
                         Page.Main -> MainPage(
                             landscape = landscape,
                             tabletop = tabletop,
+                            phone = phone,
                             onResume = onResume,
                             hardcore = session.hardcore,
                             speed = speed,
@@ -474,6 +536,7 @@ fun PauseSheet(
                                 }
                             },
                             onLoad = { page = Page.States },
+                            onLoadSlot = { states.firstOrNull { it.slot == slot }?.let(::load) },
                             onSpeed = { tapped ->
                                 speed = speed.tap(tapped)
                                 onSpeed(speed)
@@ -620,6 +683,8 @@ private fun MainPage(
     landscape: Boolean,
     /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Quit in them. */
     tabletop: Boolean,
+    /** A phone upright (issue 849): Continue and Restart on top, Load beside Save, no Restart row in the list. */
+    phone: Boolean,
     onResume: () -> Unit,
     hardcore: Boolean,
     speed: Speed,
@@ -629,7 +694,10 @@ private fun MainPage(
     slotInUse: Boolean,
     onSlot: (Int) -> Unit,
     onSave: () -> Unit,
+    /** Opens the save states page. */
     onLoad: () -> Unit,
+    /** Loads the state in [slot] (the phone's Load beside Save). */
+    onLoadSlot: () -> Unit,
     /** The fast-forward (FAST) or slow-motion (SLOW) tile was tapped. */
     onSpeed: (Speed) -> Unit,
     onScreenshot: () -> Unit,
@@ -663,6 +731,16 @@ private fun MainPage(
     }
     val save = @Composable { modifier: Modifier ->
         SaveSlotSelector(slot, slotInUse, modifier, Modifier.restorableFocus("save", remember { mutableStateOf<String?>(null) }, initial = true), onSlot, onSave)
+    }
+    // Continue takes the pad's first focus there: A right after pausing resumes.
+    val resumeRow = @Composable { modifier: Modifier ->
+        Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            BigButton(
+                stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
+                Modifier.weight(1.6f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
+            )
+            BigButton(stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
+        }
     }
     val load = @Composable { modifier: Modifier ->
         BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, modifier, onLoad, enabled = !hardcore)
@@ -732,9 +810,16 @@ private fun MainPage(
     }
     val actions = @Composable { modifier: Modifier ->
         Column(modifier) {
-            note()
-            save(Modifier.padding(top = 16.dp).fillMaxWidth())
-            load(Modifier.padding(top = 10.dp).fillMaxWidth())
+            if (phone) {
+                // The essentials first, all above the first stop's fold: the note goes under them.
+                resumeRow(Modifier.padding(top = 16.dp).fillMaxWidth())
+                SaveLoadRow(slot, slotInUse, Modifier.padding(top = 10.dp).fillMaxWidth(), onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore)
+                note()
+            } else {
+                note()
+                save(Modifier.padding(top = 16.dp).fillMaxWidth())
+                load(Modifier.padding(top = 10.dp).fillMaxWidth())
+            }
             tiles(Modifier.padding(top = 18.dp))
         }
     }
@@ -746,7 +831,8 @@ private fun MainPage(
                     ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
                     ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
                 }
-                Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
+                // On a phone upright Restart sits beside Continue.
+                if (!phone) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
                 RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
             if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)
@@ -894,17 +980,144 @@ private fun PausedArea(states: List<PauseSession.State>, modifier: Modifier, onP
 }
 
 @Composable
-private fun BigButton(text: String, icon: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit, enabled: Boolean = true) {
+private fun BigButton(
+    text: String, icon: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit,
+    enabled: Boolean = true, showIcon: Boolean = true,
+) {
     Row(
         modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp) else it.alpha(DISABLED_ALPHA) }
-            .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, fg, 22.dp, filled = icon == Icons.SaveState || icon == Icons.LoadState)
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp))
+        if (showIcon) {
+            Icon(icon, fg, 22.dp, filled = icon == Icons.SaveState || icon == Icons.LoadState)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
+
+/** Below this width the phone's save row leaves the icons out of Save and Load, so neither label is cut. */
+private val SaveLoadIconsWidth = 360.dp
+
+/**
+ * The phone's save row (issue 849): the slot arrows around "Save", and Load beside them, which loads the slot shown.
+ * Save shows the slot and whether it is in use; Load is off for an empty slot ([canLoad]).
+ */
+@Composable
+private fun SaveLoadRow(
+    slot: Int, inUse: Boolean, modifier: Modifier, onStep: (Int) -> Unit, onSave: () -> Unit, onLoad: () -> Unit, canLoad: Boolean,
+) {
+    BoxWithConstraints(modifier) {
+        val icons = maxWidth >= SaveLoadIconsWidth
+        Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            SlotArrow(Icons.Back, stringResource(R.string.game_previous_slot)) { onStep(-1) }
+            Row(
+                Modifier.weight(1.25f).fillMaxHeight().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Raised)
+                    .clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (icons) {
+                    Icon(Icons.SaveState, Oe.Text, 20.dp, filled = true)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Column(horizontalAlignment = if (icons) Alignment.Start else Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
+                        style = Type.Caption.copy(color = if (inUse) Oe.AccentOnSoft else Oe.Muted, fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            SlotArrow(Icons.Chevron, stringResource(R.string.game_next_slot)) { onStep(1) }
+            BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = canLoad, showIcon = icons)
+        }
+    }
+}
+
+/** A fling at least this fast, between the stops, goes the way it was flung. */
+private val SheetFling = 400.dp
+/** Above the taller stop: the game still peeks out. */
+private val SheetExpandedTop = 16.dp
+/** Between the game's bottom and the first stop. */
+private val SheetGap = 8.dp
+/** What the first stop always shows on a short screen: the header, Continue and the save row (the navigation bar on top). */
+private val SheetEssentials = 340.dp
+
+/**
+ * The phone-portrait sheet's position (issue 849): resting on a [stop], or [moving] under a finger or an animation.
+ * The rest comes from the last layout, in the sheet area's pixels (its top just under the cutout).
+ */
+@Stable
+private class SheetDrag {
+    var stop by mutableStateOf(SheetStop.FIRST)
+    /** The sheet's top while it moves; null at rest. */
+    var moving by mutableStateOf<Float?>(null)
+    var area = 0f
+    var expanded = 0f
+    var first = 0f
+    /** Where the top shows now, and where it shows resting on the first stop (lower than [first] for short content). */
+    var shown = 0f
+    var restFirst = 0f
+    private var from = SheetStop.FIRST
+    private var job: Job? = null
+
+    val top: Float get() = moving ?: if (stop == SheetStop.EXPANDED) expanded else first
+
+    /** Moves the top by [delta] from where it shows, never above the taller stop; returns how far it went. */
+    fun by(delta: Float): Float {
+        job?.cancel()
+        val now = moving ?: shown.also { from = stop }
+        val next = (now + delta).coerceIn(expanded, area)
+        moving = next
+        return next - now
+    }
+
+    /** Lets go at [velocity]: springs to the stop [settle] picks, or slides out and calls [onClosed]. */
+    fun release(scope: CoroutineScope, velocity: Float, fling: Float, onClosed: () -> Unit) {
+        val now = moving ?: return
+        val target = settle(now, velocity, expanded, restFirst, area - restFirst, from == SheetStop.FIRST, fling)
+        val end = when (target) {
+            SheetStop.EXPANDED -> expanded
+            SheetStop.FIRST -> restFirst
+            SheetStop.CLOSED -> area
+        }
+        job?.cancel()
+        job = scope.launch {
+            animate(now, end, velocity, if (target == SheetStop.CLOSED) tween(180) else spring()) { v, _ -> moving = v }
+            if (target == SheetStop.CLOSED) {
+                onClosed()
+            } else {
+                stop = target
+                moving = null
+            }
+        }
+    }
+}
+
+/**
+ * Sizes and places the phone-portrait sheet for [sheet]: above the first stop it is as tall as the room from its top
+ * down (what does not fit scrolls inside), below it the sheet keeps the first stop's height and slides down.
+ */
+private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: WindowInsets, navigation: WindowInsets): Modifier =
+    layout { measurable, constraints ->
+        val area = constraints.maxHeight.toFloat()
+        val window = area + cutout.getTop(this) + cutout.getBottom(this)
+        val game = (gameBottom ?: (constraints.maxWidth * GameViewport.UNKNOWN_ASPECT / window)) * window - cutout.getTop(this)
+        sheet.area = area
+        sheet.expanded = SheetExpandedTop.toPx()
+        sheet.first = firstStopTop(game, area, sheet.expanded, SheetEssentials.toPx() + navigation.getBottom(this), SheetGap.toPx())
+        val top = sheet.top
+        val room = (area - minOf(top, sheet.first)).roundToInt().coerceIn(0, constraints.maxHeight)
+        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = room))
+        val rest = area - placeable.height
+        val shift = maxOf(0f, top - maxOf(sheet.first, rest))
+        sheet.shown = rest + shift
+        if (sheet.moving == null) sheet.restFirst = maxOf(sheet.first, rest)
+        layout(placeable.width, placeable.height) { placeable.placeRelativeWithLayer(0, 0) { translationY = shift } }
+    }
 
 @Composable
 private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, onClick: () -> Unit) {

@@ -3,6 +3,9 @@
     <!-- Pause sheet (game process) -->
     <string name="game_back">戻る</string>
     <string name="game_back_to_game">ゲームに戻る</string>
+    <string name="game_continue">続ける</string>
+    <string name="game_save">セーブ</string>
+    <string name="game_restart_short">リセット</string>
     <string name="game_choose">選択</string>
     <string name="game_save_states">ステートセーブ</string>
     <string name="game_shader">シェーダー</string>
