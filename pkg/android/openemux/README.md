@@ -109,6 +109,16 @@ when the content closes, and the library must survive that.
    `input/input_overlay_anchor.c`, called from `input_overlay_poll()`;
    reproduced in `samples/tasks/overlay/overlay_anchor_test.c`
    (`make -f Makefile.anchor check`).
+10. **Triangular buttons.** A rect desc with
+   `overlayN_descM_triangle = bottom-left` (or `bottom-right`, `top-left`,
+   `top-right`) is a right triangle in its rect, its square corner at that
+   corner: a touch on the rest of the rect is on nothing. A skin's combo
+   key drawn as a triangle uses it to sit in the gap between two round
+   buttons without taking touches over them. `input/input_overlay_corner.c`,
+   called from `input_overlay_coords_inside_hitbox()` and parsed in
+   `tasks/task_overlay.c`; reproduced in
+   `samples/tasks/overlay/overlay_corner_test.c`
+   (`make -f Makefile.corner check`).
 
 Upstream behaviour is kept: the base `RetroActivityCommon` returns false
 from the first two and from `autoSaveOnPause()`, and ignores the overlay

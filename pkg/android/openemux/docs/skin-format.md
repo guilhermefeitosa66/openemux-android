@@ -223,8 +223,9 @@ one. The skin keeps them in two places:
 - the root `combos`: one entry per combo, `id` (lowercase letters, digits and single hyphens; unique among the
   combos) and `buttons`, the input names it presses, in the order its label reads;
 - each layout's `combos`: one entry per combo on that layout, `id` (the root entry's), a rect (`x`, `y`, `width`,
-  `height`) and, optionally, `shape` (default `circle`), `depth`, `rotation`, `labelSize`, `labelOffset` and `colors`
-  (`button`, `relief`, `letter`), as for a button element. Its `id` must not be an element's id on that layout.
+  `height`) and, optionally, `shape` and `corner` (its outline, below), `depth`, `rotation`, `labelSize`,
+  `labelOffset` and `colors` (`button`, `relief`, `letter`), as for a button element. Its `id` must not be an
+  element's id on that layout.
 
 ```json
 "combos": [{ "id": "combo-1", "buttons": ["y", "b"] }],
@@ -242,6 +243,21 @@ or the FDS disk key. Its label is the name the skin gives each of its buttons (a
 "+": "Y+B", "L+R+A", "□+✕"; a button with no label is its input name, capitalised. It is drawn as a button in its
 colours with a light ring round its face, so it never reads as one of the console's own buttons, and pressing it
 presses all its buttons; releasing it releases them.
+
+**Outline.** Each layout gives a combo its own outline: `shape` is `circle` (the default), `pill` or `triangle`. A
+triangle is a right triangle in its rect whose square corner points at `corner`: `bottom-left`, `bottom-right`,
+`top-left` or `top-right`. Its legs lie on the two edges of the rect that meet at that corner and its long edge
+crosses the rect, so it tucks into the gap between two round buttons (Y+B at the bottom left of a SNES diamond). It
+is touched on the triangle alone: a touch on the rest of its rect, over a neighbouring button, never presses it
+(the overlay desc's `_triangle` key). Its label sits at the triangle's centroid, pulled toward the square corner. A
+`shape` this app does not know, or a `triangle` with no known `corner`, is drawn as a circle rather than refused,
+so a newer app's outline still opens. The editor makes a circle and a triangle as wide as tall (the face buttons'
+diameter) and a pill 1.6 times as wide and 0.8 times as tall; Size scales any of them. `triangle` is for combos
+only: an element with it is refused (`BAD_SHAPE`).
+
+```json
+"combos": [{ "id": "combo-1", "x": 520, "y": 1390, "width": 90, "height": 90, "shape": "triangle", "corner": "bottom-left" }]
+```
 
 **Why not an element.** A combo is not an element with a new `type` or a `bind` such as `"y|b"`: either one makes an
 app from before combos refuse the whole skin (`UNKNOWN_TYPE`, `UNKNOWN_BIND`). The `combos` keys are new optional
@@ -366,7 +382,7 @@ A skin the app cannot draw is refused as a whole, with the kind of error and whe
 | `BAD_ID` | An `id` or an `image` that is not lowercase letters, digits and single hyphens. |
 | `BAD_COLOR` | A colour that is not `#RRGGBB` or `#RRGGBBAA`. |
 | `UNKNOWN_COLOR_PART` | A colour part the element's type (or the frame) does not have. |
-| `BAD_SHAPE` | A `shape` other than `circle`, `pill`, `rect`. |
+| `BAD_SHAPE` | A `shape` other than `circle`, `pill`, `rect` (`triangle` is a combo's alone). |
 | `BAD_SCREENS` | Not one screen (two for NDS); on a screen-layout page, not one (`top`, `bottom`) or two (`side`). |
 | `UNKNOWN_SCREEN_LAYOUT` | A key of `screenLayouts` other than `top`, `bottom` and `side`. |
 | `SCREEN_LAYOUTS_NOT_NDS` | `screenLayouts` in a skin for a console other than `NDS`. |
