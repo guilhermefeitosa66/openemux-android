@@ -14,7 +14,8 @@
  *      nothing;
  *   4. a finger that started on a desc that cannot anchor (the D-pad,
  *      a quick action) anchors nothing it slides onto;
- *   5. a finger that lands between buttons anchors the first one it
+ *   5. a finger that lands between buttons, or on a desc that presses
+ *      nothing (an image, a "nul" button), anchors the first one it
  *      reaches;
  *   6. the anchor follows the finger when the pointer indexes change
  *      (a lower finger lifts), and each finger keeps its own;
@@ -45,10 +46,11 @@ static void check(bool cond, const char *what)
    }
 }
 
-enum { DPAD = 0, Y, B, STRIP, TOGGLE, COUNT };
+enum { DPAD = 0, Y, B, STRIP, TOGGLE, NUL, COUNT };
 
-/* Each desc spans [x, x + 1) along the row; a gap at 9. */
-static const float left[COUNT] = { 0.0f, 2.0f, 3.0f, 5.0f, 7.0f };
+/* Each desc spans [x, x + 1) along the row, NUL (presses nothing)
+ * right before Y; a gap at 9. */
+static const float left[COUNT] = { 0.0f, 2.0f, 3.0f, 5.0f, 7.0f, 1.0f };
 static struct overlay_desc descs[COUNT];
 
 static void bind(unsigned d, unsigned id)
@@ -212,7 +214,8 @@ static void test_claimed(void)
 {
    const float from_dpad[]  = { 0.5f, 2.5f, 9.5f };
    const float from_strip[] = { 5.5f, 3.5f, 9.5f };
-   const float from_gap[]   = { 1.5f, 2.5f, 9.5f };
+   const float from_gap[]   = { 9.5f, 2.5f, 9.5f };
+   const float from_nul[]   = { 1.5f, 2.5f, 9.5f };
    input_bits_t out;
 
    puts("first press only");
@@ -230,6 +233,10 @@ static void test_claimed(void)
    out = slide(true, from_gap, 3);
    check(pressed(out, RETRO_DEVICE_ID_JOYPAD_Y),
          "a finger landing between buttons anchors the first it reaches");
+   build();
+   out = slide(true, from_nul, 3);
+   check(pressed(out, RETRO_DEVICE_ID_JOYPAD_Y),
+         "a finger landing on a \"nul\" desc anchors the first button it reaches");
 }
 
 static void test_two_fingers(void)

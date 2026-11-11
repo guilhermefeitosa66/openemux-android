@@ -50,9 +50,23 @@ bool input_overlay_anchorable(const input_bits_t *mask)
    return mask->data[0] && !(mask->data[0] & ~ANCHOR_BINDS);
 }
 
-/* Whether the pointer at [old_touch_idx] on the last poll was on any
- * desc: such a pointer has had its first press, and anchors nothing
- * new. */
+/* Whether [desc] presses nothing: a "nul" button (an image, a toggle's
+ * lit look, a button the console does not map), not an anchor toggle. */
+static bool input_overlay_anchor_inert(const struct overlay_desc *desc)
+{
+   size_t i;
+   if (     desc->type != OVERLAY_TYPE_BUTTONS
+         || (desc->flags & OVERLAY_DESC_ANCHOR_TOGGLE))
+      return false;
+   for (i = 0; i < ARRAY_SIZE(desc->button_mask.data); i++)
+      if (desc->button_mask.data[i])
+         return false;
+   return true;
+}
+
+/* Whether the pointer at [old_touch_idx] on the last poll was on a desc
+ * that presses something: such a pointer has had its first press, and
+ * anchors nothing new. */
 static bool input_overlay_anchor_claimed(const struct overlay_desc *descs,
       size_t size, int old_touch_idx)
 {
@@ -60,7 +74,8 @@ static bool input_overlay_anchor_claimed(const struct overlay_desc *descs,
    if (old_touch_idx < 0)
       return false;
    for (i = 0; i < size; i++)
-      if (BIT32_GET(descs[i].old_touch_mask, old_touch_idx))
+      if (     BIT32_GET(descs[i].old_touch_mask, old_touch_idx)
+            && !input_overlay_anchor_inert(&descs[i]))
          return true;
    return false;
 }
