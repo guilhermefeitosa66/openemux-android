@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentDialog
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -583,8 +584,8 @@ class GameActivity : RetroActivityFuture() {
             val at = System.currentTimeMillis()
             Thread({ AnchorPicks.record(dir, console, on, at) }, "anchor-pick").start()
         }
-        // Turned on, the card explains it and stays at the bottom of the screen until swiped down; turned off, a short
-        // toast says so and the card goes.
+        // Turned on, the card explains it at the bottom of the screen until swiped down or its timeout runs out; turned
+        // off, a short toast says so and the card goes.
         runOnUiThread {
             anchorToast?.cancel()
             closeAnchorCard()
@@ -643,10 +644,11 @@ class GameActivity : RetroActivityFuture() {
     private fun showAnchorCard() {
         if (!started || isFinishing || isDestroyed || window.decorView.windowToken == null) return
         val d = ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar)
+        val timeout = anchorCardTimeout()
         val view = ComposeView(d.context).apply {
             setContent {
                 ProvideWindowLayout {
-                    AnchorCard(onClosed = { if (anchorCard === d) closeAnchorCard() })
+                    AnchorCard(timeout, onClosed = { if (anchorCard === d) closeAnchorCard() })
                 }
             }
         }
@@ -673,6 +675,19 @@ class GameActivity : RetroActivityFuture() {
         // A rotation, a fold or split screen resizes the game's window: the card stays centred at its bottom.
         window.decorView.addOnLayoutChangeListener(anchorCardFollower)
         d.show()
+    }
+
+    /** How long the card stays up on its own: 8 s, or longer if the system's "Time to take action" asks for it. */
+    private fun anchorCardTimeout(): Long {
+        val recommended = if (Build.VERSION.SDK_INT >= 29) {
+            getSystemService(AccessibilityManager::class.java)
+                ?.getRecommendedTimeoutMillis(
+                    AnchorCardTimeout.READ_MS,
+                    // Text to read, and a swipe to act on: the longer of the two timeouts the system keeps.
+                    AccessibilityManager.FLAG_CONTENT_TEXT or AccessibilityManager.FLAG_CONTENT_CONTROLS,
+                )
+        } else null
+        return AnchorCardTimeout.millis(recommended)
     }
 
     private val anchorCardFollower = android.view.View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, or_, ob ->

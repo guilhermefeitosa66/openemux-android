@@ -69,6 +69,29 @@ class AnchorMarksTest {
         assertEquals(1f, AnchorCardSwipe.alpha(50f, 0f), 0f)
     }
 
+    @Test fun theCardClosesByItselfAfterEightSecondsOrWhatTheSystemAsks() {
+        assertEquals(8000L, AnchorCardTimeout.millis(null))
+        assertEquals(8000L, AnchorCardTimeout.millis(8000))
+        assertEquals(20000L, AnchorCardTimeout.millis(20000))
+        // Never cut shorter than the reading time.
+        assertEquals(8000L, AnchorCardTimeout.millis(3000))
+    }
+
+    @Test fun theCountdownPausesKeepingWhatIsLeftAndRestartsInFull() {
+        val countdown = AnchorCardCountdown(8000L)
+        assertEquals(8000L, countdown.left)
+        countdown.ran(3000L)
+        assertEquals(5000L, countdown.left)
+        // A clock that went backwards takes nothing.
+        countdown.ran(-50L)
+        assertEquals(5000L, countdown.left)
+        countdown.ran(9000L)
+        assertEquals(0L, countdown.left)
+        countdown.restart()
+        assertEquals(8000L, countdown.total)
+        assertEquals(8000L, countdown.left)
+    }
+
     @Test fun theCardSitsAtTheBottomOfTheScreenCentred() {
         // Portrait phone, the game filling the screen: narrower than the cap, it spans the width less the margins.
         assertEquals(AnchorCardPlace(8, 8, 1064), AnchorCardPlace.of(0, 1080, 2400, 0, 2400, 8, 1200))

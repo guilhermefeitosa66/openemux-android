@@ -1,10 +1,13 @@
 package com.openemux.mobile.game
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.dismiss
@@ -41,15 +46,18 @@ import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.OpenEmuxTheme
 import com.openemux.mobile.ui.Type
 import com.retroarch.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * What anchor mode does, shown at the bottom of the screen each time the player turns it on (issue 841). It slides up
- * from the bottom edge like a system sheet and stays until swiped down: it follows the finger and slides out
- * ([AnchorCardSwipe]); [onClosed] is called once it is gone.
+ * from the bottom edge like a system sheet. A swipe down closes it: it follows the finger and slides out
+ * ([AnchorCardSwipe]). Left alone it slides down by itself after [timeoutMs] ([AnchorCardTimeout]); the countdown
+ * pauses while a finger is on the card and starts over when a drag springs back ([AnchorCardCountdown]). [onClosed] is
+ * called once it is gone.
  */
 @Composable
-fun AnchorCard(onClosed: () -> Unit) {
+fun AnchorCard(timeoutMs: Long, onClosed: () -> Unit) {
     OpenEmuxTheme {
         val scope = rememberCoroutineScope()
         val offset = remember { Animatable(0f) }
@@ -64,10 +72,28 @@ fun AnchorCard(onClosed: () -> Unit) {
                 offset.animateTo(0f, tween(OPEN_MS))
             }
         }
+        var closing by remember { mutableStateOf(false) }
         fun close() {
+            if (closing) return
+            closing = true
             scope.launch {
                 offset.animateTo(height.toFloat().coerceAtLeast(offset.value), tween(CLOSE_MS))
                 onClosed()
+            }
+        }
+        // A finger on the card (a drag included) holds the countdown; letting go resumes it, from the full time if the
+        // card was dragged (a drag that springs back means the player is still on it; one that closes it ends it anyway).
+        var held by remember { mutableStateOf(false) }
+        var moved by remember { mutableStateOf(false) }
+        val countdown = remember { AnchorCardCountdown(timeoutMs) }
+        LaunchedEffect(entered, held, closing) {
+            if (!entered || held || closing) return@LaunchedEffect
+            val from = SystemClock.uptimeMillis()
+            try {
+                delay(countdown.left)
+                close()
+            } finally {
+                countdown.ran(SystemClock.uptimeMillis() - from)
             }
         }
         // Where the finger has the card, kept as each delta comes: the snaps run later, and letting go is judged here.
@@ -85,10 +111,31 @@ fun AnchorCard(onClosed: () -> Unit) {
                     translationY = offset.value
                     alpha = if (entered) AnchorCardSwipe.alpha(offset.value, height.toFloat()) else 0f
                 }
+                .pointerInput(Unit) {
+                    // Seen before the drag takes the touch, and whatever happens to it after.
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        held = true
+                        try {
+                            do {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                            } while (event.changes.any { it.pressed })
+                        } finally {
+                            // Restarted before held drops, so the countdown resumes from the full time, never from
+                            // what was left when the drag began.
+                            if (moved) countdown.restart()
+                            moved = false
+                            held = false
+                        }
+                    }
+                }
                 .draggable(
                     state = drag,
                     orientation = Orientation.Vertical,
-                    onDragStarted = { dragged = offset.value },
+                    onDragStarted = {
+                        moved = true
+                        dragged = offset.value
+                    },
                     onDragStopped = { velocity ->
                         if (AnchorCardSwipe.closes(dragged, velocity, height.toFloat())) close()
                         else { dragged = 0f; offset.animateTo(0f) }
