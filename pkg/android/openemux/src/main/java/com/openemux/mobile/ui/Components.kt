@@ -177,6 +177,10 @@ object Icons {
     const val Qr = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M20 14v2M14 18h2v2M18 18h2v2"
     const val Pencil = "M4 20h4L19 9l-4-4L4 16v4z"
     const val Copy = "M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"
+    /** Saved states: two frames stacked (the pause sheet's Save states tile). */
+    const val States = "M8 3h13v13H8zM4 7v14h14"
+    /** A skin: a gamepad's outline, its D-pad and two buttons. */
+    const val Skin = "M7.5 7h9a4.5 4.5 0 0 1 0 9c-1.4 0-2.2-.6-3-1.6h-3c-.8 1-1.6 1.6-3 1.6a4.5 4.5 0 0 1 0-9zM7.5 9.8v3.4M5.8 11.5h3.4M15.6 10.6h.01M17.4 12.4h.01"
 }
 
 @Composable

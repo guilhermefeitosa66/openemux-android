@@ -41,7 +41,12 @@
     <string name="game_restart_confirm_title">விளையாட்டை மீண்டும் தொடங்கவா?</string>
     <string name="game_restart_confirm_body">கடைசியாகச் சேமித்ததற்குப் பிறகான முன்னேற்றம் இழக்கப்படும்.</string>
     <string name="game_retroarch_menu">RetroArch மெனு</string>
-    <string name="game_retroarch_menu_note">மேம்பட்ட அமைப்புகள், இந்த அமர்வுக்கு மட்டும்</string>
+    <string name="game_retroarch_menu_detail">இந்த அமர்வுக்கு மட்டும்</string>
+    <string name="game_states_none">எதுவும் சேமிக்கப்படவில்லை</string>
+    <plurals name="game_states_saved">
+        <item quantity="one">%d சேமிக்கப்பட்டது</item>
+        <item quantity="other">%d சேமிக்கப்பட்டன</item>
+    </plurals>
     <string name="game_quit">விளையாட்டிலிருந்து வெளியேறு</string>
     <string name="game_no_states">இன்னும் சேமிப்பு நிலைகள் இல்லை.</string>
     <string name="game_state_auto">தானியங்கி</string>
