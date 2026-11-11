@@ -56,6 +56,7 @@ import com.openemux.mobile.ui.Oe
 import androidx.compose.material3.Text
 import com.openemux.mobile.ui.Type
 import com.openemux.mobile.ui.gamepadFocus
+import com.openemux.mobile.ui.linkTarget
 import com.retroarch.R
 import kotlin.math.roundToInt
 
@@ -98,7 +99,7 @@ internal fun SlotStrip(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (I
             Row(
                 Modifier.height(32.dp).let { if (canSeeAll) it.gamepadFocus(corner = 8.dp) else it.alpha(DISABLED_ALPHA) }
                     .clip(RoundedCornerShape(8.dp)).clickable(enabled = canSeeAll, role = Role.Button, onClick = onSeeAll)
-                    .padding(horizontal = 4.dp),
+                    .linkTarget().padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(link, style = Type.Small.copy(color = Oe.AccentText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
