@@ -805,23 +805,22 @@ private fun MainPage(
     }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
-        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop).map<PauseTile, @Composable () -> Unit> { tile ->
+        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop)
+        val tileView = @Composable { tile: PauseTile ->
             when (tile) {
-                PauseTile.FAST_FORWARD -> { { ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) } } }
-                PauseTile.SLOW_MOTION -> { { ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) } } }
-                PauseTile.SCREENSHOT -> { { ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot) } }
-                PauseTile.SHADER -> { { ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader) } }
-                PauseTile.SCREENS -> { { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = screens?.let { stringResource(it.label) }, onClick = onScreens) } }
-                PauseTile.AUDIO -> { MuteTile.of(muted).let { tile -> { ActionTile(stringResource(tile.label), tile.icon, false, warn = tile.warn, onClick = onAudio) } } }
-                PauseTile.SAVE_STATES -> { {
+                PauseTile.FAST_FORWARD -> ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) }
+                PauseTile.SLOW_MOTION -> ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) }
+                PauseTile.SCREENSHOT -> ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot)
+                PauseTile.SHADER -> ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader)
+                PauseTile.SCREENS -> ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = screens?.let { stringResource(it.label) }, onClick = onScreens)
+                PauseTile.AUDIO -> MuteTile.of(muted).let { mute -> ActionTile(stringResource(mute.label), mute.icon, false, warn = mute.warn, onClick = onAudio) }
+                PauseTile.SAVE_STATES -> {
                     val saved = if (stateCount == 0) stringResource(R.string.game_states_none) else countString(R.plurals.game_states_saved, stateCount, stateCount)
                     ActionTile(stringResource(R.string.game_save_states), Icons.States, false, enabled = !hardcore, detail = saved, onClick = onLoad)
-                } }
-                PauseTile.CHANGE_SKIN -> { { ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin) } }
-                PauseTile.EDIT_SKIN -> { { ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin) } }
-                PauseTile.RETROARCH_MENU -> { {
-                    ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
-                } }
+                }
+                PauseTile.CHANGE_SKIN -> ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin)
+                PauseTile.EDIT_SKIN -> ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin)
+                PauseTile.RETROARCH_MENU -> ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
             }
         }
         // A grid of fixed columns that wraps from the left (issue 858): 5 tiles upright are 4 + 1, never 3 + 2.
@@ -830,7 +829,7 @@ private fun MainPage(
             Column(verticalArrangement = Arrangement.spacedBy(TILE_ROW_GAP_DP.dp)) {
                 items.chunked(grid.columns).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(grid.gapDp.dp)) {
-                        row.forEach { Box(Modifier.width(grid.columnDp.dp), contentAlignment = Alignment.TopCenter) { it() } }
+                        row.forEach { Box(Modifier.width(grid.columnDp.dp), contentAlignment = Alignment.TopCenter) { tileView(it) } }
                     }
                 }
             }
@@ -1201,6 +1200,8 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
                 detail,
                 style = Type.Caption.copy(color = Oe.Muted, fontSize = 10.sp, lineHeight = 12.sp, textAlign = TextAlign.Center),
                 maxLines = 2,
+                // A long skin name or translation ends in an ellipsis rather than cut off mid-word.
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 76.dp),
             )
         }
