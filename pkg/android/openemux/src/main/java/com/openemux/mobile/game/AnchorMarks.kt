@@ -70,6 +70,39 @@ object AnchorCardSwipe {
 }
 
 /**
+ * How long the explanation card stays up on its own before it slides down (issue 841): about 22 words take ~6.5 s to
+ * read, plus a second to notice the card, so 8 s; the system's "Time to take action" setting may ask for longer.
+ */
+object AnchorCardTimeout {
+    const val READ_MS = 8000
+
+    /**
+     * The card's timeout, given what `AccessibilityManager.getRecommendedTimeoutMillis` [recommended] for [READ_MS]
+     * (null before API 29, where there is no such setting): never shorter than [READ_MS].
+     */
+    fun millis(recommended: Int?): Long = maxOf(READ_MS, recommended ?: READ_MS).toLong()
+}
+
+/**
+ * The explanation card's countdown (issue 841): it runs while nothing touches the card, keeps what is [left] while a
+ * finger is on it, and starts again from the [total] when a drag springs back.
+ */
+class AnchorCardCountdown(val total: Long) {
+    var left = total
+        private set
+
+    /** The countdown ran for [ms] before it stopped (a touch, a close, the card going away). */
+    fun ran(ms: Long) {
+        left = (left - ms.coerceAtLeast(0L)).coerceAtLeast(0L)
+    }
+
+    /** A drag sprang back: the player is still reading, so the full time again. */
+    fun restart() {
+        left = total
+    }
+}
+
+/**
  * Where the explanation card goes, in pixels of the frame its window is laid out in (gravity bottom-start): its left
  * edge, how far its bottom edge sits above the frame's, and its width.
  */

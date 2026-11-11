@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentDialog
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -646,7 +647,7 @@ class GameActivity : RetroActivityFuture() {
         val view = ComposeView(d.context).apply {
             setContent {
                 ProvideWindowLayout {
-                    AnchorCard(onClosed = { if (anchorCard === d) closeAnchorCard() })
+                    AnchorCard(anchorCardTimeout(), onClosed = { if (anchorCard === d) closeAnchorCard() })
                 }
             }
         }
@@ -673,6 +674,15 @@ class GameActivity : RetroActivityFuture() {
         // A rotation, a fold or split screen resizes the game's window: the card stays centred at its bottom.
         window.decorView.addOnLayoutChangeListener(anchorCardFollower)
         d.show()
+    }
+
+    /** How long the card stays up on its own: 8 s, or longer if the system's "Time to take action" asks for it. */
+    private fun anchorCardTimeout(): Long {
+        val recommended = if (Build.VERSION.SDK_INT >= 29) {
+            getSystemService(AccessibilityManager::class.java)
+                ?.getRecommendedTimeoutMillis(AnchorCardTimeout.READ_MS, AccessibilityManager.FLAG_CONTENT_TEXT)
+        } else null
+        return AnchorCardTimeout.millis(recommended)
     }
 
     private val anchorCardFollower = android.view.View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, or_, ob ->
