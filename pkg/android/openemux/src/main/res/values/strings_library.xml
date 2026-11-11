@@ -44,6 +44,16 @@
     <string name="library_sort_recent">Recent</string>
     <string name="library_section_carts">Cartridges</string>
     <string name="library_section_recent">Last played</string>
+    <!-- The library's zoom on a phone upright: the Size button and menu, and the steps it names. -->
+    <string name="library_size">Size</string>
+    <plurals name="library_size_columns">
+        <item quantity="one">%1$d column</item>
+        <item quantity="other">%1$d columns</item>
+    </plurals>
+    <string name="library_size_compact">Compact</string>
+    <string name="library_size_normal">Normal</string>
+    <string name="library_size_large">Large</string>
+    <string name="library_size_extra_large">Extra large</string>
     <string name="library_no_results">Nothing found for \"%1$s\".</string>
     <string name="library_empty_list">No games here yet.</string>
 

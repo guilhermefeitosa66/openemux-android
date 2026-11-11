@@ -3,6 +3,13 @@ package com.openemux.mobile.ui
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.unit.DpSize
+import kotlinx.coroutines.delay
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -757,6 +764,25 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // Tabletop decides first: the top half takes the upright layout, however short it is.
     // On a short window the header holds the filter pager, whose steps show the shoulders themselves (issue 669).
     val landscapeRow = layout.short && !tabletop && mode != ViewMode.List
+    // A phone held upright zooms the grid in steps (issue 868): each view keeps the step it was left at.
+    val zoom = zoomApplies(layout, tabletop)
+    val context = LocalContext.current
+    val listSize = if (zoom) LibraryZoomPref.list else ListSize.Normal
+    // The columns the picked view shows; a covers group on a cartridge page follows the cartridge view's step.
+    val zoomColumns = if (mode == ViewMode.Covers) LibraryZoomPref.covers else LibraryZoomPref.carts
+    var zoomMoving by remember { mutableStateOf(false) }
+    var zoomAnchor by remember { mutableStateOf<ZoomAnchor?>(null) }
+    var pill by remember { mutableStateOf<ZoomPill?>(null) }
+    // Sets the picked view's step; false when it was already there.
+    fun setZoom(value: Int): Boolean {
+        when (mode) {
+            ViewMode.Carts -> if (value == LibraryZoomPref.carts) return false else LibraryZoomPref.setCarts(context, value)
+            ViewMode.Covers -> if (value == LibraryZoomPref.covers) return false else LibraryZoomPref.setCovers(context, value)
+            ViewMode.List -> if (value == LibraryZoomPref.list.ordinal) return false else LibraryZoomPref.setList(context, ListSize.entries[value])
+        }
+        pill = ZoomPill(mode, value)
+        return true
+    }
     // Selection mode (issue #585): it only ever holds games on screen, so a hidden one is never removed.
     var selection by remember { mutableStateOf(RomSelection()) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -938,6 +964,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val playtimes by produceState(emptyMap<String, Long>(), tableShown, roms, revision) {
         if (tableShown) value = withContext(Dispatchers.IO) { roms.associate { it.key to lib.playtimeSeconds(it) } }
     }
+    // Zoomed, the caption follows the step (none at five columns; the art still names the game to TalkBack).
+    val cartCaption = zoomGrid(zoomColumns, carts = true).captionSp
+    val coverCaption = zoomGrid(zoomColumns, carts = false).captionSp
     // One game in the grid, in view mode m.
     val tile: @Composable (Rom, ViewMode) -> Unit = { rom, m ->
             val romMeta = meta.roms[rom.key]
@@ -950,7 +979,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             val chosen = rom.key in selection
             var lit by remember { mutableStateOf(false) }
             when (m) {
-                ViewMode.Carts -> CappedCell(GridSpec.Carts) {
+                ViewMode.Carts -> CappedCell(GridSpec.Carts.takeUnless { zoom }) {
+                    val caption = if (zoom) cartCaption else 13
                     Column(
                         it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -959,36 +989,40 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                             Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
-                        GameName(
-                            rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = 13.sp),
+                        if (caption != null) GameName(
+                            rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp),
                             textAlign = TextAlign.Center, focused = lit,
                             modifier = Modifier.padding(top = 6.dp).fillMaxWidth(),
                         )
                     }
                 }
-                ViewMode.Covers -> CappedCell(GridSpec.Covers) {
+                ViewMode.Covers -> CappedCell(GridSpec.Covers.takeUnless { zoom }) {
+                    val caption = if (zoom) coverCaption else 12
                     Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
                             BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)))
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
-                        GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen)), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
+                        if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
                     }
                 }
                 ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open)
                 else Row(
                     Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
                         .then(if (chosen) Modifier.background(Oe.AccentSoft, RoundedCornerShape(12.dp)) else Modifier)
-                        .padding(vertical = 8.dp, horizontal = if (selection.active) 8.dp else 0.dp),
+                        .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selection.active) 8.dp else 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (selection.active) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
-                    Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                        BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = 64.dp)
+                    Box(Modifier.size(listSize.artDp.dp), contentAlignment = Alignment.Center) {
+                        BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = listSize.artDp.dp)
                     }
-                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                        GameName(rom.title, style = Type.BodyMedium, focused = lit)
-                        Text(rom.console.displayName, style = Type.Small)
+                    Column(Modifier.weight(1f).padding(start = listSize.textGapDp.dp)) {
+                        val titleStyle = if (listSize == ListSize.ExtraLarge) Type.BodyMedium.copy(fontSize = listSize.titleSp.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp) else Type.BodyMedium
+                        // One line scrolls when it does not fit (issue 869); the large rows wrap to two lines instead.
+                        if (listSize.titleLines == 1) GameName(rom.title, style = titleStyle, focused = lit)
+                        else Text(rom.title, style = titleStyle, maxLines = listSize.titleLines, overflow = TextOverflow.Ellipsis)
+                        Text(rom.console.displayName, style = Type.Small.copy(fontSize = listSize.subtitleSp.sp))
                     }
                     if (romMeta?.favorite == true) Icon(Icons.Star, Oe.Star, 16.dp, filled = true)
                 }
@@ -1000,21 +1034,45 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val perGroup = console == null && mode == ViewMode.Carts && groups.any { it.first?.frame == null }
     // As many columns as the width holds, never fewer than a phone shows.
     val spec = when (shown) { ViewMode.Carts -> GridSpec.Carts; ViewMode.Covers -> GridSpec.Covers; ViewMode.List -> GridSpec.List }
+    // Zoomed, the picked step is the column count, whatever the width (the list keeps its one column).
+    val fixedColumns = zoomColumns.takeIf { zoom && shown != ViewMode.List }
+    val zoomed = fixedColumns?.let { zoomGrid(it, carts = shown == ViewMode.Carts) }
     // Staggered, so each box art keeps its own proportions in the covers mode.
     // Held out here: crossing into or out of the pane moves the grid to another place in the tree, and it keeps its scroll.
     val gridState = rememberLazyStaggeredGridState()
+    // A pinch's step, keeping the game under the fingers where it was: its index and its top, read before the grid reflows.
+    fun pinch(bigger: Boolean, x: Float, y: Float) {
+        val info = gridState.layoutInfo
+        val anchor = anchorItem(info.visibleItemsInfo.map { ZoomSlot(it.index, it.offset.x, it.offset.y + info.beforeContentPadding, it.size.width, it.size.height) }, x, y)
+        val value = if (mode == ViewMode.List) listSize.step(bigger).ordinal else stepColumns(zoomColumns, bigger)
+        if (!setZoom(value)) return
+        zoomMoving = true
+        zoomAnchor = ZoomAnchor(anchor?.index, anchor?.let { it.top - info.beforeContentPadding } ?: 0)
+    }
+    // The scroll back to the anchor waits for the composition that took the step: run straight from the
+    // gesture it would measure the old columns. A newer step cancels this one, glide flag included.
+    LaunchedEffect(zoomAnchor) {
+        val a = zoomAnchor ?: return@LaunchedEffect
+        if (a.index != null) {
+            gridState.scrollToItem(a.index)
+            gridState.scrollBy(-a.offset.toFloat())
+        }
+        delay(ZOOM_MOVE_MS + 50L)
+        zoomMoving = false
+    }
     val grid: @Composable () -> Unit = { MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { LazyVerticalStaggeredGrid(
-        AdaptiveCells(spec),
+        AdaptiveCells(spec, fixedColumns),
         // While selecting, the D-pad stays on the games: not off the side onto the tabs or the rail,
         // nor down onto the tabletop deck.
-        Modifier.fillMaxSize().statusBarsPadding().holdFocusAtEnd(FocusDirection.Down).holdGamepadFocus(selection.active),
+        Modifier.fillMaxSize().statusBarsPadding().holdFocusAtEnd(FocusDirection.Down).holdGamepadFocus(selection.active)
+            .then(if (zoom) Modifier.pinchSteps { bigger, x, y -> pinch(bigger, x, y) } else Modifier),
         state = gridState,
         // A tablet's wider margins line the grid up with the shelf.
         contentPadding = contentSideDp(LocalWindowLayout.current).dp.let { side ->
             androidx.compose.foundation.layout.PaddingValues(start = side, end = side, top = FocusOutset, bottom = TabBarHeight + hintBarInset + 24.dp)
         },
-        horizontalArrangement = Arrangement.spacedBy(spec.gap.dp),
-        verticalItemSpacing = if (shown == ViewMode.List) 0.dp else 18.dp,
+        horizontalArrangement = Arrangement.spacedBy((zoomed?.gapDp ?: spec.gap).dp),
+        verticalItemSpacing = if (shown == ViewMode.List) 0.dp else (zoomed?.rowGapDp ?: 18f).dp,
     ) {
         item(span = StaggeredGridItemSpan.FullLine) {
             // While selecting, the D-pad stays on the games: the bar covers the header's top row.
@@ -1043,6 +1101,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 if (!tabletop) ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
                 Row(Modifier.padding(top = 22.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(if (sort == SortMode.Az) R.string.library_section_carts else R.string.library_section_recent), style = Type.Section.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+                    if (zoom) SizeButton(mode, if (mode == ViewMode.List) listSize.ordinal else zoomColumns, ::setZoom, Modifier.padding(end = 6.dp))
                     if (!tabletop) ViewToggle(mode) { mode = it }
                 }
                 if (list.isEmpty() && known) {
@@ -1059,16 +1118,20 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             if (perGroup && group != null) {
                 val groupMode = if (group.frame == null) ViewMode.Covers else ViewMode.Carts
                 item(key = "grid-${group.id}", span = StaggeredGridItemSpan.FullLine) {
-                    GroupGrid(groupRoms, if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts) { tile(it, groupMode) }
+                    val groupSpec = if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts
+                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(zoomColumns, carts = groupMode == ViewMode.Carts) else null, zoomColumns) { tile(it, groupMode) }
                 }
             } else {
-                items(groupRoms, key = { it.key }) { rom -> tile(rom, shown) }
+                items(groupRoms, key = { it.key }) { rom ->
+                    // The tiles glide to their new places after a zoom step, and only then: filtering and sorting stay instant.
+                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = if (zoomMoving) tween(ZOOM_MOVE_MS) else null, fadeOutSpec = null)) { tile(rom, shown) }
+                }
             }
         }
     } } }
 
     // The selection bar sits over the games, beside the pane rather than over it.
-    val games: @Composable () -> Unit = { Box(Modifier.fillMaxSize()) { grid(); bar() } }
+    val games: @Composable () -> Unit = { Box(Modifier.fillMaxSize()) { grid(); bar(); ZoomPillView(pill) { pill = null } } }
     if (!pane) {
         games()
         return
@@ -1248,27 +1311,147 @@ private fun SelectionBar(count: Int, allSelected: Boolean, onClose: () -> Unit, 
 
 /** A group's games in as many staggered columns as [spec] fits, filled in turn like the grid's lanes. */
 @Composable
-private fun GroupGrid(roms: List<Rom>, spec: GridSpec, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val columns = gridColumns(maxWidth.value, spec.min, spec.gap, spec.floor)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spec.gap.dp)) {
+private fun GroupGrid(roms: List<Rom>, spec: GridSpec, zoomed: ZoomGrid?, zoomColumns: Int, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val columns = if (zoomed != null) zoomColumns else gridColumns(maxWidth.value, spec.min, spec.gap, spec.floor)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy((zoomed?.gapDp ?: spec.gap).dp)) {
         repeat(columns) { c ->
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy((zoomed?.rowGapDp ?: 18f).dp)) {
                 roms.filterIndexed { i, _ -> i % columns == c }.forEach { tile(it) }
             }
         }
     }
 }
 
-/** The grid's lanes: as many as [spec] fits in the width, sharing it evenly. */
-private data class AdaptiveCells(private val spec: GridSpec) : StaggeredGridCells {
+/** The grid's lanes: [fixed] of them when zoomed, else as many as [spec] fits in the width, sharing it evenly. */
+private data class AdaptiveCells(private val spec: GridSpec, private val fixed: Int? = null) : StaggeredGridCells {
     override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): IntArray =
-        cellSizes(availableSize, spacing, gridColumns(availableSize.toDp().value, spec.min, spacing.toDp().value, spec.floor))
+        cellSizes(availableSize, spacing, fixed ?: gridColumns(availableSize.toDp().value, spec.min, spacing.toDp().value, spec.floor))
 }
 
-/** A card no wider than [spec]'s maximum, centred in a wider cell; [content] gets the capped modifier. */
+/** A card no wider than [spec]'s maximum (as wide as its cell with none), centred in a wider cell; [content] gets the capped modifier. */
 @Composable
-private fun CappedCell(spec: GridSpec, content: @Composable (Modifier) -> Unit) =
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { content(Modifier.widthIn(max = spec.max.dp).fillMaxWidth()) }
+private fun CappedCell(spec: GridSpec?, content: @Composable (Modifier) -> Unit) =
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        content(if (spec == null) Modifier.fillMaxWidth() else Modifier.widthIn(max = spec.max.dp).fillMaxWidth())
+    }
+
+/** The item a zoom step keeps in place ([index] null for none) and its offset from the grid's content top; a new one per step. */
+private class ZoomAnchor(val index: Int?, val offset: Int)
+
+/** How long the tiles take to glide to their places after a zoom step. */
+private const val ZOOM_MOVE_MS = 220
+
+/** The step a zoom just took, named for a moment over the grid; a new one each time, so a repeat restarts the timer. */
+private class ZoomPill(val mode: ViewMode, val value: Int)
+
+/** A step's name: "3 columns" in the grid views, the row size in the list. */
+@Composable
+private fun zoomStepName(mode: ViewMode, value: Int): String = when (mode) {
+    ViewMode.List -> stringResource(listSizeName(ListSize.entries[value]))
+    else -> countString(R.plurals.library_size_columns, value, value)
+}
+
+@StringRes
+private fun listSizeName(size: ListSize): Int = when (size) {
+    ListSize.Compact -> R.string.library_size_compact
+    ListSize.Normal -> R.string.library_size_normal
+    ListSize.Large -> R.string.library_size_large
+    ListSize.ExtraLarge -> R.string.library_size_extra_large
+}
+
+/** The pill naming a pinch's step for about a second, in the middle of the grid. */
+@Composable
+private fun BoxScope.ZoomPillView(pill: ZoomPill?, onDone: () -> Unit) {
+    // The last step stays named while the pill fades out.
+    var shown by remember { mutableStateOf(pill) }
+    if (pill != null) shown = pill
+    LaunchedEffect(pill) { if (pill != null) { delay(1000); onDone() } }
+    AnimatedVisibility(pill != null, Modifier.align(Alignment.Center), enter = fadeIn(), exit = fadeOut()) {
+        shown?.let { p ->
+            Text(
+                zoomStepName(p.mode, p.value), style = Type.BodyMedium.copy(color = Oe.Bg, fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.background(Oe.Text, RoundedCornerShape(50)).padding(horizontal = 18.dp, vertical = 10.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+    }
+}
+
+/**
+ * Two fingers spreading or closing take the grid one step per pinch (issue 868): [onStep] gets whether the
+ * items grow and where between the fingers it happened. One finger is never touched, so scrolling, taps
+ * and long presses work as before; once a second finger is down the gesture is the pinch's to its end,
+ * so the grid does not scroll under it and the game under a finger does not open or start a selection.
+ */
+private fun Modifier.pinchSteps(onStep: (bigger: Boolean, x: Float, y: Float) -> Unit): Modifier = composed {
+    val step by rememberUpdatedState(onStep)
+    pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            var pinching = false
+            var pair: Pair<Long, Long>? = null
+            var start = 0f
+            var stepped = false
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val down = event.changes.filter { it.pressed }
+                if (down.isEmpty()) break
+                if (down.size >= 2) {
+                    pinching = true
+                    val (a, b) = down
+                    val spread = (a.position - b.position).getDistance()
+                    // A different pair of fingers starts its own measure.
+                    if (pair != a.id.value to b.id.value) { pair = a.id.value to b.id.value; start = spread }
+                    if (!stepped && start > 0f) pinchStep(spread / start)?.let { bigger ->
+                        stepped = true
+                        val mid = (a.position + b.position) / 2f
+                        step(bigger, mid.x, mid.y)
+                    }
+                }
+                if (pinching) event.changes.forEach { it.consume() }
+            }
+        }
+    }
+}
+
+/** The view's Size button and its menu: the pinch's steps for whoever cannot pinch, and for the pad. */
+@Composable
+private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    val label = stringResource(R.string.library_size)
+    Box(modifier) {
+        Box(
+            Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
+                .background(if (open) Oe.Raised else Oe.Surface)
+                .semantics { contentDescription = label }
+                .clickable(role = Role.Button) { open = true },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Size, if (open) Oe.Text else Oe.Muted, 18.dp) }
+        val opener = LocalPadScope.current
+        // Not keyed on [open]: a new scope while the menu animates out would land focus in the closing popup.
+        val menuScope = remember { PadScope() }
+        val steps = if (mode == ViewMode.List) ListSize.entries.map { it.ordinal } else (ZOOM_MIN_COLUMNS..ZOOM_MAX_COLUMNS).toList()
+        CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
+            open, { open = false }, Modifier.padPopup(menuScope, opener) { open = false }, containerColor = Oe.Surface2,
+        ) {
+            Text(label.uppercase(), style = Type.SectionCaps, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp).semantics { heading() })
+            steps.forEach { value ->
+                val on = value == current
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(zoomStepName(mode, value), style = Type.Body.copy(color = if (on) Oe.AccentOnSoft else Oe.Text)) },
+                    trailingIcon = { if (on) Icon(Icons.Check, Oe.AccentOnSoft, 18.dp) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
+                        .semantics { selected = on },
+                    onClick = { open = false; onPick(value) },
+                )
+            }
+        } }
+    }
+}
+
+/** The Size button: as tall as the view toggle beside it, a little larger in the gamepad layout. */
+private val SizeButtonSize = DpSize(38.dp, 38.dp)
+private val SizeButtonSizePad = DpSize(46.dp, 46.dp)
 
 /** A console's header over its games on a mixed page. */
 @Composable

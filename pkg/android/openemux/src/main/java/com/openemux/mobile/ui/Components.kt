@@ -112,6 +112,8 @@ object Icons {
     const val Sort = "M4 7h16M7 12h10M10 17h4"
     const val Cart = "M4 5h16v11l-2 3H6l-2-3zM8 8h8v5H8z"
     const val Grid = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"
+    /** The library's Size button: a small square and a large one. */
+    const val Size = "M3 14h7v7H3zM12 3h9v9h-9z"
     const val List = "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"
     const val Clock = "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M12 8v4l3 2"
     const val Download = "M12 4v11M7 10l5 5 5-5M5 20h14"
