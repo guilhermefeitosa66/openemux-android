@@ -15,6 +15,8 @@ import com.openemux.mobile.data.SkinScreenPage
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.coreBind
 import com.openemux.mobile.data.forCore
+import com.openemux.mobile.data.isCombo
+import com.openemux.mobile.data.SkinCombos
 import com.openemux.mobile.data.skin
 import com.openemux.mobile.ui.Fold
 
@@ -143,6 +145,7 @@ fun planPage(
                 when {
                     action != null -> action(action)
                     e.bind == SkinFormat.KEYPAD_TOGGLE -> ElementPlan.Toggle(i, box, toggle)
+                    e.isCombo -> ElementPlan.Button(i, box, OpenEmuxBinds.combo(console, e.bind, coreId))
                     else -> ElementPlan.Button(i, box, OpenEmuxBinds.button(console, e.bind, coreId))
                 }
             }
@@ -290,6 +293,13 @@ object OpenEmuxBinds {
      */
     fun button(console: Console, name: String, coreId: String? = null): String? =
         SkinBinds.bind(console, name, hardcore = false)?.let { coreBind(coreId, it) }
+
+    /**
+     * A combo button's inputs ([bind], joined with `|`, issue 842) as one overlay bind pressing them all (the engine
+     * splits it on `|`): each as [button] maps it, those nothing maps left out; null when none is left.
+     */
+    fun combo(console: Console, bind: String, coreId: String? = null): String? =
+        SkinCombos.buttons(bind).mapNotNull { button(console, it, coreId) }.distinct().takeIf { it.isNotEmpty() }?.joinToString("|")
 
     /**
      * A keypad key, as the drawn skins' keypad (Console.skin's, as [coreId] reads it) presses it: a digit is the

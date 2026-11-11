@@ -11,9 +11,17 @@ data class OpenEmuxSkin(
     val name: String,
     val layouts: Map<SkinLayoutId, SkinLayout>,
     val format: Int = SkinFormat.VERSION,
+    /**
+     * The ids of the combos skin.json has that this app left out on reading (issue 842: a newer app's, it cannot press):
+     * the editor keeps them in the file and gives its own combos other ids.
+     */
+    val leftOutCombos: Set<String> = emptySet(),
 ) {
     /** The device forms the skin has at least one layout for, in [SkinForm] order. */
     val forms: List<SkinForm> get() = SkinForm.entries.filter { form -> layouts.keys.any { it.form == form } }
+
+    /** The combo buttons the player made (issue 842), each once, as its layouts place them. */
+    val combos: List<SkinCombo> get() = SkinCombos.of(layouts.values)
 }
 
 /** The kinds of device a skin can be made for: each has an upright and a sideways layout. */

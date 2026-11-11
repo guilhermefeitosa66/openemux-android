@@ -142,6 +142,7 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
 | `console` | string | yes | The app's console id: `FC`, `SFC`, `N64`, `GC`, `GB`, `GBC`, `GBA`, `NDS`, `MD`, `SMS`, `PS`, `PSP`, … (`Console.id` in `data/Console.kt`). |
 | `name` | string | yes | The skin's name as the skin list shows it. Not empty. |
 | `forms` | array of strings | no | `phone`, `tablet`, `fold`. Informative only (for people and tools reading the file): the app derives the forms from `layouts` and writes the derived list back. |
+| `combos` | array | no | The combo buttons the player made in the editor (below): each one's `id` and the inputs it presses. |
 | `layouts` | object | yes | Layout id → layout (below). At least one entry; keys must be the six layout ids above. |
 
 ### Layout
@@ -155,6 +156,7 @@ UTF-8 JSON, one object, at most 1 MiB. Keys the app does not know are ignored (a
 | `elements` | array | no | The controls (below). Empty or left out: a layout with only the picture. |
 | `keypad` | object | no | The layout's keypad page (below). |
 | `screenLayouts` | object | no | NDS only: the layout's screen-layout pages (below). |
+| `combos` | array | no | Where the skin's combo buttons are on this layout (below). |
 
 The frame's `colors`:
 
@@ -211,6 +213,48 @@ Each page is the layout's `size` with:
 Its images are in the layout's folder of the page's id (`phone-portrait/side/a.png`, `phone-portrait/top/frame.png`).
 Errors in it are reported at `layouts.<id>.screenLayouts.<page>…` (`layouts.phone-portrait.screenLayouts.side.screens`).
 The skin editor edits the default page (its subtitle says "One above the other") and keeps the pages as they are.
+
+### Combo buttons
+
+A combo button (issue 842) is one on-screen button that presses two or three of the console's buttons together: Y+B
+to run and jump, L+R, three punches. The player adds them in the editor of a skin of their own; no bundled skin has
+one. The skin keeps them in two places:
+
+- the root `combos`: one entry per combo, `id` (lowercase letters, digits and single hyphens; unique among the
+  combos) and `buttons`, the input names it presses, in the order its label reads;
+- each layout's `combos`: one entry per combo on that layout, `id` (the root entry's), a rect (`x`, `y`, `width`,
+  `height`) and, optionally, `shape` (default `circle`), `depth`, `rotation`, `labelSize`, `labelOffset` and `colors`
+  (`button`, `relief`, `letter`), as for a button element. Its `id` must not be an element's id on that layout.
+
+```json
+"combos": [{ "id": "combo-1", "buttons": ["y", "b"] }],
+"layouts": {
+  "phone-portrait": {
+    "combos": [{ "id": "combo-1", "x": 540, "y": 1460, "width": 100, "height": 100, "colors": { "button": "#5A606E" } }]
+  }
+}
+```
+
+A combo may press 2 or 3 different buttons among the face buttons, shoulders, triggers, C buttons, Select and Start:
+`a`, `b`, `x`, `y`, `c`, `z`, `l`, `r`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `mode`, `cUp`, `cDown`, `cLeft`,
+`cRight`, `option1`, `option2`. Not the D-pad, the sticks or their clicks, the quick actions, the menu key, the keypad
+or the FDS disk key. Its label is the name the skin gives each of its buttons (an element's `label`), joined with
+"+": "Y+B", "L+R+A", "□+✕"; a button with no label is its input name, capitalised. It is drawn as a button in its
+colours with a light ring round its face, so it never reads as one of the console's own buttons, and pressing it
+presses all its buttons; releasing it releases them.
+
+**Why not an element.** A combo is not an element with a new `type` or a `bind` such as `"y|b"`: either one makes an
+app from before combos refuse the whole skin (`UNKNOWN_TYPE`, `UNKNOWN_BIND`). The `combos` keys are new optional
+keys, which every version ignores when it does not read them, so an older app opens the skin without its combos.
+
+**Left out, not refused.** A combo this app cannot press (an input it does not know or a combo may not press, fewer
+than 2 or more than 3 buttons, one input twice) is left out with its places, so a newer app may allow more without
+older ones refusing its skins. A layout's place for a combo the root does not have is left out too. Anything else
+wrong in a combo (a bad `id`, a duplicate id, a rect outside the layout, a bad colour) refuses the skin like the same
+mistake in an element. The editor keeps a combo it left out in the file when it saves, with its places, and gives
+its own combos other ids.
+
+Combos are on the layout's own page: not on its keypad page, nor on an NDS layout's screen-layout pages.
 
 ### Rect
 

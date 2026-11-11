@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -47,7 +48,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +105,11 @@ import com.openemux.mobile.data.SkinForm
 import com.openemux.mobile.data.SkinForms
 import com.openemux.mobile.data.SkinPanels
 import com.openemux.mobile.data.SkinTry
+import com.openemux.mobile.data.ComboCapture
+import com.openemux.mobile.data.ComboPick
+import com.openemux.mobile.data.ComboPickResult
+import com.openemux.mobile.data.PadCombo
+import com.openemux.mobile.data.SkinCombos
 import com.openemux.mobile.data.TryWord
 import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.EditedSkinSource
@@ -142,6 +151,7 @@ import com.openemux.mobile.launch.PreviewSkinSource
 import com.openemux.mobile.launch.SkinFit
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -169,6 +179,10 @@ private val StageMuted = Color(0xFFA9A7B5)
 private const val NUDGE = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
 private const val SNAP = "M4 9h16M4 15h16M9 4v16M15 4v16"
 private const val MINUS = "M5 12h14"
+
+/** The Combo tool (issue 842): a capsule with a plus; its Buttons tool, the capsule with two buttons. */
+private const val COMBO_ICON = "M7 8h10a4 4 0 0 1 0 8H7a4 4 0 0 1 0-8zM12 10v4M10 12h4"
+private const val COMBO_BUTTONS = "M7 8h10a4 4 0 0 1 0 8H7a4 4 0 0 1 0-8zM8 12h2M14 12h2"
 private const val FRAME_ICON = "M3 5h18v14H3zM7 9h10v6H7z"
 
 /** The longest side a texture is drawn at for the stage while it is being framed (issue 786). */
@@ -385,6 +399,8 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
     var recent by remember { mutableStateOf(SkinPalettes.recentFrom(prefs.getString(PREF_RECENT, null))) }
     var layoutsOpen by remember { mutableStateOf(false) }
     var dropping by remember { mutableStateOf<SkinForm?>(null) }
+    // The combo capture panel while it is open (issue 842).
+    var combo by remember { mutableStateOf<ComboSession?>(null) }
     val drafts = remember { Mutex() }
     val form = currentSkinForm()
     val held = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) SkinOrientation.LANDSCAPE else SkinOrientation.PORTRAIT
@@ -728,10 +744,68 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
         }
     }
 
+    // ---- Combo buttons (issue 842). ----
+
+    /** The capture took [buttons]: a new combo in every layout, or the one being recorded again presses them now. */
+    fun finishCombo(s: ComboSession, buttons: Collection<String>) {
+        val mm = model ?: return
+        combo = null
+        if (s.record == null) {
+            mm.addCombo(buttons)?.let { c ->
+                val label = mm.layout?.elements?.firstOrNull { it.id == c.id }?.label.orEmpty()
+                Toast.makeText(context, context.getString(R.string.editor_combo_added, label), Toast.LENGTH_LONG).show()
+            }
+        } else {
+            mm.recordCombo(s.record, buttons)
+        }
+        tool = Tool.NONE
+        changed(commit = true)
+    }
+
+    /** A controller button while the capture panel is open: held and let go (or tapped, when picking) as that input. */
+    fun padKey(s: ComboSession, e: android.view.KeyEvent): Boolean {
+        // Picking is done on the skin; a key that is no input of this layout: both work the panel (focus, A, B) as ever.
+        if (s.picking != null || !PadCombo.reads(e.keyCode)) return false
+        val inputs = model?.comboInputs()?.map { it.bind }.orEmpty()
+        val input = PadCombo.input(console, e.keyCode, inputs) ?: return false
+        if (e.repeatCount > 0) return true
+        val down = e.action == android.view.KeyEvent.ACTION_DOWN
+        s.pad = if (down) s.pad + input else s.pad - input
+        s.update(SystemClock.uptimeMillis())
+        return true
+    }
+
+    // The hold fills its ring frame by frame; once it took the buttons, the full ring shows a moment, then the combo is made.
+    LaunchedEffect(combo) {
+        val s = combo ?: return@LaunchedEffect
+        while (true) {
+            // Frame by frame only while two or three buttons are held: otherwise there is no ring to fill.
+            if (s.picking != null || s.held.size !in SkinCombos.MIN..SkinCombos.MAX) {
+                s.progress = 0f
+                delay(COMBO_IDLE_MS)
+                continue
+            }
+            withFrameMillis { }
+            s.progress = s.capture.progress(SystemClock.uptimeMillis())
+            val done = s.capture.done ?: continue
+            delay(COMBO_DONE_MS)
+            if (combo === s) finishCombo(s, done)
+            break
+        }
+    }
+    // The controller's buttons go to the capture while it is open, not to focus and the screen's buttons.
+    DisposableEffect(combo) {
+        val s = combo
+        val handler: ((android.view.KeyEvent) -> Boolean)? = s?.let { { e -> padKey(it, e) } }
+        if (handler != null) PadCapture.listener = handler
+        onDispose { if (handler != null && PadCapture.listener === handler) PadCapture.listener = null }
+    }
+
     BackHandler {
         val m = model
         val p = panel
         when {
+            combo != null -> combo = null
             p?.palettes == true -> panel = p.copy(palettes = false)
             p != null -> closePanel()
             layoutsOpen -> layoutsOpen = false
@@ -762,11 +836,13 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
         // A picture being framed goes in first, or Save would leave it out.
         start = { commitTexture { if (model?.dirty == true) save(andClose = false) } },
         // The Layouts panel covers the stage: the stage's buttons rest while it is open, as the D-pad nudge does.
-        enabled = !leaving && !naming && dropping == null && !layoutsOpen,
+        enabled = !leaving && !naming && dropping == null && !layoutsOpen && combo == null,
     )
 
     Box(
         Modifier.fillMaxSize().onPreviewKeyEvent { e ->
+            // The combo capture reads the controller's buttons (where no pad router took them first).
+            combo?.let { s -> return@onPreviewKeyEvent padKey(s, e.nativeKeyEvent) }
             // With a control selected, the D-pad nudges it; with none (or a panel open), it moves the focus.
             if (panel != null) return@onPreviewKeyEvent false
             val sel = model?.selection?.takeIf { !layoutsOpen } ?: return@onPreviewKeyEvent false
@@ -795,7 +871,7 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
                 onOther = { turned = other },
             ) { leave() }
             else -> Stage(
-                m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy,
+                m, layout, art?.takeIf { it.layout == m.layoutId }, tool, resizing, busy, combo,
                 panel = panel?.let { p -> paintView(context, m, layout, p, panelTarget(), painted(p), palette, recent, texture, overrides, textureTargets(p).firstOrNull()?.first) }?.let { v ->
                     v to PaintActions(
                         onTab = { tab -> commitTexture { panel = panel?.copy(tab = tab); tick++ } },
@@ -843,6 +919,15 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
                 onSave = { save(andClose = false) },
                 onRotate = { turned = other; tool = Tool.NONE },
                 onLayouts = { tool = Tool.NONE; layoutsOpen = true },
+                onCombo = { record ->
+                    tool = Tool.NONE
+                    if (record == null) m.clearSelection()
+                    combo = ComboSession(record)
+                    changed()
+                },
+                onComboCancel = { combo = null; changed() },
+                onComboPicked = { s -> finishCombo(s, s.picked) },
+                onDeleteCombo = { id -> m.deleteCombo(id); tool = Tool.NONE; changed(commit = true) },
             )
         }
         if (m != null && layout != null && layoutsOpen) {
@@ -902,12 +987,13 @@ private fun NoLayout(name: String, layout: String, other: String?, onOther: () -
 /** The stage: the layout fitted to the window, the grid, the controls, the guides, the selection and the bars. */
 @Composable
 private fun Stage(
-    m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Offset?, busy: Boolean,
+    m: SkinEditorModel, layout: SkinLayout, art: EditorArt?, tool: Tool, resizing: Offset?, busy: Boolean, combo: ComboSession?,
     panel: Pair<PaintView, PaintActions>?,
     paintable: Boolean, onColour: () -> Unit, onTexture: () -> Unit, onBackground: () -> Unit, onFrame: (() -> Unit)?,
     title: String, subtitle: String,
     onChange: (Boolean) -> Unit, onResizing: (Offset?) -> Unit, onTool: (Tool) -> Unit, onSnapped: () -> Unit,
     onClose: () -> Unit, onSave: () -> Unit, onRotate: () -> Unit, onLayouts: () -> Unit,
+    onCombo: (String?) -> Unit, onComboCancel: () -> Unit, onComboPicked: (ComboSession) -> Unit, onDeleteCombo: (String) -> Unit,
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -917,10 +1003,12 @@ private fun Stage(
         val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
         val px = { dp: Float -> with(density) { dp.dp.toPx() } }
         val latest = rememberUpdatedState(m)
+        val capturing = rememberUpdatedState(combo)
         // The selection's box: controls with their labels, one label, the screen area (issue 785), the frame or the
         // body. The frame and the body are painted, never moved: outlined on their own edge, with no handle.
         val selBox = m.box()
         val fixed = m.selection?.movable == false
+        val comboInputs = m.comboInputs().map { it.bind }.toSet()
         val selRect = selBox?.let { b ->
             val out = when (m.selection) {
                 SkinSelection.Body -> -px(3f)
@@ -937,6 +1025,34 @@ private fun Stage(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     // Read after the touch: a Save between two gestures puts a new model in place.
                     val model = latest.value
+                    capturing.value?.let { s ->
+                        // The combo capture: the buttons under the fingers are held (or, picking, the one tapped is
+                        // toggled); nothing is selected or moved.
+                        fun under(p: Offset): SkinElement? = model.hit((p.x - fit.ox) / fit.s, (p.y - fit.oy) / fit.s, px(10f) / fit.s)
+                            ?.takeIf { !SkinArea.isArea(it) }?.let { id -> model.layout?.elements?.firstOrNull { it.id == id } }
+                        val inputs = model.comboInputs().map { it.bind }.toSet()
+                        fun eligible(e: SkinElement) = e.type == SkinElementType.BUTTON && e.bind in inputs
+                        if (s.picking != null) {
+                            under(down.position)?.let { e -> s.tap(e.bind, eligible(e)); onSnapped() }
+                        }
+                        var event: androidx.compose.ui.input.pointer.PointerEvent? = null
+                        while (true) {
+                            if (s.picking == null) {
+                                val held = (event?.changes?.filter { it.pressed }?.map { it.position } ?: listOf(down.position))
+                                    .mapNotNull(::under).filter(::eligible).map { it.bind }.toSet()
+                                if (held != s.touch) { s.touch = held; s.update(SystemClock.uptimeMillis()) }
+                            }
+                            event = awaitPointerEvent()
+                            event.changes.forEach { it.consume() }
+                            if (event.changes.none { it.pressed }) break
+                        }
+                        // Picking keeps what its tap said ("up to 3 buttons"); holding starts over with no finger down.
+                        if (s.picking == null) {
+                            s.touch = emptySet()
+                            s.update(SystemClock.uptimeMillis())
+                        }
+                        return@awaitEachGesture
+                    }
                     if (model.trying) {
                         // Try mode: the control under the finger is lit while held, and nothing moves.
                         model.hit((down.position.x - fit.ox) / fit.s, (down.position.y - fit.oy) / fit.s, px(10f) / fit.s)
@@ -1060,6 +1176,15 @@ private fun Stage(
                 } else {
                     drawRoundRect(Color(0xFF3A3448), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(10f)))
                 }
+                if (combo != null) {
+                    // The capture: what a combo cannot press dims, the buttons held or picked light up.
+                    if (e.type != SkinElementType.BUTTON || e.bind !in comboInputs) {
+                        drawRoundRect(StageBg.copy(alpha = 0.7f), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(10f)))
+                    } else if (e.bind in combo.lit) {
+                        drawRoundRect(Oe.Accent.copy(alpha = 0.35f), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(12f)))
+                        drawRoundRect(Guide, Offset(b.x - px(4f), b.y - px(4f)), Size(b.w + px(8f), b.h + px(8f)), CornerRadius(px(14f)), style = Stroke(px(3f)))
+                    }
+                }
                 if (e.id == m.pressed) {
                     drawRoundRect(Oe.Accent.copy(alpha = 0.35f), Offset(b.x, b.y), Size(b.w, b.h), CornerRadius(px(12f)))
                     drawRoundRect(Guide, Offset(b.x - px(4f), b.y - px(4f)), Size(b.w + px(8f), b.h + px(8f)), CornerRadius(px(14f)), style = Stroke(px(3f)))
@@ -1173,6 +1298,13 @@ private fun Stage(
             }
             return@BoxWithConstraints
         }
+        if (combo != null) {
+            ComboPanel(
+                combo, layout, Modifier.offset { IntOffset(barX.roundToInt(), topY.roundToInt()) }.width(barWidth),
+                onCancel = onComboCancel, onPick = { combo.picking = ComboPick(); combo.message = null }, onAdd = { onComboPicked(combo) },
+            )
+            return@BoxWithConstraints
+        }
         if (m.trying) {
             TryOverlay(m, layout, names, Modifier.offset { IntOffset(barX.roundToInt(), topY.roundToInt()) }.width(barWidth)) {
                 m.tryMode(false); onChange(false)
@@ -1219,17 +1351,21 @@ private fun Stage(
                     m.snap, Modifier, onSnap = { m.snap = it; onChange(false) }, onResetLayout = { m.resetLayout(); onChange(true) },
                     onTry = { m.tryMode(true); onTool(Tool.NONE); onChange(false) },
                     onBackground = onBackground, onFrame = onFrame,
+                    // A combo presses two buttons or more: a layout with fewer has none to offer.
+                    onCombo = { onCombo(null) }.takeIf { comboInputs.size >= SkinCombos.MIN },
                 )
             }
             tool == Tool.SIZE && !fixed -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
             tool == Tool.NUDGE && !fixed -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
             else -> ActionsBar(
                 m.percent() ?: 100, bottom.width(barWidth), paintable = paintable,
-                // A picture fills a control or the body; the frame and a label take colours only.
-                texturable = m.selection != SkinSelection.Frame && m.selection !is SkinSelection.Label,
+                // A picture fills a control or the body; the frame and a label take colours only, a combo too.
+                texturable = m.selection != SkinSelection.Frame && m.selection !is SkinSelection.Label && m.selectedCombo == null,
                 movable = !fixed,
                 onColour = onColour, onTexture = onTexture,
                 onSize = { onTool(Tool.SIZE) }, onNudge = { onTool(Tool.NUDGE) }, onReset = { m.reset(); onChange(true) },
+                // A combo (issue 842) records its buttons again and is deleted where another control is put back.
+                combo = m.selectedCombo?.let { c -> ComboTools(onButtons = { onCombo(c.id) }, onDelete = { onDeleteCombo(c.id) }) },
             )
         }
     }
@@ -1307,7 +1443,7 @@ private fun Toolbar(
 @Composable
 private fun SnapBar(
     snap: Boolean, modifier: Modifier, onSnap: (Boolean) -> Unit, onResetLayout: () -> Unit, onTry: () -> Unit,
-    onBackground: () -> Unit, onFrame: (() -> Unit)?,
+    onBackground: () -> Unit, onFrame: (() -> Unit)?, onCombo: (() -> Unit)? = null,
 ) {
     var more by remember { mutableStateOf(false) }
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1326,6 +1462,15 @@ private fun SnapBar(
         ) {
             Icon(Icons.Play, Lilac, 16.dp, filled = true)
             Text(stringResource(R.string.editor_try), style = Type.Body.copy(color = BarText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        }
+        onCombo?.let { open ->
+            Row(
+                Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = open).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(COMBO_ICON, Lilac, 18.dp)
+                Text(stringResource(R.string.editor_combo), style = Type.Body.copy(color = BarText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+            }
         }
         Box {
             BarIcon(Icons.Dots, stringResource(R.string.editor_more), filled = true) { more = true }
@@ -1372,9 +1517,10 @@ private fun ToolButton(label: String, modifier: Modifier, onClick: () -> Unit, t
 @Composable
 private fun ActionsBar(
     percent: Int, modifier: Modifier, paintable: Boolean, texturable: Boolean, movable: Boolean, onColour: () -> Unit, onTexture: () -> Unit,
-    onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit,
+    onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit, combo: ComboTools? = null,
 ) {
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically) {
+        combo?.let { ToolButton(stringResource(R.string.editor_combo_buttons), Modifier.weight(1f), it.onButtons) { Icon(COMBO_BUTTONS, BarText, 22.dp) } }
         if (paintable) {
             ToolButton(stringResource(R.string.editor_colour), Modifier.weight(1f), onColour) {
                 Canvas(Modifier.size(22.dp)) {
@@ -1388,8 +1534,127 @@ private fun ActionsBar(
                 Text(stringResource(R.string.editor_percent, percent), style = Type.Body.copy(color = Lilac, fontSize = 15.sp, fontWeight = FontWeight.Bold))
             }
             ToolButton(stringResource(R.string.editor_nudge), Modifier.weight(1f), onNudge) { Icon(NUDGE, BarText, 22.dp) }
-            ToolButton(stringResource(R.string.editor_reset), Modifier.weight(1f), onReset) { Icon(Icons.Reset, BarText, 22.dp) }
+            if (combo == null) ToolButton(stringResource(R.string.editor_reset), Modifier.weight(1f), onReset) { Icon(Icons.Reset, BarText, 22.dp) }
         }
+        combo?.let { ToolButton(stringResource(R.string.editor_combo_delete), Modifier.weight(1f), it.onDelete) { Icon(Icons.Trash, DeleteRed, 22.dp) } }
+    }
+}
+
+/** A combo's own tools in the actions bar (issue 842): record its buttons again, delete it. */
+private class ComboTools(val onButtons: () -> Unit, val onDelete: () -> Unit)
+
+private val DeleteRed = Color(0xFFFF8A8A)
+
+/** How long the full ring shows before the combo is made (ms). */
+private const val COMBO_DONE_MS = 300L
+
+/** How often the capture looks again while no combo is held (ms). */
+private const val COMBO_IDLE_MS = 50L
+
+/**
+ * The combo capture panel while it is open (issue 842): a new combo, or combo [record]'s buttons recorded again. The
+ * buttons held on the stage ([touch]) and on a controller ([pad]) feed [capture]; "Pick by tapping" ([picking]) takes
+ * them one tap at a time instead.
+ */
+private class ComboSession(val record: String?) {
+    val capture = ComboCapture()
+    var picking by mutableStateOf<ComboPick?>(null)
+    var touch by mutableStateOf<Set<String>>(emptySet())
+    var pad by mutableStateOf<Set<String>>(emptySet())
+    var progress by mutableFloatStateOf(0f)
+    var picked by mutableStateOf<List<String>>(emptyList())
+
+    /** A string resource saying what went wrong, or null. */
+    var message by mutableStateOf<Int?>(null)
+
+    val held: Set<String> get() = touch + pad
+
+    /** The buttons lit on the stage: those held, or those picked. */
+    val lit: Set<String> get() = if (picking != null) picked.toSet() else held
+
+    /** The buttons held changed at [now]. */
+    fun update(now: Long) {
+        capture.press(held, now)
+        message = if (capture.tooMany) R.string.editor_combo_too_many else null
+    }
+
+    /** "Pick by tapping": a tap on a control bound to [bind]. */
+    fun tap(bind: String, eligible: Boolean) {
+        val pick = picking ?: return
+        message = when (pick.tap(bind, eligible)) {
+            ComboPickResult.TOO_MANY -> R.string.editor_combo_too_many
+            ComboPickResult.NOT_A_BUTTON -> R.string.editor_combo_not_button
+            ComboPickResult.ADDED, ComboPickResult.REMOVED -> null
+        }
+        picked = pick.picked
+    }
+}
+
+/**
+ * The capture panel (issue 842, design "Editor · Capture"): its title, the ring the hold fills, the buttons held or
+ * picked, what to do next, and Cancel with "Pick by tapping" (or, picking, Add).
+ */
+@Composable
+private fun ComboPanel(s: ComboSession, layout: SkinLayout, modifier: Modifier, onCancel: () -> Unit, onPick: () -> Unit, onAdd: () -> Unit) {
+    val buttons = SkinCombos.ordered(s.lit, layout)
+    Column(
+        modifier.bar().padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            stringResource(if (s.record == null) R.string.editor_combo_new else R.string.editor_combo_record),
+            style = Type.Body.copy(color = StageText, fontSize = 16.sp, fontWeight = FontWeight.Bold),
+        )
+        if (s.picking == null) {
+            val progress = s.progress
+            Canvas(Modifier.size(48.dp)) {
+                val ring = 5.dp.toPx()
+                val inset = ring / 2f
+                val arc = Size(size.width - ring, size.height - ring)
+                drawArc(Field, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(ring))
+                if (progress > 0f) drawArc(Guide, -90f, 360f * progress, false, Offset(inset, inset), arc, style = Stroke(ring, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+        }
+        Row(Modifier.heightIn(min = 34.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            buttons.forEachIndexed { i, b ->
+                if (i > 0) Text("+", style = Type.Body.copy(color = StageMuted, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+                Box(
+                    Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(Oe.Accent.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(SkinCombos.label(listOf(b), listOf(layout)), style = Type.Body.copy(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                }
+            }
+        }
+        val status = s.message ?: when {
+            s.picking != null -> R.string.editor_combo_pick_hint
+            s.held.size in SkinCombos.MIN..SkinCombos.MAX -> R.string.editor_combo_keep
+            else -> R.string.editor_combo_hold
+        }
+        Text(
+            stringResource(status), textAlign = TextAlign.Center,
+            style = Type.Body.copy(color = if (s.message != null) DeleteRed else StageText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+        )
+        Text(stringResource(R.string.editor_combo_max), style = Type.Small.copy(color = StageMuted, fontSize = 12.sp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PanelButton(stringResource(R.string.detail_cancel), enabled = true, strong = false, onClick = onCancel)
+            if (s.picking == null) {
+                PanelButton(stringResource(R.string.editor_combo_pick), enabled = true, strong = false, onClick = onPick)
+            } else {
+                PanelButton(stringResource(R.string.editor_combo_add), enabled = s.picked.size >= SkinCombos.MIN, strong = true, onClick = onAdd)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PanelButton(text: String, enabled: Boolean, strong: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
+            .background(if (strong && enabled) Oe.Accent else Field).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = Type.Body.copy(color = if (enabled) Color.White else BarOff, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
     }
 }
 
@@ -1531,7 +1796,10 @@ private fun TryOverlay(m: SkinEditorModel, layout: SkinLayout, names: Map<String
         }
         val shown = (m.pressed ?: m.recent.lastOrNull())?.let { id -> layout.elements.firstOrNull { it.id == id } }
         if (shown != null) {
-            val words = bindText(SkinTry.words(shown.bind), { context.getString(it) }) { res, arg -> context.getString(res, arg) }
+            // A combo (issue 842) sends each of its buttons.
+            val words = SkinCombos.buttons(shown.bind).joinToString(" + ") { b ->
+                bindText(SkinTry.words(b), { context.getString(it) }) { res, arg -> context.getString(res, arg) }
+            }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.editor_try_pressed), style = Type.Small.copy(color = StageMuted, fontSize = 12.sp))
                 Text(names[shown.id].orEmpty(), style = Type.Title.copy(color = Color.White, fontSize = 40.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold), maxLines = 1)
