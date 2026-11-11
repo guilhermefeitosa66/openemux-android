@@ -4,7 +4,7 @@ import java.io.File
 
 /** The numbered slots the in-game menu saves to, each ROM's current one (issue 857), and removing a saved state (issue 828). */
 object SaveSlots {
-    /** What the arrows cover. [SCRATCH_SLOT] is out of it; a state already past the end stays listed and loadable. */
+    /** The slots a player can make current. [SCRATCH_SLOT] is out of it; a state already past the end stays listed and loadable. */
     val RANGE = 0..99
 
     /** The current slot of a ROM that never had one (issue 857). */
@@ -36,12 +36,6 @@ object SaveSlots {
         }.getOrDefault(false)
         if (!kept) tmp.delete()
         return kept
-    }
-
-    /** [slot] moved by [delta], wrapping at both ends of [RANGE]. */
-    fun step(slot: Int, delta: Int): Int {
-        val size = RANGE.last - RANGE.first + 1
-        return Math.floorMod(slot - RANGE.first + delta, size) + RANGE.first
     }
 
     /** Removes the state in [state] and its picture; whether the state is gone. A state that stays keeps its picture. */

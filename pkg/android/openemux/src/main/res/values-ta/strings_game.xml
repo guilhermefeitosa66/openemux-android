@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">இந்த நிலை வேறொரு கோருக்குரியது</string>
     <string name="game_toast_restart_failed">விளையாட்டை மீண்டும் தொடங்க முடியவில்லை</string>
     <string name="game_toast_state_saved_other_core">இந்த நிலை வேறொரு கோருடன் சேமிக்கப்பட்டது</string>
-    <string name="game_save_state">நிலையைச் சேமி</string>
     <string name="game_load">ஏற்று</string>
     <string name="game_fast_forward">வேகமாக்கல்</string>
     <string name="game_slow_motion">மெதுவாக்கல்</string>
@@ -57,8 +56,8 @@
     <string name="game_state_slot">ஸ்லாட் %1$d</string>
     <string name="game_slot_empty">ஸ்லாட் %1$d · காலி</string>
     <string name="game_slot_used">ஸ்லாட் %1$d · பயன்பாட்டில்</string>
-    <string name="game_previous_slot">முந்தைய ஸ்லாட்</string>
-    <string name="game_next_slot">அடுத்த ஸ்லாட்</string>
+    <string name="game_see_all">அனைத்தும் பார்</string>
+    <string name="game_slot_slider">சேமிப்பு ஸ்லாட்</string>
     <string name="game_state_options">%1$s விருப்பங்கள்</string>
     <string name="game_state_delete">நீக்கு</string>
     <string name="game_state_delete_title">இந்த நிலையை நீக்கவா?</string>

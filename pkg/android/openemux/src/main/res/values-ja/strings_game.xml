@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">このステートは別のコアのものです</string>
     <string name="game_toast_restart_failed">ゲームをリセットできませんでした</string>
     <string name="game_toast_state_saved_other_core">このステートは別のコアで保存されました</string>
-    <string name="game_save_state">ステートセーブ</string>
     <string name="game_load">ロード</string>
     <string name="game_fast_forward">早送り</string>
     <string name="game_slow_motion">スローモーション</string>
@@ -56,8 +55,8 @@
     <string name="game_state_slot">スロット %1$d</string>
     <string name="game_slot_empty">スロット %1$d · 空き</string>
     <string name="game_slot_used">スロット %1$d · 使用中</string>
-    <string name="game_previous_slot">前のスロット</string>
-    <string name="game_next_slot">次のスロット</string>
+    <string name="game_see_all">すべて表示</string>
+    <string name="game_slot_slider">セーブスロット</string>
     <string name="game_state_options">%1$s のオプション</string>
     <string name="game_state_delete">削除</string>
     <string name="game_state_delete_title">このステートを削除しますか?</string>

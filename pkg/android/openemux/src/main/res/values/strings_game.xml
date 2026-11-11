@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">This state is from another core</string>
     <string name="game_toast_restart_failed">Could not restart the game</string>
     <string name="game_toast_state_saved_other_core">This state was saved with another core</string>
-    <string name="game_save_state">Save state</string>
     <string name="game_load">Load</string>
     <string name="game_fast_forward">Fast forward</string>
     <string name="game_slow_motion">Slow motion</string>
@@ -57,8 +56,8 @@
     <string name="game_state_slot">SLOT %1$d</string>
     <string name="game_slot_empty">Slot %1$d · Empty</string>
     <string name="game_slot_used">Slot %1$d · In use</string>
-    <string name="game_previous_slot">Previous slot</string>
-    <string name="game_next_slot">Next slot</string>
+    <string name="game_see_all">See all</string>
+    <string name="game_slot_slider">Save slot</string>
     <string name="game_state_options">Options for %1$s</string>
     <string name="game_state_delete">Delete</string>
     <string name="game_state_delete_title">Delete this save state?</string>

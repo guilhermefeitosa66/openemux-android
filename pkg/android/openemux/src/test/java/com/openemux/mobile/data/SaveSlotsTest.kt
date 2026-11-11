@@ -70,16 +70,6 @@ class SaveSlotsTest {
         assertFalse(SaveSlots.currentFile(folder.root, "game").name.startsWith("game.state"))
     }
 
-    @Test fun theArrowsMoveOneSlot() {
-        assertEquals(5, SaveSlots.step(4, 1))
-        assertEquals(3, SaveSlots.step(4, -1))
-    }
-
-    @Test fun theArrowsWrapAtBothEnds() {
-        assertEquals(0, SaveSlots.step(99, 1))
-        assertEquals(99, SaveSlots.step(0, -1))
-    }
-
     @Test fun deletingRemovesTheStateAndItsPicture() {
         val state = folder.newFile("game.state3")
         val picture = folder.newFile("game.state3.png")

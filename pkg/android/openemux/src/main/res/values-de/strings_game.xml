@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">Dieser Spielstand ist von einem anderen Kern</string>
     <string name="game_toast_restart_failed">Spiel konnte nicht neu gestartet werden</string>
     <string name="game_toast_state_saved_other_core">Dieser Spielstand wurde mit einem anderen Kern gespeichert</string>
-    <string name="game_save_state">Spielstand speichern</string>
     <string name="game_load">Laden</string>
     <string name="game_fast_forward">Vorspulen</string>
     <string name="game_slow_motion">Zeitlupe</string>
@@ -57,8 +56,8 @@
     <string name="game_state_slot">PLATZ %1$d</string>
     <string name="game_slot_empty">Platz %1$d · Leer</string>
     <string name="game_slot_used">Platz %1$d · Belegt</string>
-    <string name="game_previous_slot">Vorheriger Platz</string>
-    <string name="game_next_slot">Nächster Platz</string>
+    <string name="game_see_all">Alle anzeigen</string>
+    <string name="game_slot_slider">Speicherplatz</string>
     <string name="game_state_options">Optionen für %1$s</string>
     <string name="game_state_delete">Löschen</string>
     <string name="game_state_delete_title">Diesen Spielstand löschen?</string>

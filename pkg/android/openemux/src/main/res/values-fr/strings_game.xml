@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">Cet état vient d’un autre cœur</string>
     <string name="game_toast_restart_failed">Impossible de redémarrer le jeu</string>
     <string name="game_toast_state_saved_other_core">Cet état a été sauvegardé avec un autre cœur</string>
-    <string name="game_save_state">Sauvegarder l’état</string>
     <string name="game_load">Charger</string>
     <string name="game_fast_forward">Avance rapide</string>
     <string name="game_slow_motion">Ralenti</string>
@@ -58,8 +57,8 @@
     <string name="game_state_slot">EMPL. %1$d</string>
     <string name="game_slot_empty">Emplacement %1$d · Vide</string>
     <string name="game_slot_used">Emplacement %1$d · Utilisé</string>
-    <string name="game_previous_slot">Emplacement précédent</string>
-    <string name="game_next_slot">Emplacement suivant</string>
+    <string name="game_see_all">Tout voir</string>
+    <string name="game_slot_slider">Emplacement de sauvegarde</string>
     <string name="game_state_options">Options de %1$s</string>
     <string name="game_state_delete">Supprimer</string>
     <string name="game_state_delete_title">Supprimer cet état ?</string>
