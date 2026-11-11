@@ -155,6 +155,11 @@ class GameActivity : RetroActivityFuture() {
     private var flatOverlay: String? = null
     private var wantTabletop = false
     private var postureSeq = 0
+    /**
+     * The overlay the app itself last asked the engine for, until the engine shows it (under ndsLayouts' lock): a
+     * switch to it is the app's, never the touch controls key (issue 865), even when the gamepad came back meanwhile.
+     */
+    private var appSelected: String? = null
 
     /** The skin's overlays, in skin.cfg's order: the launcher's, then each redrawn skin's. */
     @Volatile private var skinOverlays: List<String> = emptyList()
@@ -483,11 +488,9 @@ class GameActivity : RetroActivityFuture() {
         }
     }
 
-    private fun padKeysLog() = debugPads?.joinToString(",").orEmpty()
-
     /** The pause sheet's Touch controls tile: kept for the pads detected now, and the skin follows at once. */
     private fun setTouchControls(on: Boolean) {
-        touchStore.set(padKeys, on)
+        runCatching { touchStore.set(padKeys, on) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
         followGamepad()
     }
 
@@ -500,6 +503,7 @@ class GameActivity : RetroActivityFuture() {
         val target = gamepadTarget(current, wantGamepad, skinOverlays) ?: return false
         if (BuildConfig.DEBUG) Log.d(TAG, "gamepad $wantGamepad: $current -> $target")
         val seq = ++postureSeq
+        appSelected = target
         Thread { selectOverlay(target, seq) }.start()
         return true
     }
@@ -518,7 +522,7 @@ class GameActivity : RetroActivityFuture() {
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
                 // "--es pads a,b": which pads, so a new one can be told from the one the touch controls were kept for.
                 debugPads = TouchControls.debugPads(intent.getStringExtra("pads"))
-                Log.i(TAG, "debug gamepad: $gamepadOverride ${padKeysLog()}")
+                Log.i(TAG, "debug gamepad: $gamepadOverride ${debugPads?.joinToString(",").orEmpty()}")
                 followGamepad()
             }
         }
@@ -578,6 +582,7 @@ class GameActivity : RetroActivityFuture() {
         val posture = tabletopTarget(current, wantTabletop, skin.overlays, flatTarget(), ndsLayouts[TABLETOP]) ?: return false
         // In the layout the gamepad asks for, which may have changed while the posture did.
         val target = gamepadTarget(posture, wantGamepad, skinOverlays) ?: posture
+        appSelected = target
         Thread { selectOverlay(target, seq) }.start()
         return true
     }
@@ -603,9 +608,11 @@ class GameActivity : RetroActivityFuture() {
         val deadline = System.currentTimeMillis() + 30_000
         while (System.currentTimeMillis() < deadline && synchronized(ndsLayouts) { seq == postureSeq }) {
             val reply = RaCommand.ask("OVERLAY_SELECT $target", 300)
-            if (reply != null && "no overlay is loaded" !in reply) return
+            if (reply != null && "no overlay is loaded" !in reply) break
             Thread.sleep(250)
         }
+        // Answered (the engine reports a switch before it replies; none when it was shown already) or given up.
+        synchronized(ndsLayouts) { if (appSelected == target) appSelected = null }
     }
 
     override fun onResume() {
@@ -792,13 +799,16 @@ class GameActivity : RetroActivityFuture() {
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
         val previous = overlay
         overlay = name
+        val byApp = name == appSelected
+        if (byApp) appSelected = null
         if (TABLETOP !in name) flatOverlay = name
         // The overlay shown is not the one the posture asks for: turned back upright while half open (auto-rotate
         // picked the flat overlay), or a switch that reached the engine after the posture changed again. The overlay
         // switched to sets the core; stepping this one to its saved layout would race the switch.
         if ((TABLETOP in name) != wantTabletop && switchPosture()) return
         // The gamepad layout's touch controls key (issue 865): kept for these pads, and not switched back below.
-        if (TouchControls.tapped(previous, name, wantGamepad)) {
+        // The engine reports no overlay until the first switch: before it, the skin's first one is shown.
+        if (!byApp && TouchControls.tapped(previous ?: skinOverlays.firstOrNull(), name, wantGamepad)) {
             wantGamepad = false
             runCatching { touchStore.set(padKeys, true) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
             runOnUiThread { showTouchControlsToast() }

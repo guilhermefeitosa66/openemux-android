@@ -31,6 +31,4 @@ object Gamepads {
     /** Every input device there is now. */
     fun devices(): List<PadInfo> = InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }
         .map { PadInfo(it.sources, it.isVirtual, it.descriptor.orEmpty(), it.name.orEmpty()) }
-
-    fun connected(): Boolean = anyGamepad(devices())
 }
