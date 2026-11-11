@@ -14,6 +14,9 @@ object TouchControls {
     /** The pads the debug broadcast says are connected, which have no device of their own. */
     const val DEBUG_PAD = "debug"
 
+    /** The pads a debug broadcast's "pads" extra names ("a,b"); null for none, the one [DEBUG_PAD] then. */
+    fun debugPads(extra: String?): Set<String>? = extra?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()?.ifEmpty { null }
+
     /** What each of the [pads] counted as gamepads is remembered by: its descriptor, else its name. */
     fun keys(pads: List<PadInfo>): Set<String> = pads.map { it.descriptor.ifEmpty { it.name } }.filter { it.isNotEmpty() }.toSet()
 

@@ -174,6 +174,8 @@ class GameActivity : RetroActivityFuture() {
     private val touchStore by lazy { TouchControlsStore.of(filesDir) }
     /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
     private var gamepadOverride: Boolean? = null
+    /** Debug builds: the pads the override says are connected (DEBUG_GAMEPAD's "pads"), to stand for a second controller. */
+    private var debugPads: Set<String>? = null
     private var debugReceiver: BroadcastReceiver? = null
 
     // NativeActivity is no LifecycleOwner: the posture is followed from start to stop.
@@ -469,7 +471,7 @@ class GameActivity : RetroActivityFuture() {
         val override = gamepadOverride
         if (override != null) {
             padDetected = override
-            padKeys = if (override) setOf(TouchControls.DEBUG_PAD) else emptySet()
+            padKeys = if (override) debugPads ?: setOf(TouchControls.DEBUG_PAD) else emptySet()
             return
         }
         val pads = Gamepads.pads(Gamepads.devices())
@@ -480,6 +482,8 @@ class GameActivity : RetroActivityFuture() {
             pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
         }
     }
+
+    private fun padKeysLog() = debugPads?.joinToString(",").orEmpty()
 
     /** The pause sheet's Touch controls tile: kept for the pads detected now, and the skin follows at once. */
     private fun setTouchControls(on: Boolean) {
@@ -503,7 +507,7 @@ class GameActivity : RetroActivityFuture() {
     /**
      * Debug builds only: QA has no gamepad on the emulator, so one is said to be connected or not with
      * `adb shell am broadcast -a com.openemux.mobile.DEBUG_GAMEPAD --ez connected true|false` (`--ez clear true` goes
-     * back to the devices). Only the shell (it holds DUMP) can send it.
+     * back to the devices; `--es pads a,b` names the pads connected, standing for a second controller, issue 865). Only the shell (it holds DUMP) can send it.
      */
     private fun registerDebugGamepad() {
         if (!BuildConfig.DEBUG) return
@@ -512,7 +516,9 @@ class GameActivity : RetroActivityFuture() {
                 // A vendor says which pad names the buttons in the pause sheet, the way it does in the library.
                 if (PadLabels.debug(intent)) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
-                Log.i(TAG, "debug gamepad: $gamepadOverride")
+                // "--es pads a,b": which pads, so a new one can be told from the one the touch controls were kept for.
+                debugPads = TouchControls.debugPads(intent.getStringExtra("pads"))
+                Log.i(TAG, "debug gamepad: $gamepadOverride ${padKeysLog()}")
                 followGamepad()
             }
         }

@@ -56,6 +56,23 @@ class TouchControlsTest {
         assertFalse(TouchControls.tapped("pad-landscape", "skin-page", wantGamepad = true))
     }
 
+    @Test fun aNewControllerWinsOverTheKeptChoiceAndTheOldOneKeepsIt() {
+        // Forced for the phone's false pad; a real controller connected mid-game brings the gamepad layout back,
+        // and once it is gone the false pad's choice holds again.
+        val stored = TouchControls.set(emptySet(), setOf("fake"), on = true)
+        assertTrue(TouchControls.forced(setOf("fake"), stored))
+        assertFalse(TouchControls.forced(setOf("fake", "real"), stored))
+        assertTrue(TouchControls.forced(setOf("fake"), stored))
+        // The key still works with both: it keeps both.
+        assertTrue(TouchControls.forced(setOf("fake", "real"), TouchControls.set(stored, setOf("fake", "real"), on = true)))
+    }
+
+    @Test fun theDebugBroadcastNamesItsPads() {
+        assertEquals(setOf("a", "b"), TouchControls.debugPads(" a, b ,"))
+        assertEquals(null, TouchControls.debugPads(null))
+        assertEquals(null, TouchControls.debugPads(" , "))
+    }
+
     @Test fun theStoreKeepsTheChoiceAcrossReads() {
         val store = TouchControlsStore.of(File(tmp.root, "files"))
         assertEquals(emptySet<String>(), store.read())
