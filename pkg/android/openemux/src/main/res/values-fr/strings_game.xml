@@ -26,6 +26,9 @@
     <string name="game_toast_screenshot">Capture d’écran enregistrée</string>
     <string name="game_toast_sound_off">Son coupé</string>
     <string name="game_toast_sound_on">Son activé</string>
+    <string name="game_toast_touch_controls">Commandes tactiles activées. Désactivez-les dans le menu pause.</string>
+    <string name="game_toast_touch_controls_on">Commandes tactiles activées</string>
+    <string name="game_toast_touch_controls_off">Commandes tactiles désactivées</string>
     <string name="game_toast_shader">Shader : %1$s</string>
     <string name="game_toast_state_other_core">Cet état vient d’un autre cœur</string>
     <string name="game_toast_restart_failed">Impossible de redémarrer le jeu</string>
@@ -41,6 +44,7 @@
     <string name="game_restart_confirm_title">Redémarrer le jeu ?</string>
     <string name="game_restart_confirm_body">Votre progression depuis la dernière sauvegarde sera perdue.</string>
     <string name="game_retroarch_menu">Menu RetroArch</string>
+    <string name="game_touch_controls">Commandes tactiles</string>
     <string name="game_retroarch_menu_detail">Cette session uniquement</string>
     <string name="game_states_none">Aucun enregistré</string>
     <plurals name="game_states_saved">

@@ -26,6 +26,9 @@
     <string name="game_toast_screenshot">Bildschirmfoto gespeichert</string>
     <string name="game_toast_sound_off">Ton aus</string>
     <string name="game_toast_sound_on">Ton an</string>
+    <string name="game_toast_touch_controls">Touch-Steuerung an. Im Pausenmenü wieder ausschalten.</string>
+    <string name="game_toast_touch_controls_on">Touch-Steuerung an</string>
+    <string name="game_toast_touch_controls_off">Touch-Steuerung aus</string>
     <string name="game_toast_shader">Shader: %1$s</string>
     <string name="game_toast_state_other_core">Dieser Spielstand ist von einem anderen Kern</string>
     <string name="game_toast_restart_failed">Spiel konnte nicht neu gestartet werden</string>
@@ -41,6 +44,7 @@
     <string name="game_restart_confirm_title">Spiel neu starten?</string>
     <string name="game_restart_confirm_body">Der Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="game_retroarch_menu">RetroArch-Menü</string>
+    <string name="game_touch_controls">Touch-Steuerung</string>
     <string name="game_retroarch_menu_detail">Nur diese Sitzung</string>
     <string name="game_states_none">Keine gespeichert</string>
     <plurals name="game_states_saved">

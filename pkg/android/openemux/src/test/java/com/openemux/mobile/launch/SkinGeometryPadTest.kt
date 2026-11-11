@@ -9,6 +9,7 @@ import com.openemux.mobile.launch.SkinGeometry.PAD_MENU
 import com.openemux.mobile.launch.SkinGeometry.PAD_SAVE
 import com.openemux.mobile.launch.SkinGeometry.PAD_SCREENS
 import com.openemux.mobile.launch.SkinGeometry.PAD_SLOW
+import com.openemux.mobile.launch.SkinGeometry.PAD_TOUCH
 import com.openemux.mobile.launch.SkinGeometry.PAD_TURBO
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -37,8 +38,46 @@ class SkinGeometryPadTest {
     }
 
     @Test fun theKeysAreTheAppControlsHideLast() {
-        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_HIDE), six)
-        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_SCREENS, PAD_KEYPAD, PAD_HIDE), eight)
+        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TOUCH, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_HIDE), six)
+        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TOUCH, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_SCREENS, PAD_KEYPAD, PAD_HIDE), eight)
+        // A page with no touch twin (issue 865) has no key back to it.
+        assertEquals(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF, PAD_HIDE), SkinGeometry.padKeys(screens = false, keypad = false, touch = false))
+    }
+
+    @Test fun theTouchControlsKeyClosesTheLeftRailUnderLoad() {
+        val g = SkinGeometry.padLandscape(866f, 390f, 4f / 3f, six, collapsed = false)
+        assertKeysFit(g, 866f, 390f)
+        assertEquals(44f, slot(g, PAD_TOUCH).cx, 1e-3f)
+        assertEquals(slot(g, PAD_LOAD).y + 64f, slot(g, PAD_TOUCH).y, 1e-3f)
+        // Four keys a side: the rails balance (hide, turbo, slow motion and fast forward on the right).
+        assertEquals(4, g.keys.count { it.second.cx < 433f })
+        assertEquals(4, g.keys.count { it.second.cx > 433f })
+        // Without it, the left rail is menu, save and load as before.
+        val none = SkinGeometry.padLandscape(866f, 390f, 4f / 3f, SkinGeometry.padKeys(screens = false, keypad = false, touch = false), collapsed = false)
+        assertEquals(3, none.keys.count { it.second.cx < 433f })
+    }
+
+    @Test fun oneLineWhileEachKeyKeepsFortyEightUnitsElseTwo() {
+        assertEquals(1, SkinGeometry.padLines(8, 390f))
+        assertEquals(2, SkinGeometry.padLines(9, 390f))
+        // A tablet's wider strip keeps nine on one line.
+        assertEquals(1, SkinGeometry.padLines(9, 600f))
+        assertEquals(96f, SkinGeometry.padStripHeight(8, 390f), 1e-3f)
+        assertEquals(160f, SkinGeometry.padStripHeight(9, 390f), 1e-3f)
+    }
+
+    @Test fun aNineKeyPortraitStripWrapsToTwoLinesHideLast() {
+        val nds = SkinGeometry.padKeys(screens = true, keypad = false)
+        val g = SkinGeometry.padPortrait(390f, 866f, 256f / 384f, nds, collapsed = false)
+        assertKeysFit(g, 390f, 866f)
+        assertEquals(listOf(Box(0f, 866f - 160f, 390f, 160f)), g.panels)
+        // Five on the first line, the four left centred under them, hide at the end.
+        val lines = g.keys.groupBy { (it.second.y + it.second.h / 2f) }.values.map { line -> line.map { it.first } }
+        assertEquals(listOf(listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TOUCH, PAD_TURBO), listOf(PAD_SLOW, PAD_FF, PAD_SCREENS, PAD_HIDE)), lines)
+        assertEquals(195f, (slot(g, PAD_SLOW).x + slot(g, PAD_HIDE).right) / 2f, 1e-3f)
+        assertEquals(56f, g.menu.w, 1e-3f)
+        // Collapsed, the show key stays where hide was.
+        assertEquals(g.hide, SkinGeometry.padPortrait(390f, 866f, 256f / 384f, nds, collapsed = true).hide)
     }
 
     @Test fun landscapePutsTwoRailsAndTheFullHeightPictureBetweenThem() {
@@ -96,6 +135,15 @@ class SkinGeometryPadTest {
         assertEquals(433f, min.picture.y + min.picture.h / 2f, 1e-3f)
     }
 
+    @Test fun aNineKeyTabletopRowWrapsToTwoLinesInTheBottomHalf() {
+        val g = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 1.5f, eight, collapsed = false)
+        assertKeysFit(g, 390f, 820f)
+        assertEquals(2, g.keys.map { (it.second.y + it.second.h / 2f) }.distinct().size)
+        // Centred in the bottom half as one row is.
+        val lines = g.keys.map { (it.second.y + it.second.h / 2f) }.distinct()
+        assertEquals((430f + 820f) / 2f, (lines.first() + lines.last()) / 2f, 1e-3f)
+    }
+
     @Test fun tabletopPutsThePictureOnTopAndTheKeysInARowUnderTheBand() {
         val g = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 1.5f, six, collapsed = false)
         assertKeysFit(g, 390f, 820f)
@@ -119,13 +167,16 @@ class SkinGeometryPadTest {
         val keys = SkinGeometry.padKeys(screens = true, keypad = false)
         val top = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 256f / 192f, keys, false, "top", NDS_SCREEN_GAPS)
         assertTrue(top.picture.bottom <= 400f)
-        assertEquals(listOf(Box(0f, 820f - 96f, 390f, 96f)), top.panels)
+        // Nine keys: two lines, the row a line taller.
+        val row = SkinGeometry.padStripHeight(keys.size, 390f)
+        assertEquals(listOf(Box(0f, 820f - row, 390f, row)), top.panels)
+        assertKeysFit(top, 390f, 820f)
         val bottom = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 256f / 192f, keys, false, "bottom", NDS_SCREEN_GAPS)
-        assertTrue(bottom.picture.y >= 430f && bottom.picture.bottom <= 820f - 96f)
+        assertTrue(bottom.picture.y >= 430f && bottom.picture.bottom <= 820f - row)
         assertKeysFit(bottom, 390f, 820f)
         val halves = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 256f / 384f, keys, false, "halves", NDS_SCREEN_GAPS)
         assertTrue(halves.gap > 0)
-        assertTrue(halves.picture.y < 400f && halves.picture.bottom > 430f && halves.picture.bottom <= 820f - 96f)
+        assertTrue(halves.picture.y < 400f && halves.picture.bottom > 430f && halves.picture.bottom <= 820f - row)
         // Collapsed, the bottom screen takes the whole bottom half.
         val min = SkinGeometry.padTabletop(390f, 820f, 400f, 430f, 256f / 192f, keys, true, "bottom", NDS_SCREEN_GAPS)
         assertTrue(min.picture.h > bottom.picture.h)

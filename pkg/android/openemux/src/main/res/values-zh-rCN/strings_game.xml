@@ -26,6 +26,9 @@
     <string name="game_toast_screenshot">截图已保存</string>
     <string name="game_toast_sound_off">声音已关闭</string>
     <string name="game_toast_sound_on">声音已开启</string>
+    <string name="game_toast_touch_controls">已开启触屏按键。可在暂停菜单中关闭。</string>
+    <string name="game_toast_touch_controls_on">触屏按键已开启</string>
+    <string name="game_toast_touch_controls_off">触屏按键已关闭</string>
     <string name="game_toast_shader">着色器：%1$s</string>
     <string name="game_toast_state_other_core">此存档来自另一个内核</string>
     <string name="game_toast_restart_failed">无法重启游戏</string>
@@ -41,6 +44,7 @@
     <string name="game_restart_confirm_title">重启游戏？</string>
     <string name="game_restart_confirm_body">上次存档之后的进度将会丢失。</string>
     <string name="game_retroarch_menu">RetroArch 菜单</string>
+    <string name="game_touch_controls">触屏按键</string>
     <string name="game_retroarch_menu_detail">仅限本次会话</string>
     <string name="game_states_none">无存档</string>
     <plurals name="game_states_saved">

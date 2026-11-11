@@ -15,15 +15,18 @@ enum class PauseTile(
     SAVE_STATES,
     CHANGE_SKIN,
     EDIT_SKIN,
+    /** Only while a gamepad is detected: the on-screen controls over it (issue 865). */
+    TOUCH_CONTROLS(toggle = true),
     RETROARCH_MENU,
 }
 
 /**
  * The tiles the pause sheet shows, in reading order (issue 862): every action is a tile, the ones that were list rows
  * after the rest. [nds] adds the screens' layout before Audio; [skin] (a game drawn with a skin) adds Change skin and
- * Edit skin, which a half-open fold ([tabletop]) never offers.
+ * Edit skin, which a half-open fold ([tabletop]) never offers; [touch] (a gamepad detected) adds Touch controls before
+ * the RetroArch menu.
  */
-fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean): List<PauseTile> = buildList {
+fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean, touch: Boolean = false): List<PauseTile> = buildList {
     add(PauseTile.FAST_FORWARD)
     add(PauseTile.SLOW_MOTION)
     add(PauseTile.SCREENSHOT)
@@ -35,5 +38,12 @@ fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean): List<PauseTile> 
         add(PauseTile.CHANGE_SKIN)
         add(PauseTile.EDIT_SKIN)
     }
+    if (touch) add(PauseTile.TOUCH_CONTROLS)
     add(PauseTile.RETROARCH_MENU)
 }
+
+/**
+ * The pause sheet's Touch controls tile (issue 865), offered while a gamepad is detected: [on] while the on-screen
+ * controls are shown over it; [onChange] turns them on or off.
+ */
+class TouchToggle(val on: Boolean, val onChange: (Boolean) -> Unit)

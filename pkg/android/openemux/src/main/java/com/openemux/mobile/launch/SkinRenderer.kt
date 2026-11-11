@@ -27,6 +27,7 @@ import com.openemux.mobile.data.SkinRow
 import com.openemux.mobile.data.SkinSide
 import com.openemux.mobile.data.forCore
 import com.openemux.mobile.data.skin
+import com.openemux.mobile.game.available
 import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.Icons
 import com.retroarch.R
@@ -137,6 +138,7 @@ class SkinRenderer(private val context: Context) {
         // A page's collapsed and gamepad twins draw the same art as the page (the app controls are images of their
         // own): the engine loads an image named twice once.
         val written = mutableSetOf<String>()
+        val names = flat + specs.map { it.name }
         specs.forEachIndexed { n, spec ->
             val i = flat.size + n
             val w = if (spec.portrait) portraitW else portraitH
@@ -151,9 +153,11 @@ class SkinRenderer(private val context: Context) {
             // A package skin's own pages have no hide key, nor do the touch pages drawn under them.
             val hide = OverlayName.map(spec.name) { it.withCollapsed(true) }.takeIf { spec.gamepad || !packaged }
             val show = OverlayName.map(spec.name) { it.withCollapsed(false) }
+            // A gamepad page's key back to the touch controls (issue 865): its touch twin, when the skin has one.
+            val touch = if (spec.gamepad) OverlayName.parse(spec.name)?.let { available(it.touch, names) } else null
             val layout = Layout(
                 Canvas(bitmap), skin, unit, spec.aspect, spec.keypadOpen, toggle, spec.layoutNext, hardcore, spec.layout,
-                spec.collapsed, hide, show,
+                spec.collapsed, hide, show, touch,
             )
             val descs = when {
                 !art -> layout.pad(w, h, band.takeIf { spec.tabletop }, spec.portrait, keypad = keypad)
@@ -183,7 +187,7 @@ class SkinRenderer(private val context: Context) {
             // In the launch window's dp, as the activity measures the fold it sees.
             val props = StringBuilder()
             props.append(String.format(Locale.US, "band_start_dp=%.2f\nband_end_dp=%.2f\n", (band.startPx + cutout) / density, (band.endPx + cutout) / density))
-            props.append("overlays=${(flat + specs.map { it.name }).joinToString(",")}\n")
+            props.append("overlays=${names.joinToString(",")}\n")
             gaps.forEach { (name, gap) -> props.append("gap.$name=$gap\n") }
             // A package with one page per layout sets the core from the page it lands on, as the drawn skin does.
             if (base != null && console == Console.NDS && ndsLayouts == null) props.append("flat_layout=$PACKAGE_NDS_LAYOUT\n")
@@ -225,6 +229,8 @@ class SkinRenderer(private val context: Context) {
         /** The collapsed twin the hide key switches to; null: no hide key (a package skin's pages). */
         private val hideNext: String?,
         private val showNext: String,
+        /** A gamepad page's touch twin, where its touch controls key goes; null: no such key. */
+        private val touchNext: String? = null,
     ) {
         private val colors: SkinColors = skin.colors
         private val descs = mutableListOf<OverlayDesc>()
@@ -639,8 +645,11 @@ class SkinRenderer(private val context: Context) {
         }
 
         /** An eye, [size] across, stroked like the turbo bolt; [slashed] crosses it out (hide). */
-        private fun eye(box: RectF, size: Float, slashed: Boolean) {
-            val path = PathParser.createPathFromPathData(if (slashed) EYE_OFF else EYE)
+        private fun eye(box: RectF, size: Float, slashed: Boolean) = stroked(if (slashed) EYE_OFF else EYE, box, size)
+
+        /** The 24-unit outline [data], [size] across, centred in [box] and stroked in the key's ink. */
+        private fun stroked(data: String, box: RectF, size: Float) {
+            val path = PathParser.createPathFromPathData(data)
             path.transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(box.centerX() - size / 2f, box.centerY() - size / 2f) })
             c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = keyInk; style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f
@@ -692,7 +701,7 @@ class SkinRenderer(private val context: Context) {
         fun pad(width: Int, height: Int, band: TabletopBand?, portrait: Boolean, keypad: Boolean): List<OverlayDesc> {
             val wd = width / unit
             val hd = height / unit
-            val keys = SkinGeometry.padKeys(screens = layoutNext != null, keypad = keypad)
+            val keys = SkinGeometry.padKeys(screens = layoutNext != null, keypad = keypad, touch = touchNext != null)
             val g = when {
                 band != null -> SkinGeometry.padTabletop(
                     wd, hd, band.startPx / unit, band.endPx / unit, aspect, keys, collapsed, screenLayout?.id, NDS_SCREEN_GAPS,
@@ -724,6 +733,11 @@ class SkinRenderer(private val context: Context) {
                     SkinGeometry.PAD_KEYPAD -> {
                         appLayer(box) { roundKey(box); keypadGlyph(box, icon) }
                         descs += OverlayDesc("overlay_next", box, next = toggle)
+                    }
+                    // A gamepad, stroked like the eye: the touch twin; the app sees the switch and keeps it (issue 865).
+                    SkinGeometry.PAD_TOUCH -> {
+                        appLayer(box) { roundKey(box); stroked(Icons.Skin, box, icon) }
+                        descs += OverlayDesc("overlay_next", box, next = touchNext)
                     }
                     else -> action(key, box, icon)
                 }

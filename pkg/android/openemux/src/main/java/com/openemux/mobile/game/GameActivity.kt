@@ -155,15 +155,32 @@ class GameActivity : RetroActivityFuture() {
     private var flatOverlay: String? = null
     private var wantTabletop = false
     private var postureSeq = 0
+    /**
+     * The overlay the app itself last asked the engine for, until the engine shows it (under ndsLayouts' lock): a
+     * switch to it is the app's, never the touch controls key (issue 865), even when the gamepad came back meanwhile.
+     */
+    private var appSelected: String? = null
 
     /** The skin's overlays, in skin.cfg's order: the launcher's, then each redrawn skin's. */
     @Volatile private var skinOverlays: List<String> = emptyList()
     /** Where each of the skin's overlays has the game end, from the window's top (GameViewport): the pause sheet opens under it. */
     @Volatile private var skinBottoms: Map<String, Float> = emptyMap()
-    /** Whether a gamepad is connected, which picks the skin's gamepad layout (under ndsLayouts' lock). */
+    /**
+     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected and the player has not
+     * brought the touch controls back for it (issue 865).
+     */
     private var wantGamepad = false
+    /** Whether a gamepad is detected, touch controls or not: the pause sheet's Touch controls tile shows then. */
+    @Volatile private var padDetected = false
+    /** The detected pads by TouchControls.keys, which the touch controls choice is kept for. */
+    @Volatile private var padKeys: Set<String> = emptySet()
+    /** The pads last written to the log, so each change is logged once. */
+    private var loggedPads: Set<String>? = null
+    private val touchStore by lazy { TouchControlsStore.of(filesDir) }
     /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
     private var gamepadOverride: Boolean? = null
+    /** Debug builds: the pads the override says are connected (DEBUG_GAMEPAD's "pads"), to stand for a second controller. */
+    private var debugPads: Set<String>? = null
     private var debugReceiver: BroadcastReceiver? = null
 
     // NativeActivity is no LifecycleOwner: the posture is followed from start to stop.
@@ -182,7 +199,8 @@ class GameActivity : RetroActivityFuture() {
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
         skinBottoms = skinDir?.let(::readBottoms).orEmpty()
-        wantGamepad = Gamepads.connected()
+        readPads()
+        wantGamepad = padDetected && !touchStore.forced(padKeys)
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -440,13 +458,40 @@ class GameActivity : RetroActivityFuture() {
 
     /** A gamepad connected or gone (main thread): the skin switches to its gamepad layout or back; the core keeps running. */
     private fun followGamepad() {
-        val pad = gamepadOverride ?: Gamepads.connected()
+        readPads()
         // This process has no MainActivity to follow the pads for the pause sheet's gamepad layout.
-        InputMode.padConnected = pad
+        InputMode.padConnected = padDetected
+        val forced = touchStore.forced(padKeys)
         synchronized(ndsLayouts) {
-            wantGamepad = pad
+            wantGamepad = padDetected && !forced
             switchGamepad()
         }
+    }
+
+    /**
+     * The pads detected now, into [padDetected] and [padKeys]: the debug override's, else the devices'. Each device
+     * counted as a gamepad is logged when the set changes, so a report names what fooled the detection (issue 865).
+     */
+    private fun readPads() {
+        val override = gamepadOverride
+        if (override != null) {
+            padDetected = override
+            padKeys = if (override) debugPads ?: setOf(TouchControls.DEBUG_PAD) else emptySet()
+            return
+        }
+        val pads = Gamepads.pads(Gamepads.devices())
+        padDetected = pads.isNotEmpty()
+        padKeys = TouchControls.keys(pads)
+        if (padKeys != loggedPads) {
+            loggedPads = padKeys
+            pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
+        }
+    }
+
+    /** The pause sheet's Touch controls tile: kept for the pads detected now, and the skin follows at once. */
+    private fun setTouchControls(on: Boolean) {
+        runCatching { touchStore.set(padKeys, on) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
+        followGamepad()
     }
 
     /**
@@ -458,6 +503,7 @@ class GameActivity : RetroActivityFuture() {
         val target = gamepadTarget(current, wantGamepad, skinOverlays) ?: return false
         if (BuildConfig.DEBUG) Log.d(TAG, "gamepad $wantGamepad: $current -> $target")
         val seq = ++postureSeq
+        appSelected = target
         Thread { selectOverlay(target, seq) }.start()
         return true
     }
@@ -465,7 +511,7 @@ class GameActivity : RetroActivityFuture() {
     /**
      * Debug builds only: QA has no gamepad on the emulator, so one is said to be connected or not with
      * `adb shell am broadcast -a com.openemux.mobile.DEBUG_GAMEPAD --ez connected true|false` (`--ez clear true` goes
-     * back to the devices). Only the shell (it holds DUMP) can send it.
+     * back to the devices; `--es pads a,b` names the pads connected, standing for a second controller, issue 865). Only the shell (it holds DUMP) can send it.
      */
     private fun registerDebugGamepad() {
         if (!BuildConfig.DEBUG) return
@@ -474,7 +520,9 @@ class GameActivity : RetroActivityFuture() {
                 // A vendor says which pad names the buttons in the pause sheet, the way it does in the library.
                 if (PadLabels.debug(intent)) return
                 gamepadOverride = if (intent.getBooleanExtra("clear", false)) null else intent.getBooleanExtra("connected", true)
-                Log.i(TAG, "debug gamepad: $gamepadOverride")
+                // "--es pads a,b": which pads, so a new one can be told from the one the touch controls were kept for.
+                debugPads = TouchControls.debugPads(intent.getStringExtra("pads"))
+                Log.i(TAG, "debug gamepad: $gamepadOverride ${debugPads?.joinToString(",").orEmpty()}")
                 followGamepad()
             }
         }
@@ -534,6 +582,7 @@ class GameActivity : RetroActivityFuture() {
         val posture = tabletopTarget(current, wantTabletop, skin.overlays, flatTarget(), ndsLayouts[TABLETOP]) ?: return false
         // In the layout the gamepad asks for, which may have changed while the posture did.
         val target = gamepadTarget(posture, wantGamepad, skinOverlays) ?: posture
+        appSelected = target
         Thread { selectOverlay(target, seq) }.start()
         return true
     }
@@ -559,9 +608,11 @@ class GameActivity : RetroActivityFuture() {
         val deadline = System.currentTimeMillis() + 30_000
         while (System.currentTimeMillis() < deadline && synchronized(ndsLayouts) { seq == postureSeq }) {
             val reply = RaCommand.ask("OVERLAY_SELECT $target", 300)
-            if (reply != null && "no overlay is loaded" !in reply) return
+            if (reply != null && "no overlay is loaded" !in reply) break
             Thread.sleep(250)
         }
+        // Answered (the engine reports a switch before it replies; none when it was shown already) or given up.
+        synchronized(ndsLayouts) { if (appSelected == target) appSelected = null }
     }
 
     override fun onResume() {
@@ -748,11 +799,20 @@ class GameActivity : RetroActivityFuture() {
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
         val previous = overlay
         overlay = name
+        val byApp = name == appSelected
+        if (byApp) appSelected = null
         if (TABLETOP !in name) flatOverlay = name
         // The overlay shown is not the one the posture asks for: turned back upright while half open (auto-rotate
         // picked the flat overlay), or a switch that reached the engine after the posture changed again. The overlay
         // switched to sets the core; stepping this one to its saved layout would race the switch.
         if ((TABLETOP in name) != wantTabletop && switchPosture()) return
+        // The gamepad layout's touch controls key (issue 865): kept for these pads, and not switched back below.
+        // The engine reports no overlay until the first switch: before it, the skin's first one is shown.
+        if (!byApp && TouchControls.tapped(previous ?: skinOverlays.firstOrNull(), name, wantGamepad)) {
+            wantGamepad = false
+            runCatching { touchStore.set(padKeys, true) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
+            runOnUiThread { showTouchControlsToast() }
+        }
         // The same for the gamepad: connected or gone while the overlay was switching.
         val page = OverlayName.parse(name)
         if (page != null && page.gamepad != wantGamepad && switchGamepad()) return
@@ -867,6 +927,12 @@ class GameActivity : RetroActivityFuture() {
         val shown = NdsShown(orientation, layout)
         // At once on the main thread: R3 on the sheet names the layout right after setting it.
         if (Looper.myLooper() == Looper.getMainLooper()) ndsShown.value = shown else handler.post { ndsShown.value = shown }
+    }
+
+    /** Where the touch controls brought back over a gamepad are turned off again: the pause sheet. */
+    private fun showTouchControlsToast() {
+        if (isFinishing) return
+        android.widget.Toast.makeText(this, R.string.game_toast_touch_controls, android.widget.Toast.LENGTH_LONG).show()
     }
 
     /** Names the layout just switched to, over the game: the sheet, when open, names it itself. */
@@ -1077,7 +1143,9 @@ class GameActivity : RetroActivityFuture() {
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
-        InputMode.padConnected = gamepadOverride ?: Gamepads.connected()
+        readPads()
+        InputMode.padConnected = padDetected
+        val touch = if (padDetected) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
         ButtonLabelsPref.load(this)
         // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.
@@ -1117,6 +1185,7 @@ class GameActivity : RetroActivityFuture() {
                         skins = gameSkins(),
                         onSpeed = { speedWanted = it },
                         onMute = { mutedOn = it },
+                        touchControls = touch,
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.
                             d.dismiss()

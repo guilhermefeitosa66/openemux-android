@@ -10,6 +10,7 @@ import com.openemux.mobile.game.PauseTile.SCREENS
 import com.openemux.mobile.game.PauseTile.SCREENSHOT
 import com.openemux.mobile.game.PauseTile.SHADER
 import com.openemux.mobile.game.PauseTile.SLOW_MOTION
+import com.openemux.mobile.game.PauseTile.TOUCH_CONTROLS
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -42,8 +43,20 @@ class PauseTilesTest {
         )
     }
 
-    @Test fun onlyFastForwardSlowMotionAndAudioCanLightUp() {
-        assertEquals(listOf(FAST_FORWARD, SLOW_MOTION, AUDIO), PauseTile.entries.filter { it.toggle })
+    @Test fun aDetectedGamepadAddsTouchControlsBeforeTheRetroArchMenu() {
+        assertEquals(
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, SAVE_STATES, CHANGE_SKIN, EDIT_SKIN, TOUCH_CONTROLS, RETROARCH_MENU),
+            pauseTiles(nds = false, skin = true, tabletop = false, touch = true),
+        )
+        // On a half-open fold too: its row has the key.
+        assertEquals(
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, SAVE_STATES, TOUCH_CONTROLS, RETROARCH_MENU),
+            pauseTiles(nds = false, skin = true, tabletop = true, touch = true),
+        )
+    }
+
+    @Test fun onlyTheTogglesCanLightUp() {
+        assertEquals(listOf(FAST_FORWARD, SLOW_MOTION, AUDIO, TOUCH_CONTROLS), PauseTile.entries.filter { it.toggle })
     }
 
     @Test fun nineTilesWrapFourFourOneUprightAndFiveFourElsewhere() {
