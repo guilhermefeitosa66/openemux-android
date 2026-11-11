@@ -84,6 +84,9 @@ uint8_t input_overlay_lit_by_parse(const char *name)
       /* OpenEmux: the slow-motion toggle */
       if (!strcmp(name, "slow_motion"))
          return OVERLAY_LIT_BY_SLOW_MOTION;
+      /* OpenEmux: anchor mode */
+      if (!strcmp(name, "anchor"))
+         return OVERLAY_LIT_BY_ANCHOR;
    }
    return OVERLAY_LIT_BY_NONE;
 }

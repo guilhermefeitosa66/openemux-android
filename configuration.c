@@ -7517,6 +7517,12 @@ static bool config_load_file(const char *path, settings_t *settings)
    config_get_bool(conf, "input_turbo_locked",
          &settings->bools.input_turbo_locked);
 
+   /* Not in the menu: a frontend with an anchor key opts in, and says
+    * whether the mode starts on. */
+   settings->bools.input_overlay_anchor = false;
+   config_get_bool(conf, "input_overlay_anchor",
+         &settings->bools.input_overlay_anchor);
+
    /* Not in the menu: a frontend that tells the player itself opts out. */
    settings->bools.notification_show_autoload_state = true;
    config_get_bool(conf, "notification_show_autoload_state",

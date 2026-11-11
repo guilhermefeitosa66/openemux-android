@@ -172,6 +172,9 @@ class GameLauncher(
             val core = library.effectiveCore(rom)
             // A skin picked in game since the library last resumed is this console's now.
             runCatching { library.absorbSkinPicks() }
+            // So is anchor mode turned on or off in game.
+            runCatching { library.absorbAnchorPicks() }
+            val anchor = library.anchor(rom.console)
             val skinVariant = library.skinVariant(rom.console)
             val customSkin = library.customSkin(rom.console)
             val density = context.resources.displayMetrics.density
@@ -208,7 +211,7 @@ class GameLauncher(
             listOf(paths.states(rom.console), paths.saves(rom.console), paths.system, paths.screenshots, paths.playtime)
                 .forEach { it.mkdirs() }
             val config = File(dir, "retroarch.cfg")
-            config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore))
+            config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore, anchor))
 
             library.updateRom(rom.key) { it.copy(lastPlayed = System.currentTimeMillis()) }
 
@@ -228,6 +231,8 @@ class GameLauncher(
                 putExtra(GameExtras.ROM_KEY, rom.key)
                 putExtra(GameExtras.SHADER_PICKS, paths.shaderPicks.absolutePath)
                 putExtra(GameExtras.SKIN_PICKS, paths.skinPicks.absolutePath)
+                putExtra(GameExtras.ANCHOR, anchor)
+                putExtra(GameExtras.ANCHOR_PICKS, paths.anchorPicks.absolutePath)
                 putExtra(GameExtras.CORE_NAME, core.name)
                 putExtra(GameExtras.HARDCORE, hardcore)
                 putExtra(GameExtras.LAUNCH_DIR, dir.absolutePath)
@@ -242,7 +247,9 @@ class GameLauncher(
         from.startActivity(intent, ActivityOptions.makeCustomAnimation(from, R.anim.game_enter, R.anim.hold).toBundle())
     }
 
-    private fun buildConfig(rom: Rom, coreId: String, resume: Boolean, dir: File, skin: File, cheevos: Map<String, String>, hardcore: Boolean): String {
+    private fun buildConfig(
+        rom: Rom, coreId: String, resume: Boolean, dir: File, skin: File, cheevos: Map<String, String>, hardcore: Boolean, anchor: Boolean,
+    ): String {
         val settings = linkedMapOf(
             "video_driver" to "gl",
             "menu_driver" to "glui",
@@ -260,6 +267,9 @@ class GameLauncher(
             "input_turbo_locked" to "true",
             "input_turbo_mode" to "0",
             "input_turbo_enable" to "false",
+            // The skin's anchor key (issue 841): the mode starts as the console's settings have it; the engine reports
+            // each change (GameActivity.onToggleStates), which the console keeps.
+            "input_overlay_anchor" to anchor.toString(),
             "input_overlay" to skin.absolutePath,
             "input_overlay_auto_rotate" to "true",
             "input_overlay_opacity" to "1.000000",

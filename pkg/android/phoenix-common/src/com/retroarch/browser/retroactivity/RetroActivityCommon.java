@@ -1146,11 +1146,11 @@ public class RetroActivityCommon extends NativeActivity
   }
 
   /**
-   * OpenEmux: fast forward, turbo or slow motion went on or off. Called
-   * from the engine thread, once per change.
+   * OpenEmux: fast forward, turbo, slow motion or anchor mode went on or
+   * off. Called from the engine thread, once per change.
    */
   public void onToggleStates(boolean fastForward, boolean turbo,
-        boolean slowMotion)
+        boolean slowMotion, boolean anchor)
   {
   }
 

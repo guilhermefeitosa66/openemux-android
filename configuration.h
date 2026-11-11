@@ -791,6 +791,9 @@ typedef struct settings
       bool input_turbo_allow_dpad;
       /* Config only: turbo, once toggled on, acts as if its bind were held. */
       bool input_turbo_locked;
+      /* Config only (OpenEmux): anchor mode, flipped by an overlay's
+       * anchor toggle (input_overlay_anchor.c). */
+      bool input_overlay_anchor;
       bool input_hotkey_device_merge;
       bool input_hotkey_follows_player1;
 #if defined(HAVE_DINPUT) || defined(HAVE_WINRAWINPUT)

@@ -39,6 +39,8 @@ class Paths(val base: File, val internal: File) {
     val shaderPicks = File(internal, "shader-picks")
     /** Skins picked in game, waiting for the library to fold them in (SkinPicks). */
     val skinPicks = File(internal, "skin-picks")
+    /** Anchor mode turned on or off in game, waiting for the library to fold it in (AnchorPicks). */
+    val anchorPicks = File(internal, "anchor-picks")
 
     fun labels(console: Console) = File(labels, console.id)
 
@@ -76,6 +78,8 @@ data class ConsoleSettings(
     val skin: String = SkinVariant.CONSOLE.id,
     /** The player's skin in use ([SkinStore.ref]: their own or an imported package); null plays the bundled [skin]. */
     val custom: String? = null,
+    /** Whether the touch pad's anchor mode is on for the console's games (issue 841). */
+    val anchor: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("core", core)
@@ -83,6 +87,7 @@ data class ConsoleSettings(
         put("color", color)
         put("skin", skin)
         custom?.let { put("custom", it) }
+        if (anchor) put("anchor", true)
     }
 
     companion object {
@@ -91,6 +96,7 @@ data class ConsoleSettings(
             // Kept as saved, even an id this build does not know (a newer build's), so a save here never drops it.
             c.optString("skin").ifEmpty { SkinVariant.CONSOLE.id },
             c.optString("custom").ifEmpty { null },
+            c.optBoolean("anchor", false),
         )
     }
 }
@@ -188,6 +194,7 @@ class Library(
         // A meta.json that cannot be written must not stop the scan: the next start migrates again.
         runCatching { migrateSkins() }.onFailure { Log.w(TAG, "skin choices not saved", it) }
         runCatching { absorbSkinPicks() }.onFailure { Log.w(TAG, "skins picked in game not saved", it) }
+        runCatching { absorbAnchorPicks() }.onFailure { Log.w(TAG, "anchor mode set in game not saved", it) }
         var listed = true
         try {
             listed = scanRoms()
@@ -355,6 +362,27 @@ class Library(
         }
         return copy(consoles = consoles + (console.id to settings))
     }
+
+    /**
+     * Folds anchor mode turned on or off in game (AnchorPicks) into the consoles' settings, the newest per console
+     * last; picks naming a console this build does not know are dropped. Runs on every scan of the library and before
+     * every launch.
+     */
+    @Synchronized
+    fun absorbAnchorPicks() {
+        val picks = AnchorPicks.drain(paths.anchorPicks)
+        if (picks.isEmpty()) return
+        _meta.update { meta ->
+            picks.fold(meta) { m, pick ->
+                val console = Console.byId(pick.console) ?: return@fold m
+                m.copy(consoles = m.consoles + (console.id to m.settingsFor(console).copy(anchor = pick.on)))
+            }
+        }
+        saveMeta()
+    }
+
+    /** Whether anchor mode starts on in [console]'s games (issue 841). */
+    fun anchor(console: Console): Boolean = consoleSettings(console).anchor
 
     @Synchronized
     fun updateConsole(console: Console, change: (ConsoleSettings) -> ConsoleSettings) {

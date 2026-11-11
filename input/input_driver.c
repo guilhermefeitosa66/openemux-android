@@ -5880,6 +5880,14 @@ static bool input_overlay_poll(
       any_hitbox_pressed = true;
    }
 
+   /* OpenEmux: anchor mode holds the first button this pointer pressed
+    * wherever it is now. After the hitbox loop, so an exclusive desc's
+    * reset of the earlier ones cannot drop it. */
+   if (     config_get_ptr()->bools.input_overlay_anchor
+         && input_overlay_anchor_apply(descs, ol->active->size,
+               touch_idx, old_touch_idx, &out->buttons))
+      any_hitbox_pressed = true;
+
    if (ol->flags & INPUT_OVERLAY_BLOCKED)
       memset(out, 0, sizeof(*out));
 
@@ -6068,6 +6076,9 @@ static uint32_t input_overlay_states(void)
    /* OpenEmux: the slow-motion toggle lights its key too */
    if (runloop_state_get_ptr()->flags & RUNLOOP_FLAG_SLOWMOTION)
       states |= 1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1);
+   /* OpenEmux: and so does the anchor toggle */
+   if (config_get_ptr()->bools.input_overlay_anchor)
+      states |= 1u << (OVERLAY_LIT_BY_ANCHOR - 1);
 
    if (states != input_driver_st.overlay_states_last)
    {
@@ -6077,7 +6088,8 @@ static uint32_t input_overlay_states(void)
       android_app_toggle_states(
             !!(states & (1u << (OVERLAY_LIT_BY_FAST_FORWARD - 1))),
             !!(states & (1u << (OVERLAY_LIT_BY_TURBO - 1))),
-            !!(states & (1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1))));
+            !!(states & (1u << (OVERLAY_LIT_BY_SLOW_MOTION - 1))),
+            !!(states & (1u << (OVERLAY_LIT_BY_ANCHOR - 1))));
 #endif
    }
    return states;
@@ -6094,6 +6106,14 @@ static void input_overlay_post_poll(
       bool show_input, float opacity)
 {
    size_t i;
+
+   /* OpenEmux: a press of the anchor toggle flips the mode. */
+   if (input_overlay_anchor_toggled(ol->active->descs, ol->active->size))
+   {
+      settings_t *settings = config_get_ptr();
+      settings->bools.input_overlay_anchor =
+            !settings->bools.input_overlay_anchor;
+   }
 
    input_overlay_alpha_pass(ol, opacity, show_input, opacity,
          input_overlay_states(),
@@ -6120,6 +6140,7 @@ static void input_overlay_post_poll(
 
       desc->old_touch_mask = desc->touch_mask;
       desc->touch_mask     = 0;
+      input_overlay_anchor_rotate(desc);
    }
 
 #ifdef HAVE_RPNG
@@ -6443,10 +6464,15 @@ void input_overlay_next_move_touch_masks(input_overlay_t *ol)
             if (     desc2->type == desc->type
                   && fabs(desc2->x - desc->x) < 0.01f
                   && fabs(desc2->y - desc->y) < 0.01f)
-               desc2->old_touch_mask = desc->old_touch_mask;
+            {
+               desc2->old_touch_mask  = desc->old_touch_mask;
+               /* OpenEmux: an anchored button stays anchored */
+               desc2->old_anchor_mask = desc->old_anchor_mask;
+            }
          }
 
-         desc->old_touch_mask = 0;
+         desc->old_touch_mask  = 0;
+         desc->old_anchor_mask = 0;
       }
    }
 }
@@ -6473,6 +6499,7 @@ static void input_overlay_poll_clear(
 
       desc->old_touch_mask      = desc->touch_mask;
       desc->touch_mask          = 0;
+      input_overlay_anchor_rotate(desc);
 
       input_overlay_update_desc_geom(ol, desc);
    }

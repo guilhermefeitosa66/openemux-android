@@ -425,11 +425,11 @@ bool android_app_pad_shortcut(int keycode, int action);
  * match the core to it (the NDS screen layout of each overlay). */
 void android_app_overlay_changed(const char *name);
 
-/* OpenEmux: tells the activity whether fast forward, turbo and slow
- * motion are on, when any changes, so its pause sheet shows the
- * engine's state. */
+/* OpenEmux: tells the activity whether fast forward, turbo, slow
+ * motion and anchor mode are on, when any changes, so its pause sheet
+ * shows the engine's state and the anchor mode is kept per console. */
 void android_app_toggle_states(bool fast_forward, bool turbo,
-      bool slow_motion);
+      bool slow_motion, bool anchor);
 
 /* OpenEmux: back after a pause that saved the auto state. Pauses the
  * content and tells the activity, which shows its own menu. */

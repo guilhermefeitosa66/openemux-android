@@ -314,7 +314,7 @@ class SkinRenderer(private val context: Context) {
             // The overlay sits over the game: the picture's box stays clear.
             fill(RectF(0f, 0f, wd * unit, 390f * unit), colors.body)
             c.drawRect(picture, Paint().apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) })
-            val stripW = phoneLandscapeStripW(gameW, stripActions(layoutNext != null).size)
+            val stripW = phoneLandscapeStripW(gameW, stripActions(layoutNext != null, anchor = true).size)
             val stripX = left + (gameW - stripW) / 2f
             strip(RectF(stripX * unit, (top + gameH) * unit, (stripX + stripW) * unit, (top + gameH + 36f) * unit), 20f, opaque = true)
 
@@ -791,8 +791,8 @@ class SkinRenderer(private val context: Context) {
         }
 
         /**
-         * The quick actions: save, load, turbo, slow motion, fast forward, in that order, then the NDS screen layout
-         * unless [screens] is off.
+         * The quick actions: save, load, turbo, slow motion, fast forward, anchor, in that order, then the NDS screen
+         * layout unless [screens] is off.
          */
         private fun strip(box: RectF, icon: Float, opaque: Boolean, screens: Boolean = true) {
             if (!collapsed) appLayer(box) { drawStrip(box, icon, opaque, screens) }
@@ -800,7 +800,7 @@ class SkinRenderer(private val context: Context) {
 
         private fun drawStrip(box: RectF, icon: Float, opaque: Boolean, screens: Boolean) {
             fill(box, if (opaque) colors.strip else (colors.strip and 0x00FFFFFF) or (0xCC shl 24))
-            val actions = stripActions(layoutKey = layoutNext != null && screens)
+            val actions = stripActions(layoutKey = layoutNext != null && screens, anchor = true)
             val slot = box.width() / actions.size
             val size = s(icon)
             actions.forEachIndexed { i, action ->
@@ -824,6 +824,7 @@ class SkinRenderer(private val context: Context) {
                     "load_state" -> Icons.LoadState
                     "turbo_fire_toggle" -> "M13 2L4 14h7l-1 8 9-12h-7z"
                     "toggle_slowmotion" -> Icons.SlowMotion
+                    ANCHOR_ACTION -> Icons.Anchor
                     // Two screens, one over the other.
                     "screens" -> "M6 3h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM6 13h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z"
                     else -> "M3 6v12l9-6zM12 6v12l9-6z"
@@ -837,8 +838,8 @@ class SkinRenderer(private val context: Context) {
             this.color = color
             if (stripActionStroked(action)) {
                 style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND
-                // The slow-motion ring is dashes: round caps, as the design draws them.
-                if (action == "toggle_slowmotion") strokeCap = Paint.Cap.ROUND
+                // The slow-motion ring is dashes and the anchor's arms curve: round caps, as the designs draw them.
+                if (action == "toggle_slowmotion" || action == ANCHOR_ACTION) strokeCap = Paint.Cap.ROUND
             }
         }
 

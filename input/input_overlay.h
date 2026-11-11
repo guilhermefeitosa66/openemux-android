@@ -144,7 +144,9 @@ enum overlay_lit_by
    OVERLAY_LIT_BY_FAST_FORWARD = 1,
    OVERLAY_LIT_BY_TURBO        = 2,
    /* OpenEmux: the slow-motion toggle */
-   OVERLAY_LIT_BY_SLOW_MOTION  = 3
+   OVERLAY_LIT_BY_SLOW_MOTION  = 3,
+   /* OpenEmux: anchor mode (input_overlay_anchor) */
+   OVERLAY_LIT_BY_ANCHOR       = 4
 };
 
 enum OVERLAY_FLAGS
@@ -169,7 +171,12 @@ enum OVERLAY_DESC_FLAGS
    /* If true, blocks input from overlapped hitboxes */
    OVERLAY_DESC_EXCLUSIVE           = (1 << 1),
    /* Similar, but only applies after range_mod takes effect */
-   OVERLAY_DESC_RANGE_MOD_EXCLUSIVE = (1 << 2)
+   OVERLAY_DESC_RANGE_MOD_EXCLUSIVE = (1 << 2),
+   /* OpenEmux: pressing it turns anchor mode on or off (_anchor_toggle) */
+   OVERLAY_DESC_ANCHOR_TOGGLE       = (1 << 3),
+   /* OpenEmux: a button of face buttons, shoulders or triggers only,
+    * which anchor mode may hold */
+   OVERLAY_DESC_ANCHORABLE          = (1 << 4)
 };
 
 enum overlay_lightgun_action
@@ -308,6 +315,11 @@ struct overlay_desc
    /* Nonzero if pressed. Lower bits used for pointer indexes */
    uint32_t touch_mask;
    uint32_t old_touch_mask;
+
+   /* OpenEmux: the pointers anchor mode holds this desc for, by this
+    * poll's index, and by the last poll's (input_overlay_anchor.c) */
+   uint32_t anchor_mask;
+   uint32_t old_anchor_mask;
 
    /* The LED (1-based, as ledN_map counts) whose state this desc's
     * image shows under the overlay LED driver; 0 for none. */
@@ -598,6 +610,28 @@ uint8_t input_overlay_lit_by_parse(const char *name);
 
 /* The driver was handed a page: nothing it holds is known any more. */
 void input_overlay_alpha_forget(input_overlay_t *ol);
+
+/* OpenEmux: anchor mode (input_overlay_anchor.c). */
+
+/* Whether a button desc with [mask] may be anchored: only face
+ * buttons, shoulders and triggers, at least one. */
+bool input_overlay_anchorable(const input_bits_t *mask);
+
+/* After the hitbox test of pointer [touch_idx] ([old_touch_idx] on the
+ * last poll, -1 for a new one) with anchor mode on: a pointer that was
+ * on no desc anchors the anchorable descs it is on now, and the descs
+ * it anchored stay pressed, their binds or-ed into [buttons]. True
+ * when any desc is held that way. */
+bool input_overlay_anchor_apply(struct overlay_desc *descs, size_t size,
+      int touch_idx, int old_touch_idx, input_bits_t *buttons);
+
+/* Whether this poll's presses of anchor toggles flip the mode: one
+ * newly pressed toggle does, two cancel out. */
+bool input_overlay_anchor_toggled(const struct overlay_desc *descs,
+      size_t size);
+
+/* The poll is over: this poll's anchors become the last poll's. */
+void input_overlay_anchor_rotate(struct overlay_desc *desc);
 
 /* Attempts to automatically rotate the specified overlay.
  * Depends upon proper naming conventions in overlay

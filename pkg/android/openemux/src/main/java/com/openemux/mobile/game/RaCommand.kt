@@ -31,6 +31,10 @@ object GameExtras {
     const val SKIN_CUSTOM = "OE_SKIN_CUSTOM"
     /** The folder a skin picked in game is dropped into for the library (SkinPicks). */
     const val SKIN_PICKS = "OE_SKIN_PICKS"
+    /** Whether the game starts with anchor mode on (issue 841), as the console's settings have it. */
+    const val ANCHOR = "OE_ANCHOR"
+    /** The folder anchor mode turned on or off in game is dropped into for the library (AnchorPicks). */
+    const val ANCHOR_PICKS = "OE_ANCHOR_PICKS"
 }
 
 /**

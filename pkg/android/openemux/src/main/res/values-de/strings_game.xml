@@ -16,6 +16,8 @@
     <string name="game_toast_fast_forward_on">Vorspulen beim Fortsetzen</string>
     <string name="game_toast_slow_motion_on">Zeitlupe beim Fortsetzen</string>
     <string name="game_toast_fast_forward_off">Normale Geschwindigkeit</string>
+    <string name="game_toast_anchor_on">Anker an: Die erste gedrückte Taste bleibt gehalten</string>
+    <string name="game_toast_anchor_off">Anker aus</string>
     <string name="game_toast_screenshot">Bildschirmfoto gespeichert</string>
     <string name="game_toast_sound_off">Ton aus</string>
     <string name="game_toast_sound_on">Ton an</string>

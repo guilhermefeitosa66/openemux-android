@@ -23,7 +23,7 @@ internal class OverlayDesc(
     val image: Bitmap? = null,
 )
 
-/** The image of a desc lit by an engine state (overlayN_descM_lit_by: fast_forward or turbo). */
+/** The image of a desc lit by an engine state (overlayN_descM_lit_by: fast_forward, turbo, slow_motion or anchor). */
 internal class OverlayLit(val state: String, val bitmap: Bitmap)
 
 /** What [SkinRenderer] and [ImportedSkinRenderer] write the same way: the overlays of a skin.cfg and their images. */
@@ -39,6 +39,7 @@ internal object OverlayWriter {
     /** The engine state each toggle hotkey lights its button with. */
     val LIT_BY = mapOf(
         "turbo_fire_toggle" to "turbo", "toggle_slowmotion" to "slow_motion", "toggle_fast_forward" to "fast_forward",
+        ANCHOR_ACTION to "anchor",
     )
 
     /** A toggle's "on" pill, [w] x [h] pixels: the accent with its light inner ring of [ring] pixels. */
@@ -120,7 +121,7 @@ internal object OverlayWriter {
             cfg.append(
                 String.format(
                     Locale.US, "%s_desc%d = \"%s,%.5f,%.5f,%s,%.5f,%.5f\"\n",
-                    p, i, d.name, area.centerX() / w, area.centerY() / h, if (d.radial) "radial" else "rect",
+                    p, i, bindOf(d.name), area.centerX() / w, area.centerY() / h, if (d.radial) "radial" else "rect",
                     area.width() / 2f / w, area.height() / 2f / h,
                 )
             )
@@ -133,6 +134,7 @@ internal object OverlayWriter {
             }
             if (d.image != null) cfg.append("${p}_desc${i}_overlay = \"${ownImage(prefix, i)}\"\n")
             d.next?.let { cfg.append("${p}_desc${i}_next_target = \"$it\"\n") }
+            if (d.name == ANCHOR_ACTION) cfg.append("${p}_desc${i}_anchor_toggle = true\n")
             d.lit?.let {
                 cfg.append("${p}_desc${i}_overlay = \"${litImage(prefix, it)}\"\n")
                 cfg.append("${p}_desc${i}_lit_by = \"${it.state}\"\n")
@@ -144,6 +146,12 @@ internal object OverlayWriter {
         cfg.append("${p}_desc$n = \"overlay_next,0.5,$y,rect,0.00001,0.00001\"\n")
         cfg.append("${p}_desc${n}_next_target = \"$other\"\n")
     }
+
+    /**
+     * The bind a desc named [name] is written with: the anchor key presses nothing itself (its `_anchor_toggle` flips
+     * the engine's anchor mode), the rest press what they are named.
+     */
+    internal fun bindOf(name: String) = if (name == ANCHOR_ACTION) "nul" else name
 
     /**
      * Where a touch on [d] registers: its rect [grow] times, except a stick's range, a lit image, an own image and a

@@ -16,6 +16,8 @@
     <string name="game_toast_fast_forward_on">继续时快进</string>
     <string name="game_toast_slow_motion_on">继续时慢动作</string>
     <string name="game_toast_fast_forward_off">正常速度</string>
+    <string name="game_toast_anchor_on">锚定已开启：第一个按下的按钮会保持按住</string>
+    <string name="game_toast_anchor_off">锚定已关闭</string>
     <string name="game_toast_screenshot">截图已保存</string>
     <string name="game_toast_sound_off">声音已关闭</string>
     <string name="game_toast_sound_on">声音已开启</string>
