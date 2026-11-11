@@ -36,7 +36,7 @@ fun tileGrid(widthDp: Float, columns: Int): TileGrid {
 
 /**
  * Whether a label laid out with lines ending at [lineEnds] breaks a word in two: a line ends between two
- * characters neither of which is a space or a hyphen. Text written without spaces (Chinese, Japanese)
+ * characters neither of which is a space, a dash (hyphen, en or em dash) or a slash. Text written without spaces (Chinese, Japanese)
  * breaks anywhere, so a break next to one of its characters is not a split word.
  */
 fun splitsAWord(text: String, lineEnds: List<Int>): Boolean = lineEnds.any { end ->
@@ -44,7 +44,7 @@ fun splitsAWord(text: String, lineEnds: List<Int>): Boolean = lineEnds.any { end
 }
 
 private fun joins(c: Char): Boolean =
-    !c.isWhitespace() && c != '-' && c != '‐' && !unspaced(c)
+    !c.isWhitespace() && Character.getType(c) != Character.DASH_PUNCTUATION.toInt() && c != '/' && !unspaced(c)
 
 private fun unspaced(c: Char): Boolean = when (Character.UnicodeScript.of(c.code)) {
     Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA -> true

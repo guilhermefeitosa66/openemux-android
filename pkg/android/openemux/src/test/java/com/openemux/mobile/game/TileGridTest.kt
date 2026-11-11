@@ -59,5 +59,7 @@ class TileGridTest {
         assertFalse(splitsAWord("Shader", listOf(0)))
         assertFalse(splitsAWord("快进", listOf(1)))
         assertFalse(splitsAWord("x‐y", listOf(2)))
+        assertFalse(splitsAWord("Save–load", listOf(5)))
+        assertFalse(splitsAWord("Save/load", listOf(5)))
     }
 }
