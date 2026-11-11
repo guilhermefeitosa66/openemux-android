@@ -6095,6 +6095,49 @@ static uint32_t input_overlay_states(void)
    return states;
 }
 
+#ifdef ANDROID
+/* OpenEmux: tells the activity what anchor mode holds and where each
+ * holding finger is (input_overlay_anchor_feedback), when it changes:
+ * the activity rings the anchored button and draws a line to the
+ * finger. Nothing held reports an empty list once. */
+static void input_overlay_anchor_report(input_overlay_t *ol,
+      const input_overlay_state_t *ol_state)
+{
+   static float last[OVERLAY_ANCHOR_FEEDBACK_MAX
+         * OVERLAY_ANCHOR_FEEDBACK_FLOATS];
+   static size_t last_n;
+   float now[OVERLAY_ANCHOR_FEEDBACK_MAX * OVERLAY_ANCHOR_FEEDBACK_FLOATS];
+   float tx[OVERLAY_MAX_TOUCH], ty[OVERLAY_MAX_TOUCH];
+   unsigned count = 0;
+   size_t n;
+   int i;
+
+   /* Mode off: nothing is anchored, and the empty list went out once. */
+   if (!config_get_ptr()->bools.input_overlay_anchor && !last_n)
+      return;
+
+   for (i = 0; i < ol_state->touch_count && i < OVERLAY_MAX_TOUCH; i++)
+   {
+      /* As input_overlay_poll reads them, before the page's own scale. */
+      tx[i] = (float)(VIDEO_POS_X(ol_state->touch[i]) + 0x7fff)
+            / 0xffff;
+      ty[i] = (float)(VIDEO_POS_Y(ol_state->touch[i]) + 0x7fff)
+            / 0xffff;
+      count++;
+   }
+
+   n = input_overlay_anchor_feedback(ol->active->descs, ol->active->size,
+         tx, ty, count, now, OVERLAY_ANCHOR_FEEDBACK_MAX);
+   if (     n == last_n
+         && !memcmp(now, last,
+               n * OVERLAY_ANCHOR_FEEDBACK_FLOATS * sizeof(float)))
+      return;
+   memcpy(last, now, n * OVERLAY_ANCHOR_FEEDBACK_FLOATS * sizeof(float));
+   last_n = n;
+   android_app_anchor_feedback(now, n * OVERLAY_ANCHOR_FEEDBACK_FLOATS);
+}
+#endif
+
 /**
  * input_overlay_post_poll:
  *
@@ -7440,6 +7483,12 @@ INPUT_NOINLINE static void input_poll_overlay(
          }
       }
    }
+
+#ifdef ANDROID
+   /* OpenEmux: the anchored buttons and their fingers, for the activity
+    * to draw (before post_poll rotates the anchors). */
+   input_overlay_anchor_report(ol, ol_state);
+#endif
 
    if (button_pressed || ol_state->touch_count)
       input_overlay_post_poll(ol,

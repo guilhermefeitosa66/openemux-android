@@ -178,6 +178,7 @@ struct android_app
    jmethodID onPadShortcut;
    jmethodID onOverlayChanged;
    jmethodID onToggleStates;
+   jmethodID onAnchorFeedback;
    jmethodID autoSaveOnPause;
    jmethodID onResumedIntoPause;
 
@@ -430,6 +431,11 @@ void android_app_overlay_changed(const char *name);
  * shows the engine's state and the anchor mode is kept per console. */
 void android_app_toggle_states(bool fast_forward, bool turbo,
       bool slow_motion, bool anchor);
+
+/* OpenEmux: tells the activity which buttons anchor mode holds and where
+ * each holding finger is, when that changes: [count] floats,
+ * input_overlay_anchor_feedback's entries. */
+void android_app_anchor_feedback(const float *data, size_t count);
 
 /* OpenEmux: back after a pause that saved the auto state. Pauses the
  * content and tells the activity, which shows its own menu. */

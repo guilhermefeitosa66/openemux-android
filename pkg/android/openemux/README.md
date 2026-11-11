@@ -102,6 +102,10 @@ when the content closes, and the library must survive that.
    lifts; any other button counts only while the finger is over it. A desc
    with `overlayN_descM_anchor_toggle = true` (written as a `nul` key by the
    app's renderers, never by a skin file) flips the mode on its press.
+   Each poll, `input_overlay_anchor_feedback()` lists the anchored buttons'
+   drawn boxes and the fingers holding them; when that changes, the
+   activity's `onAnchorFeedback(float[])` hears it, and rings each button in
+   a window of its own over the game, with a line to a finger that left it.
    `input/input_overlay_anchor.c`, called from `input_overlay_poll()`;
    reproduced in `samples/tasks/overlay/overlay_anchor_test.c`
    (`make -f Makefile.anchor check`).

@@ -122,6 +122,24 @@ void android_app_toggle_states(bool fast_forward, bool turbo,
          anchor       ? JNI_TRUE : JNI_FALSE);
 }
 
+void android_app_anchor_feedback(const float *data, size_t count)
+{
+   jfloatArray array;
+   JNIEnv *env = jni_thread_getenv();
+
+   if (!env || !g_android || !g_android->onAnchorFeedback)
+      return;
+
+   array = (*env)->NewFloatArray(env, (jsize)count);
+   if (!array)
+      return;
+   if (count)
+      (*env)->SetFloatArrayRegion(env, array, 0, (jsize)count, data);
+   CALL_VOID_METHOD_PARAM(env, g_android->activity->clazz,
+         g_android->onAnchorFeedback, array);
+   (*env)->DeleteLocalRef(env, array);
+}
+
 static void frontend_unix_set_sustained_performance_mode(bool on);
 
 enum
@@ -3677,6 +3695,8 @@ static void frontend_unix_init(void *data)
          "onOverlayChanged", "(Ljava/lang/String;)V");
    GET_METHOD_ID(env, android_app->onToggleStates, class,
          "onToggleStates", "(ZZZZ)V");
+   GET_METHOD_ID(env, android_app->onAnchorFeedback, class,
+         "onAnchorFeedback", "([F)V");
    GET_METHOD_ID(env, android_app->autoSaveOnPause, class,
          "autoSaveOnPause", "()Z");
    GET_METHOD_ID(env, android_app->onResumedIntoPause, class,

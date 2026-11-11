@@ -21,7 +21,10 @@
  *      (a lower finger lifts), and each finger keeps its own;
  *   7. with the mode off nothing is held: the masks stay empty;
  *   8. the toggle flips on its press, not while held, and two pressed
- *      in the same poll cancel out.
+ *      in the same poll cancel out;
+ *   9. the feedback reports each held button's box, shape and finger,
+ *      one entry per holding finger, nothing once lifted, and never
+ *      more entries than asked for.
  */
 
 #include <stdio.h>
@@ -311,6 +314,48 @@ static void test_toggle(void)
    check(!input_overlay_anchor_toggled(descs, COUNT), "two toggles pressed together cancel out");
 }
 
+static void test_feedback(void)
+{
+   const float roll[] = { 2.5f, 3.5f };
+   const float two[]  = { 2.5f, 3.5f };
+   const float lifted = 0.0f;
+   const int fresh[]  = { -1, -1 };
+   float tx[2]        = { 0.4f, 0.7f };
+   float ty[2]        = { 0.8f, 0.9f };
+   float out[2 * OVERLAY_ANCHOR_FEEDBACK_FLOATS];
+   size_t n;
+
+   puts("feedback");
+   build();
+   descs[Y].mod_x  = 0.1f;
+   descs[Y].mod_y  = 0.6f;
+   descs[Y].mod_w  = 0.2f;
+   descs[Y].mod_h  = 0.1f;
+   descs[Y].hitbox = OVERLAY_HITBOX_RECT;
+   descs[B].hitbox = OVERLAY_HITBOX_RADIAL;
+   slide(true, roll, 2);
+   n = input_overlay_anchor_feedback(descs, COUNT, tx, ty, 1, out, 2);
+   check(n == 1, "one finger holding Y, one entry (B is only pressed)");
+   check(out[0] == 0.1f && out[1] == 0.6f && out[2] == 0.2f
+         && out[3] == 0.1f, "the entry is Y's drawn box");
+   check(out[4] == 1.0f, "a rect button says so");
+   check(out[5] == 0.4f && out[6] == 0.8f, "and where its finger is");
+
+   build();
+   poll(true, 2, two, fresh);
+   n = input_overlay_anchor_feedback(descs, COUNT, tx, ty, 2, out, 2);
+   check(n == 2 && out[4] == 0.0f
+         && out[OVERLAY_ANCHOR_FEEDBACK_FLOATS + 5] == 0.7f,
+         "two fingers, each its own entry and finger; B is round");
+   n = input_overlay_anchor_feedback(descs, COUNT, tx, ty, 2, out, 1);
+   check(n == 1, "never more entries than asked for");
+
+   post_poll();
+   poll(true, 0, &lifted, NULL);
+   n = input_overlay_anchor_feedback(descs, COUNT, tx, ty, 0, out, 2);
+   check(n == 0, "lifted, nothing to report");
+}
+
 int main(void)
 {
    test_anchorable();
@@ -319,6 +364,7 @@ int main(void)
    test_two_fingers();
    test_mode_off();
    test_toggle();
+   test_feedback();
 
    if (failures)
    {

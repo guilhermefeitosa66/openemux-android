@@ -16,7 +16,9 @@
     <string name="game_toast_fast_forward_on">தொடரும்போது வேகமாக்கல் இயக்கத்தில்</string>
     <string name="game_toast_slow_motion_on">தொடரும்போது மெதுவாக்கல் இயக்கத்தில்</string>
     <string name="game_toast_fast_forward_off">இயல்பான வேகம்</string>
-    <string name="game_toast_anchor_on">நங்கூரம் இயக்கத்தில்: நீங்கள் முதலில் அழுத்தும் பொத்தான் அழுத்தியபடியே இருக்கும்</string>
+    <string name="game_anchor_card_title">நங்கூரம் இயக்கத்தில்</string>
+    <string name="game_anchor_card_body">நீங்கள் முதலில் அழுத்தும் பொத்தான், அந்த விரலை எடுக்கும் வரை அழுத்தப்பட்டே இருக்கும். மற்றொரு பொத்தானையும் அழுத்த அதன் மீது விரலை நகர்த்துங்கள்.</string>
+    <string name="game_anchor_card_hint">மூட கீழே ஸ்வைப் செய்யவும்</string>
     <string name="game_toast_anchor_off">நங்கூரம் அணைக்கப்பட்டது</string>
     <string name="game_toast_screenshot">திரைப்பிடிப்பு சேமிக்கப்பட்டது</string>
     <string name="game_toast_sound_off">ஒலி அணைக்கப்பட்டது</string>

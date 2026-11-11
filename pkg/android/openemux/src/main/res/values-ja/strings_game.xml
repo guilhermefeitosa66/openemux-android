@@ -16,7 +16,9 @@
     <string name="game_toast_fast_forward_on">再開時に早送り</string>
     <string name="game_toast_slow_motion_on">再開時にスローモーション</string>
     <string name="game_toast_fast_forward_off">通常速度</string>
-    <string name="game_toast_anchor_on">アンカー オン：最初に押したボタンが押されたままになります</string>
+    <string name="game_anchor_card_title">アンカー オン</string>
+    <string name="game_anchor_card_body">最初に押したボタンは、その指を離すまで押されたままになります。別のボタンへ指をすべらせると、そのボタンも押せます。</string>
+    <string name="game_anchor_card_hint">下にスワイプして閉じる</string>
     <string name="game_toast_anchor_off">アンカー オフ</string>
     <string name="game_toast_screenshot">スクリーンショットを保存しました</string>
     <string name="game_toast_sound_off">サウンドオフ</string>

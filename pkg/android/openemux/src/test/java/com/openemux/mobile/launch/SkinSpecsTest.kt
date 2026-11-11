@@ -89,6 +89,21 @@ class SkinSpecsTest {
         assertEquals(emptyList<String>(), overlayNames(""))
     }
 
+    @Test fun overlayViewportsAreByNameAndCountYDown() {
+        val cfg = "overlays = 3\noverlay1_name = \"landscape\"\noverlay0_name = \"portrait\"\n" +
+            "overlay0_viewport = \"0.00000,0.60000,1.00000,0.40000\"\noverlay1_viewport = \"0.25,0.1,0.5\"\n" +
+            "overlay2_name = \"keypad\"\noverlay3_viewport = \"0,0,1,1\"\n"
+        val viewports = overlayViewports(cfg)
+        // GL counts from the bottom: a box 0.6 up and 0.4 tall is the screen's top 40%.
+        assertEquals(setOf("portrait"), viewports.keys)
+        val p = viewports.getValue("portrait")
+        assertEquals(0f, p.left, 1e-6f)
+        assertEquals(0f, p.top, 1e-6f)
+        assertEquals(1f, p.width, 1e-6f)
+        assertEquals(0.4f, p.height, 1e-6f)
+        assertEquals(emptyMap<String, ScreenBox>(), overlayViewports(""))
+    }
+
     @Test fun withOverlaysCountsTheAddedOnesAndAppendsThem() {
         val cfg = "overlays = 2\noverlay0_name = \"portrait\"\noverlay1_name = \"landscape\"\n\n"
         val body = "overlay2_name = \"$TABLETOP\"\n"

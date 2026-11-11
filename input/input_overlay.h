@@ -633,6 +633,22 @@ bool input_overlay_anchor_toggled(const struct overlay_desc *descs,
 /* The poll is over: this poll's anchors become the last poll's. */
 void input_overlay_anchor_rotate(struct overlay_desc *desc);
 
+/* Floats per entry of input_overlay_anchor_feedback. */
+#define OVERLAY_ANCHOR_FEEDBACK_FLOATS 7
+/* The entries the engine reports at most. */
+#define OVERLAY_ANCHOR_FEEDBACK_MAX 8
+
+/* What the player sees of anchor mode: one entry per pointer holding a
+ * desc, in pointer order, before the poll's anchors are rotated. Each is
+ * the desc's drawn box (mod_x, mod_y, mod_w, mod_h), 1 for a rect
+ * hitbox or 0 for a radial one, and where that pointer is ([touch_x]
+ * and [touch_y], by this poll's index), all in the screen's [0, 1]
+ * space, y down. Writes [max] entries at most into [out]; returns how
+ * many. */
+size_t input_overlay_anchor_feedback(const struct overlay_desc *descs,
+      size_t size, const float *touch_x, const float *touch_y,
+      unsigned touch_count, float *out, size_t max);
+
 /* Attempts to automatically rotate the specified overlay.
  * Depends upon proper naming conventions in overlay
  * config file. */

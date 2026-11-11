@@ -1155,6 +1155,17 @@ public class RetroActivityCommon extends NativeActivity
   }
 
   /**
+   * OpenEmux: the buttons anchor mode holds changed, or a finger holding
+   * one moved. Seven floats per held button: its drawn box (x, y, width,
+   * height), 1 for a rectangular button or 0 for a round one, and the
+   * finger (x, y), all as fractions of the screen, y down. Empty when
+   * nothing is held. Called from the engine thread.
+   */
+  public void onAnchorFeedback(float[] anchors)
+  {
+  }
+
+  /**
    * OpenEmux: asked once from the native thread at start-up. True to have
    * the auto save state written when the activity is paused (the device
    * closed, the screen off, another app in front), and the content kept
