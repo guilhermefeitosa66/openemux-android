@@ -5747,7 +5747,12 @@ static bool input_overlay_coords_inside_hitbox(const struct overlay_desc *desc,
       case OVERLAY_HITBOX_RECT:
          return
                (fabs(x - desc->x_hitbox) <= range_x)
-            && (fabs(y - desc->y_hitbox) <= range_y);
+            && (fabs(y - desc->y_hitbox) <= range_y)
+            /* OpenEmux: a triangular desc only inside its triangle */
+            && (  !desc->corner
+               || input_overlay_corner_contains(desc->corner,
+                  (x - desc->x_hitbox) / range_x,
+                  (y - desc->y_hitbox) / range_y));
       case OVERLAY_HITBOX_NONE:
          break;
    }
