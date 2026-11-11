@@ -46,6 +46,16 @@
     <string name="library_sort_recent">Recientes</string>
     <string name="library_section_carts">Cartuchos</string>
     <string name="library_section_recent">Últimos jugados</string>
+    <!-- The library's zoom on a phone upright: the Size button and menu, and the steps it names. -->
+    <string name="library_size">Tamaño</string>
+    <plurals name="library_size_columns">
+        <item quantity="one">%1$d columna</item>
+        <item quantity="other">%1$d columnas</item>
+    </plurals>
+    <string name="library_size_compact">Compacto</string>
+    <string name="library_size_normal">Normal</string>
+    <string name="library_size_large">Grande</string>
+    <string name="library_size_extra_large">Muy grande</string>
     <string name="library_no_results">No se encontró nada para «%1$s».</string>
     <string name="library_empty_list">Aún no hay juegos aquí.</string>
 

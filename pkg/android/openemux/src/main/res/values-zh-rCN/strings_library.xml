@@ -42,6 +42,15 @@
     <string name="library_sort_recent">最近</string>
     <string name="library_section_carts">卡带</string>
     <string name="library_section_recent">最近游玩</string>
+    <!-- The library's zoom on a phone upright: the Size button and menu, and the steps it names. -->
+    <string name="library_size">大小</string>
+    <plurals name="library_size_columns">
+        <item quantity="other">%1$d 列</item>
+    </plurals>
+    <string name="library_size_compact">紧凑</string>
+    <string name="library_size_normal">标准</string>
+    <string name="library_size_large">大</string>
+    <string name="library_size_extra_large">特大</string>
     <string name="library_no_results">没有找到与“%1$s”相关的内容。</string>
     <string name="library_empty_list">这里还没有游戏。</string>
 

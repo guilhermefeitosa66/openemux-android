@@ -42,6 +42,15 @@
     <string name="library_sort_recent">最近</string>
     <string name="library_section_carts">カートリッジ</string>
     <string name="library_section_recent">最近プレイしたゲーム</string>
+    <!-- The library's zoom on a phone upright: the Size button and menu, and the steps it names. -->
+    <string name="library_size">サイズ</string>
+    <plurals name="library_size_columns">
+        <item quantity="other">%1$d 列</item>
+    </plurals>
+    <string name="library_size_compact">コンパクト</string>
+    <string name="library_size_normal">標準</string>
+    <string name="library_size_large">大</string>
+    <string name="library_size_extra_large">特大</string>
     <string name="library_no_results">「%1$s」に一致するものはありません。</string>
     <string name="library_empty_list">ここにはまだゲームがありません。</string>
 

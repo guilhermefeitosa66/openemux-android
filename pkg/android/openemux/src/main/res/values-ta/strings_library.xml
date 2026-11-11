@@ -44,6 +44,16 @@
     <string name="library_sort_recent">சமீபத்தியவை</string>
     <string name="library_section_carts">கார்ட்ரிட்ஜ்கள்</string>
     <string name="library_section_recent">கடைசியாக விளையாடியவை</string>
+    <!-- The library's zoom on a phone upright: the Size button and menu, and the steps it names. -->
+    <string name="library_size">அளவு</string>
+    <plurals name="library_size_columns">
+        <item quantity="one">%1$d நெடுவரிசை</item>
+        <item quantity="other">%1$d நெடுவரிசைகள்</item>
+    </plurals>
+    <string name="library_size_compact">சிறியது</string>
+    <string name="library_size_normal">இயல்பு</string>
+    <string name="library_size_large">பெரியது</string>
+    <string name="library_size_extra_large">மிகப் பெரியது</string>
     <string name="library_no_results">“%1$s” க்கு எதுவும் கிடைக்கவில்லை.</string>
     <string name="library_empty_list">இங்கே இன்னும் விளையாட்டுகள் இல்லை.</string>
 

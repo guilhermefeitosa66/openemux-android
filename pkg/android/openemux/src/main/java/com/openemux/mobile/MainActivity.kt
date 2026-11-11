@@ -34,6 +34,7 @@ import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.share.ShareNotifications
 import com.openemux.mobile.ui.AppWindow
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.LibraryZoomPref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.LaunchGate
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
         setTheme(R.style.Theme_OpenEmux)
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
+        LibraryZoomPref.load(this)
         ButtonLabelsPref.load(this)
         Oe.syncSystem(this)
         super.onCreate(savedInstanceState)
