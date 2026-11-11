@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import android.content.Context
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -7,10 +8,8 @@ import android.provider.Settings
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,21 +28,36 @@ private const val MARQUEE_PAUSE_MS = 1500
 internal fun marqueeOn(animatorScale: Float, padLook: Boolean, focused: Boolean): Boolean =
     animatorScale > 0f && (!padLook || focused)
 
+/**
+ * The system's animator duration scale ("Remove animations" sets 0), followed while the app runs. One
+ * observer for the whole app, registered on first use: every name in a scrolling grid would otherwise
+ * register and drop its own (a binder call each) as it enters and leaves the screen.
+ */
+private object AnimatorScale {
+    private var following = false
+    var value by mutableFloatStateOf(1f)
+        private set
+
+    fun follow(context: Context): Float {
+        if (!following) {
+            following = true
+            val resolver = context.applicationContext.contentResolver
+            val read = { runCatching { Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) }
+            value = read()
+            resolver.registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false,
+                object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) { value = read() }
+                },
+            )
+        }
+        return value
+    }
+}
+
 /** The system's animator duration scale ("Remove animations" sets 0), followed while the app is open. */
 @Composable
-fun rememberAnimatorScale(): Float {
-    val resolver = LocalContext.current.contentResolver
-    val read = { runCatching { Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) }
-    var scale by remember { mutableFloatStateOf(read()) }
-    DisposableEffect(resolver) {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) { scale = read() }
-        }
-        resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
-        onDispose { resolver.unregisterContentObserver(observer) }
-    }
-    return scale
-}
+fun rememberAnimatorScale(): Float = AnimatorScale.follow(LocalContext.current)
 
 /**
  * A game's name on one line. One that does not fit scrolls right to left and loops, so it can be read in
