@@ -127,3 +127,30 @@ void input_overlay_anchor_rotate(struct overlay_desc *desc)
    desc->old_anchor_mask = desc->anchor_mask;
    desc->anchor_mask     = 0;
 }
+
+size_t input_overlay_anchor_feedback(const struct overlay_desc *descs,
+      size_t size, const float *touch_x, const float *touch_y,
+      unsigned touch_count, float *out, size_t max)
+{
+   size_t i, n = 0;
+   unsigned t;
+   for (t = 0; t < touch_count && t < 32; t++)
+      for (i = 0; i < size; i++)
+      {
+         const struct overlay_desc *desc = &descs[i];
+         float *e;
+         if (!BIT32_GET(desc->anchor_mask, t))
+            continue;
+         if (n >= max)
+            return n;
+         e    = out + n++ * OVERLAY_ANCHOR_FEEDBACK_FLOATS;
+         e[0] = desc->mod_x;
+         e[1] = desc->mod_y;
+         e[2] = desc->mod_w;
+         e[3] = desc->mod_h;
+         e[4] = desc->hitbox == OVERLAY_HITBOX_RECT ? 1.0f : 0.0f;
+         e[5] = touch_x[t];
+         e[6] = touch_y[t];
+      }
+   return n;
+}
