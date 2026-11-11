@@ -243,8 +243,9 @@ private object CurrentSlot {
         chosen = key(session) to slot
         writer.execute {
             SaveSlots.setCurrent(session.statesDir, session.romBase, slot)
-            // An engine without the command answers an error: it then keeps the slot it was launched with.
-            RaCommand.ask("SET_STATE_SLOT $slot", 1000)
+            // Not waited for, so a quick run of arrows never queues the next write behind a reply. An engine without the
+            // command ignores it and keeps the slot it was launched with.
+            RaCommand.send("SET_STATE_SLOT $slot")
         }
     }
 }
