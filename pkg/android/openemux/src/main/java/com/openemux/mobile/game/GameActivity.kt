@@ -38,7 +38,9 @@ import com.openemux.mobile.launch.SkinRenderer
 import com.openemux.mobile.launch.SkinSize
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.launch.ndsLaunchLayout
+import com.openemux.mobile.launch.ScreenBox
 import com.openemux.mobile.launch.overlayNames
+import com.openemux.mobile.launch.overlayViewports
 import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
@@ -85,6 +87,12 @@ class GameActivity : RetroActivityFuture() {
     /** Anchor mode (issue 841) as the launch set it, then as the engine reports it: a change is kept for the console. */
     private var anchor = AnchorFollow(false)
     private var anchorToast: android.widget.Toast? = null
+    /** Draws what anchor mode holds over the game (main thread): added on the first report with something held. */
+    private var anchorLayer: AnchorLayer? = null
+    /** The card explaining anchor mode, shown when the player turns it on, until swiped down (main thread). */
+    private var anchorCard: ComponentDialog? = null
+    /** Bumped each time anchor mode changes, so a card still being placed knows the mode moved on (main thread). */
+    private var anchorTurns = 0
     /**
      * The speed the pause sheet's fast-forward and slow-motion tiles asked for and the engine has not been sent yet;
      * null = nothing pending. A sheet opened before it is applied shows it and takes it over.
@@ -466,6 +474,10 @@ class GameActivity : RetroActivityFuture() {
     override fun onStop() {
         postureJob?.cancel()
         postureJob = null
+        // Windows of this activity's own: gone with it, never left behind.
+        closeAnchorCard()
+        anchorLayer?.let { windowManager.removeViewImmediate(it) }
+        anchorLayer = null
         super.onStop()
     }
 
@@ -571,12 +583,113 @@ class GameActivity : RetroActivityFuture() {
             val at = System.currentTimeMillis()
             Thread({ AnchorPicks.record(dir, console, on, at) }, "anchor-pick").start()
         }
+        // Turned on, the card explains it and stays until swiped down, over the game where the game's box is in the
+        // overlay shown (read off the engine thread); turned off, a short toast says so and the card goes.
+        val shown = synchronized(ndsLayouts) { overlay }
+        val skinDir = intent.getStringExtra("CONFIGFILE")?.let { File(File(it).parentFile, "skin") }
         runOnUiThread {
+            val turn = ++anchorTurns
             anchorToast?.cancel()
-            anchorToast = android.widget.Toast.makeText(
-                this, getString(if (on) R.string.game_toast_anchor_on else R.string.game_toast_anchor_off), android.widget.Toast.LENGTH_SHORT,
-            ).also { it.show() }
+            closeAnchorCard()
+            if (on) {
+                Thread({
+                    val viewport = skinDir?.let { readViewports(it)[shown] }
+                    runOnUiThread { if (turn == anchorTurns) showAnchorCard(viewport) }
+                }, "anchor-card").start()
+            } else {
+                anchorLayer?.marks = emptyList()
+                anchorToast = android.widget.Toast.makeText(this, getString(R.string.game_toast_anchor_off), android.widget.Toast.LENGTH_SHORT)
+                    .also { it.show() }
+            }
         }
+    }
+
+    /**
+     * Called on the engine thread when the buttons anchor mode holds change or a finger holding one moves: ringed, with
+     * a line to a finger off its button, in a window over the game that takes no touch (AnchorLayer).
+     */
+    override fun onAnchorFeedback(anchors: FloatArray) {
+        val marks = AnchorMark.parse(anchors)
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            // Nothing held needs no window yet; one is added once something is, with the game's window up.
+            val layer = anchorLayer
+                ?: if (marks.isEmpty() || window.decorView.windowToken == null) return@runOnUiThread else addAnchorLayer()
+            layer.marks = marks
+        }
+    }
+
+    private fun addAnchorLayer(): AnchorLayer {
+        val layer = AnchorLayer(this, window.decorView)
+        windowManager.addView(layer, overGameParams(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE).apply {
+            width = WindowManager.LayoutParams.MATCH_PARENT
+            height = WindowManager.LayoutParams.MATCH_PARENT
+            title = "OpenEmux anchor"
+        })
+        anchorLayer = layer
+        return layer
+    }
+
+    /**
+     * A window over the game's that never takes its focus (unfocused, the engine stops polling) and lays out across
+     * the whole screen as the game's does, cutout included, with [flags] on top.
+     */
+    private fun overGameParams(flags: Int) = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.TYPE_APPLICATION,
+        flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        android.graphics.PixelFormat.TRANSLUCENT,
+    ).apply {
+        token = window.decorView.windowToken
+        gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = window.attributes.layoutInDisplayCutoutMode
+    }
+
+    private fun readViewports(dir: File) =
+        runCatching { overlayViewports(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyMap())
+
+    /** The card explaining anchor mode, over the game's box [viewport] (the top of the screen without one). */
+    private fun showAnchorCard(viewport: ScreenBox?) {
+        if (isFinishing || isDestroyed || window.decorView.windowToken == null) return
+        val dp = resources.displayMetrics.density
+        val screen = window.decorView
+        val place = AnchorCardPlace.of(viewport, screen.width, screen.height, (12 * dp).toInt(), (360 * dp).toInt())
+        val at = IntArray(2).also(screen::getLocationOnScreen)
+        val d = ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar)
+        val view = ComposeView(d.context).apply {
+            setContent {
+                ProvideWindowLayout {
+                    AnchorCard(onClosed = { if (anchorCard === d) closeAnchorCard() })
+                }
+            }
+        }
+        d.setContentView(view)
+        d.setCancelable(false)
+        d.window?.let { w ->
+            // Only the card takes touches: around it, the pad and the strip stay the game's.
+            w.attributes = overGameParams(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL).apply {
+                width = place.width
+                height = WindowManager.LayoutParams.WRAP_CONTENT
+                x = at[0] + place.x
+                y = at[1] + place.y
+                title = "OpenEmux anchor card"
+            }
+            w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            if (Build.VERSION.SDK_INT >= 30) {
+                w.setDecorFitsSystemWindows(false)
+                w.insetsController?.let {
+                    it.hide(WindowInsets.Type.systemBars())
+                    it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            }
+        }
+        anchorCard = d
+        d.show()
+    }
+
+    private fun closeAnchorCard() {
+        anchorCard?.takeIf { it.isShowing }?.dismiss()
+        anchorCard = null
     }
 
     /**

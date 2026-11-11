@@ -16,7 +16,9 @@
     <string name="game_toast_fast_forward_on">Fast forward on resume</string>
     <string name="game_toast_slow_motion_on">Slow motion on resume</string>
     <string name="game_toast_fast_forward_off">Normal speed</string>
-    <string name="game_toast_anchor_on">Anchor on: the first button you press stays held</string>
+    <string name="game_anchor_card_title">Anchor on</string>
+    <string name="game_anchor_card_body">The first button you press stays held until you lift that finger. Slide onto another button to press it too.</string>
+    <string name="game_anchor_card_hint">Swipe down to close</string>
     <string name="game_toast_anchor_off">Anchor off</string>
     <string name="game_toast_screenshot">Screenshot saved</string>
     <string name="game_toast_sound_off">Sound off</string>
