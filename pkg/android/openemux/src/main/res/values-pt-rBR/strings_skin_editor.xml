@@ -52,4 +52,19 @@
     <string name="editor_save_new_title">Salvar como nova skin</string>
     <string name="editor_pad_pick">Escolher controle</string>
     <string name="editor_pad_group">Grupo ou um só</string>
+    <!-- Combo buttons (issue 842). -->
+    <string name="editor_combo">Combo</string>
+    <string name="editor_combo_new">Novo combo</string>
+    <string name="editor_combo_record">Botões do combo</string>
+    <string name="editor_combo_hold">Aperte os botões juntos e segure</string>
+    <string name="editor_combo_keep">Continue segurando…</string>
+    <string name="editor_combo_max">Até 3 botões</string>
+    <string name="editor_combo_too_many">Um combo tem no máximo 3 botões</string>
+    <string name="editor_combo_not_button">Só botões podem entrar num combo</string>
+    <string name="editor_combo_pick">Escolher tocando</string>
+    <string name="editor_combo_pick_hint">Toque nos botões um por um</string>
+    <string name="editor_combo_add">Adicionar</string>
+    <string name="editor_combo_added">Combo %1$s adicionado a todos os layouts. Arraste para onde quiser: cada layout guarda o próprio lugar.</string>
+    <string name="editor_combo_buttons">Botões</string>
+    <string name="editor_combo_delete">Excluir</string>
 </resources>

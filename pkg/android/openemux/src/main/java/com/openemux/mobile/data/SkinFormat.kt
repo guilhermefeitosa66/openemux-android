@@ -251,19 +251,72 @@ object SkinFormat {
         val console = Console.byId(consoleId) ?: throw SkinFormatException(SkinError.UNKNOWN_CONSOLE, "console", consoleId)
         val name = root.string("name", "name")
         if (name.isBlank()) throw SkinFormatException(SkinError.BAD_VALUE, "name", "empty")
+        val combos = root.optArray("combos", "combos")?.let { combos(it, "combos") }.orEmpty()
         val layoutsJson = root.obj("layouts", "layouts")
         if (layoutsJson.length() == 0) throw SkinFormatException(SkinError.NO_LAYOUTS, "layouts")
         val layouts = linkedMapOf<SkinLayoutId, SkinLayout>()
         for (key in layoutsJson.keys().asSequence().toList()) {
             val path = "layouts.$key"
             val id = SkinLayoutId.byId(key) ?: throw SkinFormatException(SkinError.UNKNOWN_LAYOUT, path, key)
-            layouts[id] = layout(layoutsJson.obj(key, path), path, console)
+            layouts[id] = layout(layoutsJson.obj(key, path), path, console, combos)
+        }
+        // A combo's label is the names the skin gives its buttons, on any layout.
+        val labels = combos.mapValues { (_, buttons) -> SkinCombos.label(buttons, layouts.values) }
+        val labelled = layouts.mapValues { (_, l) ->
+            l.copy(elements = l.elements.map { e -> if (e.isCombo) e.copy(label = labels.getValue(e.id)) else e })
         }
         // A fixed order, whatever the file's: the model (and the round trip) does not depend on how it was written.
-        return OpenEmuxSkin(console, name, SkinLayoutId.entries.filter { it in layouts }.associateWith { layouts.getValue(it) }, format)
+        return OpenEmuxSkin(console, name, SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }, format)
     }
 
-    private fun layout(json: JSONObject, path: String, console: Console): SkinLayout {
+    /**
+     * The root `combos` (issue 842): each combo's id and the inputs it presses, by id. A combo this app cannot press
+     * (an input it does not know or a combo may not press, fewer than [SkinCombos.MIN] or more than [SkinCombos.MAX]
+     * buttons, one input twice) is left out rather than refused, as an older app leaves out every combo: a newer app
+     * may allow more.
+     */
+    private fun combos(json: JSONArray, path: String): Map<String, List<String>> {
+        val out = linkedMapOf<String, List<String>>()
+        for (i in 0 until json.length()) {
+            val at = "$path[$i]"
+            val c = json.obj(i, at)
+            val id = c.string("id", "$at.id")
+            if (!ID.matches(id)) throw SkinFormatException(SkinError.BAD_ID, "$at.id", id)
+            if (id in out) throw SkinFormatException(SkinError.DUPLICATE_ID, "$at.id", id)
+            val buttonsJson = c.array("buttons", "$at.buttons")
+            val buttons = (0 until buttonsJson.length()).map {
+                buttonsJson.opt(it) as? String ?: throw SkinFormatException(SkinError.BAD_VALUE, "$at.buttons[$it]", "${buttonsJson.opt(it)}")
+            }
+            // Kept until all are read, so a second combo with the same id is refused even when this one is left out.
+            out[id] = buttons
+        }
+        return out.filterValues { SkinCombos.valid(it) }
+    }
+
+    /**
+     * A layout's `combos` (issue 842): where each of [combos] is on it, as a button element pressing its inputs. A
+     * place for a combo the skin does not have (or one left out) is left out; an id one of [elements] has is refused.
+     */
+    private fun layoutCombos(json: JSONArray, path: String, size: SkinSize, combos: Map<String, List<String>>, elements: List<SkinElement>): List<SkinElement> {
+        val ids = elements.map { it.id }.toHashSet()
+        val out = mutableListOf<SkinElement>()
+        for (i in 0 until json.length()) {
+            val at = "$path.combos[$i]"
+            val c = json.obj(i, at)
+            val id = c.string("id", "$at.id")
+            if (!ID.matches(id)) throw SkinFormatException(SkinError.BAD_ID, "$at.id", id)
+            if (!ids.add(id)) throw SkinFormatException(SkinError.DUPLICATE_ID, "$at.id", id)
+            val buttons = combos[id] ?: continue
+            // Read as the button it is drawn as; its inputs, its look and its label are the combo's.
+            val asButton = JSONObject(c.toString()).put("type", SkinElementType.BUTTON.id).put("bind", buttons.first())
+            listOf("image", "art", "group", "label").forEach { asButton.remove(it) }
+            val e = element(asButton, at, size)
+            out += e.copy(bind = SkinCombos.bind(buttons), shape = e.shape ?: SkinShape.CIRCLE)
+        }
+        return out
+    }
+
+    private fun layout(json: JSONObject, path: String, console: Console, combos: Map<String, List<String>> = emptyMap()): SkinLayout {
         val sizeJson = json.obj("size", "$path.size")
         val size = SkinSize(sizeJson.int("width", "$path.size.width"), sizeJson.int("height", "$path.size.height"))
         if (size.width <= 0 || size.height <= 0) throw SkinFormatException(SkinError.BAD_SIZE, "$path.size")
@@ -276,9 +329,10 @@ object SkinFormat {
             listOf(background.imageFile to "$path.background") + listOfNotNull(frame?.let { it.imageFile to "$path.frame" }) +
                 imageOwners(elements, path),
         )
+        val placed = json.optArray("combos", "$path.combos")?.let { layoutCombos(it, path, size, combos, elements) }.orEmpty()
         val keypad = json.optObj("keypad", "$path.keypad")?.let { keypad(it, "$path.keypad", size) }
         val pages = json.optObj("screenLayouts", "$path.screenLayouts")?.let { screenLayouts(it, "$path.screenLayouts", size, console) }
-        return SkinLayout(size, screens, background, frame, elements, keypad, pages.orEmpty())
+        return SkinLayout(size, screens, background, frame, elements + placed, keypad, pages.orEmpty())
     }
 
     /** The [count] game screens of the page at [path]. */
@@ -474,9 +528,37 @@ object SkinFormat {
             "console" to skin.console.id,
             "name" to skin.name,
             "forms" to skin.forms.map { it.id },
-            "layouts" to skin.layouts.entries.associate { (id, layout) -> id.id to layoutJson(layout) },
         )
+        combosJson(SkinCombos.of(skin.layouts.values))?.let { root["combos"] = it }
+        root["layouts"] = skin.layouts.entries.associate { (id, layout) -> id.id to layoutJson(layout) }
         return StringBuilder().also { emit(it, root, "") }.append('\n').toString()
+    }
+
+    /** The root `combos` of [combos], or null when there are none (the key is left out). */
+    private fun combosJson(combos: List<SkinCombo>): List<Map<String, Any>>? =
+        combos.map { linkedMapOf<String, Any>("id" to it.id, "buttons" to it.buttons) }.takeIf { it.isNotEmpty() }
+
+    /** [combos] as a skin.json's root `combos` array (the editor writing them, issue 842); null when there are none. */
+    fun combosText(combos: List<SkinCombo>): String? = combosJson(combos)?.let { StringBuilder().also { b -> emit(b, it, "") }.toString() }
+
+    /** The combo buttons of a layout ([elements]: its combos) as its `combos` array; null when it has none. */
+    fun layoutCombosText(elements: List<SkinElement>): String? =
+        elements.filter { it.isCombo }.map(::comboJson).takeIf { it.isNotEmpty() }?.let { StringBuilder().also { b -> emit(b, it, "") }.toString() }
+
+    /**
+     * Where a combo is on a layout and how it looks: never its type or its inputs (the root says those), so an app
+     * that reads no combos takes nothing for an element it would refuse.
+     */
+    private fun comboJson(e: SkinElement): Map<String, Any> = buildMap {
+        put("id", e.id)
+        putAll(rectJson(e.rect))
+        e.shape?.takeIf { it != SkinShape.CIRCLE }?.let { put("shape", it.id) }
+        e.radius?.let { put("radius", it) }
+        if (e.rotation != 0f) put("rotation", e.rotation)
+        if (e.depth != 0f) put("depth", e.depth)
+        e.labelSize?.let { put("labelSize", it) }
+        e.labelOffset?.let { put("labelOffset", linkedMapOf<String, Any>("x" to it.x, "y" to it.y)) }
+        if (e.colors.isNotEmpty()) put("colors", e.colors.mapValues { colorJson(it.value) })
     }
 
     private fun layoutJson(layout: SkinLayout): Map<String, Any> = buildMap {
@@ -484,7 +566,8 @@ object SkinFormat {
         put("screens", layout.screens.map { rectJson(it) })
         backgroundJson(layout.background)?.let { put("background", it) }
         layout.frame?.let { put("frame", frameJson(it)) }
-        put("elements", layout.elements.map { elementJson(it) })
+        put("elements", layout.elements.filter { !it.isCombo }.map { elementJson(it) })
+        layout.elements.filter { it.isCombo }.takeIf { it.isNotEmpty() }?.let { put("combos", it.map(::comboJson)) }
         layout.keypad?.let { page ->
             put("keypad", buildMap {
                 page.background?.let(::backgroundJson)?.let { put("background", it) }

@@ -23,6 +23,7 @@ import androidx.core.graphics.withSave
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinArt
+import com.openemux.mobile.data.isCombo
 import com.openemux.mobile.data.SkinColorMath
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
@@ -497,6 +498,14 @@ class OpenEmuxSkinRenderer(context: Context) {
                 }
             }
         }
+        // A combo (issue 842) has a light ring round its face, so it never reads as one of the console's buttons.
+        if (e.isCombo) {
+            val ring = minOf(top.width(), top.height()) * COMBO_RING
+            val inner = RectF(top.left + ring / 2f, top.top + ring / 2f, top.right - ring / 2f, top.bottom - ring / 2f)
+            drawFace(c, e, inner) {
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = SkinColorMath.lighten(color, 0.45f); style = Paint.Style.STROKE; strokeWidth = ring }
+            }
+        }
     }
 
     private fun shapeOf(e: SkinElement) = e.shape ?: if (e.type == SkinElementType.KEYPAD) SkinShape.RECT else SkinShape.CIRCLE
@@ -810,6 +819,9 @@ class OpenEmuxSkinRenderer(context: Context) {
         private const val DEFAULT_BALL = SkinPaintDefaults.BALL
         private const val DEFAULT_BASE = SkinPaintDefaults.BASE
         private const val DEFAULT_KNOB = SkinPaintDefaults.KNOB
+
+        /** A combo's ring, as a share of its face's short side. */
+        private const val COMBO_RING = 0.06f
 
         /** The quick actions' glyphs, by the app action that draws them (OpenEmuxBinds), in 24-unit paths. */
         private val GLYPHS = mapOf(

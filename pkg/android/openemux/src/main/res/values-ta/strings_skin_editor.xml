@@ -52,4 +52,19 @@
     <string name="editor_save_new_title">புதிய ஸ்கினாகச் சேமி</string>
     <string name="editor_pad_pick">கட்டுப்பாட்டைத் தேர்வு செய்</string>
     <string name="editor_pad_group">குழு அல்லது ஒன்று</string>
+    <!-- Combo buttons (issue 842). -->
+    <string name="editor_combo">காம்போ</string>
+    <string name="editor_combo_new">புதிய காம்போ</string>
+    <string name="editor_combo_record">காம்போ பொத்தான்கள்</string>
+    <string name="editor_combo_hold">பொத்தான்களை ஒன்றாக அழுத்திப் பிடிக்கவும்</string>
+    <string name="editor_combo_keep">தொடர்ந்து பிடிக்கவும்…</string>
+    <string name="editor_combo_max">அதிகபட்சம் 3 பொத்தான்கள்</string>
+    <string name="editor_combo_too_many">ஒரு காம்போவில் அதிகபட்சம் 3 பொத்தான்கள் இருக்கலாம்</string>
+    <string name="editor_combo_not_button">பொத்தான்கள் மட்டுமே காம்போவில் இருக்க முடியும்</string>
+    <string name="editor_combo_pick">தட்டித் தேர்ந்தெடு</string>
+    <string name="editor_combo_pick_hint">பொத்தான்களை ஒவ்வொன்றாகத் தட்டவும்</string>
+    <string name="editor_combo_add">சேர்</string>
+    <string name="editor_combo_added">காம்போ %1$s எல்லா தளவமைப்புகளிலும் சேர்க்கப்பட்டது. விரும்பிய இடத்திற்கு இழுக்கவும்: ஒவ்வொரு தளவமைப்பும் அதன் சொந்த இடத்தை வைத்திருக்கும்.</string>
+    <string name="editor_combo_buttons">பொத்தான்கள்</string>
+    <string name="editor_combo_delete">நீக்கு</string>
 </resources>

@@ -52,4 +52,19 @@
     <string name="editor_save_new_title">新しいスキンとして保存</string>
     <string name="editor_pad_pick">コントロールを選択</string>
     <string name="editor_pad_group">グループ／単体</string>
+    <!-- Combo buttons (issue 842). -->
+    <string name="editor_combo">コンボ</string>
+    <string name="editor_combo_new">新しいコンボ</string>
+    <string name="editor_combo_record">コンボのボタン</string>
+    <string name="editor_combo_hold">ボタンを同時に押したまま長押し</string>
+    <string name="editor_combo_keep">そのまま押し続けて…</string>
+    <string name="editor_combo_max">ボタンは3つまで</string>
+    <string name="editor_combo_too_many">コンボのボタンは3つまでです</string>
+    <string name="editor_combo_not_button">コンボにできるのはボタンだけです</string>
+    <string name="editor_combo_pick">タップで選ぶ</string>
+    <string name="editor_combo_pick_hint">ボタンを1つずつタップ</string>
+    <string name="editor_combo_add">追加</string>
+    <string name="editor_combo_added">コンボ %1$s をすべてのレイアウトに追加しました。好きな場所にドラッグしてください。位置はレイアウトごとに保存されます。</string>
+    <string name="editor_combo_buttons">ボタン</string>
+    <string name="editor_combo_delete">削除</string>
 </resources>

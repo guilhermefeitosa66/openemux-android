@@ -283,6 +283,16 @@ class PadScope {
 val LocalPadScope = compositionLocalOf { PadScope() }
 
 /**
+ * A screen that reads the controller's buttons as they are, held and released, rather than as focus moves and screen
+ * buttons: the skin editor's combo capture (issue 842). While [listener] is set it sees every gamepad key first and
+ * takes those it returns true for.
+ */
+object PadCapture {
+    @Volatile
+    var listener: ((KeyEvent) -> Boolean)? = null
+}
+
+/**
  * Applies [decidePadKey] in one window: the activity, or a sheet's or
  * dialog's. [back] is that window's back (B), [scope] its focusable items,
  * [bus] what a screen button does there (the screen on top's action).
@@ -316,6 +326,8 @@ class PadRouter(
         val code = event.keyCode
         val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
         val s = scope()
+        // A screen reading the pad's buttons as they are (the skin editor's combo capture) sees them first.
+        if (fromPad && PadCapture.listener?.invoke(event) == true) return true
         val decision = decidePadKey(code, event.action, fromPad, s.focusShown(), landed)
         if (decision == PadDecision.NotPad) { s.touchExit = false; return dispatch(event) }
         InputMode.gamepad = true

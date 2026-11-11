@@ -363,9 +363,15 @@ fun SkinLayout.withRects(rects: Map<String, SkinRect>): SkinLayout = copy(
 
 /**
  * One undo step's worth of an editing session: the rects of every layout the skin offers (its keys, issue 785), their
- * colours ([looks], issue 786) and what was done to their image files ([images]).
+ * colours ([looks], issue 786), what was done to their image files ([images]) and the combo buttons the skin has
+ * ([combos], issue 842: each combo's place is in [rects] under its id).
  */
-data class SkinEditState(val rects: SkinRects, val looks: Map<SkinLayoutId, SkinLook>, val images: SkinImageEdits = emptyMap())
+data class SkinEditState(
+    val rects: SkinRects,
+    val looks: Map<SkinLayoutId, SkinLook>,
+    val images: SkinImageEdits = emptyMap(),
+    val combos: List<SkinCombo> = emptyList(),
+)
 
 /**
  * One editing session on [saved] (issues 784, 785 and 786): the rects and colours of every layout, the one being edited
@@ -375,7 +381,8 @@ data class SkinEditState(val rects: SkinRects, val looks: Map<SkinLayoutId, Skin
  * [start] is a draft's rects, [looks] its colours and [images] its image edits; only the layouts and elements the
  * session has are taken from them. [added] are layouts the draft has and [saved] has not, [removed] layouts of [saved]
  * the draft dropped. [existing]: the image files the skin has (SkinSource.files), which tells a colour that drops an
- * image from one that has none to drop.
+ * image from one that has none to drop. [combos] are a draft's combo buttons (null: the skin's) and [comboElements]
+ * the combos a draft placed on layouts of [saved] that has none of them.
  */
 class SkinEditorModel(
     val saved: OpenEmuxSkin,
@@ -385,24 +392,36 @@ class SkinEditorModel(
     looks: Map<SkinLayoutId, SkinLook>? = null,
     images: SkinImageEdits = emptyMap(),
     private val existing: Set<String> = emptySet(),
+    combos: List<SkinCombo>? = null,
+    comboElements: Map<SkinLayoutId, List<SkinElement>> = emptyMap(),
 ) {
     private val original = saved.rects()
     private val originalLooks = saved.layouts.mapValues { (_, l) -> l.look() }
+    private val originalCombos = saved.combos
 
     /** Layouts this session made (a form switched on) or a draft brought: what [base] falls back to. */
     private val derived = added.toMutableMap()
+
+    /**
+     * Combo buttons placed on a layout of [saved] or [derived] that has none of them: by a draft, or by this session
+     * (each at its starting spot), kept after a delete so undo and redo find them. Which combos the skin has, and their
+     * inputs, is the state's [SkinEditState.combos].
+     */
+    private val placedCombos = comboElements.mapValues { it.value }.toMutableMap()
     private val history = run {
         val ids = (saved.layouts.keys - removed) + added.keys
+        val startCombos = combos ?: originalCombos
         SkinEditState(
             ids.associateWith { id ->
                 val d = start?.get(id).orEmpty()
-                val b = base(id)
+                val b = present(base(id), startCombos)
                 // The draft's rects for what the skin has, and the labels the draft gave a place of their own.
                 b.rects().mapValues { (k, r) -> d[k] ?: r } +
                     d.filterKeys { k -> SkinArea.labelOwner(k)?.let { owner -> b.elements.any { it.id == owner && SkinLabels.has(it) } } == true }
             },
             ids.associateWith { id -> mergeLook(base(id).look(), looks?.get(id)) },
             images.filterKeys { it.substringBefore('/') in ids.map(SkinLayoutId::id) && knownImage(it) },
+            startCombos,
         ).let { SkinEditHistory(it) }
     }
 
@@ -432,7 +451,10 @@ class SkinEditorModel(
     val rects: SkinRects get() = state.rects
     val looks: Map<SkinLayoutId, SkinLook> get() = state.looks
     val images: SkinImageEdits get() = state.images
-    val dirty: Boolean get() = rects != original || looks != originalLooks || images.isNotEmpty()
+
+    /** The combo buttons the skin has now (issue 842). */
+    val combos: List<SkinCombo> get() = state.combos
+    val dirty: Boolean get() = rects != original || looks != originalLooks || images.isNotEmpty() || combos != originalCombos
     val canUndo: Boolean get() = history.canUndo
     val canRedo: Boolean get() = history.canRedo
 
@@ -443,7 +465,7 @@ class SkinEditorModel(
     /** Layout [id] with its current rects and colours, or null when the skin does not offer it now. */
     fun layoutOf(id: SkinLayoutId): SkinLayout? {
         val now = rects[id] ?: return null
-        return base(id).withRects(now).withLook(looks.getValue(id))
+        return present(base(id), combos).withRects(now).withLook(looks.getValue(id))
     }
 
     /** Edits [form]'s layout in [orientation]; the selection is dropped. */
@@ -465,7 +487,8 @@ class SkinEditorModel(
 
     /** Whether layout [id] differs from how the skin has it (or is new, or gone): its rects, its colours or its images. */
     fun changed(id: SkinLayoutId): Boolean =
-        rects[id] != original[id] || looks[id] != originalLooks[id] || images.keys.any { it.substringBefore('/') == id.id }
+        rects[id] != original[id] || looks[id] != originalLooks[id] || images.keys.any { it.substringBefore('/') == id.id } ||
+            layoutOf(id)?.elements?.filter { it.isCombo }?.map { it.id to it.bind } != saved.layouts[id]?.elements?.filter { it.isCombo }?.map { it.id to it.bind }
 
     /**
      * The Layouts panel's switch for [form] (issue 785). On: each of its layouts the skin lacks is made from the closest
@@ -484,10 +507,12 @@ class SkinEditorModel(
                     val source = SkinForms.closest(id, grown.keys) ?: return false
                     // Made from the source as it is when first switched on this session: its rects and its colours
                     // (not its images). Kept in [derived] afterwards, so undo and redo find the same layout.
-                    val layouts = grown.keys.associateWith { base(it).withRects(grown.getValue(it)).withLook(looks.getValue(it)) }
+                    val layouts = grown.keys.associateWith { present(base(it), now.combos).withRects(grown.getValue(it)).withLook(looks.getValue(it)) }
                     derived[id] = SkinForms.derive(layouts.getValue(source), SkinForms.size(id, layouts))
                 }
-                grown[id] = base(id).rects()
+                // A combo made after the layout was, or one the skin's own layout lacks, starts at a spot of its own.
+                now.combos.filter { c -> base(id).elements.none { it.id == c.id } }.forEach { c -> place(id, c, present(base(id), now.combos)) }
+                grown[id] = present(base(id), now.combos).rects()
                 looks[id] = base(id).look()
             }
             now.copy(rects = grown, looks = looks)
@@ -731,14 +756,14 @@ class SkinEditorModel(
     fun reset() {
         val id = layoutId ?: return
         val keys = moving().keys.takeIf { it.isNotEmpty() } ?: return
-        val saved = base(id).rects()
+        val saved = present(base(id), combos).rects()
         history.push(withLayout(id, saved.filterKeys { it in keys }, gone = keys - saved.keys))
     }
 
     /** The whole layout being edited back to how the skin has it. */
     fun resetLayout() {
         val id = layoutId ?: return
-        val saved = base(id).rects()
+        val saved = present(base(id), combos).rects()
         history.push(withLayout(id, saved, gone = current().keys - saved.keys))
     }
 
@@ -777,7 +802,7 @@ class SkinEditorModel(
 
     /** Layout [id] as [state] has it: its rects and its colours. */
     private fun layoutIn(state: SkinEditState, id: SkinLayoutId): SkinLayout =
-        base(id).withRects(state.rects.getValue(id)).withLook(state.looks.getValue(id))
+        present(base(id), state.combos).withRects(state.rects.getValue(id)).withLook(state.looks.getValue(id))
 
     /**
      * Whether the image at [path] of [layout] is a picture the player put there, which a colour picked in another
@@ -862,9 +887,96 @@ class SkinEditorModel(
     fun removedLayouts(): Set<SkinLayoutId> = original.keys - rects.keys
 
     /** [json], the skin's skin.json, with the edited rects and colours written in and the layouts switched on or off. */
-    fun json(json: String): String = SkinEditJson.patch(json, edits(), lookEdits(), removedLayouts(), addedLayouts())
+    fun json(json: String): String = SkinEditJson.patch(
+        json, edits(), lookEdits(), removedLayouts(), addedLayouts(),
+        combos = combos, comboPlacements = rects.keys.associateWith { id -> layoutOf(id)!!.elements.filter { it.isCombo } },
+    )
 
-    private fun base(id: SkinLayoutId): SkinLayout = saved.layouts[id] ?: derived.getValue(id)
+    /** The layout's controls a combo may press (issue 842); a combo needs two of them. */
+    fun comboInputs(): List<SkinElement> = layout?.let(SkinCombos::eligible).orEmpty()
+
+    /** The combo selected on its own, or null. */
+    val selectedCombo: SkinCombo?
+        get() = (selection as? SkinSelection.One)?.id?.let { id -> combos.firstOrNull { it.id == id } }
+
+    /**
+     * A combo pressing [buttons] (issue 842), in the order they read on the layout being edited, added to every layout
+     * the skin offers at its starting spot there ([SkinCombos.start]) and selected: one undo step. Null, and nothing
+     * done, for buttons that make no combo.
+     */
+    fun addCombo(buttons: Collection<String>): SkinCombo? {
+        val l = layout ?: return null
+        val ordered = SkinCombos.ordered(buttons, l)
+        if (!SkinCombos.valid(ordered)) return null
+        tryMode(false)
+        val now = history.current
+        val combo = SkinCombo(SkinCombos.nextId((saved.layouts.keys + derived.keys).map(::base)), ordered)
+        var rects = now.rects
+        for (id in now.rects.keys) {
+            val rect = place(id, combo, layoutIn(now, id))
+            rects = rects + (id to rects.getValue(id) + (combo.id to rect))
+        }
+        history.push(now.copy(rects = rects, combos = now.combos + combo))
+        selection = SkinSelection.One(combo.id)
+        return combo
+    }
+
+    /** Combo [id] presses [buttons] now (the Buttons tool): one undo step; nothing for buttons that make no combo. */
+    fun recordCombo(id: String, buttons: Collection<String>): Boolean {
+        val l = layout ?: return false
+        val ordered = SkinCombos.ordered(buttons, l)
+        val now = history.current
+        if (!SkinCombos.valid(ordered) || now.combos.none { it.id == id }) return false
+        cancelGesture()
+        history.push(now.copy(combos = now.combos.map { if (it.id == id) it.copy(buttons = ordered) else it }))
+        return true
+    }
+
+    /** Combo [id] leaves every layout of the skin: one undo step, the selection dropped. */
+    fun deleteCombo(id: String) {
+        val now = history.current
+        if (now.combos.none { it.id == id }) return
+        cancelGesture()
+        selection = null
+        history.push(
+            now.copy(
+                combos = now.combos.filter { it.id != id },
+                rects = now.rects.mapValues { (_, r) -> r - id - SkinArea.label(id) },
+            ),
+        )
+    }
+
+    /**
+     * Places [combo] on layout [id] ([shown]: that layout as it is now) at its starting spot, in the combo look and the
+     * size of its face buttons, unless the layout already has it: returns where it is.
+     */
+    private fun place(id: SkinLayoutId, combo: SkinCombo, shown: SkinLayout): SkinRect {
+        base(id).elements.firstOrNull { it.id == combo.id }?.let { return it.rect }
+        val template = SkinCombos.template(shown)
+        val rect = SkinCombos.start(shown, combo.buttons, SkinCombos.diameter(shown, template))
+        placedCombos[id] = placedCombos[id].orEmpty() + SkinCombos.element(combo, labelOf(combo.buttons), rect, template)
+        return rect
+    }
+
+    /** The label of a combo pressing [buttons]: the names the skin's layouts give them. */
+    private fun labelOf(buttons: List<String>): String = SkinCombos.label(buttons, saved.layouts.values + derived.values)
+
+    /**
+     * [layout] with only the combos of [combos], each pressing its inputs and labelled after them, after the layout's
+     * other controls in the order [combos] has them.
+     */
+    private fun present(layout: SkinLayout, combos: List<SkinCombo>): SkinLayout {
+        if (layout.elements.none { it.isCombo }) return layout
+        val placed = layout.elements.filter { it.isCombo }.associateBy { it.id }
+        val shown = combos.mapNotNull { c -> placed[c.id]?.copy(bind = SkinCombos.bind(c.buttons), label = labelOf(c.buttons)) }
+        return layout.copy(elements = layout.elements.filter { !it.isCombo } + shown)
+    }
+
+    private fun base(id: SkinLayoutId): SkinLayout {
+        val layout = saved.layouts[id] ?: derived.getValue(id)
+        val placed = placedCombos[id]?.filter { p -> layout.elements.none { it.id == p.id } }.orEmpty()
+        return if (placed.isEmpty()) layout else layout.copy(elements = layout.elements + placed)
+    }
 
     private fun current(): Map<String, SkinRect> = rects.getValue(layoutId!!)
 
@@ -955,6 +1067,11 @@ class SkinEditorModel(
                 looks = draft.layouts.mapValues { it.value.look() },
                 images = images,
                 existing = existing,
+                combos = draft.combos,
+                // The draft's combos on the skin's own layouts that lack them (the draft's added layouts hold theirs).
+                comboElements = draft.layouts.filterKeys { it in saved.layouts }.mapValues { (id, l) ->
+                    l.elements.filter { e -> e.isCombo && saved.layouts.getValue(id).elements.none { it.id == e.id } }
+                }.filterValues { it.isNotEmpty() },
             )
 
         /** [base] with [draft]'s colours for the controls [base] has (null: [base] as it is). */
@@ -980,6 +1097,8 @@ object SkinEditJson {
         looks: Map<SkinLayoutId, SkinLook> = emptyMap(),
         removed: Set<SkinLayoutId> = emptySet(),
         added: Map<SkinLayoutId, SkinLayout> = emptyMap(),
+        combos: List<SkinCombo>? = null,
+        comboPlacements: Map<SkinLayoutId, List<SkinElement>> = emptyMap(),
     ): String {
         val root = JSONObject(json.removePrefix("\uFEFF"))
         val layouts = root.getJSONObject("layouts")
@@ -1058,7 +1177,40 @@ object SkinEditJson {
                 if (colors.length() > 0) e.put("colors", colors) else e.remove("colors")
             }
         }
+        if (combos != null) writeCombos(root, layouts, combos, comboPlacements)
         return root.toString(2) + "\n"
+    }
+
+    /**
+     * The skin's combo buttons (issue 842) written over whatever the file had: the root `combos` and each layout's
+     * (its places from [placements], in whole units inside the layout as any rect the editor writes); a key with none
+     * left goes.
+     */
+    private fun writeCombos(root: JSONObject, layouts: JSONObject, combos: List<SkinCombo>, placements: Map<SkinLayoutId, List<SkinElement>>) {
+        SkinFormat.combosText(combos)?.let { root.put("combos", JSONArray(it)) } ?: root.remove("combos")
+        for (key in layouts.keys().asSequence().toList()) {
+            val layout = layouts.optJSONObject(key) ?: continue
+            val placed = SkinLayoutId.byId(key)?.let { placements[it] }.orEmpty()
+            val text = SkinFormat.layoutCombosText(placed)
+            if (text == null) {
+                layout.remove("combos")
+                continue
+            }
+            val size = layout.getJSONObject("size")
+            val w = size.getInt("width")
+            val h = size.getInt("height")
+            val array = JSONArray(text)
+            for (i in 0 until array.length()) {
+                val c = array.getJSONObject(i)
+                val width = c.getDouble("width").roundToInt().coerceIn(1, w)
+                val height = c.getDouble("height").roundToInt().coerceIn(1, h)
+                c.put("x", c.getDouble("x").roundToInt().coerceIn(0, w - width)).put("y", c.getDouble("y").roundToInt().coerceIn(0, h - height))
+                c.put("width", width).put("height", height)
+                SCALED.forEach { k -> if (c.has(k)) c.put(k, tenth(c.getDouble(k))) }
+                c.optJSONObject("labelOffset")?.let { o -> o.put("x", tenth(o.getDouble("x"))).put("y", tenth(o.getDouble("y"))) }
+            }
+            layout.put("combos", array)
+        }
     }
 
     /** [argb] as the format writes a colour: `#RRGGBB`, or `#RRGGBBAA` when it is not opaque. */
