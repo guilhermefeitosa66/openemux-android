@@ -763,15 +763,25 @@ class SkinEditorModel(
     fun reset() {
         val id = layoutId ?: return
         val keys = moving().keys.takeIf { it.isNotEmpty() } ?: return
-        val saved = present(base(id), combos).rects()
+        val base = present(base(id), combos)
+        val now = layout
+        // A combo given another outline (issue 842) keeps it: its saved size in that outline, as the Size tool counts it.
+        val saved = base.rects().mapValues { (k, r) ->
+            val was = base.elements.firstOrNull { it.id == k && it.isCombo } ?: return@mapValues r
+            val e = now?.elements?.firstOrNull { it.id == k } ?: return@mapValues r
+            ComboOutline.reshape(r, ComboOutline.of(was), ComboOutline.of(e), base.size)
+        }
         history.push(withLayout(id, saved.filterKeys { it in keys }, gone = keys - saved.keys))
     }
 
-    /** The whole layout being edited back to how the skin has it. */
+    /** The whole layout being edited back to how the skin has it, its combos' outlines (issue 842) included. */
     fun resetLayout() {
         val id = layoutId ?: return
-        val saved = present(base(id), combos).rects()
-        history.push(withLayout(id, saved, gone = current().keys - saved.keys))
+        val base = present(base(id), combos)
+        val saved = base.rects()
+        val reset = withLayout(id, saved, gone = current().keys - saved.keys)
+        val look = reset.looks.getValue(id)
+        history.push(reset.copy(looks = reset.looks + (id to look.copy(shapes = base.look().shapes))))
     }
 
     /**
@@ -980,10 +990,11 @@ class SkinEditorModel(
     fun shapeCombo(outline: ComboOutline) {
         val id = layoutId ?: return
         val combo = selectedCombo ?: return
+        // Off the last undo step, not a drag still in progress (which this drops).
+        cancelGesture()
         val e = layout?.elements?.firstOrNull { it.id == combo.id } ?: return
         val was = ComboOutline.of(e)
         if (was == outline) return
-        cancelGesture()
         val now = history.current
         val rect = ComboOutline.reshape(e.rect, was, outline, base(id).size)
         val look = now.looks.getValue(id)

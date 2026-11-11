@@ -209,6 +209,26 @@ class SkinComboShapeTest {
         assertEquals(triangleBL, ComboOutline.of(m.combo()))
     }
 
+    @Test fun resetKeepsTheOutlineAndResetLayoutRestoresIt() {
+        val m = model(SkinFormat.parse(model().apply { addCombo(setOf("y", "b")) }.json(SkinFormat.toJson(twoLayouts))))
+        m.tap("combo-1")
+        val circle = m.combo().rect
+        m.shapeCombo(ComboOutline.PILL)
+        val pill = m.combo().rect
+        m.sizeStep(1)
+        // Reset: the pill at its saved size, not squeezed into the circle's square.
+        m.reset()
+        assertEquals(SkinShape.PILL, m.combo().shape)
+        assertEquals(pill.width, m.combo().rect.width, 0.01f)
+        assertEquals(pill.height, m.combo().rect.height, 0.01f)
+        assertEquals(100, m.percent())
+        // Reset layout: the skin's circle again, in its own rect.
+        m.resetLayout()
+        assertEquals(ComboOutline.CIRCLE, ComboOutline.of(m.combo()))
+        assertEquals(circle, m.combo().rect)
+        assertFalse(m.dirty)
+    }
+
     @Test fun nothingToShapeWithoutAComboSelected() {
         val m = model()
         assertNull(m.selectedOutline)
