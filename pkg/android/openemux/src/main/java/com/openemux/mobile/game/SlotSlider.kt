@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -31,6 +32,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -118,6 +120,7 @@ internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (
     val latestSlot by rememberUpdatedState(slot)
     val pick by rememberUpdatedState(onPick)
     val measurer = rememberTextMeasurer()
+    val view = LocalView.current
     val label = stringResource(R.string.game_slot_slider)
     val state = stringResource(if (slot in used) R.string.game_slot_used else R.string.game_slot_empty, slot)
     val colors = SliderColors(track = Oe.Raised, accent = Oe.Accent, outline = Oe.AccentText, background = Oe.Sheet)
@@ -143,6 +146,9 @@ internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (
                 if (e.type == KeyEventType.KeyDown) SlotStops.step(latestSlot, delta).let { if (it != latestSlot) pick(it) }
                 true
             }
+            // Out of touch mode only, like the clickables around it: a plain focusable would take the focus a touch-opened
+            // sheet leaves free, and the pad's first press would start here instead of on Continue.
+            .focusProperties { canFocus = !view.isInTouchMode }
             .focusable()
             .pointerInput(Unit) { detectTapGestures { pickAt(it.x, size.width) } }
             .pointerInput(Unit) {
