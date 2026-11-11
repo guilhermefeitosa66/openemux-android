@@ -293,14 +293,15 @@ fun PauseSheet(
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
         val band = forbiddenBand(window)?.takeIf { window.tabletop }
-        val tabletop = band != null
+        val layout = pauseLayout(tablet = window.tablet, tabletop = band != null, wide = window.wide)
+        val tabletop = layout == PauseLayout.TABLETOP
         // A tablet gets a side panel on the right, the game still showing on the left (TabPausa).
-        val panel = window.tablet && !tabletop
+        val panel = layout == PauseLayout.PANEL
         val panelWidth = min(440.dp, (window.widthDp * 0.55f).dp)
         // A wide window (a phone on its side) is short: the main page goes in two columns when they fit, and whatever still overflows scrolls.
-        val landscape = window.wide && !panel
+        val landscape = layout == PauseLayout.LANDSCAPE
         // A phone upright: the sheet opens under the game, stretches up and is swiped down to resume (issue 849).
-        val phone = !panel && !tabletop && !landscape
+        val phone = layout == PauseLayout.PHONE
         val sheet = remember { SheetDrag() }
         val density = LocalDensity.current
         val flingPx = with(density) { SheetFling.toPx() }
@@ -517,7 +518,7 @@ fun PauseSheet(
                         Page.Main -> MainPage(
                             landscape = landscape,
                             tabletop = tabletop,
-                            phone = phone,
+                            quickRows = layout.quickRows,
                             onResume = onResume,
                             hardcore = session.hardcore,
                             speed = speed,
@@ -684,8 +685,8 @@ private fun MainPage(
     landscape: Boolean,
     /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Quit in them. */
     tabletop: Boolean,
-    /** A phone upright (issue 849): Continue and Restart on top, Load beside Save, no Restart row in the list. */
-    phone: Boolean,
+    /** A phone, upright or on its side (issues 849, 855): Continue and Restart on top, Load beside Save, no Restart row in the list. */
+    quickRows: Boolean,
     onResume: () -> Unit,
     hardcore: Boolean,
     speed: Speed,
@@ -811,8 +812,8 @@ private fun MainPage(
     }
     val actions = @Composable { modifier: Modifier ->
         Column(modifier) {
-            if (phone) {
-                // The essentials first, all above the first stop's fold: the note goes under them.
+            if (quickRows) {
+                // The essentials first (upright, all above the first stop's fold): the note goes under them.
                 resumeRow(Modifier.padding(top = 16.dp).fillMaxWidth())
                 SaveLoadRow(slot, slotInUse, Modifier.padding(top = 10.dp).fillMaxWidth(), onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore)
                 note()
@@ -832,8 +833,8 @@ private fun MainPage(
                     ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
                     ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
                 }
-                // On a phone upright Restart sits beside Continue.
-                if (!phone) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
+                // On a phone Restart sits beside Continue.
+                if (!quickRows) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
                 RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
             if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)
