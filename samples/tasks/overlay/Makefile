@@ -22,6 +22,7 @@ SOURCES := overlay_budget_test.c \
            $(REPO_ROOT)/tasks/task_overlay.c \
            $(REPO_ROOT)/input/input_overlay_alpha.c \
            $(REPO_ROOT)/input/input_overlay_anchor.c \
+           $(REPO_ROOT)/input/input_overlay_corner.c \
            $(REPO_ROOT)/tasks/task_nbio_slice.c \
            $(LIBRETRO_COMM_DIR)/formats/image_texture_set.c \
            $(LIBRETRO_COMM_DIR)/queues/task_queue.c \

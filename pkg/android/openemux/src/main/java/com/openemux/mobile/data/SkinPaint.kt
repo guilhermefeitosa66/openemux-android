@@ -323,24 +323,31 @@ object SkinTextureFit {
 
 /**
  * A layout's colours as the editor edits them: the background's, the frame's and each control's parts; and, with
- * them, what each control's image holds ([art]), which a texture changes.
+ * them, what each control's image holds ([art]), which a texture changes, and each combo button's outline there
+ * ([shapes], issue 842).
  */
 data class SkinLook(
     val background: Int? = null,
     val frame: SkinFrameColors? = null,
     val colors: Map<String, Map<String, Int>> = emptyMap(),
     val art: Map<String, SkinArt> = emptyMap(),
+    val shapes: Map<String, ComboOutline> = emptyMap(),
 )
 
 /** [this] layout's colours. */
-fun SkinLayout.look(): SkinLook =
-    SkinLook(background.color, frame?.colors, elements.associate { it.id to it.colors }, elements.associate { it.id to it.art })
+fun SkinLayout.look(): SkinLook = SkinLook(
+    background.color, frame?.colors, elements.associate { it.id to it.colors }, elements.associate { it.id to it.art },
+    elements.filter { it.isCombo }.associate { it.id to ComboOutline.of(it) },
+)
 
-/** [this] layout painted in [look]: a control [look] does not name keeps its colours. */
+/** [this] layout painted in [look]: a control [look] does not name keeps its colours (and a combo its outline). */
 fun SkinLayout.withLook(look: SkinLook): SkinLayout = copy(
     background = background.copy(color = look.background),
     frame = frame?.let { f -> f.copy(colors = look.frame ?: f.colors) },
-    elements = elements.map { e -> e.copy(colors = look.colors[e.id] ?: e.colors, art = look.art[e.id] ?: e.art) },
+    elements = elements.map { e ->
+        val painted = e.copy(colors = look.colors[e.id] ?: e.colors, art = look.art[e.id] ?: e.art)
+        look.shapes[e.id]?.takeIf { e.isCombo }?.let { painted.copy(shape = it.shape, corner = it.corner) } ?: painted
+    },
 )
 
 /** What the editor did to one of a layout's image files: the image is gone (colours drawn instead), or replaced. */

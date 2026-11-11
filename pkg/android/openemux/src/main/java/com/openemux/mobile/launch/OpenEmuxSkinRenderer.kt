@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.CornerPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -25,6 +26,7 @@ import com.openemux.mobile.data.ScreenLayout
 import com.openemux.mobile.data.SkinArt
 import com.openemux.mobile.data.isCombo
 import com.openemux.mobile.data.SkinColorMath
+import com.openemux.mobile.data.SkinCorner
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinFrameColors
@@ -357,7 +359,13 @@ class OpenEmuxSkinRenderer(context: Context) {
         val files = if (screen != null) pkg.screenImages(id, screen, element) else pkg.images(id, element, keypad)
         val box = plan.box.rect()
         return when (plan) {
-            is ElementPlan.Button -> listOf(OverlayDesc(plan.bind ?: "nul", box, image = control(pkg, files[0], element, box, labels)))
+            // A triangular combo (issue 842) is touched on its triangle alone, never over the buttons beside it.
+            is ElementPlan.Button -> listOf(
+                OverlayDesc(
+                    plan.bind ?: "nul", box, image = control(pkg, files[0], element, box, labels),
+                    corner = element.corner?.takeIf { element.shape == SkinShape.TRIANGLE }?.id,
+                ),
+            )
             is ElementPlan.Toggle ->
                 listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = control(pkg, files[0], element, box, labels)))
             is ElementPlan.Action -> {
@@ -501,7 +509,8 @@ class OpenEmuxSkinRenderer(context: Context) {
         // A combo (issue 842) has a light ring round its face, so it never reads as one of the console's buttons.
         if (e.isCombo) {
             val ring = minOf(top.width(), top.height()) * COMBO_RING
-            val inner = RectF(top.left + ring / 2f, top.top + ring / 2f, top.right - ring / 2f, top.bottom - ring / 2f)
+            val inner = if (shapeOf(e) == SkinShape.TRIANGLE) inset(top, e.corner ?: SkinCorner.BOTTOM_LEFT, ring / 2f)
+            else RectF(top.left + ring / 2f, top.top + ring / 2f, top.right - ring / 2f, top.bottom - ring / 2f)
             drawFace(c, e, inner) {
                 Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = SkinColorMath.lighten(color, 0.45f); style = Paint.Style.STROKE; strokeWidth = ring }
             }
@@ -522,9 +531,37 @@ class OpenEmuxSkinRenderer(context: Context) {
             when (shapeOf(e)) {
                 SkinShape.CIRCLE -> drawOval(own, paint(own))
                 SkinShape.PILL -> (minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
+                SkinShape.TRIANGLE -> drawPath(
+                    triangle(own, e.corner ?: SkinCorner.BOTTOM_LEFT),
+                    paint(own).apply { pathEffect = CornerPathEffect(minOf(w, h) * TRIANGLE_ROUND) },
+                )
                 SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * 0.16f)).coerceAtMost(minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
             }
         }
+    }
+
+    /**
+     * The box of the triangle in [r] pointing at [corner] whose three sides are [d] inside its own: [r] shrunk about the
+     * triangle's incentre, which every side is as far from.
+     */
+    private fun inset(r: RectF, corner: SkinCorner, d: Float): RectF {
+        val w = r.width()
+        val h = r.height()
+        // The inradius of a right triangle with legs w and h.
+        val rin = w * h / (w + h + hypot(w, h))
+        val f = ((rin - d) / rin).coerceAtLeast(0f)
+        val ix = if (corner.sx < 0f) r.left + rin else r.right - rin
+        val iy = if (corner.sy < 0f) r.top + rin else r.bottom - rin
+        return RectF(ix + (r.left - ix) * f, iy + (r.top - iy) * f, ix + (r.right - ix) * f, iy + (r.bottom - iy) * f)
+    }
+
+    /** The right triangle in [r] whose square corner is [corner] (issue 842): its legs on the two edges that meet there. */
+    private fun triangle(r: RectF, corner: SkinCorner): Path {
+        val x = if (corner.sx < 0f) r.left else r.right
+        val y = if (corner.sy < 0f) r.top else r.bottom
+        val ox = if (corner.sx < 0f) r.right else r.left
+        val oy = if (corner.sy < 0f) r.bottom else r.top
+        return Path().apply { moveTo(x, oy); lineTo(x, y); lineTo(ox, y); close() }
     }
 
     /** [e]'s label on a canvas where [r] stands for the element's rect. */
@@ -558,7 +595,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             if (own != null) {
                 text.textSize = own * k
             } else {
-                val (w, h) = e.face.let { SkinShapes.unturned(it.width, it.height, e.rotation) }
+                val (w, h) = SkinLabels.room(e)
                 text.textSize = h * k * 0.42f
                 val wide = text.measureText(label)
                 if (wide > w * k * SkinLabels.FIT) text.textSize *= w * k * SkinLabels.FIT / wide
@@ -822,6 +859,9 @@ class OpenEmuxSkinRenderer(context: Context) {
 
         /** A combo's ring, as a share of its face's short side. */
         private const val COMBO_RING = 0.06f
+
+        /** How round a triangular combo's corners are, as a share of its short side (issue 842). */
+        private const val TRIANGLE_ROUND = 0.12f
 
         /** The quick actions' glyphs, by the app action that draws them (OpenEmuxBinds), in 24-unit paths. */
         private val GLYPHS = mapOf(

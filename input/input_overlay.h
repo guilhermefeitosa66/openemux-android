@@ -149,6 +149,19 @@ enum overlay_lit_by
    OVERLAY_LIT_BY_ANCHOR       = 4
 };
 
+/* OpenEmux: the corner a triangular desc's square corner points at
+ * (overlayN_descM_triangle). The desc is a right triangle inside its
+ * rect hitbox: its legs on the two edges that meet at that corner,
+ * its long edge across the rect. 0: the whole rect, as before. */
+enum overlay_corner
+{
+   OVERLAY_CORNER_NONE         = 0,
+   OVERLAY_CORNER_BOTTOM_LEFT  = 1,
+   OVERLAY_CORNER_BOTTOM_RIGHT = 2,
+   OVERLAY_CORNER_TOP_LEFT     = 3,
+   OVERLAY_CORNER_TOP_RIGHT    = 4
+};
+
 enum OVERLAY_FLAGS
 {
    OVERLAY_FULL_SCREEN        = (1 << 0),
@@ -327,6 +340,9 @@ struct overlay_desc
    /* The frontend state (enum overlay_lit_by) this desc's image shows:
     * the image is hidden while that state is off. 0 for none. */
    uint8_t lit_by;
+   /* OpenEmux: enum overlay_corner, for a triangular rect desc
+    * (input_overlay_corner.c). */
+   uint8_t corner;
    uint8_t flags;
 };
 
@@ -610,6 +626,19 @@ uint8_t input_overlay_lit_by_parse(const char *name);
 
 /* The driver was handed a page: nothing it holds is known any more. */
 void input_overlay_alpha_forget(input_overlay_t *ol);
+
+/* OpenEmux: triangular descs (input_overlay_corner.c). */
+
+/* The overlay_corner value a pack's _triangle string names
+ * (bottom-left, bottom-right, top-left, top-right), or
+ * OVERLAY_CORNER_NONE for one it does not know. */
+uint8_t input_overlay_corner_parse(const char *name);
+
+/* Whether a point at (@dx, @dy) from the centre of a rect hitbox, in
+ * half-sizes of it (-1 to 1 on each axis, y down), is inside the right
+ * triangle whose square corner is @corner; OVERLAY_CORNER_NONE takes
+ * the whole rect. */
+bool input_overlay_corner_contains(uint8_t corner, float dx, float dy);
 
 /* OpenEmux: anchor mode (input_overlay_anchor.c). */
 

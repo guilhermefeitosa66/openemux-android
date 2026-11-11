@@ -539,7 +539,10 @@ class SkinEditorModel(
             val box = SkinSnap.bounds(sel.ids.mapNotNull { current()[it] })
             if (box.holds(x, y)) return sel.ids.first()
         }
-        return l.elements.lastOrNull { it.rect.holds(x, y, slop) || (SkinLabels.has(it) && SkinLabels.box(it).holds(x, y, slop)) }?.id
+        // A triangular combo (issue 842) is touched on its triangle: the rest of its rect is a neighbour's gap.
+        return l.elements.lastOrNull {
+            (it.rect.holds(x, y, slop) && ComboOutline.holds(it, x, y, slop)) || (SkinLabels.has(it) && SkinLabels.box(it).holds(x, y, slop))
+        }?.id
     }
 
     /**
@@ -760,15 +763,25 @@ class SkinEditorModel(
     fun reset() {
         val id = layoutId ?: return
         val keys = moving().keys.takeIf { it.isNotEmpty() } ?: return
-        val saved = present(base(id), combos).rects()
+        val base = present(base(id), combos)
+        val now = layout
+        // A combo given another outline (issue 842) keeps it: its saved size in that outline, as the Size tool counts it.
+        val saved = base.rects().mapValues { (k, r) ->
+            val was = base.elements.firstOrNull { it.id == k && it.isCombo } ?: return@mapValues r
+            val e = now?.elements?.firstOrNull { it.id == k } ?: return@mapValues r
+            ComboOutline.reshape(r, ComboOutline.of(was), ComboOutline.of(e), base.size)
+        }
         history.push(withLayout(id, saved.filterKeys { it in keys }, gone = keys - saved.keys))
     }
 
-    /** The whole layout being edited back to how the skin has it. */
+    /** The whole layout being edited back to how the skin has it, its combos' outlines (issue 842) included. */
     fun resetLayout() {
         val id = layoutId ?: return
-        val saved = present(base(id), combos).rects()
-        history.push(withLayout(id, saved, gone = current().keys - saved.keys))
+        val base = present(base(id), combos)
+        val saved = base.rects()
+        val reset = withLayout(id, saved, gone = current().keys - saved.keys)
+        val look = reset.looks.getValue(id)
+        history.push(reset.copy(looks = reset.looks + (id to look.copy(shapes = base.look().shapes))))
     }
 
     /**
@@ -890,7 +903,10 @@ class SkinEditorModel(
     fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks.filter { (id, look) -> id in originalLooks && look != originalLooks.getValue(id) }
         .mapValues { (id, look) ->
             val was = originalLooks.getValue(id)
-            look.copy(colors = look.colors.filter { (e, c) -> was.colors[e] != c }, art = look.art.filter { (e, a) -> was.art[e] != a })
+            look.copy(
+                colors = look.colors.filter { (e, c) -> was.colors[e] != c }, art = look.art.filter { (e, a) -> was.art[e] != a },
+                shapes = look.shapes.filter { (e, o) -> was.shapes[e] != o },
+            )
         }
 
     /** The layouts offered now that the skin had not, with their current rects and colours. */
@@ -957,6 +973,35 @@ class SkinEditorModel(
             now.copy(
                 combos = now.combos.filter { it.id != id },
                 rects = now.rects.mapValues { (_, r) -> r - id - SkinArea.label(id) },
+                looks = now.looks.mapValues { (_, look) -> if (id in look.shapes) look.copy(shapes = look.shapes - id) else look },
+            ),
+        )
+    }
+
+    /** The selected combo's outline on the layout being edited (issue 842), or null with no combo selected. */
+    val selectedOutline: ComboOutline?
+        get() = selectedCombo?.let { c -> layout?.elements?.firstOrNull { it.id == c.id } }?.let(ComboOutline::of)
+
+    /**
+     * The Shape tool (issue 842): the selected combo drawn as [outline] on the layout being edited, about its centre and
+     * at the size it has (a pill as wide as [ComboOutline.PILL_WIDE] circles), kept inside the layout. One undo step;
+     * the other layouts keep theirs.
+     */
+    fun shapeCombo(outline: ComboOutline) {
+        val id = layoutId ?: return
+        val combo = selectedCombo ?: return
+        // Off the last undo step, not a drag still in progress (which this drops).
+        cancelGesture()
+        val e = layout?.elements?.firstOrNull { it.id == combo.id } ?: return
+        val was = ComboOutline.of(e)
+        if (was == outline) return
+        val now = history.current
+        val rect = ComboOutline.reshape(e.rect, was, outline, base(id).size)
+        val look = now.looks.getValue(id)
+        history.push(
+            now.copy(
+                rects = now.rects + (id to now.rects.getValue(id) + (combo.id to rect)),
+                looks = now.looks + (id to look.copy(shapes = look.shapes + (combo.id to outline))),
             ),
         )
     }
@@ -999,6 +1044,12 @@ class SkinEditorModel(
     /** [key]'s rect in the skin; a label the skin leaves on its control's face is where that puts it. */
     private fun savedRect(key: String): SkinRect? {
         val saved = layoutId?.let(::base) ?: return null
+        // A combo given another outline (issue 842) is measured against its saved size in that outline: a pill made
+        // from a circle is 100 %, not 160 %.
+        saved.elements.firstOrNull { it.id == key && it.isCombo }?.let { was ->
+            val now = layout?.elements?.firstOrNull { it.id == key } ?: return was.rect
+            return ComboOutline.reshape(was.rect, ComboOutline.of(was), ComboOutline.of(now))
+        }
         return saved.rects()[key] ?: SkinArea.labelOwner(key)?.let { owner -> saved.elements.firstOrNull { it.id == owner } }?.let(SkinLabels::box)
     }
 
@@ -1095,6 +1146,7 @@ class SkinEditorModel(
             SkinLook(
                 draft.background, draft.frame?.takeIf { base.frame != null } ?: base.frame,
                 base.colors.mapValues { (id, c) -> draft.colors[id] ?: c }, base.art.mapValues { (id, a) -> draft.art[id] ?: a },
+                base.shapes.mapValues { (id, o) -> draft.shapes[id] ?: o },
             )
     }
 }

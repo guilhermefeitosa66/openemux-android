@@ -1,0 +1,37 @@
+TARGET := overlay_corner_test
+
+# The unit under test is the shipping input/input_overlay_corner.c
+# (OpenEmux's triangular descs), built from the tree. input_driver.c
+# calls it from input_overlay_coords_inside_hitbox for a rect desc
+# with a corner; tasks/task_overlay.c parses _triangle with it.
+REPO_ROOT         := ../../..
+LIBRETRO_COMM_DIR := $(REPO_ROOT)/libretro-common
+
+SOURCES := overlay_corner_test.c \
+           $(REPO_ROOT)/input/input_overlay_corner.c
+
+OBJS := $(SOURCES:.c=.o)
+
+CFLAGS += -DHAVE_OVERLAY -Wall -pedantic -std=c89 -Wno-long-long -g1 -O1 -fno-omit-frame-pointer \
+          -I$(LIBRETRO_COMM_DIR)/include -I$(REPO_ROOT) -I$(REPO_ROOT)/deps
+
+ifneq ($(SANITIZER),)
+   CFLAGS  := -fsanitize=$(SANITIZER) $(CFLAGS)
+   LDFLAGS := -fsanitize=$(SANITIZER) $(LDFLAGS)
+endif
+
+all: $(TARGET)
+
+%.o: %.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(TARGET): $(OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+check: $(TARGET)
+	./$(TARGET)
+
+clean:
+	rm -f $(TARGET) $(OBJS)
+
+.PHONY: all check clean

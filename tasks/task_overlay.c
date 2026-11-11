@@ -1013,6 +1013,22 @@ static bool task_overlay_load_desc(
       }
    }
 
+   /* OpenEmux: a triangular button (a skin's combo key): only the
+    * right triangle of its rect pointing at this corner is touched. */
+   strlcpy_lit(conf_key + _len, "_triangle", sizeof(conf_key) - _len);
+   desc->corner = OVERLAY_CORNER_NONE;
+   {
+      char corner[32];
+      if (config_get_array(conf, conf_key, corner, sizeof(corner)))
+      {
+         if (desc->hitbox == OVERLAY_HITBOX_RECT)
+            desc->corner = input_overlay_corner_parse(corner);
+         if (!desc->corner)
+            RARCH_WARN("[Overlay] Not a triangle for a rect desc: \"%s\" in %s.\n",
+                  corner, conf_key);
+      }
+   }
+
    strlcpy_lit(conf_key + _len, "_reach_up", sizeof(conf_key) - _len);
    if (config_get_float(conf, conf_key, &tmp_float))
       desc->reach_up = tmp_float;

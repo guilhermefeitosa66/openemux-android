@@ -67,4 +67,11 @@
     <string name="editor_combo_added">Combo %1$s adicionado a todos os layouts. Arraste para onde quiser: cada layout guarda o próprio lugar.</string>
     <string name="editor_combo_buttons">Botões</string>
     <string name="editor_combo_delete">Excluir</string>
+    <string name="editor_combo_shape">Forma</string>
+    <string name="editor_shape_circle">Círculo</string>
+    <string name="editor_shape_pill">Pílula</string>
+    <string name="editor_shape_bottom_left">Triângulo, canto inferior esquerdo</string>
+    <string name="editor_shape_bottom_right">Triângulo, canto inferior direito</string>
+    <string name="editor_shape_top_left">Triângulo, canto superior esquerdo</string>
+    <string name="editor_shape_top_right">Triângulo, canto superior direito</string>
 </resources>

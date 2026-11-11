@@ -67,4 +67,11 @@
     <string name="editor_combo_added">コンボ %1$s をすべてのレイアウトに追加しました。好きな場所にドラッグしてください。位置はレイアウトごとに保存されます。</string>
     <string name="editor_combo_buttons">ボタン</string>
     <string name="editor_combo_delete">削除</string>
+    <string name="editor_combo_shape">形</string>
+    <string name="editor_shape_circle">円</string>
+    <string name="editor_shape_pill">ピル型</string>
+    <string name="editor_shape_bottom_left">三角形（左下）</string>
+    <string name="editor_shape_bottom_right">三角形（右下）</string>
+    <string name="editor_shape_top_left">三角形（左上）</string>
+    <string name="editor_shape_top_right">三角形（右上）</string>
 </resources>

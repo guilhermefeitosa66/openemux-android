@@ -15,12 +15,14 @@ import java.util.Locale
  * eight-way D-pad area with those up, down, left, right binds, whose rect is the travel of its circle ([knob]), and
  * which is touched at least [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
  * drawn over its rect all the time (an app control drawn apart from the page's image, which its collapsed twin shares).
+ * [corner] makes it a right triangle in its rect pointing at that corner (`bottom-left`…, a skin's combo key, issue 842):
+ * the engine takes a touch on the rest of the rect as on nothing.
  */
 internal class OverlayDesc(
     val name: String, val rect: RectF, val radial: Boolean = false, val next: String? = null, val lit: OverlayLit? = null,
     val well: RectF? = null, val knob: Bitmap? = null, val saturate: Float = 1f,
     val dpad: List<String>? = null, val reach: FloatArray = floatArrayOf(1f, 1f, 1f, 1f),
-    val image: Bitmap? = null,
+    val image: Bitmap? = null, val corner: String? = null,
 )
 
 /** The image of a desc lit by an engine state (overlayN_descM_lit_by: fast_forward, turbo, slow_motion or anchor). */
@@ -133,6 +135,7 @@ internal object OverlayWriter {
                 }
             }
             if (d.image != null) cfg.append("${p}_desc${i}_overlay = \"${ownImage(prefix, i)}\"\n")
+            d.corner?.let { cfg.append("${p}_desc${i}_triangle = \"$it\"\n") }
             d.next?.let { cfg.append("${p}_desc${i}_next_target = \"$it\"\n") }
             if (d.name == ANCHOR_ACTION) cfg.append("${p}_desc${i}_anchor_toggle = true\n")
             d.lit?.let {
@@ -158,7 +161,7 @@ internal object OverlayWriter {
      * D-pad's circle.
      */
     internal fun touchArea(d: OverlayDesc, grow: Float): RectF {
-        return scaled(d.rect, if (d.radial || d.lit != null || d.image != null || d.dpad != null) 1f else grow)
+        return scaled(d.rect, if (d.radial || d.lit != null || d.image != null || d.dpad != null || d.corner != null) 1f else grow)
     }
 
     /** [r] [g] times its size, about its centre. */

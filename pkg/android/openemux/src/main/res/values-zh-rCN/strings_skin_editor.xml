@@ -67,4 +67,11 @@
     <string name="editor_combo_added">组合键 %1$s 已添加到所有布局。将它拖到想要的位置：每个布局都会保留各自的位置。</string>
     <string name="editor_combo_buttons">按钮</string>
     <string name="editor_combo_delete">删除</string>
+    <string name="editor_combo_shape">形状</string>
+    <string name="editor_shape_circle">圆形</string>
+    <string name="editor_shape_pill">胶囊形</string>
+    <string name="editor_shape_bottom_left">三角形，左下</string>
+    <string name="editor_shape_bottom_right">三角形，右下</string>
+    <string name="editor_shape_top_left">三角形，左上</string>
+    <string name="editor_shape_top_right">三角形，右上</string>
 </resources>

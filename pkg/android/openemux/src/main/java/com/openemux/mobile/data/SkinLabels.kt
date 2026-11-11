@@ -54,12 +54,30 @@ object SkinLabels {
     /** Whether the app draws [e]'s label (a D-pad's arrows): it has no image ([hasImage]), or one that leaves the label out. */
     fun drawn(e: SkinElement, hasImage: Boolean): Boolean = !hasImage || e.art != SkinArt.FULL
 
-    /** The centre of [e]'s label: where [SkinElement.labelOffset] puts it, else the middle of its face. */
+    /**
+     * The centre of [e]'s label: where [SkinElement.labelOffset] puts it, else the middle of its face; on a triangle
+     * (a combo's, issue 842) its centroid pulled toward the square corner, where the triangle is widest.
+     */
     fun centre(e: SkinElement): SkinPoint {
         val o = e.labelOffset
         if (o != null) return SkinPoint(e.rect.x + e.rect.width / 2f + o.x, e.rect.y + e.rect.height / 2f + o.y)
         val f = e.face
-        return SkinPoint(f.x + f.width / 2f, f.y + f.height / 2f)
+        val corner = e.corner?.takeIf { e.shape == SkinShape.TRIANGLE }
+            ?: return SkinPoint(f.x + f.width / 2f, f.y + f.height / 2f)
+        return SkinPoint(f.x + f.width / 2f * (1f + corner.sx * TRIANGLE_PULL), f.y + f.height / 2f * (1f + corner.sy * TRIANGLE_PULL))
+    }
+
+    /** How far from a triangle's centre toward its square corner its label sits, in half-sizes (its centroid is 1/3). */
+    const val TRIANGLE_PULL = 0.38f
+
+    /** The share of a triangle's face its label may take, across and down: what is left of it round the label's centre. */
+    const val TRIANGLE_ROOM = 0.58f
+
+    /** The width and height [e]'s label may take (unturned): its face, or what a triangle leaves of it ([TRIANGLE_ROOM]). */
+    fun room(e: SkinElement): Pair<Float, Float> {
+        val f = e.face
+        val (w, h) = SkinShapes.unturned(f.width, f.height, e.rotation)
+        return if (e.shape == SkinShape.TRIANGLE) (w * TRIANGLE_ROOM) to (h * TRIANGLE_ROOM) else w to h
     }
 
     /** Whether [e]'s label is printed beside it: its centre is outside the control. */
@@ -74,8 +92,7 @@ object SkinLabels {
     fun size(e: SkinElement): Float {
         e.labelSize?.let { return it }
         val label = e.label.orEmpty()
-        val f = e.face
-        val (w, h) = SkinShapes.unturned(f.width, f.height, e.rotation)
+        val (w, h) = room(e)
         return when (kind(label)) {
             SkinLabelKind.SYMBOL -> min(w, h) * 0.52f
             SkinLabelKind.ARROW -> min(w, h) * 0.46f
