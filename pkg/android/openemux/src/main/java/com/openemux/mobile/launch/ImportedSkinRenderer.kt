@@ -207,7 +207,9 @@ class ImportedSkinRenderer {
                 val slow = r.slowMotion!!
                 val (slowTouch, ffTouch) = speedTouches(slow, f, extended(slow, ::edge), extended(f, ::edge))
                 val (ffTouched, anchorTouch) = speedTouches(f, r.anchor, ffTouch, extended(r.anchor, ::edge))
-                Triple(slowTouch, ffTouched, anchorTouch)
+                // A tall fast forward split in three puts slow motion above both: the anchor's touch stops there too.
+                val (slowTouched, anchorTouched) = speedTouches(slow, r.anchor, slowTouch, anchorTouch)
+                Triple(slowTouched, ffTouched, anchorTouched)
             }
             val touch = place.rect(speed?.second ?: extended(f, ::edge))
             if (speed != null && row != null) {

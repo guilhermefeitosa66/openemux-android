@@ -3,6 +3,7 @@ package com.openemux.mobile.launch
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
+import com.openemux.mobile.data.SkinKeypadPage
 import com.openemux.mobile.data.SkinLayout
 import com.openemux.mobile.data.SkinRect
 import com.openemux.mobile.data.SkinSize
@@ -86,6 +87,17 @@ class AnchorSlotTest {
         assertBox(SkinBox(0f, 0f, 30f, 30f), row.slowMotion)
         assertBox(SkinBox(30f, 0f, 30f, 30f), row.moved[0])
         assertBox(SkinBox(60f, 0f, 30f, 30f), row.anchor)
+    }
+
+    @Test fun aTallLoneFastForwardKeepsTheAnchorTouchOffSlowMotion() {
+        // Slow motion takes the top half; fast forward and the anchor share the bottom half side by side.
+        val row = speedRow(listOf(SkinBox(0f, 0f, 40f, 60f)), 0, slowMotion = true)
+        val slow = row.slowMotion!!
+        assertTrue(row.anchor.y >= slow.bottom - 0.01f)
+        val grown = { b: SkinBox -> SkinBox(b.x - 10f, b.y - 10f, b.w + 20f, b.h + 20f) }
+        val (slowTouch, anchorTouch) = speedTouches(slow, row.anchor, grown(slow), grown(row.anchor))
+        assertEquals(slow.bottom, anchorTouch.y, 0.01f)
+        assertFalse(overlap(slowTouch, anchorTouch))
     }
 
     @Test fun withoutSlowMotionOnlyTheAnchorIsAdded() {
@@ -177,6 +189,21 @@ class AnchorSlotTest {
         assertEquals(450f, anchor.rect.x, 0.01f)
         assertEquals(50f, anchor.rect.width, 0.01f)
         assertEquals(drawn.elements[1], element("hold", "fastForward", 700f))
+    }
+
+    @Test fun theKeypadPageGetsTheAnchorToo() {
+        val strip = listOf(element("save", "quickSave", 100f), element("ff", "toggleFastForward", 160f))
+        val layout = base.copy(elements = strip, keypad = SkinKeypadPage(strip + element("k1", "keypad1", 500f)))
+        val drawn = withAnchor(layout)
+        assertEquals(ANCHOR_ELEMENT, drawn.elements.last().id)
+        val keypad = drawn.keypad!!.elements
+        assertEquals(ANCHOR_ELEMENT, keypad.last().id)
+        // The same strip on both pages: the anchor key and fast forward do not move when the keypad opens.
+        assertEquals(drawn.elements.last().rect, keypad.last().rect)
+        assertEquals(drawn.elements[1].rect, keypad[1].rect)
+        // A keypad page with no fast forward is left as it is.
+        val bare = base.copy(elements = strip, keypad = SkinKeypadPage(listOf(element("k1", "keypad1", 500f))))
+        assertSame(bare.keypad, withAnchor(bare).keypad)
     }
 
     @Test fun aLayoutWithNoFastForwardIsLeftAsItIs() {

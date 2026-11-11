@@ -323,19 +323,27 @@ const val ANCHOR_ELEMENT = "openemux-anchor"
  * [OpenEmuxBinds.ANCHOR], with no image of its own (its glyph is drawn). The keys in fast forward's row, edge to edge,
  * are spread over the same span in one more cell ([insertSlot]); a lone fast forward is split in two. Each key keeps
  * its proportions, scaled down to fit its cell and centred in it, so its image is never squeezed. A layout with no
- * fast-forward key is left as it is.
+ * fast-forward key is left as it is. The keypad page, which carries its own copy of the strip, gets the key too, so it
+ * stays in reach (and in the same place) while the keypad is open.
  */
 fun withAnchor(layout: SkinLayout): SkinLayout {
-    val elements = layout.elements
+    val elements = anchored(layout.elements)
+    val keypad = layout.keypad?.let { page -> anchored(page.elements)?.let { page.copy(elements = it) } }
+    if (elements == null && keypad == null) return layout
+    return layout.copy(elements = elements ?: layout.elements, keypad = keypad ?: layout.keypad)
+}
+
+/** [elements] with the anchor key after their fast-forward key ([withAnchor]), or null when they have none. */
+private fun anchored(elements: List<SkinElement>): List<SkinElement>? {
     fun key(e: SkinElement) = e.type == SkinElementType.ACTION || e.type == SkinElementType.BUTTON
     val ff = OpenEmuxBinds.FAST_FORWARD.firstNotNullOfOrNull { name ->
         elements.indexOfFirst { key(it) && it.bind == name }.takeIf { it >= 0 }
-    } ?: return layout
+    } ?: return null
     val boxes = elements.map { e -> e.rect.takeIf { key(e) }?.let { SkinBox(it.x, it.y, it.width, it.height) } }
     val row = insertSlot(boxes, ff, after = true)
     val moved = elements.mapIndexed { i, e -> row.moved[i]?.let { e.at(fitted(e.rect, it)) } ?: e }
     val anchor = elements[ff].copy(id = ANCHOR_ELEMENT, bind = OpenEmuxBinds.ANCHOR, image = null, label = null)
-    return layout.copy(elements = moved + anchor.at(fitted(anchor.rect, row.slowMotion)))
+    return moved + anchor.at(fitted(anchor.rect, row.slowMotion))
 }
 
 /** [rect] scaled down (never up) to fit [cell], keeping its proportions, and centred in it. */

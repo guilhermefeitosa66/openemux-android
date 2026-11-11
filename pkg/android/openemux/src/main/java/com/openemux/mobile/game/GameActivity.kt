@@ -565,7 +565,12 @@ class GameActivity : RetroActivityFuture() {
     private fun anchorChanged(on: Boolean) {
         val console = intent.getStringExtra(GameExtras.CONSOLE)
         val dir = intent.getStringExtra(GameExtras.ANCHOR_PICKS)?.let(::File)
-        if (console != null && dir != null) AnchorPicks.record(dir, console, on)
+        // Off the engine thread, which calls this between frames: a file write there would stall the game. The time
+        // is taken here, so two quick changes keep their order whichever write lands first.
+        if (console != null && dir != null) {
+            val at = System.currentTimeMillis()
+            Thread({ AnchorPicks.record(dir, console, on, at) }, "anchor-pick").start()
+        }
         runOnUiThread {
             anchorToast?.cancel()
             anchorToast = android.widget.Toast.makeText(
