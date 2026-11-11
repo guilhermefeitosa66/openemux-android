@@ -33,7 +33,6 @@
     <string name="game_toast_state_other_core">此存档来自另一个内核</string>
     <string name="game_toast_restart_failed">无法重启游戏</string>
     <string name="game_toast_state_saved_other_core">此存档是用另一个内核保存的</string>
-    <string name="game_save_state">保存存档</string>
     <string name="game_load">读取</string>
     <string name="game_fast_forward">快进</string>
     <string name="game_slow_motion">慢动作</string>
@@ -56,8 +55,8 @@
     <string name="game_state_slot">存档位 %1$d</string>
     <string name="game_slot_empty">存档位 %1$d · 空</string>
     <string name="game_slot_used">存档位 %1$d · 已使用</string>
-    <string name="game_previous_slot">上一个存档位</string>
-    <string name="game_next_slot">下一个存档位</string>
+    <string name="game_see_all">查看全部</string>
+    <string name="game_slot_slider">存档位</string>
     <string name="game_state_options">%1$s 的选项</string>
     <string name="game_state_delete">删除</string>
     <string name="game_state_delete_title">删除此存档?</string>

@@ -97,8 +97,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -576,7 +574,8 @@ fun PauseSheet(
                             stateCount = states.count { !it.isAutoSlot() },
                             slot = slot,
                             slotInUse = states.any { it.slot == slot },
-                            onSlot = { delta -> choose(SaveSlots.step(slot, delta)) },
+                            usedSlots = states.filterNot { it.isAutoSlot() }.map { it.slot }.toSet(),
+                            onSlot = { choose(it) },
                             onSave = {
                                 val target = slot
                                 scope.launch {
@@ -755,11 +754,14 @@ private fun MainPage(
     /** The slot "Save" writes to, whether a state is there already, and an arrow's step. */
     slot: Int,
     slotInUse: Boolean,
+    /** The numbered slots holding a state, which the slider fills (issue 867). */
+    usedSlots: Set<Int>,
+    /** Makes a slot current: the slider was dragged, tapped or stepped. */
     onSlot: (Int) -> Unit,
     onSave: () -> Unit,
-    /** Opens the save states page. */
+    /** Opens the save states page ("See all", the Save states tile). */
     onLoad: () -> Unit,
-    /** Loads the state in [slot] (the phone's Load beside Save). */
+    /** Loads the state in [slot] (Load beside Save). */
     onLoadSlot: () -> Unit,
     /** The fast-forward (FAST) or slow-motion (SLOW) tile was tapped. */
     onSpeed: (Speed) -> Unit,
@@ -796,9 +798,15 @@ private fun MainPage(
                 }
         }
     }
-    val save = @Composable { modifier: Modifier ->
-        SaveSlotSelector(slot, slotInUse, modifier, Modifier.restorableFocus("save", remember { mutableStateOf<String?>(null) }, initial = true), onSlot, onSave)
+    // Save and Load, "See all" and the slot slider under them: the same block in every form (issue 867). [saveFocus] is
+    // where the pad starts on the panel and the fold, which have no Continue at the top.
+    val saveArea = @Composable { modifier: Modifier, saveFocus: Modifier ->
+        SaveLoadRow(
+            slot, slotInUse, usedSlots, modifier, saveFocus, onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore,
+            onSeeAll = onLoad, canSeeAll = !hardcore,
+        )
     }
+    val firstFocus = @Composable { Modifier.restorableFocus("save", remember { mutableStateOf<String?>(null) }, initial = true) }
     // Continue takes the pad's first focus there: A right after pausing resumes.
     val resumeRow = @Composable { modifier: Modifier ->
         Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -811,9 +819,6 @@ private fun MainPage(
                 iconYields = true,
             )
         }
-    }
-    val load = @Composable { modifier: Modifier ->
-        BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, modifier, onLoad, enabled = !hardcore)
     }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
@@ -855,20 +860,16 @@ private fun MainPage(
                 BigButton(stringResource(R.string.game_back_to_game), Icons.Play, Oe.Raised, Oe.Text, modifier, onResume)
             }
             BoxWithConstraints(Modifier.padding(top = 4.dp).fillMaxWidth()) {
-                if (maxWidth >= TabletopSelectorRowWidth) {
+                if (maxWidth >= TabletopSaveRowWidth) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        save(Modifier.weight(1f))
-                        load(Modifier.weight(1f))
+                        saveArea(Modifier.weight(1f), firstFocus())
                         backToGame(Modifier.width(168.dp))
                     }
                 } else {
-                    // A small fold has no room for the arrows beside two more buttons.
+                    // A small fold has no room for Back to game beside Save and Load: it goes under the slider.
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        save(Modifier.fillMaxWidth())
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            load(Modifier.weight(1f))
-                            backToGame(Modifier.weight(1f))
-                        }
+                        saveArea(Modifier.fillMaxWidth(), firstFocus())
+                        backToGame(Modifier.fillMaxWidth())
                     }
                 }
             }
@@ -885,12 +886,11 @@ private fun MainPage(
             if (quickRows) {
                 // The essentials first (upright, all above the first stop's fold): the note goes under them.
                 resumeRow(Modifier.padding(top = 16.dp).fillMaxWidth())
-                SaveLoadRow(slot, slotInUse, Modifier.padding(top = 10.dp).fillMaxWidth(), onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore)
+                saveArea(Modifier.padding(top = 10.dp).fillMaxWidth(), Modifier)
                 note()
             } else {
                 note()
-                save(Modifier.padding(top = 16.dp).fillMaxWidth())
-                load(Modifier.padding(top = 10.dp).fillMaxWidth())
+                saveArea(Modifier.padding(top = 16.dp).fillMaxWidth(), firstFocus())
             }
             // On its side the tiles go to the right half, beside these rows (issue 862).
             if (!landscape) tiles(Modifier.padding(top = 18.dp))
@@ -936,48 +936,8 @@ private fun SheetButton(text: String, bg: Color, fg: Color, modifier: Modifier, 
     ) { Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp)) }
 }
 
-/** Below this width, a tabletop's bottom half puts the save selector on a row of its own. */
-private val TabletopSelectorRowWidth = 800.dp
-
-/** The second line's tint on a slot in use: readable on the accent, which is the same in both themes. */
-private val SlotInUseColor = Color(0xFFFFE2B0)
-
-/**
- * "Save state" between the arrows that change its slot, like a music player's controls: the slot and whether it is in
- * use always show. [focus] goes on the save button, the arrows are stops of their own.
- */
-@Composable
-private fun SaveSlotSelector(slot: Int, inUse: Boolean, modifier: Modifier, focus: Modifier, onStep: (Int) -> Unit, onSave: () -> Unit) {
-    Row(modifier.height(56.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        SlotArrow(Icons.Back, stringResource(R.string.game_previous_slot)) { onStep(-1) }
-        Row(
-            Modifier.weight(1f).fillMaxHeight().then(focus).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Accent)
-                .clickable(role = Role.Button, onClick = onSave).padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.SaveState, Color.White, 22.dp, filled = true)
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(stringResource(R.string.game_save_state), style = Type.Button.copy(color = Color.White, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
-                    style = Type.Caption.copy(color = if (inUse) SlotInUseColor else Color.White.copy(alpha = 0.85f), fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        SlotArrow(Icons.Chevron, stringResource(R.string.game_next_slot)) { onStep(1) }
-    }
-}
-
-@Composable
-private fun SlotArrow(path: String, label: String, onClick: () -> Unit) {
-    Box(
-        Modifier.width(48.dp).fillMaxHeight().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Raised)
-            .clickable(onClickLabel = label, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
-    ) { Icon(path, Oe.Text, 20.dp, stroke = 2.4f) }
-}
+/** Below this width, a tabletop's bottom half puts Back to game under the save block instead of beside it. */
+private val TabletopSaveRowWidth = 800.dp
 
 /**
  * The top half of a half-open fold, over the dimmed game: the "Paused" chip and the game's card. A tap anywhere
@@ -1067,37 +1027,40 @@ private fun BigButton(
 private val SaveLoadIconsWidth = 360.dp
 
 /**
- * The phone's save row (issue 849): the slot arrows around "Save", and Load beside them, which loads the slot shown.
- * Save shows the slot and whether it is in use; Load is off for an empty slot ([canLoad]).
+ * The save block (issues 849, 867): "Save" and Load beside it, which loads the slot shown; under Load, "See all", which
+ * opens the save-states page; under both, the slot slider. Save shows the slot and whether it is in use; Load is off for
+ * an empty slot ([canLoad]). [saveFocus] goes on Save.
  */
 @Composable
 private fun SaveLoadRow(
-    slot: Int, inUse: Boolean, modifier: Modifier, onStep: (Int) -> Unit, onSave: () -> Unit, onLoad: () -> Unit, canLoad: Boolean,
+    slot: Int, inUse: Boolean, used: Set<Int>, modifier: Modifier, saveFocus: Modifier, onPick: (Int) -> Unit, onSave: () -> Unit,
+    onLoad: () -> Unit, canLoad: Boolean, onSeeAll: () -> Unit, canSeeAll: Boolean,
 ) {
     BoxWithConstraints(modifier) {
         val icons = maxWidth >= SaveLoadIconsWidth
-        Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            SlotArrow(Icons.Back, stringResource(R.string.game_previous_slot)) { onStep(-1) }
-            Row(
-                Modifier.weight(1.25f).fillMaxHeight().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.Raised)
-                    .clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (icons) {
-                    Icon(Icons.SaveState, Oe.Text, 20.dp, filled = true)
-                    Spacer(Modifier.width(6.dp))
+        Column {
+            Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1.25f).fillMaxHeight().then(saveFocus).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Oe.Raised).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (icons) {
+                        Icon(Icons.SaveState, Oe.Text, 20.dp, filled = true)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Column(horizontalAlignment = if (icons) Alignment.Start else Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
+                            style = Type.Caption.copy(color = if (inUse) Oe.AccentOnSoft else Oe.Muted, fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                Column(horizontalAlignment = if (icons) Alignment.Start else Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
-                        style = Type.Caption.copy(color = if (inUse) Oe.AccentOnSoft else Oe.Muted, fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = canLoad, showIcon = icons)
             }
-            SlotArrow(Icons.Chevron, stringResource(R.string.game_next_slot)) { onStep(1) }
-            BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = canLoad, showIcon = icons)
+            SlotStrip(slot, used, Modifier.padding(top = 2.dp).fillMaxWidth(), onPick, onSeeAll, canSeeAll)
         }
     }
 }
@@ -1108,8 +1071,11 @@ private val SheetFling = 400.dp
 private val SheetExpandedTop = 16.dp
 /** Between the game's bottom and the first stop. */
 private val SheetGap = 8.dp
-/** What the first stop always shows on a short screen: the header, Continue and the save row (the navigation bar on top). */
-private val SheetEssentials = 340.dp
+/**
+ * What the first stop always shows on a short screen: the header, Continue, the save row, "See all" and the slot slider
+ * (issue 867), the navigation bar on top.
+ */
+private val SheetEssentials = 420.dp
 
 /**
  * The phone-portrait sheet's position (issue 849): resting on a [stop], or [moving] under a finger or an animation.
