@@ -3,6 +3,9 @@
     <!-- Pause sheet (game process) -->
     <string name="game_back">Voltar</string>
     <string name="game_back_to_game">Voltar ao jogo</string>
+    <string name="game_continue">Continuar</string>
+    <string name="game_save">Salvar</string>
+    <string name="game_restart_short">Reiniciar</string>
     <string name="game_choose">Escolher</string>
     <string name="game_save_states">Estados salvos</string>
     <string name="game_shader">Shader</string>

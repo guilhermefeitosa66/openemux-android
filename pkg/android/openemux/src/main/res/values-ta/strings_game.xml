@@ -3,6 +3,9 @@
     <!-- Pause sheet (game process) -->
     <string name="game_back">பின்</string>
     <string name="game_back_to_game">விளையாட்டுக்குத் திரும்பு</string>
+    <string name="game_continue">தொடர்</string>
+    <string name="game_save">சேமி</string>
+    <string name="game_restart_short">மறுதொடக்கம்</string>
     <string name="game_choose">தேர்ந்தெடு</string>
     <string name="game_save_states">சேமிப்பு நிலைகள்</string>
     <string name="game_shader">ஷேடர்</string>
