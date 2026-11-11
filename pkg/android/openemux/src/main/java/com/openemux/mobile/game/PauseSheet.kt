@@ -464,7 +464,8 @@ fun PauseSheet(
                     if (page != Page.Main) {
                         SheetIconButton(Icons.Back, stringResource(R.string.game_back)) { backPage()?.let { page = it } }
                     } else if (cart != null) {
-                        Image(cart, null, Modifier.width(if (landscape) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
+                        // Any short window keeps the small cart, a wide fold half open included (its half is short too).
+                        Image(cart, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -993,7 +994,7 @@ private fun BigButton(
     iconYields: Boolean = false,
 ) {
     // Measured, not guessed from the width: the label's length is the locale's. A new window size asks again.
-    var iconFits by remember(text, LocalConfiguration.current.screenWidthDp) { mutableStateOf(true) }
+    var iconFits by remember(text, if (iconYields) LocalConfiguration.current.screenWidthDp else 0) { mutableStateOf(true) }
     Row(
         modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp) else it.alpha(DISABLED_ALPHA) }
             .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -1006,7 +1007,7 @@ private fun BigButton(
         }
         Text(
             text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            onTextLayout = { if (iconYields && iconFits && it.lineCount > 0 && it.isLineEllipsized(0)) iconFits = false },
+            onTextLayout = { if (iconYields && iconFits && it.isLineEllipsized(0)) iconFits = false },
         )
     }
 }
