@@ -2,6 +2,7 @@ package com.openemux.mobile.launch
 
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.OpenEmuxSkin
+import com.openemux.mobile.data.SkinElement
 import com.openemux.mobile.data.SkinElementType
 import com.openemux.mobile.data.SkinForm
 import com.openemux.mobile.data.SkinFormat
@@ -241,8 +242,18 @@ object OpenEmuxBinds {
     /** A quick action's bind, its glyph (an app action, as the drawn skins' strip names them) and the state it lights with. */
     data class Action(val bind: String?, val icon: String?, val lit: String?, val dim: Boolean)
 
+    /**
+     * The anchor key's action name (issue 841). Never in a skin file (an older app rejects an unknown bind): [withAnchor]
+     * adds the key to a layout the game draws.
+     */
+    const val ANCHOR = "anchor"
+
+    /** The fast-forward keys, the toggle first: the key the anchor key goes right after. */
+    val FAST_FORWARD = listOf("toggleFastForward", "fastForward")
+
     /** The glyph each action name is drawn with when it has no image. */
     private val ICONS = mapOf(
+        ANCHOR to ANCHOR_ACTION,
         "quickSave" to "save_state", "quickLoad" to "load_state", "turbo" to "turbo_fire_toggle",
         "slowMotion" to "toggle_slowmotion", "fastForward" to "toggle_fast_forward", "toggleFastForward" to "toggle_fast_forward",
         "screens" to "screens", "menu" to "menu_toggle", "screenshot" to "screenshot", "restart" to "reset", "reset" to "reset",
@@ -259,6 +270,8 @@ object OpenEmuxBinds {
         val bind = when {
             dim || name == SCREENS -> null
             name == "slowMotion" -> "toggle_slowmotion"
+            // Not a speed key: hardcore leaves it as it is (it only changes how touch maps to buttons).
+            name == ANCHOR -> ANCHOR_ACTION
             else -> SkinBinds.bind(console, name, hardcore)
         }
         return Action(bind, icon, bind?.let { OverlayWriter.LIT_BY[it] }, dim)
@@ -301,3 +314,34 @@ object OpenEmuxBinds {
 
 /** The NDS screens key's name in the format: the next screen layout. */
 private const val SCREENS = "screens"
+
+/** The id of the anchor key's element, which [withAnchor] adds: no skin's element has it (ids are the skin's own). */
+const val ANCHOR_ELEMENT = "openemux-anchor"
+
+/**
+ * [layout] as the game draws it (issue 841): the anchor key right after its fast-forward key, a copy of it pressing
+ * [OpenEmuxBinds.ANCHOR], with no image of its own (its glyph is drawn). The keys in fast forward's row, edge to edge,
+ * are spread over the same span in one more cell ([insertSlot]); a lone fast forward is split in two. Each key keeps
+ * its proportions, scaled down to fit its cell and centred in it, so its image is never squeezed. A layout with no
+ * fast-forward key is left as it is.
+ */
+fun withAnchor(layout: SkinLayout): SkinLayout {
+    val elements = layout.elements
+    fun key(e: SkinElement) = e.type == SkinElementType.ACTION || e.type == SkinElementType.BUTTON
+    val ff = OpenEmuxBinds.FAST_FORWARD.firstNotNullOfOrNull { name ->
+        elements.indexOfFirst { key(it) && it.bind == name }.takeIf { it >= 0 }
+    } ?: return layout
+    val boxes = elements.map { e -> e.rect.takeIf { key(e) }?.let { SkinBox(it.x, it.y, it.width, it.height) } }
+    val row = insertSlot(boxes, ff, after = true)
+    val moved = elements.mapIndexed { i, e -> row.moved[i]?.let { e.at(fitted(e.rect, it)) } ?: e }
+    val anchor = elements[ff].copy(id = ANCHOR_ELEMENT, bind = OpenEmuxBinds.ANCHOR, image = null, label = null)
+    return layout.copy(elements = moved + anchor.at(fitted(anchor.rect, row.slowMotion)))
+}
+
+/** [rect] scaled down (never up) to fit [cell], keeping its proportions, and centred in it. */
+internal fun fitted(rect: SkinRect, cell: SkinBox): SkinRect {
+    val k = minOf(1f, cell.w / rect.width, cell.h / rect.height)
+    val w = rect.width * k
+    val h = rect.height * k
+    return SkinRect(cell.x + (cell.w - w) / 2f, cell.y + (cell.h - h) / 2f, w, h)
+}

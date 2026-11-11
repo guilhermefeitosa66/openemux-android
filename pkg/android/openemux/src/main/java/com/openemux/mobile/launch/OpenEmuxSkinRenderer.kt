@@ -93,8 +93,9 @@ class OpenEmuxSkinRenderer(context: Context) {
         pages.forEachIndexed { i, page ->
             val id = if (page.portrait) layouts.portrait else layouts.landscape
             val base = pkg.skin.layouts.getValue(id)
-            // A screen-layout page is drawn as a layout of its own, its images in its folder.
-            val layout = page.screen?.let(base::screenPage) ?: base
+            // A screen-layout page is drawn as a layout of its own, its images in its folder. The game's pages get the
+            // anchor key after fast forward (issue 841); previews and thumbnails draw the skin as it is.
+            val layout = withAnchor(page.screen?.let(base::screenPage) ?: base)
             val w = if (page.portrait) portraitW else portraitH
             val h = if (page.portrait) portraitH else portraitW
             val plan = planPage(console, layout, w, h, hardcore, coreId, page.keypad, page.toggle, page.screensNext)
@@ -815,6 +816,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             "save_state" to Icons.SaveState, "load_state" to Icons.LoadState, "turbo_fire_toggle" to "M13 2L4 14h7l-1 8 9-12h-7z",
             "toggle_slowmotion" to Icons.SlowMotion, "toggle_fast_forward" to Icons.FastForward, "screens" to Icons.Screens,
             "menu_toggle" to Icons.Menu, "screenshot" to Icons.Camera, "reset" to Icons.Reset,
+            ANCHOR_ACTION to Icons.Anchor,
         )
 
         /** The filled glyphs; the rest are stroked, like the strip's turbo bolt. */

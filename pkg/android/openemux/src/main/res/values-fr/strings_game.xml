@@ -16,6 +16,8 @@
     <string name="game_toast_fast_forward_on">Avance rapide à la reprise</string>
     <string name="game_toast_slow_motion_on">Ralenti à la reprise</string>
     <string name="game_toast_fast_forward_off">Vitesse normale</string>
+    <string name="game_toast_anchor_on">Ancre activée : le premier bouton pressé reste maintenu</string>
+    <string name="game_toast_anchor_off">Ancre désactivée</string>
     <string name="game_toast_screenshot">Capture d’écran enregistrée</string>
     <string name="game_toast_sound_off">Son coupé</string>
     <string name="game_toast_sound_on">Son activé</string>

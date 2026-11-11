@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.AppLocale
+import com.openemux.mobile.data.AnchorPicks
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.NdsShown
@@ -81,6 +82,9 @@ class GameActivity : RetroActivityFuture() {
     @Volatile private var fastForwardOn = false
     /** Written on the engine thread (onToggleStates): whether slow motion is on, for the pause sheet. */
     @Volatile private var slowMotionOn = false
+    /** Anchor mode (issue 841) as the launch set it, then as the engine reports it: a change is kept for the console. */
+    private var anchor = AnchorFollow(false)
+    private var anchorToast: android.widget.Toast? = null
     /**
      * The speed the pause sheet's fast-forward and slow-motion tiles asked for and the engine has not been sent yet;
      * null = nothing pending. A sheet opened before it is applied shows it and takes it over.
@@ -163,6 +167,7 @@ class GameActivity : RetroActivityFuture() {
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
         wantGamepad = Gamepads.connected()
+        anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
         sessionStart = System.currentTimeMillis()
@@ -546,13 +551,27 @@ class GameActivity : RetroActivityFuture() {
     }
 
     /**
-     * Called on the engine thread when fast forward, turbo or slow motion goes on or off, whatever flipped it: the
-     * skin's strip, the pause sheet or a gamepad hotkey. The strip draws its own "on" look (overlayN_descM_lit_by);
-     * the pause sheet reads fast forward and slow motion from here.
+     * Called on the engine thread when fast forward, turbo, slow motion or anchor mode goes on or off, whatever
+     * flipped it: the skin's strip, the pause sheet or a gamepad hotkey. The strip draws its own "on" look
+     * (overlayN_descM_lit_by); the pause sheet reads fast forward and slow motion from here. Anchor mode turned on or
+     * off is kept for the console (AnchorPicks) and told to the player, whose pad behaves differently now.
      */
-    override fun onToggleStates(fastForward: Boolean, turbo: Boolean, slowMotion: Boolean) {
+    override fun onToggleStates(fastForward: Boolean, turbo: Boolean, slowMotion: Boolean, anchor: Boolean) {
         fastForwardOn = fastForward
         slowMotionOn = slowMotion
+        if (this.anchor.report(anchor)) anchorChanged(anchor)
+    }
+
+    private fun anchorChanged(on: Boolean) {
+        val console = intent.getStringExtra(GameExtras.CONSOLE)
+        val dir = intent.getStringExtra(GameExtras.ANCHOR_PICKS)?.let(::File)
+        if (console != null && dir != null) AnchorPicks.record(dir, console, on)
+        runOnUiThread {
+            anchorToast?.cancel()
+            anchorToast = android.widget.Toast.makeText(
+                this, getString(if (on) R.string.game_toast_anchor_on else R.string.game_toast_anchor_off), android.widget.Toast.LENGTH_SHORT,
+            ).also { it.show() }
+        }
     }
 
     /**

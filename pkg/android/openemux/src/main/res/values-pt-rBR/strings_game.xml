@@ -16,6 +16,8 @@
     <string name="game_toast_fast_forward_on">Acelerado ao voltar</string>
     <string name="game_toast_slow_motion_on">Câmera lenta ao voltar</string>
     <string name="game_toast_fast_forward_off">Velocidade normal</string>
+    <string name="game_toast_anchor_on">Âncora ligada: o primeiro botão que você aperta fica pressionado</string>
+    <string name="game_toast_anchor_off">Âncora desligada</string>
     <string name="game_toast_screenshot">Captura salva</string>
     <string name="game_toast_sound_off">Som desligado</string>
     <string name="game_toast_sound_on">Som ligado</string>

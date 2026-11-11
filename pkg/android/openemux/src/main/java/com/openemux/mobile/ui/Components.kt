@@ -141,6 +141,8 @@ object Icons {
     const val SlowMotion = "M13.17 3.08A9 9 0 0 1 17.48 4.86M19.14 6.52A9 9 0 0 1 20.92 10.83M20.92 13.17A9 9 0 0 1 19.14 17.48" +
         "M17.48 19.14A9 9 0 0 1 13.17 20.92M10.83 20.92A9 9 0 0 1 6.52 19.14M4.86 17.48A9 9 0 0 1 3.08 13.17" +
         "M3.08 10.83A9 9 0 0 1 4.86 6.52M6.52 4.86A9 9 0 0 1 10.83 3.08M10 8.5v7l5.5-3.5z"
+    /** Anchor mode (issue 841): an anchor, ring, shank, stock and arms. Stroked, like the turbo bolt. */
+    const val Anchor = "M12 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5M12 7.5V21M8 11h8M4.5 13.5a7.5 7.5 0 0 0 15 0"
     const val Camera = "M4 8h3l2-3h6l2 3h3v11H4zM12 9.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7"
     const val Shader = "M3 5h18v14H3zM3 10h18M3 14h18M9 5v14M15 5v14"
     /** Two screens, one over the other: the NDS screen layout. */

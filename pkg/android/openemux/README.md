@@ -57,8 +57,8 @@ when the content closes, and the library must survive that.
    one, so the activity's idea of it stays true.
    `input_overlay_keep_active()` in `input/input_driver.c`.
 5. **Toggles lit.** An overlay desc can name a frontend state its image
-   shows (`overlayN_descM_lit_by = "fast_forward"`, `"turbo"` or
-   `"slow_motion"`): the image is hidden while that state is off, with or
+   shows (`overlayN_descM_lit_by = "fast_forward"`, `"turbo"`,
+   `"slow_motion"` or `"anchor"`): the image is hidden while that state is off, with or
    without the overlay LED driver (`input/input_overlay_alpha.c`). When any
    of them changes, the activity's `onToggleStates()` hears it once, so the
    pause sheet shows the engine's fast forward and slow motion. `android_app_toggle_states()` in
@@ -68,6 +68,7 @@ when the content closes, and the library must survive that.
    Fast forward and slow motion never run together: turning one on turns
    the other off, whatever control did it (`runloop.c`; a core's fast
    motion override is left alone).
+   The fourth flag is anchor mode, which the activity keeps per console.
 6. **D-pad dead zone.** An eight-way area (`dpad_area`, `abxy_area`) takes
    `overlayN_descM_dead_zone`, a radius as a fraction of the area's range
    inside which the touch holds the area but presses no direction. The
@@ -96,14 +97,23 @@ when the content closes, and the library must survive that.
    `retroarch_save_auto_state_for_suspend()` in `retroarch.c`,
    `android_app_resume_into_menu()` in `frontend/drivers/platform_unix.c`;
    the handshake is reproduced in `samples/input/android_lifecycle_flush/`.
+9. **Anchor mode.** While `input_overlay_anchor` is on, the first face,
+   shoulder or trigger button a finger presses stays held until that finger
+   lifts; any other button counts only while the finger is over it. A desc
+   with `overlayN_descM_anchor_toggle = true` (written as a `nul` key by the
+   app's renderers, never by a skin file) flips the mode on its press.
+   `input/input_overlay_anchor.c`, called from `input_overlay_poll()`;
+   reproduced in `samples/tasks/overlay/overlay_anchor_test.c`
+   (`make -f Makefile.anchor check`).
 
 Upstream behaviour is kept: the base `RetroActivityCommon` returns false
 from the first two and from `autoSaveOnPause()`, and ignores the overlay
 change and the toggles, so the stock RetroArch app still opens and drives
 its own menu.
 
-Two config-only keys (not in the menu; their defaults keep upstream
+Three config-only keys (not in the menu; their defaults keep upstream
 behaviour) are set by the generated `retroarch.cfg`:
+`input_overlay_anchor` starts anchor mode as the console's settings have it,
 `input_turbo_locked = true` makes turbo, once toggled, act as if its bind
 were held (the skin's bolt), and `notification_show_autoload_state = false`
 mutes the message when Continuar loads the automatic state, while saving and

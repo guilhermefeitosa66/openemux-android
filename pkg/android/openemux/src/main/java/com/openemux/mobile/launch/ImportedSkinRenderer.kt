@@ -190,22 +190,34 @@ class ImportedSkinRenderer {
             val item = items.getJSONObject(i)
             item.getJSONObject("frame").takeIf { item.get("inputs") is JSONArray }?.let(::packageBox)
         }
-        // Slow motion goes right before fast forward, in a slot made among the keys beside it.
+        // Slow motion goes right before fast forward and the anchor key right after it (issue 841), in slots made
+        // among the keys beside it.
         val ff = fastForwardItem(items)
-        val slow = ff?.let { slowMotionLayout(boxes, it) }
-        if (ff != null && slow != null) respace(bitmap, slow, boxes, ff, place)
+        val row = ff?.let { speedRow(boxes, it, slowMotion = true) }
+        if (ff != null && row != null) respace(bitmap, row, boxes, ff, place)
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
-            val f = slow?.moved?.get(i) ?: packageBox(item.getJSONObject("frame"))
+            val f = row?.moved?.get(i) ?: packageBox(item.getJSONObject("frame"))
             val e = item.optJSONObject("extendedEdges") ?: defaultEdges
             fun edge(k: String) = e?.optDouble(k, 0.0)?.toFloat() ?: 0f
             val frame = place.rect(f)
-            // Fast forward's and slow motion's touch areas stop at the side they share, so one press never hits both.
-            val speed = slow?.takeIf { i == ff }?.let { speedTouches(it.slowMotion, f, extended(it.slowMotion, ::edge), extended(f, ::edge)) }
+            // Fast forward's touch area stops at the sides it shares with slow motion and the anchor key, so one press
+            // never hits two of them.
+            val speed = row?.takeIf { i == ff }?.let { r ->
+                val slow = r.slowMotion!!
+                val (slowTouch, ffTouch) = speedTouches(slow, f, extended(slow, ::edge), extended(f, ::edge))
+                val (ffTouched, anchorTouch) = speedTouches(f, r.anchor, ffTouch, extended(r.anchor, ::edge))
+                Triple(slowTouch, ffTouched, anchorTouch)
+            }
             val touch = place.rect(speed?.second ?: extended(f, ::edge))
-            if (speed != null && slow != null && !hardcore) {
-                descs += OverlayDesc(SLOW_MOTION, place.rect(speed.first))
-                OverlayWriter.LIT_BY[SLOW_MOTION]?.let { descs += litPill(bitmap, it, place.rect(slow.slowMotion), place.s) }
+            if (speed != null && row != null) {
+                if (!hardcore) {
+                    descs += OverlayDesc(SLOW_MOTION, place.rect(speed.first))
+                    OverlayWriter.LIT_BY[SLOW_MOTION]?.let { descs += litPill(bitmap, it, place.rect(row.slowMotion!!), place.s) }
+                }
+                // Not a speed key: hardcore leaves it as it is.
+                descs += OverlayDesc(ANCHOR_ACTION, place.rect(speed.third))
+                OverlayWriter.LIT_BY[ANCHOR_ACTION]?.let { descs += litPill(bitmap, it, place.rect(row.anchor), place.s) }
             }
             when (val inputs = item.get("inputs")) {
                 is JSONObject -> {
@@ -288,11 +300,12 @@ class ImportedSkinRenderer {
     }
 
     /**
-     * Makes room for slow motion on the [art]: the glyphs of the keys [layout] moves are lifted off and drawn again at
-     * their new places, in the skin's own colour, and slow motion's ring is drawn in its slot in fast forward's colour.
-     * In hardcore both speed keys are drawn at 0.45, like the drawn skins' strip.
+     * Makes room for slow motion and the anchor key on the [art]: the glyphs of the keys [layout] moves are lifted off
+     * and drawn again at their new places, in the skin's own colour, and slow motion's ring and the anchor are drawn in
+     * their slots in fast forward's colour. In hardcore both speed keys are drawn at 0.45, like the drawn skins' strip;
+     * the anchor key is not a speed key and stays as it is.
      */
-    private fun respace(art: Bitmap, layout: SlowMotionLayout, boxes: List<SkinBox?>, ff: Int, place: Placement) {
+    private fun respace(art: Bitmap, layout: SpeedRow, boxes: List<SkinBox?>, ff: Int, place: Placement) {
         // Every glyph comes off before any goes back, so none is drawn over one still to be lifted.
         val lifted = layout.moved.keys.associateWith { i -> pillBox(place.rect(boxes[i]!!), place.s).let { lift(art, it.left, it.top, it.width(), it.height()) } }
         lifted.values.forEach { it?.let { l -> erase(art, l) } }
@@ -305,18 +318,22 @@ class ImportedSkinRenderer {
             canvas.drawBitmap(image, (to.centerX() - l.w / 2f).roundToInt().toFloat(), (to.centerY() - l.h / 2f).roundToInt().toFloat(), null)
             image.recycle()
         }
-        val slot = place.rect(layout.slowMotion)
         val model = lifted[ff]
-        // Fast forward's two triangles fill half the 24-unit icon's height; the ring is drawn at that icon's size.
-        val size = minOf((model?.height?.times(2f)) ?: (slot.height() * 0.6f), slot.width() * 0.9f, slot.height() * 0.9f)
         val ink = model?.ink ?: 0xFFFFFFFF.toInt()
-        canvas.drawPath(slowMotionPath(slot.centerX(), slot.centerY(), size), Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = color(ink, dim)
-            style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
-        })
+        // Fast forward's two triangles fill half the 24-unit icon's height; the glyphs are drawn at that icon's size.
+        fun stroke(glyph: String, box: SkinBox, share: Float) {
+            val slot = place.rect(box)
+            val size = minOf((model?.height?.times(2f)) ?: (slot.height() * 0.6f), slot.width() * 0.9f, slot.height() * 0.9f)
+            canvas.drawPath(glyphPath(glyph, slot.centerX(), slot.centerY(), size), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = color(ink, share)
+                style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+            })
+        }
+        layout.slowMotion?.let { stroke(Icons.SlowMotion, it, dim) }
+        stroke(Icons.Anchor, layout.anchor, 1f)
     }
 
-    private fun slowMotionPath(cx: Float, cy: Float, size: Float): Path = PathParser.createPathFromPathData(Icons.SlowMotion).apply {
+    private fun glyphPath(glyph: String, cx: Float, cy: Float, size: Float): Path = PathParser.createPathFromPathData(glyph).apply {
         transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(cx - size / 2f, cy - size / 2f) })
     }
 

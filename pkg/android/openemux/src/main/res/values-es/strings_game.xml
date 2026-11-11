@@ -16,6 +16,8 @@
     <string name="game_toast_fast_forward_on">Avance rápido al reanudar</string>
     <string name="game_toast_slow_motion_on">Cámara lenta al reanudar</string>
     <string name="game_toast_fast_forward_off">Velocidad normal</string>
+    <string name="game_toast_anchor_on">Ancla activada: el primer botón que pulsas se mantiene</string>
+    <string name="game_toast_anchor_off">Ancla desactivada</string>
     <string name="game_toast_screenshot">Captura guardada</string>
     <string name="game_toast_sound_off">Sonido desactivado</string>
     <string name="game_toast_sound_on">Sonido activado</string>
