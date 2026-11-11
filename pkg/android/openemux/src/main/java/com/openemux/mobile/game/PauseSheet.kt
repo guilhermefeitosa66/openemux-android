@@ -93,6 +93,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -293,14 +294,15 @@ fun PauseSheet(
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
         val band = forbiddenBand(window)?.takeIf { window.tabletop }
-        val tabletop = band != null
+        val layout = pauseLayout(tablet = window.tablet, tabletop = band != null, wide = window.wide)
+        val tabletop = layout == PauseLayout.TABLETOP
         // A tablet gets a side panel on the right, the game still showing on the left (TabPausa).
-        val panel = window.tablet && !tabletop
+        val panel = layout == PauseLayout.PANEL
         val panelWidth = min(440.dp, (window.widthDp * 0.55f).dp)
         // A wide window (a phone on its side) is short: the main page goes in two columns when they fit, and whatever still overflows scrolls.
-        val landscape = window.wide && !panel
+        val landscape = layout == PauseLayout.LANDSCAPE
         // A phone upright: the sheet opens under the game, stretches up and is swiped down to resume (issue 849).
-        val phone = !panel && !tabletop && !landscape
+        val phone = layout == PauseLayout.PHONE
         val sheet = remember { SheetDrag() }
         val density = LocalDensity.current
         val flingPx = with(density) { SheetFling.toPx() }
@@ -462,7 +464,8 @@ fun PauseSheet(
                     if (page != Page.Main) {
                         SheetIconButton(Icons.Back, stringResource(R.string.game_back)) { backPage()?.let { page = it } }
                     } else if (cart != null) {
-                        Image(cart, null, Modifier.width(if (landscape) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
+                        // Any short window keeps the small cart, a wide fold half open included (its half is short too).
+                        Image(cart, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -517,7 +520,7 @@ fun PauseSheet(
                         Page.Main -> MainPage(
                             landscape = landscape,
                             tabletop = tabletop,
-                            phone = phone,
+                            quickRows = layout.quickRows,
                             onResume = onResume,
                             hardcore = session.hardcore,
                             speed = speed,
@@ -684,8 +687,8 @@ private fun MainPage(
     landscape: Boolean,
     /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Quit in them. */
     tabletop: Boolean,
-    /** A phone upright (issue 849): Continue and Restart on top, Load beside Save, no Restart row in the list. */
-    phone: Boolean,
+    /** A phone, upright or on its side (issues 849, 855): Continue and Restart on top, Load beside Save, no Restart row in the list. */
+    quickRows: Boolean,
     onResume: () -> Unit,
     hardcore: Boolean,
     speed: Speed,
@@ -740,7 +743,10 @@ private fun MainPage(
                 stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
                 Modifier.weight(1.6f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
             )
-            BigButton(stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
+            BigButton(
+                stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
+                iconYields = true,
+            )
         }
     }
     val load = @Composable { modifier: Modifier ->
@@ -811,8 +817,8 @@ private fun MainPage(
     }
     val actions = @Composable { modifier: Modifier ->
         Column(modifier) {
-            if (phone) {
-                // The essentials first, all above the first stop's fold: the note goes under them.
+            if (quickRows) {
+                // The essentials first (upright, all above the first stop's fold): the note goes under them.
                 resumeRow(Modifier.padding(top = 16.dp).fillMaxWidth())
                 SaveLoadRow(slot, slotInUse, Modifier.padding(top = 10.dp).fillMaxWidth(), onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore)
                 note()
@@ -832,8 +838,8 @@ private fun MainPage(
                     ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
                     ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
                 }
-                // On a phone upright Restart sits beside Continue.
-                if (!phone) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
+                // On a phone Restart sits beside Continue.
+                if (!quickRows) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
                 RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
             if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)
@@ -984,18 +990,25 @@ private fun PausedArea(states: List<PauseSession.State>, modifier: Modifier, onP
 private fun BigButton(
     text: String, icon: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit,
     enabled: Boolean = true, showIcon: Boolean = true,
+    /** The icon steps aside when the label would be cut, so the whole word shows (Tamil's Restart in landscape, issue 855). */
+    iconYields: Boolean = false,
 ) {
+    // Measured, not guessed from the width: the label's length is the locale's. A new window size asks again.
+    var iconFits by remember(text, if (iconYields) LocalConfiguration.current.screenWidthDp else 0) { mutableStateOf(true) }
     Row(
         modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp) else it.alpha(DISABLED_ALPHA) }
             .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showIcon) {
+        if (showIcon && iconFits) {
             Icon(icon, fg, 22.dp, filled = icon == Icons.SaveState || icon == Icons.LoadState)
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text, style = Type.Button.copy(color = fg, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (iconYields && iconFits && it.isLineEllipsized(0)) iconFits = false },
+        )
     }
 }
 
