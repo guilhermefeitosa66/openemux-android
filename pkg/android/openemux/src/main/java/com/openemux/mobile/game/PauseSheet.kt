@@ -318,7 +318,7 @@ fun PauseSheet(
                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                     if (source != NestedScrollSource.UserInput) return Offset.Zero
                     val dy = available.y
-                    val take = (dy < 0f && sheet.top > sheet.expanded) || (dy > 0f && sheet.moving != null)
+                    val take = (dy < 0f && sheet.top > sheet.reach) || (dy > 0f && sheet.moving != null)
                     return if (take) Offset(0f, sheet.by(dy)) else Offset.Zero
                 }
 
@@ -1064,6 +1064,8 @@ private class SheetDrag {
     /** Where the top shows now, and where it shows resting on the first stop (lower than [first] for short content). */
     var shown = 0f
     var restFirst = 0f
+    /** The highest the top can show: [expanded], or lower when the content fits whole under it (nothing to stretch into). */
+    var reach = 0f
     private var from = SheetStop.FIRST
     private var job: Job? = null
 
@@ -1072,8 +1074,9 @@ private class SheetDrag {
     /** Moves the top by [delta] from where it shows, never above the taller stop; returns how far it went. */
     fun by(delta: Float): Float {
         job?.cancel()
-        val now = moving ?: shown.also { from = stop }
-        val next = (now + delta).coerceIn(expanded, area)
+        // A sheet that cannot rise above the first stop rests on it, whatever stop it was last sent to.
+        val now = moving ?: shown.also { from = if (reach >= restFirst - 1f) SheetStop.FIRST else stop }
+        val next = (now + delta).coerceIn(reach, area)
         moving = next
         return next - now
     }
@@ -1081,9 +1084,9 @@ private class SheetDrag {
     /** Lets go at [velocity]: springs to the stop [settle] picks, or slides out and calls [onClosed]. */
     fun release(scope: CoroutineScope, velocity: Float, fling: Float, onClosed: () -> Unit) {
         val now = moving ?: return
-        val target = settle(now, velocity, expanded, restFirst, area - restFirst, from == SheetStop.FIRST, fling)
+        val target = settle(now, velocity, reach, restFirst, area - restFirst, from == SheetStop.FIRST, fling)
         val end = when (target) {
-            SheetStop.EXPANDED -> expanded
+            SheetStop.EXPANDED -> reach
             SheetStop.FIRST -> restFirst
             SheetStop.CLOSED -> area
         }
@@ -1119,6 +1122,8 @@ private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: Wi
         val shift = maxOf(0f, top - maxOf(sheet.first, rest))
         sheet.shown = rest + shift
         if (sheet.moving == null) sheet.restFirst = maxOf(sheet.first, rest)
+        // Content shorter than the room it was given has all of it showing: the top goes no higher than that.
+        sheet.reach = if (placeable.height < room) maxOf(sheet.expanded, rest) else sheet.expanded
         layout(placeable.width, placeable.height) { placeable.placeRelativeWithLayer(0, 0) { translationY = shift } }
     }
 

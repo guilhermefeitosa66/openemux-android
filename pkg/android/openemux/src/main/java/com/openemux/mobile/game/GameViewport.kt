@@ -15,10 +15,9 @@ object GameViewport {
         val named = names.findAll(cfg).associate { it.groupValues[1] to it.groupValues[2] }
         return boxes.findAll(cfg).mapNotNull { m ->
             val name = named[m.groupValues[1]] ?: return@mapNotNull null
-            val parts = m.groupValues[2].split(',').map { it.trim().toFloatOrNull() }
-            val y = parts.getOrNull(1)
-            if (parts.size != 4 || parts.any { it == null } || y == null) return@mapNotNull null
-            name to (1f - y).coerceIn(0f, 1f)
+            val parts = m.groupValues[2].split(',').map { it.trim().toFloatOrNull() ?: return@mapNotNull null }
+            if (parts.size != 4) return@mapNotNull null
+            name to (1f - parts[1]).coerceIn(0f, 1f)
         }.toMap()
     }
 
