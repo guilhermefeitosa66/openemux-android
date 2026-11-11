@@ -102,7 +102,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.modifiers.TextAutoSizeLayoutScope
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
@@ -554,6 +560,7 @@ fun PauseSheet(
                             landscape = landscape,
                             tabletop = tabletop,
                             quickRows = layout.quickRows,
+                            tileColumns = tileColumns(layout),
                             onResume = onResume,
                             hardcore = session.hardcore,
                             speed = speed,
@@ -722,6 +729,8 @@ private fun MainPage(
     tabletop: Boolean,
     /** A phone, upright or on its side (issues 849, 855): Continue and Restart on top, Load beside Save, no Restart row in the list. */
     quickRows: Boolean,
+    /** The action tiles' columns: 4 on a phone upright, 5 elsewhere (issue 858). */
+    tileColumns: Int,
     onResume: () -> Unit,
     hardcore: Boolean,
     speed: Speed,
@@ -794,19 +803,13 @@ private fun MainPage(
             screens?.let { layout -> { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = stringResource(layout.label), onClick = onScreens) } },
             { ActionTile(stringResource(if (SessionToggles.muted) R.string.game_muted else R.string.game_audio), if (SessionToggles.muted) Icons.Mute else Icons.Audio, SessionToggles.muted, onClick = onAudio) },
         )
+        // A grid of fixed columns that wraps from the left (issue 858): 5 tiles upright are 4 + 1, never 3 + 2.
         BoxWithConstraints(modifier.fillMaxWidth()) {
-            val rows = tileRows(items.size, maxWidth.value)
-            if (rows == 1) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { items.forEach { it() } }
-            } else {
-                // Too narrow for one row: rows of equal columns, full-size tiles and full labels.
-                val perRow = tilesPerRow(items.size, rows)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items.chunked(perRow).forEach { row ->
-                        Row(Modifier.fillMaxWidth()) {
-                            row.forEach { Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) { it() } }
-                            repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
+            val grid = tileGrid(maxWidth.value, tileColumns)
+            Column(verticalArrangement = Arrangement.spacedBy(TILE_ROW_GAP_DP.dp)) {
+                items.chunked(grid.columns).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(grid.gapDp.dp)) {
+                        row.forEach { Box(Modifier.width(grid.columnDp.dp), contentAlignment = Alignment.TopCenter) { it() } }
                     }
                 }
             }
@@ -1186,7 +1189,7 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
                 .let { if (on) it.border(1.5.dp, Oe.AccentBright, RoundedCornerShape(18.dp)) else it },
             contentAlignment = Alignment.Center,
         ) { Icon(icon, if (on) Oe.AccentOnSoft else Oe.Text, 22.dp, filled = filled) }
-        Text(label, style = Type.Caption.copy(color = Oe.Text, fontWeight = FontWeight.Medium))
+        TileLabel(label)
         // What the tile is set to now (the NDS layout), under its name: as narrow as the tile, two lines at most.
         if (detail != null) {
             Text(
@@ -1196,6 +1199,30 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
                 modifier = Modifier.widthIn(max = 76.dp),
             )
         }
+    }
+}
+
+/** The smallest a tile's label shrinks to so that no word breaks in two (de "Bildschirmfoto", ta "திரைப்பிடிப்பு"). */
+private val TileLabelMinSize = 8.sp
+
+/** A tile's name, centred on up to two lines; a word too long for its column shrinks the text a step at a time. */
+@Composable
+private fun TileLabel(label: String) {
+    val style = Type.Caption.copy(color = Oe.Text, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+    BasicText(label, style = style, maxLines = 2, overflow = TextOverflow.Ellipsis, autoSize = WholeWords(style.fontSize))
+}
+
+/** Text auto-size that takes the largest size from [max] down to [TileLabelMinSize] fitting without splitting a word. */
+private data class WholeWords(val max: TextUnit) : TextAutoSize {
+    override fun TextAutoSizeLayoutScope.getFontSize(constraints: Constraints, text: AnnotatedString): TextUnit {
+        var size = max
+        while (size.value > TileLabelMinSize.value) {
+            val layout = performLayout(constraints, text, size)
+            val ends = (0 until layout.lineCount).map { layout.getLineEnd(it) }
+            if (!layout.hasVisualOverflow && !splitsAWord(text.text, ends)) return size
+            size = (size.value - 1).sp
+        }
+        return TileLabelMinSize
     }
 }
 
