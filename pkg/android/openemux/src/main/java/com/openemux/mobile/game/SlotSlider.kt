@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -97,7 +98,7 @@ internal fun SlotStrip(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (I
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             val link = stringResource(R.string.game_see_all)
             Row(
-                Modifier.height(32.dp).let { if (canSeeAll) it.gamepadFocus(corner = 8.dp) else it.alpha(DISABLED_ALPHA) }
+                Modifier.heightIn(min = 32.dp).let { if (canSeeAll) it.gamepadFocus(corner = 8.dp) else it.alpha(DISABLED_ALPHA) }
                     .clip(RoundedCornerShape(8.dp)).clickable(enabled = canSeeAll, role = Role.Button, onClick = onSeeAll)
                     .linkTarget().padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp),
