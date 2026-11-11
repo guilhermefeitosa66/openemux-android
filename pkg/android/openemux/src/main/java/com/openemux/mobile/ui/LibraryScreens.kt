@@ -564,8 +564,9 @@ private fun SectionHeading(title: String, link: String, onLink: () -> Unit) {
 private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modifier, focus: Modifier) {
     val a = LocalActions.current
     val lib = a.app.library
+    var lit by remember { mutableStateOf(false) }
     Row(
-        modifier.height(height).gamepadFocus(corner = 20.dp, scale = 1.02f).then(focus).clip(RoundedCornerShape(20.dp)).background(Oe.Surface)
+        modifier.height(height).gamepadFocus(corner = 20.dp, scale = 1.02f) { lit = it }.then(focus).clip(RoundedCornerShape(20.dp)).background(Oe.Surface)
             .clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) }
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -574,7 +575,7 @@ private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modif
         val cart = minOf(112.dp, (height - 24.dp) * rom.console.cartAspect)
         Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(cart), pending = labelPending(rom), cover = coverFor(rom))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-            Text(rom.title, style = Type.BodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            GameName(rom.title, style = Type.BodyMedium.copy(fontWeight = FontWeight.SemiBold), focused = lit)
             Text("${rom.console.short} · ${formatAgo(lastPlayed)}", style = Type.Small, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
         }
         Box(Modifier.size(44.dp).clip(CircleShape).background(Oe.Accent), contentAlignment = Alignment.Center) {
@@ -612,16 +613,17 @@ private fun ImportMoreCard(height: Dp, spacing: Dp, focus: Modifier) {
 @Composable
 private fun AddedCartridge(rom: Rom, modifier: Modifier, focus: Modifier) {
     val a = LocalActions.current
+    var lit by remember { mutableStateOf(false) }
     Column(
-        modifier.gamepadFocus(corner = 10.dp, scale = 1.04f).then(focus).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { a.nav.navigate(Routes.rom(rom.key)) },
+        modifier.gamepadFocus(corner = 10.dp, scale = 1.04f) { lit = it }.then(focus).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { a.nav.navigate(Routes.rom(rom.key)) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CappedCell(GridSpec.Carts) {
             Cartridge(rom.console, labelFor(rom), rom.title, a.app.library.effectiveColor(rom), it, pending = labelPending(rom), cover = coverFor(rom))
         }
-        Text(
+        GameName(
             rom.title, style = Type.Caption.copy(color = Oe.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+            textAlign = TextAlign.Center, focused = lit,
             modifier = Modifier.padding(top = 6.dp).fillMaxWidth(),
         )
     }
@@ -946,35 +948,36 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             }
             val focus = Modifier.holdsGame(rom.key, heldGame).restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey).pickedRing(isPicked, outset = m != ViewMode.List).paneOpener(isPicked)
             val chosen = rom.key in selection
+            var lit by remember { mutableStateOf(false) }
             when (m) {
                 ViewMode.Carts -> CappedCell(GridSpec.Carts) {
                     Column(
-                        it.gamepadFocus(corner = 10.dp, scale = 1.05f).then(focus).pickable(pick, rom.key, open),
+                        it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
                             Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
-                        Text(
+                        GameName(
                             rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = 13.sp),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                            textAlign = TextAlign.Center, focused = lit,
                             modifier = Modifier.padding(top = 6.dp).fillMaxWidth(),
                         )
                     }
                 }
                 ViewMode.Covers -> CappedCell(GridSpec.Covers) {
-                    Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f).then(focus).pickable(pick, rom.key, open)) {
+                    Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
                             BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)))
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
-                        Text(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                        GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen)), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
                     }
                 }
                 ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open)
                 else Row(
-                    Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true).then(focus).pickable(pick, rom.key, open)
+                    Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
                         .then(if (chosen) Modifier.background(Oe.AccentSoft, RoundedCornerShape(12.dp)) else Modifier)
                         .padding(vertical = 8.dp, horizontal = if (selection.active) 8.dp else 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -984,7 +987,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = 64.dp)
                     }
                     Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                        Text(rom.title, style = Type.BodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        GameName(rom.title, style = Type.BodyMedium, focused = lit)
                         Text(rom.console.displayName, style = Type.Small)
                     }
                     if (romMeta?.favorite == true) Icon(Icons.Star, Oe.Star, 16.dp, filled = true)
@@ -1125,8 +1128,9 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
     val last = if (lastPlayed > 0) formatAgo(lastPlayed) else ""
     // Never played: the time already says so, and "last played never played" says it twice.
     val description = if (last.isEmpty()) "${rom.title}, $time" else stringResource(R.string.library_row_description, rom.title, time, last)
+    var lit by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, inset = true).then(focus)
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus)
             .semantics { contentDescription = description }.pickable(pick, rom.key, open)
             .then(if (chosen) Modifier.background(Oe.AccentSoft, RoundedCornerShape(12.dp)) else Modifier)
             .padding(vertical = 6.dp, horizontal = if (selecting) 8.dp else 0.dp),
@@ -1139,7 +1143,7 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
                 else BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = 56.dp)
             }
             Column(Modifier.weight(1f).padding(start = 14.dp, end = 10.dp)) {
-                Text(rom.title, style = Type.BodyMedium.copy(fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                GameName(rom.title, style = Type.BodyMedium.copy(fontSize = 15.sp), focused = lit)
                 Text(rom.file.name, style = Type.Small.copy(fontSize = 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(time, style = Type.Small, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(96.dp))
@@ -1460,13 +1464,13 @@ private fun LandscapeLibrary(
                                 TileBadges(selecting, picked, favorite)
                             }
                             // With the gamepad, the focused game's title stands out from the others.
-                            Text(
+                            GameName(
                                 rom.title,
                                 style = Type.Caption.copy(
                                     color = if ((InputMode.gamepad && !lit) || (selecting && !picked)) Oe.Muted else Oe.Text, fontSize = 13.sp,
                                     fontWeight = if (lit) FontWeight.SemiBold else Type.Caption.fontWeight,
                                 ),
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                                textAlign = TextAlign.Center, focused = lit,
                                 modifier = Modifier.padding(top = 6.dp).fillMaxWidth(0.82f),
                             )
                         }
@@ -1744,13 +1748,14 @@ fun RecentScreen() {
             item { EmptyState(stringResource(R.string.library_recent_empty_title), stringResource(R.string.library_recent_empty_body), null, {}) }
         }
         items(recent, key = { it.key }) { rom ->
+            var lit by remember { mutableStateOf(false) }
             Row(
-                Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true).clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true) { lit = it }.clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(96.dp), cover = coverFor(rom))
                 Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                    Text(rom.title, style = Type.BodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    GameName(rom.title, style = Type.BodyMedium, focused = lit)
                     Text("${rom.console.short} · ${formatAgo(meta.roms[rom.key]!!.lastPlayed)}", style = Type.Small, modifier = Modifier.padding(top = 2.dp))
                 }
                 Box(
@@ -1792,7 +1797,7 @@ private fun GameOptionsSheet(rom: Rom, onDismiss: () -> Unit, onShare: () -> Uni
     OeSheet(onDismiss) {
         SheetBarIcons()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Text(rom.title, style = Type.Title.copy(fontSize = 22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(rom.title, style = Type.Title.copy(fontSize = 22.sp))
             Text(rom.console.displayName, style = Type.Small, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
             Card {
                 ListRow(stringResource(R.string.detail_share), leading = { Icon(Icons.Share, Oe.AccentText, 20.dp) }, onClick = onShare)

@@ -406,7 +406,7 @@ fun RomDetail(
                         cartridge(Modifier.width(width))
                     }
                     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        RenamableTitle(rom.title, Type.Title, TextAlign.Center, maxLines = 1, onRename = rename)
+                        RenamableTitle(rom.title, Type.Title, TextAlign.Center, onRename = rename)
                         Text(
                             "${rom.console.displayName} · ${core.name} · ${formatPlaytime(playtime)}",
                             style = Type.Small, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -566,7 +566,7 @@ private fun DetailTitle(overline: String, title: String, meta: String, align: Te
     val horizontal = if (align == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = horizontal) {
         Text(overline, style = Type.Eyebrow.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold), textAlign = align)
-        RenamableTitle(title, Type.Display, align, Modifier.padding(top = 6.dp), maxLines = 2, onRename = onRename)
+        RenamableTitle(title, Type.Display, align, Modifier.padding(top = 6.dp), onRename = onRename)
         Text(meta, style = Type.Small.copy(fontSize = 14.sp), textAlign = align, modifier = Modifier.padding(top = 6.dp))
     }
 }
@@ -577,13 +577,13 @@ private fun DetailTitle(overline: String, title: String, meta: String, align: Te
  */
 @Composable
 private fun RenamableTitle(
-    title: String, style: TextStyle, align: TextAlign, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, onRename: () -> Unit,
+    title: String, style: TextStyle, align: TextAlign, modifier: Modifier = Modifier, onRename: () -> Unit,
 ) {
     Row(
         modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (align == TextAlign.Center) Arrangement.Center else Arrangement.Start,
     ) {
-        Text(title, style = style, textAlign = align, maxLines = maxLines, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text(title, style = style, textAlign = align, modifier = Modifier.weight(1f, fill = false))
         val label = stringResource(R.string.detail_rename)
         Box(
             Modifier.padding(start = 6.dp).size(36.dp).gamepadFocus(corner = 18.dp).clip(CircleShape)
