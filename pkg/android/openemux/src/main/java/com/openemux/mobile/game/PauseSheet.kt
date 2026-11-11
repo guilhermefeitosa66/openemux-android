@@ -304,6 +304,8 @@ fun PauseSheet(
     onMute: (Boolean) -> Unit = {},
     /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
     onRetroArchMenu: () -> Unit = {},
+    /** A gamepad detected: the Touch controls tile and its state (issue 865); null: no tile. */
+    touchControls: TouchToggle? = null,
     /**
      * Where the game's picture ends on screen, in pixels from its top (GameViewport); null: not known. A phone in
      * portrait opens the sheet under it (issue 849).
@@ -317,6 +319,7 @@ fun PauseSheet(
         // Flipped at once on a tap; the engine's own value comes in again the next time the sheet opens.
         var speed by remember { mutableStateOf(if (session.hardcore) Speed.NORMAL else session.speed) }
         var muted by remember { mutableStateOf(session.muted) }
+        var touchOn by remember { mutableStateOf(touchControls?.on == true) }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val states = remember(refresh) { session.states() }
@@ -615,6 +618,12 @@ fun PauseSheet(
                             onReset = { confirmRestart = true },
                             restartEntry = restartEntry,
                             onRetroArchMenu = onRetroArchMenu,
+                            touchControls = touchControls?.let { touchOn },
+                            onTouchControls = {
+                                touchOn = !touchOn
+                                touchControls?.onChange?.invoke(touchOn)
+                                toast = context.getString(if (touchOn) R.string.game_toast_touch_controls_on else R.string.game_toast_touch_controls_off)
+                            },
                             onQuit = onQuit.takeUnless { panel },
                         )
                         Page.States -> StatesPage(states, statesFocus, statesGrid, ::load, ::options)
@@ -770,6 +779,9 @@ private fun MainPage(
     /** Takes the pad back to the Restart entry after a cancelled dialog. */
     restartEntry: FocusRequester,
     onRetroArchMenu: () -> Unit,
+    /** Whether the Touch controls tile is lit; null: no gamepad, no tile (issue 865). */
+    touchControls: Boolean?,
+    onTouchControls: () -> Unit,
     /** Null on the tablet panel, which pins Quit at its foot. */
     onQuit: (() -> Unit)?,
 ) {
@@ -805,7 +817,7 @@ private fun MainPage(
     }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
-        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop)
+        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop, touch = touchControls != null)
         val tileView = @Composable { tile: PauseTile ->
             when (tile) {
                 PauseTile.FAST_FORWARD -> ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) }
@@ -820,6 +832,7 @@ private fun MainPage(
                 }
                 PauseTile.CHANGE_SKIN -> ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin)
                 PauseTile.EDIT_SKIN -> ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin)
+                PauseTile.TOUCH_CONTROLS -> ActionTile(stringResource(R.string.game_touch_controls), Icons.TouchControls, touchControls == true, onClick = onTouchControls)
                 PauseTile.RETROARCH_MENU -> ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
             }
         }

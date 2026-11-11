@@ -26,6 +26,9 @@
     <string name="game_toast_screenshot">スクリーンショットを保存しました</string>
     <string name="game_toast_sound_off">サウンドオフ</string>
     <string name="game_toast_sound_on">サウンドオン</string>
+    <string name="game_toast_touch_controls">タッチ操作をオンにしました。ポーズメニューでオフにできます。</string>
+    <string name="game_toast_touch_controls_on">タッチ操作オン</string>
+    <string name="game_toast_touch_controls_off">タッチ操作オフ</string>
     <string name="game_toast_shader">シェーダー: %1$s</string>
     <string name="game_toast_state_other_core">このステートは別のコアのものです</string>
     <string name="game_toast_restart_failed">ゲームをリセットできませんでした</string>
@@ -41,6 +44,7 @@
     <string name="game_restart_confirm_title">ゲームをリセットしますか？</string>
     <string name="game_restart_confirm_body">最後のセーブ以降の進行状況は失われます。</string>
     <string name="game_retroarch_menu">RetroArch メニュー</string>
+    <string name="game_touch_controls">タッチ操作</string>
     <string name="game_retroarch_menu_detail">このセッションのみ</string>
     <string name="game_states_none">保存なし</string>
     <plurals name="game_states_saved">

@@ -26,6 +26,9 @@
     <string name="game_toast_screenshot">திரைப்பிடிப்பு சேமிக்கப்பட்டது</string>
     <string name="game_toast_sound_off">ஒலி அணைக்கப்பட்டது</string>
     <string name="game_toast_sound_on">ஒலி இயக்கப்பட்டது</string>
+    <string name="game_toast_touch_controls">தொடு கட்டுப்பாடுகள் இயக்கப்பட்டன. இடைநிறுத்த மெனுவில் அவற்றை அணைக்கலாம்.</string>
+    <string name="game_toast_touch_controls_on">தொடு கட்டுப்பாடுகள் இயக்கத்தில்</string>
+    <string name="game_toast_touch_controls_off">தொடு கட்டுப்பாடுகள் அணைக்கப்பட்டன</string>
     <string name="game_toast_shader">ஷேடர்: %1$s</string>
     <string name="game_toast_state_other_core">இந்த நிலை வேறொரு கோருக்குரியது</string>
     <string name="game_toast_restart_failed">விளையாட்டை மீண்டும் தொடங்க முடியவில்லை</string>
@@ -41,6 +44,7 @@
     <string name="game_restart_confirm_title">விளையாட்டை மீண்டும் தொடங்கவா?</string>
     <string name="game_restart_confirm_body">கடைசியாகச் சேமித்ததற்குப் பிறகான முன்னேற்றம் இழக்கப்படும்.</string>
     <string name="game_retroarch_menu">RetroArch மெனு</string>
+    <string name="game_touch_controls">தொடு கட்டுப்பாடுகள்</string>
     <string name="game_retroarch_menu_detail">இந்த அமர்வுக்கு மட்டும்</string>
     <string name="game_states_none">எதுவும் சேமிக்கப்படவில்லை</string>
     <plurals name="game_states_saved">

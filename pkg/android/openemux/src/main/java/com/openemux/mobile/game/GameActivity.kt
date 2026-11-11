@@ -160,8 +160,18 @@ class GameActivity : RetroActivityFuture() {
     @Volatile private var skinOverlays: List<String> = emptyList()
     /** Where each of the skin's overlays has the game end, from the window's top (GameViewport): the pause sheet opens under it. */
     @Volatile private var skinBottoms: Map<String, Float> = emptyMap()
-    /** Whether a gamepad is connected, which picks the skin's gamepad layout (under ndsLayouts' lock). */
+    /**
+     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected and the player has not
+     * brought the touch controls back for it (issue 865).
+     */
     private var wantGamepad = false
+    /** Whether a gamepad is detected, touch controls or not: the pause sheet's Touch controls tile shows then. */
+    @Volatile private var padDetected = false
+    /** The detected pads by TouchControls.keys, which the touch controls choice is kept for. */
+    @Volatile private var padKeys: Set<String> = emptySet()
+    /** The pads last written to the log, so each change is logged once. */
+    private var loggedPads: Set<String>? = null
+    private val touchStore by lazy { TouchControlsStore.of(filesDir) }
     /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
     private var gamepadOverride: Boolean? = null
     private var debugReceiver: BroadcastReceiver? = null
@@ -182,7 +192,8 @@ class GameActivity : RetroActivityFuture() {
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
         skinBottoms = skinDir?.let(::readBottoms).orEmpty()
-        wantGamepad = Gamepads.connected()
+        readPads()
+        wantGamepad = padDetected && !touchStore.forced(padKeys)
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -440,13 +451,40 @@ class GameActivity : RetroActivityFuture() {
 
     /** A gamepad connected or gone (main thread): the skin switches to its gamepad layout or back; the core keeps running. */
     private fun followGamepad() {
-        val pad = gamepadOverride ?: Gamepads.connected()
+        readPads()
         // This process has no MainActivity to follow the pads for the pause sheet's gamepad layout.
-        InputMode.padConnected = pad
+        InputMode.padConnected = padDetected
+        val forced = touchStore.forced(padKeys)
         synchronized(ndsLayouts) {
-            wantGamepad = pad
+            wantGamepad = padDetected && !forced
             switchGamepad()
         }
+    }
+
+    /**
+     * The pads detected now, into [padDetected] and [padKeys]: the debug override's, else the devices'. Each device
+     * counted as a gamepad is logged when the set changes, so a report names what fooled the detection (issue 865).
+     */
+    private fun readPads() {
+        val override = gamepadOverride
+        if (override != null) {
+            padDetected = override
+            padKeys = if (override) setOf(TouchControls.DEBUG_PAD) else emptySet()
+            return
+        }
+        val pads = Gamepads.pads(Gamepads.devices())
+        padDetected = pads.isNotEmpty()
+        padKeys = TouchControls.keys(pads)
+        if (padKeys != loggedPads) {
+            loggedPads = padKeys
+            pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
+        }
+    }
+
+    /** The pause sheet's Touch controls tile: kept for the pads detected now, and the skin follows at once. */
+    private fun setTouchControls(on: Boolean) {
+        touchStore.set(padKeys, on)
+        followGamepad()
     }
 
     /**
@@ -753,6 +791,12 @@ class GameActivity : RetroActivityFuture() {
         // picked the flat overlay), or a switch that reached the engine after the posture changed again. The overlay
         // switched to sets the core; stepping this one to its saved layout would race the switch.
         if ((TABLETOP in name) != wantTabletop && switchPosture()) return
+        // The gamepad layout's touch controls key (issue 865): kept for these pads, and not switched back below.
+        if (TouchControls.tapped(previous, name, wantGamepad)) {
+            wantGamepad = false
+            runCatching { touchStore.set(padKeys, true) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
+            runOnUiThread { showTouchControlsToast() }
+        }
         // The same for the gamepad: connected or gone while the overlay was switching.
         val page = OverlayName.parse(name)
         if (page != null && page.gamepad != wantGamepad && switchGamepad()) return
@@ -867,6 +911,12 @@ class GameActivity : RetroActivityFuture() {
         val shown = NdsShown(orientation, layout)
         // At once on the main thread: R3 on the sheet names the layout right after setting it.
         if (Looper.myLooper() == Looper.getMainLooper()) ndsShown.value = shown else handler.post { ndsShown.value = shown }
+    }
+
+    /** Where the touch controls brought back over a gamepad are turned off again: the pause sheet. */
+    private fun showTouchControlsToast() {
+        if (isFinishing) return
+        android.widget.Toast.makeText(this, R.string.game_toast_touch_controls, android.widget.Toast.LENGTH_LONG).show()
     }
 
     /** Names the layout just switched to, over the game: the sheet, when open, names it itself. */
@@ -1077,7 +1127,9 @@ class GameActivity : RetroActivityFuture() {
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
-        InputMode.padConnected = gamepadOverride ?: Gamepads.connected()
+        readPads()
+        InputMode.padConnected = padDetected
+        val touch = if (padDetected) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
         ButtonLabelsPref.load(this)
         // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.
@@ -1117,6 +1169,7 @@ class GameActivity : RetroActivityFuture() {
                         skins = gameSkins(),
                         onSpeed = { speedWanted = it },
                         onMute = { mutedOn = it },
+                        touchControls = touch,
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.
                             d.dismiss()

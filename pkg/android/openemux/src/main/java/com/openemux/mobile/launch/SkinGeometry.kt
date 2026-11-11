@@ -295,16 +295,49 @@ object SkinGeometry {
     /** Gamepad layout: a tabletop row's key slot, the portrait strip's a little larger. */
     const val PAD_ROW_KEY = 64f
 
+    /** Gamepad layout: how far apart a strip's or a row's second line of keys sits from the first. */
+    const val PAD_ROW_STEP = 64f
+
+    /** Gamepad layout: the least a key may shrink to, the room a thumb needs. */
+    const val PAD_KEY_MIN = 48f
+
     /**
-     * The gamepad layout's keys, in the order a strip or a row shows them: menu, save, load, turbo, fast forward, the
-     * NDS screens key ([screens]) and the keypad key ([keypad]) when there are, hide last.
+     * The gamepad layout's keys, in the order a strip or a row shows them: menu, save, load, the key that brings the
+     * touch controls back ([touch], issue 865: off when the page has no touch twin), turbo, fast forward, the NDS
+     * screens key ([screens]) and the keypad key ([keypad]) when there are, hide last.
      */
-    fun padKeys(screens: Boolean, keypad: Boolean): List<String> =
-        listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TURBO, PAD_SLOW, PAD_FF) + listOfNotNull(PAD_SCREENS.takeIf { screens }, PAD_KEYPAD.takeIf { keypad }) + PAD_HIDE
+    fun padKeys(screens: Boolean, keypad: Boolean, touch: Boolean = true): List<String> =
+        listOfNotNull(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TOUCH.takeIf { touch }, PAD_TURBO, PAD_SLOW, PAD_FF) +
+            listOfNotNull(PAD_SCREENS.takeIf { screens }, PAD_KEYPAD.takeIf { keypad }) + PAD_HIDE
+
+    /**
+     * How many lines a strip or a row [w] units wide puts [count] keys on: one while each key gets [PAD_KEY_MIN] units,
+     * else two (an NDS or keypad console's nine keys on a phone).
+     */
+    fun padLines(count: Int, w: Float): Int = if (count * PAD_KEY_MIN <= w) 1 else 2
+
+    /**
+     * The slots of [keys] in even cells of at most [maxCell] units across [w], on [padLines] lines whose first is
+     * centred at [cy] ([PAD_ROW_STEP] apart), each key [maxKey] units at most; a shorter last line is centred.
+     */
+    private fun lineSlots(keys: List<String>, w: Float, cy: Float, maxCell: Float, maxKey: Float): List<Pair<String, Box>> {
+        val lines = padLines(keys.size, w)
+        val perLine = (keys.size + lines - 1) / lines
+        val cell = minOf(w / perLine, maxCell)
+        val side = minOf(maxKey, cell)
+        return keys.chunked(perLine).flatMapIndexed { line, row ->
+            val x0 = (w - cell * row.size) / 2f
+            row.mapIndexed { i, key -> key to slot(x0 + cell * (i + 0.5f), cy + line * PAD_ROW_STEP, side) }
+        }
+    }
+
+    /** The height of the strip (portrait) or the row (tabletop) holding [count] keys across [w] units. */
+    fun padStripHeight(count: Int, w: Float): Float = PAD_STRIP + (padLines(count, w) - 1) * PAD_ROW_STEP
 
     const val PAD_MENU = "menu_toggle"
     const val PAD_SAVE = "save_state"
     const val PAD_LOAD = "load_state"
+    const val PAD_TOUCH = "touch"
     const val PAD_TURBO = "turbo_fire_toggle"
     const val PAD_SLOW = "toggle_slowmotion"
     const val PAD_FF = "toggle_fast_forward"
@@ -316,15 +349,15 @@ object SkinGeometry {
 
     /**
      * Gamepad layout, landscape [w] x [h]: two rails, every key stacked from the top (nothing at the foot, where a
-     * controller clip's grip sits): menu, save and load down the left one; hide at the top of the right one, then turbo,
-     * fast forward, screens and keypad under it. The picture fit between the rails. [collapsed]: no rails, the picture
+     * controller clip's grip sits): menu, save, load and the touch controls key down the left one; hide at the top of the
+     * right one, then turbo, fast forward, screens and keypad under it. The picture fit between the rails. [collapsed]: no rails, the picture
      * fit to the whole screen, the show key where hide was.
      */
     fun padLandscape(w: Float, h: Float, aspect: Float, keys: List<String>, collapsed: Boolean): PadFrame {
         val lx = PAD_RAIL / 2f
         val rx = w - PAD_RAIL / 2f
         val top = 18f + PAD_KEY / 2f
-        val left = listOf(PAD_MENU, PAD_SAVE, PAD_LOAD)
+        val left = listOf(PAD_MENU, PAD_SAVE, PAD_LOAD, PAD_TOUCH).filter { it in keys }
         val right = listOf(PAD_HIDE) + keys.filter { it !in left && it != PAD_HIDE }
         // 64 units apart, closer when the right rail's keys would not fit the height otherwise.
         val step = minOf(64f, (h - 36f - PAD_KEY) / (maxOf(left.size, right.size) - 1))
@@ -337,21 +370,21 @@ object SkinGeometry {
     }
 
     /**
-     * Gamepad layout, portrait [w] x [h]: one strip along the foot, the keys in even cells; the picture across the
-     * width, centred in the room above it. [collapsed]: no strip, the picture fit to the whole screen.
+     * Gamepad layout, portrait [w] x [h]: one strip along the foot, the keys in even cells (on two lines when one would
+     * leave a key under [PAD_KEY_MIN]); the picture across the width, centred in the room above it. [collapsed]: no
+     * strip, the picture fit to the whole screen.
      */
     fun padPortrait(w: Float, h: Float, aspect: Float, keys: List<String>, collapsed: Boolean): PadFrame {
-        val strip = Box(0f, h - PAD_STRIP, w, PAD_STRIP)
-        val cell = w / keys.size
-        val side = minOf(PAD_KEY, cell)
-        val slots = keys.mapIndexed { i, key -> key to slot(cell * (i + 0.5f), strip.y + PAD_STRIP / 2f, side) }
+        val stripH = padStripHeight(keys.size, w)
+        val strip = Box(0f, h - stripH, w, stripH)
+        val slots = lineSlots(keys, w, strip.y + PAD_STRIP / 2f, Float.MAX_VALUE, PAD_KEY)
         if (collapsed) return PadFrame(fitIn(Box(0f, 0f, w, h), aspect), emptyList(), null, slots)
         return PadFrame(fitIn(Box(0f, 0f, w, strip.y), aspect), listOf(strip), null, slots)
     }
 
     /**
      * Gamepad layout, tabletop [w] x [h] with the band from [start] to [end]: the picture in the top half, the keys in
-     * one centred row in the bottom one. On NDS ([ndsLayout], its id) the row sits at the foot, under the bottom screen
+     * one centred row in the bottom one (two lines when one would leave a key under [PAD_KEY_MIN]). On NDS ([ndsLayout], its id) the row sits at the foot, under the bottom screen
      * a layout puts there ("bottom", or one screen per half around the band with a gap from [gaps]). [collapsed]: no
      * row, and a screen in the bottom half takes all of it.
      */
@@ -359,11 +392,9 @@ object SkinGeometry {
         w: Float, h: Float, start: Float, end: Float, aspect: Float, keys: List<String>, collapsed: Boolean,
         ndsLayout: String? = null, gaps: List<Int> = emptyList(),
     ): PadFrame {
-        val cell = minOf(w / keys.size, 88f)
-        val side = minOf(PAD_ROW_KEY, cell)
-        val rowTop = if (ndsLayout != null) h - PAD_STRIP else (end + h) / 2f - PAD_STRIP / 2f
-        val x0 = (w - cell * keys.size) / 2f
-        val slots = keys.mapIndexed { i, key -> key to slot(x0 + cell * (i + 0.5f), rowTop + PAD_STRIP / 2f, side) }
+        val rowH = padStripHeight(keys.size, w)
+        val rowTop = if (ndsLayout != null) h - rowH else (end + h) / 2f - rowH / 2f
+        val slots = lineSlots(keys, w, rowTop + PAD_STRIP / 2f, 88f, PAD_ROW_KEY)
         val top = Box(0f, 0f, w, start)
         val below = Box(0f, end, w, (if (collapsed) h else rowTop) - end)
         var gap = 0
