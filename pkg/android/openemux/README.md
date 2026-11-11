@@ -210,6 +210,14 @@ the ones left as they were. The skin list shows each skin as a miniature drawn
 from the skin itself for this device and the way it is held
 (`ui/SkinThumbnail.kt`), kept in memory and in the cache folder.
 
+The editor's Combo tool adds a button of the player's own that presses two or
+three buttons together (`data/SkinCombo.kt`): held for a second on the skin or
+on a controller, or picked by tapping, it lands in every layout at a free spot
+near the buttons it presses. In memory it is a button bound to its inputs
+joined with `|` (`"y|b"`), which the overlay engine already presses together;
+in `skin.json` it lives under new `combos` keys and never in `elements`, so an
+app from before combos opens the skin without them instead of refusing it.
+
 Skin creators start from the templates in `tools/skins/templates/`: one zip
 per console with a bundled skin, in this format, with placeholder art at the
 exact sizes, and a guide (`tools/skins/templates/README.md`) to the files,
