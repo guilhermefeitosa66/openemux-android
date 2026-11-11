@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,24 +118,32 @@ internal fun SlotStrip(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (I
 internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (Int) -> Unit) {
     val cells = SlotStops.cells(slot)
     val latestCells by rememberUpdatedState(cells)
-    val latestSlot by rememberUpdatedState(slot)
     val pick by rememberUpdatedState(onPick)
-    val measurer = rememberTextMeasurer()
+    // The slot shown, or the one just picked while the sheet has not recomposed yet: a drag's moves come faster than
+    // frames, and each pick writes the slot's file and tells the engine, so the same slot is never asked for twice.
+    val current = remember { IntArray(1) }.also { it[0] = slot }
+    fun choose(target: Int) {
+        if (target == current[0]) return
+        current[0] = target
+        pick(target)
+    }
+    // Eleven labels are drawn per pass: the default cache (8) would miss every one of them on each redraw.
+    val measurer = rememberTextMeasurer(cacheSize = 16)
     val view = LocalView.current
     val label = stringResource(R.string.game_slot_slider)
     val state = stringResource(if (slot in used) R.string.game_slot_used else R.string.game_slot_empty, slot)
     val colors = SliderColors(track = Oe.Raised, accent = Oe.Accent, outline = Oe.AccentText, background = Oe.Sheet)
-    fun pickAt(x: Float, width: Int) {
-        val target = latestCells[SlotStops.at(x, width.toFloat(), latestCells.size)]
-        if (target != latestSlot) pick(target)
-    }
+    fun pickAt(x: Float, width: Int) = choose(latestCells[SlotStops.at(x, width.toFloat(), latestCells.size)])
     Canvas(
         modifier.height(SliderHeight)
             .semantics {
                 contentDescription = label
                 stateDescription = state
-                progressBarRangeInfo = ProgressBarRangeInfo(slot.toFloat(), 0f..cells.last().toFloat(), steps = cells.last() - 1)
-                setProgress { value -> pick(value.roundToInt().coerceIn(0, cells.last())); true }
+                // By stop, not by slot number: past the ten stops the eleventh is the current slot, and the slots between
+                // are not on the slider (the pad's left goes from it straight to the last stop too).
+                val last = cells.size - 1
+                progressBarRangeInfo = ProgressBarRangeInfo(cells.indexOf(slot).toFloat(), 0f..last.toFloat(), steps = last - 1)
+                setProgress { value -> choose(cells[value.roundToInt().coerceIn(0, last)]); true }
             }
             .gamepadFocus(corner = 14.dp)
             .onKeyEvent { e ->
@@ -143,7 +152,12 @@ internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (
                     Key.DirectionRight -> 1
                     else -> return@onKeyEvent false
                 }
-                if (e.type == KeyEventType.KeyDown) SlotStops.step(latestSlot, delta).let { if (it != latestSlot) pick(it) }
+                if (e.type != KeyEventType.KeyDown) return@onKeyEvent true
+                // At an end the press is not taken, so the focus moves on, as a platform seek bar does: in landscape and on
+                // the fold, the tiles and Back to game are to the right of the slider.
+                val next = SlotStops.step(current[0], delta)
+                if (next == current[0]) return@onKeyEvent false
+                choose(next)
                 true
             }
             // Out of touch mode only, like the clickables around it: a plain focusable would take the focus a touch-opened

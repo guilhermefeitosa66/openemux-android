@@ -321,6 +321,8 @@ fun PauseSheet(
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         val states = remember(refresh) { session.states() }
+        // The numbered slots holding a state: the slider fills them, Save and Load read the current one's (issue 867).
+        val usedSlots = remember(states) { states.filterNot { it.isAutoSlot() }.mapTo(HashSet()) { it.slot } }
         // The ROM's current slot, which only the player changes (issue 857).
         var slot by remember { mutableIntStateOf(CurrentSlot.of(session)) }
         fun choose(next: Int) { if (next in SaveSlots.RANGE) { slot = next; CurrentSlot.choose(session, next) } }
@@ -573,8 +575,8 @@ fun PauseSheet(
                             speed = speed,
                             stateCount = states.count { !it.isAutoSlot() },
                             slot = slot,
-                            slotInUse = states.any { it.slot == slot },
-                            usedSlots = states.filterNot { it.isAutoSlot() }.map { it.slot }.toSet(),
+                            slotInUse = slot in usedSlots,
+                            usedSlots = usedSlots,
                             onSlot = { choose(it) },
                             onSave = {
                                 val target = slot
