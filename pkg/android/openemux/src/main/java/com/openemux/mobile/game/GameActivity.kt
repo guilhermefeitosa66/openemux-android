@@ -91,8 +91,12 @@ class GameActivity : RetroActivityFuture() {
     private var anchorLayer: AnchorLayer? = null
     /** The card explaining anchor mode, shown when the player turns it on, until swiped down (main thread). */
     private var anchorCard: ComponentDialog? = null
-    /** Bumped each time anchor mode changes, so a card still being placed knows the mode moved on (main thread). */
+    /** Bumped each time anchor mode changes or the activity stops, so a card still being placed knows (main thread). */
     private var anchorTurns = 0
+    /** Between onStart and onStop: the anchor windows are added only then, and removed at onStop (main thread). */
+    private var started = false
+    /** The directory of the skin the engine shows: the launch's, then each redrawn one's (whose load drops the rest). */
+    @Volatile private var shownSkinDir: File? = null
     /**
      * The speed the pause sheet's fast-forward and slow-motion tiles asked for and the engine has not been sent yet;
      * null = nothing pending. A sheet opened before it is applied shows it and takes it over.
@@ -174,6 +178,7 @@ class GameActivity : RetroActivityFuture() {
         skinCustom.value = intent.getStringExtra(GameExtras.SKIN_CUSTOM)
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
+        shownSkinDir = skinDir
         wantGamepad = Gamepads.connected()
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
@@ -278,6 +283,7 @@ class GameActivity : RetroActivityFuture() {
         if (ok) {
             Log.i(SKIN_TAG, "OVERLAY_LOAD skin for $size: ${dir.name}")
             skinSize = size
+            shownSkinDir = dir
             followRedrawnSkin(readTabletopSkin(dir), readOverlays(dir))
             if (picked && drawn != null) setNdsScreensFor(drawn)
             launchDir.listFiles { f -> f.isDirectory && f.name.startsWith("skin") && f != dir }?.forEach { it.deleteRecursively() }
@@ -403,6 +409,7 @@ class GameActivity : RetroActivityFuture() {
     @OptIn(FlowPreview::class)
     override fun onStart() {
         super.onStart()
+        started = true
         // Followed without tabletop overlays too: a skin redrawn for a fold gets them.
         postureJob?.cancel()
         // Postures flicker while the device is being folded: act once it settles.
@@ -474,7 +481,9 @@ class GameActivity : RetroActivityFuture() {
     override fun onStop() {
         postureJob?.cancel()
         postureJob = null
-        // Windows of this activity's own: gone with it, never left behind.
+        // Windows of this activity's own: gone with it, never left behind, nor added again until it is back.
+        started = false
+        anchorTurns++
         closeAnchorCard()
         anchorLayer?.let { windowManager.removeViewImmediate(it) }
         anchorLayer = null
@@ -586,7 +595,7 @@ class GameActivity : RetroActivityFuture() {
         // Turned on, the card explains it and stays until swiped down, over the game where the game's box is in the
         // overlay shown (read off the engine thread); turned off, a short toast says so and the card goes.
         val shown = synchronized(ndsLayouts) { overlay }
-        val skinDir = intent.getStringExtra("CONFIGFILE")?.let { File(File(it).parentFile, "skin") }
+        val skinDir = shownSkinDir
         runOnUiThread {
             val turn = ++anchorTurns
             anchorToast?.cancel()
@@ -611,7 +620,7 @@ class GameActivity : RetroActivityFuture() {
     override fun onAnchorFeedback(anchors: FloatArray) {
         val marks = AnchorMark.parse(anchors)
         runOnUiThread {
-            if (isFinishing || isDestroyed) return@runOnUiThread
+            if (!started || isFinishing || isDestroyed) return@runOnUiThread
             // Nothing held needs no window yet; one is added once something is, with the game's window up.
             val layer = anchorLayer
                 ?: if (marks.isEmpty() || window.decorView.windowToken == null) return@runOnUiThread else addAnchorLayer()
@@ -650,7 +659,7 @@ class GameActivity : RetroActivityFuture() {
 
     /** The card explaining anchor mode, over the game's box [viewport] (the top of the screen without one). */
     private fun showAnchorCard(viewport: ScreenBox?) {
-        if (isFinishing || isDestroyed || window.decorView.windowToken == null) return
+        if (!started || isFinishing || isDestroyed || window.decorView.windowToken == null) return
         val dp = resources.displayMetrics.density
         val screen = window.decorView
         val place = AnchorCardPlace.of(viewport, screen.width, screen.height, (12 * dp).toInt(), (360 * dp).toInt())

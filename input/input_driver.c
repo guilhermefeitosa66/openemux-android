@@ -6112,6 +6112,10 @@ static void input_overlay_anchor_report(input_overlay_t *ol,
    size_t n;
    int i;
 
+   /* Mode off: nothing is anchored, and the empty list went out once. */
+   if (!config_get_ptr()->bools.input_overlay_anchor && !last_n)
+      return;
+
    for (i = 0; i < ol_state->touch_count && i < OVERLAY_MAX_TOUCH; i++)
    {
       /* As input_overlay_poll reads them, before the page's own scale. */
