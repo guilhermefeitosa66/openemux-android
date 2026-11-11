@@ -38,9 +38,7 @@ import com.openemux.mobile.launch.SkinRenderer
 import com.openemux.mobile.launch.SkinSize
 import com.openemux.mobile.launch.TABLETOP
 import com.openemux.mobile.launch.ndsLaunchLayout
-import com.openemux.mobile.launch.ScreenBox
 import com.openemux.mobile.launch.overlayNames
-import com.openemux.mobile.launch.overlayViewports
 import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
@@ -91,12 +89,8 @@ class GameActivity : RetroActivityFuture() {
     private var anchorLayer: AnchorLayer? = null
     /** The card explaining anchor mode, shown when the player turns it on, until swiped down (main thread). */
     private var anchorCard: ComponentDialog? = null
-    /** Bumped each time anchor mode changes or the activity stops, so a card still being placed knows (main thread). */
-    private var anchorTurns = 0
     /** Between onStart and onStop: the anchor windows are added only then, and removed at onStop (main thread). */
     private var started = false
-    /** The directory of the skin the engine shows: the launch's, then each redrawn one's (whose load drops the rest). */
-    @Volatile private var shownSkinDir: File? = null
     /**
      * The speed the pause sheet's fast-forward and slow-motion tiles asked for and the engine has not been sent yet;
      * null = nothing pending. A sheet opened before it is applied shows it and takes it over.
@@ -178,7 +172,6 @@ class GameActivity : RetroActivityFuture() {
         skinCustom.value = intent.getStringExtra(GameExtras.SKIN_CUSTOM)
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
-        shownSkinDir = skinDir
         wantGamepad = Gamepads.connected()
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
@@ -283,7 +276,6 @@ class GameActivity : RetroActivityFuture() {
         if (ok) {
             Log.i(SKIN_TAG, "OVERLAY_LOAD skin for $size: ${dir.name}")
             skinSize = size
-            shownSkinDir = dir
             followRedrawnSkin(readTabletopSkin(dir), readOverlays(dir))
             if (picked && drawn != null) setNdsScreensFor(drawn)
             launchDir.listFiles { f -> f.isDirectory && f.name.startsWith("skin") && f != dir }?.forEach { it.deleteRecursively() }
@@ -483,7 +475,6 @@ class GameActivity : RetroActivityFuture() {
         postureJob = null
         // Windows of this activity's own: gone with it, never left behind, nor added again until it is back.
         started = false
-        anchorTurns++
         closeAnchorCard()
         anchorLayer?.let { windowManager.removeViewImmediate(it) }
         anchorLayer = null
@@ -592,19 +583,13 @@ class GameActivity : RetroActivityFuture() {
             val at = System.currentTimeMillis()
             Thread({ AnchorPicks.record(dir, console, on, at) }, "anchor-pick").start()
         }
-        // Turned on, the card explains it and stays until swiped down, over the game where the game's box is in the
-        // overlay shown (read off the engine thread); turned off, a short toast says so and the card goes.
-        val shown = synchronized(ndsLayouts) { overlay }
-        val skinDir = shownSkinDir
+        // Turned on, the card explains it and stays at the bottom of the screen until swiped down; turned off, a short
+        // toast says so and the card goes.
         runOnUiThread {
-            val turn = ++anchorTurns
             anchorToast?.cancel()
             closeAnchorCard()
             if (on) {
-                Thread({
-                    val viewport = skinDir?.let { readViewports(it)[shown] }
-                    runOnUiThread { if (turn == anchorTurns) showAnchorCard(viewport) }
-                }, "anchor-card").start()
+                showAnchorCard()
             } else {
                 anchorLayer?.marks = emptyList()
                 anchorToast = android.widget.Toast.makeText(this, getString(R.string.game_toast_anchor_off), android.widget.Toast.LENGTH_SHORT)
@@ -654,11 +639,8 @@ class GameActivity : RetroActivityFuture() {
         if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = window.attributes.layoutInDisplayCutoutMode
     }
 
-    private fun readViewports(dir: File) =
-        runCatching { overlayViewports(File(dir, "skin.cfg").readText()) }.getOrDefault(emptyMap())
-
-    /** The card explaining anchor mode, over the game's box [viewport] (the top of the screen without one). */
-    private fun showAnchorCard(viewport: ScreenBox?) {
+    /** The card explaining anchor mode, at the bottom of the screen. */
+    private fun showAnchorCard() {
         if (!started || isFinishing || isDestroyed || window.decorView.windowToken == null) return
         val d = ComponentDialog(this, android.R.style.Theme_Translucent_NoTitleBar)
         val view = ComposeView(d.context).apply {
@@ -674,9 +656,10 @@ class GameActivity : RetroActivityFuture() {
             // Only the card takes touches: around it, the pad and the strip stay the game's.
             w.attributes = overGameParams(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL).apply {
                 height = WindowManager.LayoutParams.WRAP_CONTENT
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.START
                 title = "OpenEmux anchor card"
             }
-            placeAnchorCard(w, viewport)
+            placeAnchorCard(w)
             w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             if (Build.VERSION.SDK_INT >= 30) {
                 w.setDecorFitsSystemWindows(false)
@@ -687,35 +670,30 @@ class GameActivity : RetroActivityFuture() {
             }
         }
         anchorCard = d
+        // A rotation, a fold or split screen resizes the game's window: the card stays centred at its bottom.
+        window.decorView.addOnLayoutChangeListener(anchorCardFollower)
         d.show()
     }
 
-    /** Puts the card's window [w] over the game's box [viewport], as the game's window is now. */
-    private fun placeAnchorCard(w: android.view.Window, viewport: ScreenBox?) {
+    private val anchorCardFollower = android.view.View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, or_, ob ->
+        if (r - l != or_ - ol || b - t != ob - ot) anchorCard?.takeIf { it.isShowing }?.window?.let(::placeAnchorCard)
+    }
+
+    /** Puts the card's window [w] at the bottom of the game's window, as it is now. */
+    private fun placeAnchorCard(w: android.view.Window) {
         val dp = resources.displayMetrics.density
         val screen = window.decorView
-        val place = AnchorCardPlace.of(viewport, screen.width, screen.height, (12 * dp).toInt(), (360 * dp).toInt())
+        val place = AnchorCardPlace.of(screen.width, (8 * dp).toInt(), (360 * dp).toInt())
         val at = IntArray(2).also(screen::getLocationOnScreen)
         w.attributes = w.attributes.apply {
             width = place.width
             x = at[0] + place.x
-            y = at[1] + place.y
+            y = place.bottom
         }
     }
 
-    /**
-     * The overlay changed (a rotation, a fold, another skin or NDS layout) while the card shows: it moves over the new
-     * game box, which is read off the engine thread this is called on.
-     */
-    private fun followAnchorCard(name: String) {
-        val dir = shownSkinDir ?: return
-        Thread({
-            val viewport = readViewports(dir)[name]
-            runOnUiThread { anchorCard?.takeIf { it.isShowing }?.window?.let { placeAnchorCard(it, viewport) } }
-        }, "anchor-card").start()
-    }
-
     private fun closeAnchorCard() {
+        window.decorView.removeOnLayoutChangeListener(anchorCardFollower)
         anchorCard?.takeIf { it.isShowing }?.dismiss()
         anchorCard = null
     }
@@ -727,7 +705,6 @@ class GameActivity : RetroActivityFuture() {
      * screen layout, which is kept for the orientation.
      */
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
-        if (anchorCard != null) followAnchorCard(name)
         val previous = overlay
         overlay = name
         if (TABLETOP !in name) flatOverlay = name

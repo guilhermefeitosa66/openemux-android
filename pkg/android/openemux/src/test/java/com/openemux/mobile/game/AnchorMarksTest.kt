@@ -1,6 +1,5 @@
 package com.openemux.mobile.game
 
-import com.openemux.mobile.launch.ScreenBox
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,16 +69,14 @@ class AnchorMarksTest {
         assertEquals(1f, AnchorCardSwipe.alpha(50f, 0f), 0f)
     }
 
-    @Test fun theCardSitsOnTheGameNearItsTop() {
-        // Portrait phone: the game in the top 40%, the whole width.
-        assertEquals(AnchorCardPlace(12, 12, 1056), AnchorCardPlace.of(ScreenBox(0f, 0f, 1f, 0.4f), 1080, 2400, 12, 1200))
-        // Landscape: the game in the middle; a narrower card is centred on it.
-        assertEquals(AnchorCardPlace(870, 112, 660), AnchorCardPlace.of(ScreenBox(0.25f, 0.1f, 0.5f, 0.8f), 2400, 1000, 12, 660))
+    @Test fun theCardSitsAtTheBottomOfTheScreenCentred() {
+        // Portrait phone: narrower than the cap, the card spans the width less the margins.
+        assertEquals(AnchorCardPlace(8, 8, 1064), AnchorCardPlace.of(1080, 8, 1200))
+        // Landscape: capped, and centred on the screen.
+        assertEquals(AnchorCardPlace(870, 8, 660), AnchorCardPlace.of(2400, 8, 660))
     }
 
-    @Test fun withNoGameBoxTheCardSitsAtTheTopOfTheScreen() {
-        assertEquals(AnchorCardPlace(200, 12, 600), AnchorCardPlace.of(null, 1000, 2000, 12, 600))
-        // A box narrower than the margins gets no width rather than a negative one.
-        assertEquals(0, AnchorCardPlace.of(ScreenBox(0f, 0f, 0.01f, 0.1f), 1000, 2000, 12, 600).width)
+    @Test fun aScreenNarrowerThanTheMarginsGivesTheCardNoWidth() {
+        assertEquals(AnchorCardPlace(5, 8, 0), AnchorCardPlace.of(10, 8, 600))
     }
 }

@@ -1,6 +1,5 @@
 package com.openemux.mobile.game
 
-import com.openemux.mobile.launch.ScreenBox
 import kotlin.math.abs
 
 /**
@@ -70,20 +69,20 @@ object AnchorCardSwipe {
         if (height <= 0f) 1f else (1f - offset / height).coerceIn(0f, 1f)
 }
 
-/** Where the explanation card goes on the screen, in pixels: its left and top edges and its width. */
-data class AnchorCardPlace(val x: Int, val y: Int, val width: Int) {
+/**
+ * Where the explanation card goes on the screen, in pixels: its left edge, how far its bottom edge sits above the
+ * screen's, and its width.
+ */
+data class AnchorCardPlace(val x: Int, val bottom: Int, val width: Int) {
     companion object {
         /**
-         * Over the game, so the touch controls stay free to try the anchor right away: centred on the game's box
-         * [viewport] (fractions of a [screenW] x [screenH] screen), [margin] below its top, at most [maxWidth] wide.
-         * With no viewport, at the top of the screen.
+         * At the bottom of a [screenW] pixels wide screen, like a system sheet, so swiping it down is the natural way
+         * to close it: centred, [margin] above the bottom edge and at least that clear of the sides, at most
+         * [maxWidth] wide.
          */
-        fun of(viewport: ScreenBox?, screenW: Int, screenH: Int, margin: Int, maxWidth: Int): AnchorCardPlace {
-            val left = (viewport?.left ?: 0f) * screenW
-            val top = (viewport?.top ?: 0f) * screenH
-            val span = (viewport?.width ?: 1f) * screenW
-            val width = minOf(maxWidth.toFloat(), span - 2 * margin).coerceAtLeast(0f)
-            return AnchorCardPlace((left + (span - width) / 2f).toInt(), (top + margin).toInt(), width.toInt())
+        fun of(screenW: Int, margin: Int, maxWidth: Int): AnchorCardPlace {
+            val width = minOf(maxWidth, screenW - 2 * margin).coerceAtLeast(0)
+            return AnchorCardPlace((screenW - width) / 2, margin, width)
         }
     }
 }
