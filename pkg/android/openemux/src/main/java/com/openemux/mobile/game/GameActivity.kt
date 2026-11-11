@@ -679,15 +679,23 @@ class GameActivity : RetroActivityFuture() {
         if (r - l != or_ - ol || b - t != ob - ot) anchorCard?.takeIf { it.isShowing }?.window?.let(::placeAnchorCard)
     }
 
-    /** Puts the card's window [w] at the bottom of the game's window, as it is now. */
+    /**
+     * Puts the card's window [w] at the bottom of the game's window, as it is now. Both are measured against the frame
+     * the card is laid out in: the activity's window bounds (the display in full screen, the task's in split screen).
+     */
     private fun placeAnchorCard(w: android.view.Window) {
         val dp = resources.displayMetrics.density
         val screen = window.decorView
-        val place = AnchorCardPlace.of(screen.width, (8 * dp).toInt(), (360 * dp).toInt())
         val at = IntArray(2).also(screen::getLocationOnScreen)
+        val frame = if (Build.VERSION.SDK_INT >= 30) windowManager.currentWindowMetrics.bounds else null
+        val place = AnchorCardPlace.of(
+            at[0], screen.width, at[1] + screen.height,
+            frame?.left ?: 0, frame?.bottom ?: (at[1] + screen.height),
+            (8 * dp).toInt(), (360 * dp).toInt(),
+        )
         w.attributes = w.attributes.apply {
             width = place.width
-            x = at[0] + place.x
+            x = place.x
             y = place.bottom
         }
     }

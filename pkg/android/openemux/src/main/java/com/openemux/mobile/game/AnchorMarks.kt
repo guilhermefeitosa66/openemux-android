@@ -70,19 +70,24 @@ object AnchorCardSwipe {
 }
 
 /**
- * Where the explanation card goes on the screen, in pixels: its left edge, how far its bottom edge sits above the
- * screen's, and its width.
+ * Where the explanation card goes, in pixels of the frame its window is laid out in (gravity bottom-start): its left
+ * edge, how far its bottom edge sits above the frame's, and its width.
  */
 data class AnchorCardPlace(val x: Int, val bottom: Int, val width: Int) {
     companion object {
         /**
-         * At the bottom of a [screenW] pixels wide screen, like a system sheet, so swiping it down is the natural way
-         * to close it: centred, [margin] above the bottom edge and at least that clear of the sides, at most
-         * [maxWidth] wide.
+         * At the bottom of the game's window, like a system sheet, so swiping it down is the natural way to close it:
+         * centred on it, [margin] above its bottom edge and at least that clear of its sides, at most [maxWidth] wide.
+         * The game's window spans [gameLeft] to [gameLeft] + [gameW] across and ends at [gameBottom], in the same
+         * screen pixels as the frame, which starts at [frameLeft] and ends at [frameBottom]; a window that sits inset
+         * in the frame (a cutout bar beside it, a split screen) keeps the card on the game.
          */
-        fun of(screenW: Int, margin: Int, maxWidth: Int): AnchorCardPlace {
-            val width = minOf(maxWidth, screenW - 2 * margin).coerceAtLeast(0)
-            return AnchorCardPlace((screenW - width) / 2, margin, width)
+        fun of(
+            gameLeft: Int, gameW: Int, gameBottom: Int, frameLeft: Int, frameBottom: Int, margin: Int, maxWidth: Int,
+        ): AnchorCardPlace {
+            val width = minOf(maxWidth, gameW - 2 * margin).coerceAtLeast(0)
+            val below = (frameBottom - gameBottom).coerceAtLeast(0)
+            return AnchorCardPlace(gameLeft - frameLeft + (gameW - width) / 2, below + margin, width)
         }
     }
 }

@@ -70,13 +70,20 @@ class AnchorMarksTest {
     }
 
     @Test fun theCardSitsAtTheBottomOfTheScreenCentred() {
-        // Portrait phone: narrower than the cap, the card spans the width less the margins.
-        assertEquals(AnchorCardPlace(8, 8, 1064), AnchorCardPlace.of(1080, 8, 1200))
-        // Landscape: capped, and centred on the screen.
-        assertEquals(AnchorCardPlace(870, 8, 660), AnchorCardPlace.of(2400, 8, 660))
+        // Portrait phone, the game filling the screen: narrower than the cap, it spans the width less the margins.
+        assertEquals(AnchorCardPlace(8, 8, 1064), AnchorCardPlace.of(0, 1080, 2400, 0, 2400, 8, 1200))
+        // Landscape with a cutout bar on the left: capped, and centred on the game's window, not the display.
+        assertEquals(AnchorCardPlace(933, 8, 660), AnchorCardPlace.of(126, 2274, 1080, 0, 1080, 8, 660))
+    }
+
+    @Test fun inSplitScreenTheCardStaysOnTheGamesWindow() {
+        // The game in the right half: the frame starts where the game does.
+        assertEquals(AnchorCardPlace(270, 8, 660), AnchorCardPlace.of(1200, 1200, 1080, 1200, 1080, 8, 660))
+        // A frame that runs below the game's window: the card is lifted to the game's bottom.
+        assertEquals(AnchorCardPlace(8, 1208, 1064), AnchorCardPlace.of(0, 1080, 1200, 0, 2400, 8, 1200))
     }
 
     @Test fun aScreenNarrowerThanTheMarginsGivesTheCardNoWidth() {
-        assertEquals(AnchorCardPlace(5, 8, 0), AnchorCardPlace.of(10, 8, 600))
+        assertEquals(AnchorCardPlace(5, 8, 0), AnchorCardPlace.of(0, 10, 100, 0, 100, 8, 600))
     }
 }

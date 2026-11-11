@@ -54,7 +54,8 @@ fun AnchorCard(onClosed: () -> Unit) {
         val scope = rememberCoroutineScope()
         val offset = remember { Animatable(0f) }
         var height by remember { mutableIntStateOf(0) }
-        // Hidden until measured, then it rises from below its window's bottom edge, which is the screen's.
+        // Hidden until measured, then it rises from below its window's bottom edge (a margin above the screen's), which
+        // clips it on the way in, so it fades in as it rises.
         var entered by remember { mutableStateOf(false) }
         LaunchedEffect(height) {
             if (!entered && height > 0) {
