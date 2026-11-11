@@ -136,6 +136,7 @@ import com.openemux.mobile.ui.RadioCard
 import com.openemux.mobile.ui.SkinChoices
 import com.openemux.mobile.ui.SkinListState
 import com.openemux.mobile.ui.StateTile
+import com.openemux.mobile.ui.countString
 import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
@@ -803,14 +804,26 @@ private fun MainPage(
         BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, modifier, onLoad, enabled = !hardcore)
     }
     val tiles = @Composable { modifier: Modifier ->
-        val items = listOfNotNull<@Composable () -> Unit>(
-            { ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) } },
-            { ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) } },
-            { ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot) },
-            { ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader) },
-            screens?.let { layout -> { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = stringResource(layout.label), onClick = onScreens) } },
-            MuteTile.of(muted).let { tile -> { ActionTile(stringResource(tile.label), tile.icon, false, warn = tile.warn, onClick = onAudio) } },
-        )
+        // Every action is a tile (issue 862); only the toggles ever light up.
+        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop).map<PauseTile, @Composable () -> Unit> { tile ->
+            when (tile) {
+                PauseTile.FAST_FORWARD -> { { ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) } } }
+                PauseTile.SLOW_MOTION -> { { ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) } } }
+                PauseTile.SCREENSHOT -> { { ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot) } }
+                PauseTile.SHADER -> { { ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader) } }
+                PauseTile.SCREENS -> { { ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = screens?.let { stringResource(it.label) }, onClick = onScreens) } }
+                PauseTile.AUDIO -> { MuteTile.of(muted).let { tile -> { ActionTile(stringResource(tile.label), tile.icon, false, warn = tile.warn, onClick = onAudio) } } }
+                PauseTile.SAVE_STATES -> { {
+                    val saved = if (stateCount == 0) stringResource(R.string.game_states_none) else countString(R.plurals.game_states_saved, stateCount, stateCount)
+                    ActionTile(stringResource(R.string.game_save_states), Icons.States, false, enabled = !hardcore, detail = saved, onClick = onLoad)
+                } }
+                PauseTile.CHANGE_SKIN -> { { ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin) } }
+                PauseTile.EDIT_SKIN -> { { ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin) } }
+                PauseTile.RETROARCH_MENU -> { {
+                    ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
+                } }
+            }
+        }
         // A grid of fixed columns that wraps from the left (issue 858): 5 tiles upright are 4 + 1, never 3 + 2.
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val grid = tileGrid(maxWidth.value, tileColumns)
@@ -849,12 +862,8 @@ private fun MainPage(
             }
             tiles(Modifier.padding(top = 16.dp))
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BigButton("${stringResource(R.string.game_save_states)} · $stateCount", Icons.Chevron, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = !hardcore)
                 BigButton(stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
                 if (onQuit != null) QuitButton(Modifier.width(168.dp).height(56.dp), onQuit)
-            }
-            Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
-                RetroArchMenuRow(divider = false, minHeight = 56.dp, onClick = onRetroArchMenu)
             }
         }
         return
@@ -871,22 +880,20 @@ private fun MainPage(
                 save(Modifier.padding(top = 16.dp).fillMaxWidth())
                 load(Modifier.padding(top = 10.dp).fillMaxWidth())
             }
-            tiles(Modifier.padding(top = 18.dp))
+            // On its side the tiles go to the right half, beside these rows (issue 862).
+            if (!landscape) tiles(Modifier.padding(top = 18.dp))
         }
     }
     val rest = @Composable { modifier: Modifier ->
         Column(modifier) {
-            Column(Modifier.padding(top = if (landscape) 16.dp else 20.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
-                ListRow(stringResource(R.string.game_save_states), value = stateCount.toString(), onClick = onLoad, enabled = !hardcore)
-                if (skinName != null) {
-                    ListRow(stringResource(R.string.game_change_skin), value = skinName, divider = true, onClick = onSkin)
-                    ListRow(stringResource(R.string.game_edit_skin), divider = true, onClick = onEditSkin, enabled = canEditSkin)
+            if (landscape) tiles(Modifier.padding(top = 16.dp))
+            // On a phone Restart sits beside Continue; the tablet panel keeps its row.
+            if (!quickRows) {
+                Column(Modifier.padding(top = 20.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
+                    Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), onClick = onReset) }
                 }
-                // On a phone Restart sits beside Continue.
-                if (!quickRows) Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), divider = true, onClick = onReset) }
-                RetroArchMenuRow(divider = true, onClick = onRetroArchMenu)
             }
-            if (onQuit != null) QuitButton(Modifier.padding(top = 12.dp), onQuit)
+            if (onQuit != null) QuitButton(Modifier.padding(top = if (landscape) 16.dp else 20.dp), onQuit)
         }
     }
     if (landscape) {
@@ -900,18 +907,6 @@ private fun MainPage(
             rest(Modifier)
         }
     }
-}
-
-/** The advanced way out: RetroArch's own menu, its changes kept for this session only (the subtitle says so). */
-@Composable
-private fun RetroArchMenuRow(divider: Boolean, minHeight: Dp = 50.dp, onClick: () -> Unit) {
-    ListRow(
-        stringResource(R.string.game_retroarch_menu),
-        subtitle = stringResource(R.string.game_retroarch_menu_note),
-        divider = divider,
-        minHeight = minHeight,
-        onClick = onClick,
-    )
 }
 
 @Composable
