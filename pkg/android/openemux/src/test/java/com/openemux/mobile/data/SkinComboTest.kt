@@ -138,8 +138,15 @@ class SkinComboTest {
         assertTrue(kotlin.math.hypot(spot.x + 50f - 450f, spot.y + 50f - 900f) < 50f)
     }
 
+    @Test fun aScreenFillingTheLayoutLeavesTheComboOffTheControlsOnly() {
+        val over = SkinLayout(SkinSize(1000, 500), listOf(SkinRect(0f, 0f, 1000f, 500f)), elements = listOf(y.copy(rect = SkinRect(800f, 300f, 100f, 100f))))
+        val spot = SkinCombos.start(over, listOf("y"), 100f)
+        assertTrue(spot.inside(over.size))
+        assertTrue(clear(spot, listOf(SkinRect(800f, 300f, 100f, 100f)), 10f))
+    }
+
     @Test fun withNoClearSpotTheComboStartsOnItsButtonsInsideTheLayout() {
-        val full = SkinLayout(SkinSize(300, 300), listOf(SkinRect(0f, 0f, 300f, 300f)), elements = listOf(y.copy(rect = SkinRect(250f, 250f, 50f, 50f))))
+        val full = SkinLayout(SkinSize(300, 300), listOf(SkinRect(0f, 0f, 300f, 300f)), elements = listOf(y.copy(rect = SkinRect(250f, 250f, 50f, 50f)), x.copy(rect = SkinRect(0f, 0f, 240f, 240f))))
         assertEquals(SkinRect(200f, 200f, 100f, 100f), SkinCombos.start(full, listOf("y"), 100f))
         // A side larger than the layout is cut to it.
         assertEquals(SkinRect(0f, 0f, 300f, 300f), SkinCombos.start(full, listOf("y"), 500f))

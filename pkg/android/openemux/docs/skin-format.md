@@ -251,7 +251,8 @@ keys, which every version ignores when it does not read them, so an older app op
 than 2 or more than 3 buttons, one input twice) is left out with its places, so a newer app may allow more without
 older ones refusing its skins. A layout's place for a combo the root does not have is left out too. Anything else
 wrong in a combo (a bad `id`, a duplicate id, a rect outside the layout, a bad colour) refuses the skin like the same
-mistake in an element.
+mistake in an element. The editor keeps a combo it left out in the file when it saves, with its places, and gives
+its own combos other ids.
 
 Combos are on the layout's own page: not on its keypad page, nor on an NDS layout's screen-layout pages.
 

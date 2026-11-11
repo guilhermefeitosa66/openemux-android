@@ -764,17 +764,14 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
 
     /** A controller button while the capture panel is open: held and let go (or tapped, when picking) as that input. */
     fun padKey(s: ComboSession, e: android.view.KeyEvent): Boolean {
-        if (!PadCombo.reads(e.keyCode)) return false
+        // Picking is done on the skin; a key that is no input of this layout: both work the panel (focus, A, B) as ever.
+        if (s.picking != null || !PadCombo.reads(e.keyCode)) return false
         val inputs = model?.comboInputs()?.map { it.bind }.orEmpty()
-        val input = PadCombo.input(console, e.keyCode, inputs) ?: return true
+        val input = PadCombo.input(console, e.keyCode, inputs) ?: return false
         if (e.repeatCount > 0) return true
         val down = e.action == android.view.KeyEvent.ACTION_DOWN
-        if (s.picking != null) {
-            if (!down) s.tap(input, eligible = true)
-        } else {
-            s.pad = if (down) s.pad + input else s.pad - input
-            s.update(SystemClock.uptimeMillis())
-        }
+        s.pad = if (down) s.pad + input else s.pad - input
+        s.update(SystemClock.uptimeMillis())
         return true
     }
 
@@ -782,8 +779,13 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
     LaunchedEffect(combo) {
         val s = combo ?: return@LaunchedEffect
         while (true) {
+            // Frame by frame only while two or three buttons are held: otherwise there is no ring to fill.
+            if (s.picking != null || s.held.size !in SkinCombos.MIN..SkinCombos.MAX) {
+                s.progress = 0f
+                delay(COMBO_IDLE_MS)
+                continue
+            }
             withFrameMillis { }
-            if (s.picking != null) continue
             s.progress = s.capture.progress(SystemClock.uptimeMillis())
             val done = s.capture.done ?: continue
             delay(COMBO_DONE_MS)
@@ -1542,6 +1544,9 @@ private val DeleteRed = Color(0xFFFF8A8A)
 
 /** How long the full ring shows before the combo is made (ms). */
 private const val COMBO_DONE_MS = 300L
+
+/** How often the capture looks again while no combo is held (ms). */
+private const val COMBO_IDLE_MS = 50L
 
 /**
  * The combo capture panel while it is open (issue 842): a new combo, or combo [record]'s buttons recorded again. The

@@ -230,6 +230,46 @@ class SkinEditComboTest {
         assertEquals(2, SkinFormat.parse(json.toString()).layouts.getValue(SkinLayoutId.TABLET_PORTRAIT).elements.count { it.isCombo })
     }
 
+    @Test fun undoingTheAddLetsGoOfTheCombo() {
+        val m = model()
+        m.addCombo(setOf("y", "b"))
+        m.undo()
+        assertNull(m.selection)
+        assertNull(m.selectedCombo)
+        m.redo()
+        m.tap("y")
+        val group = m.selection
+        m.undo()
+        m.redo()
+        // A selection the layout still has stays.
+        assertEquals(group, m.selection)
+        m.selectBody()
+        m.undo()
+        assertEquals(SkinSelection.Body, m.selection)
+    }
+
+    @Test fun aComboANewerAppWroteIsKeptOnSave() {
+        val text = JSONObject(SkinFormat.toJson(skin)).apply {
+            put("combos", org.json.JSONArray("""[{"id":"combo-1","buttons":["y","b","a","l"]}]"""))
+            getJSONObject("layouts").getJSONObject("phone-portrait")
+                .put("combos", org.json.JSONArray("""[{"id":"combo-1","x":0,"y":800,"width":100,"height":100}]"""))
+        }.toString()
+        val read = SkinFormat.parse(text)
+        assertTrue(read.combos.isEmpty())
+        val m = model(read)
+        m.addCombo(setOf("y", "b"))
+        val json = JSONObject(m.json(text))
+        assertEquals(listOf("combo-2", "combo-1"), (0 until json.getJSONArray("combos").length()).map { json.getJSONArray("combos").getJSONObject(it).getString("id") })
+        val placed = json.getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("combos")
+        assertEquals(setOf("combo-1", "combo-2"), (0 until placed.length()).map { placed.getJSONObject(it).getString("id") }.toSet())
+        // Its own combo deleted, the newer one stays.
+        m.deleteCombo("combo-2")
+        val after = JSONObject(m.json(text))
+        assertEquals(1, after.getJSONArray("combos").length())
+        assertEquals(1, after.getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("combos").length())
+        assertFalse(after.getJSONObject("layouts").getJSONObject("phone-landscape").has("combos"))
+    }
+
     @Test fun aSkinsOwnLayoutSwitchedBackOnGetsACombosMadeMeanwhile() {
         val m = model()
         // Phone landscape off is not allowed while editing phone: use a skin with a tablet layout of its own.

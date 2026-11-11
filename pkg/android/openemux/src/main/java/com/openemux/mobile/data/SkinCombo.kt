@@ -78,9 +78,9 @@ object SkinCombos {
         return buttons.distinct().sortedWith(compareBy<String>({ it !in at }, { at[it]?.cx ?: 0f }, { at[it]?.cy ?: 0f }))
     }
 
-    /** The first `combo-<n>` no element of [layouts] uses as its id. */
-    fun nextId(layouts: Collection<SkinLayout>): String {
-        val used = layouts.flatMap { l -> l.elements.map { it.id } }.toSet()
+    /** The first `combo-<n>` no element of [layouts] uses as its id, nor one of [taken]. */
+    fun nextId(layouts: Collection<SkinLayout>, taken: Set<String> = emptySet()): String {
+        val used = layouts.flatMap { l -> l.elements.map { it.id } }.toSet() + taken
         return generateSequence(1) { it + 1 }.map { "combo-$it" }.first { it !in used }
     }
 
@@ -123,8 +123,17 @@ object SkinCombos {
         val pressed = layout.elements.filter { !it.isCombo && it.bind in buttons }
         val cx = if (pressed.isEmpty()) w / 2f else pressed.map { it.rect.cx }.average().toFloat()
         val cy = if (pressed.isEmpty()) h / 2f else pressed.map { it.rect.cy }.average().toFloat()
+        val controls = layout.elements.map { it.rect }
+        // A layout whose game screen fills it (controls over the picture) has no spot off the screen: then one off the
+        // controls alone.
+        return nearestClear(w, h, s, cx, cy, layout.screens + listOfNotNull(layout.frame?.rect) + controls)
+            ?: nearestClear(w, h, s, cx, cy, controls)
+            ?: SkinRect((cx - s / 2f).coerceIn(0f, w - s), (cy - s / 2f).coerceIn(0f, h - s), s, s)
+    }
+
+    /** The [s]-sided square nearest ([cx], [cy]) inside [w] x [h] clear of [blocked] by [MARGIN], or null when none is. */
+    private fun nearestClear(w: Float, h: Float, s: Float, cx: Float, cy: Float, blocked: List<SkinRect>): SkinRect? {
         val m = s * MARGIN
-        val blocked = layout.screens + listOfNotNull(layout.frame?.rect) + layout.elements.map { it.rect }
         val step = (s / 4f).coerceAtLeast(1f)
         var best: SkinRect? = null
         var bestDistance = Float.MAX_VALUE
@@ -141,7 +150,7 @@ object SkinCombos {
             }
             y += step
         }
-        return best ?: SkinRect((cx - s / 2f).coerceIn(0f, w - s), (cy - s / 2f).coerceIn(0f, h - s), s, s)
+        return best
     }
 
     private fun overlaps(r: SkinRect, x: Float, y: Float, side: Float) =
@@ -205,7 +214,8 @@ class ComboPick {
 /**
  * A controller's buttons as a skin's input names, for the capture (issue 842): Android's gamepad keys on the RetroPad
  * as RetroArch places them (the bottom button is B, the right one A, the left one Y, the top one X), then the console's
- * own name for that RetroPad button ([SkinBinds.CONSOLE_BINDS] read backwards).
+ * own name for that RetroPad button ([SkinBinds.CONSOLE_BINDS] read backwards). Inputs a
+ * controller key does not press as such (the N64's C buttons, on the right stick) are picked on the skin instead.
  */
 object PadCombo {
     private val PAD = mapOf(

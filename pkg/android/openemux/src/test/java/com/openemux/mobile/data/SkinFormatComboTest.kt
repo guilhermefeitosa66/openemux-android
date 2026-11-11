@@ -107,6 +107,7 @@ class SkinFormatComboTest {
         ).forEach { combos ->
             val s = SkinFormat.parse(skin(combos, placed))
             assertTrue(combos, s.combos.isEmpty())
+            assertEquals(setOf("combo-1"), s.leftOutCombos)
             assertEquals(4, s.portrait().elements.size)
         }
         // A place for a combo the skin does not have is left out too.

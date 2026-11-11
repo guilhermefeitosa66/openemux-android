@@ -408,6 +408,9 @@ class SkinEditorModel(
      * inputs, is the state's [SkinEditState.combos].
      */
     private val placedCombos = comboElements.mapValues { it.value }.toMutableMap()
+
+    /** Combo labels made so far, by buttons: [present] runs on every read of a layout. */
+    private val labels = HashMap<List<String>, String>()
     private val history = run {
         val ids = (saved.layouts.keys - removed) + added.keys
         val startCombos = combos ?: originalCombos
@@ -488,7 +491,8 @@ class SkinEditorModel(
     /** Whether layout [id] differs from how the skin has it (or is new, or gone): its rects, its colours or its images. */
     fun changed(id: SkinLayoutId): Boolean =
         rects[id] != original[id] || looks[id] != originalLooks[id] || images.keys.any { it.substringBefore('/') == id.id } ||
-            layoutOf(id)?.elements?.filter { it.isCombo }?.map { it.id to it.bind } != saved.layouts[id]?.elements?.filter { it.isCombo }?.map { it.id to it.bind }
+            layoutOf(id)?.elements?.filter { it.isCombo }?.map { it.id to it.bind }?.toSet() !=
+            saved.layouts[id]?.elements?.filter { it.isCombo }?.map { it.id to it.bind }?.toSet()
 
     /**
      * The Layouts panel's switch for [form] (issue 785). On: each of its layouts the skin lacks is made from the closest
@@ -857,11 +861,21 @@ class SkinEditorModel(
     fun undo() {
         cancelGesture()
         history.undo()
+        dropGone()
     }
 
     fun redo() {
         cancelGesture()
         history.redo()
+        dropGone()
+    }
+
+    /** A selection of controls the layout no longer has (a combo whose adding was undone) is let go. */
+    private fun dropGone() {
+        val sel = selection ?: return
+        if (sel is SkinSelection.Screen || sel == SkinSelection.Frame || sel == SkinSelection.Body) return
+        val ids = layout?.elements?.map { it.id }?.toSet().orEmpty()
+        if (!sel.ids.all { it in ids }) selection = null
     }
 
     /** The rects that differ from the skin's, per layout the skin had and still offers. */
@@ -890,6 +904,7 @@ class SkinEditorModel(
     fun json(json: String): String = SkinEditJson.patch(
         json, edits(), lookEdits(), removedLayouts(), addedLayouts(),
         combos = combos, comboPlacements = rects.keys.associateWith { id -> layoutOf(id)!!.elements.filter { it.isCombo } },
+        keepCombos = saved.leftOutCombos,
     )
 
     /** The layout's controls a combo may press (issue 842); a combo needs two of them. */
@@ -910,7 +925,7 @@ class SkinEditorModel(
         if (!SkinCombos.valid(ordered)) return null
         tryMode(false)
         val now = history.current
-        val combo = SkinCombo(SkinCombos.nextId((saved.layouts.keys + derived.keys).map(::base)), ordered)
+        val combo = SkinCombo(SkinCombos.nextId((saved.layouts.keys + derived.keys).map(::base), saved.leftOutCombos), ordered)
         var rects = now.rects
         for (id in now.rects.keys) {
             val rect = place(id, combo, layoutIn(now, id))
@@ -959,7 +974,8 @@ class SkinEditorModel(
     }
 
     /** The label of a combo pressing [buttons]: the names the skin's layouts give them. */
-    private fun labelOf(buttons: List<String>): String = SkinCombos.label(buttons, saved.layouts.values + derived.values)
+    private fun labelOf(buttons: List<String>): String =
+        labels.getOrPut(buttons) { SkinCombos.label(buttons, saved.layouts.values + derived.values) }
 
     /**
      * [layout] with only the combos of [combos], each pressing its inputs and labelled after them, after the layout's
@@ -1099,6 +1115,7 @@ object SkinEditJson {
         added: Map<SkinLayoutId, SkinLayout> = emptyMap(),
         combos: List<SkinCombo>? = null,
         comboPlacements: Map<SkinLayoutId, List<SkinElement>> = emptyMap(),
+        keepCombos: Set<String> = emptySet(),
     ): String {
         val root = JSONObject(json.removePrefix("\uFEFF"))
         val layouts = root.getJSONObject("layouts")
@@ -1107,14 +1124,7 @@ object SkinEditJson {
             val size = layout.getJSONObject("size")
             val w = size.getInt("width")
             val h = size.getInt("height")
-            fun put(target: JSONObject, r: SkinRect) {
-                val width = r.width.roundToInt().coerceIn(1, w)
-                val height = r.height.roundToInt().coerceIn(1, h)
-                target.put("x", r.x.roundToInt().coerceIn(0, w - width))
-                target.put("y", r.y.roundToInt().coerceIn(0, h - height))
-                target.put("width", width)
-                target.put("height", height)
-            }
+            fun put(target: JSONObject, r: SkinRect) = putRect(target, r, w, h)
             layout.optJSONArray("elements")?.let { elements ->
                 for (i in 0 until elements.length()) {
                     val e = elements.getJSONObject(i)
@@ -1177,7 +1187,7 @@ object SkinEditJson {
                 if (colors.length() > 0) e.put("colors", colors) else e.remove("colors")
             }
         }
-        if (combos != null) writeCombos(root, layouts, combos, comboPlacements)
+        if (combos != null) writeCombos(root, layouts, combos, comboPlacements, keepCombos)
         return root.toString(2) + "\n"
     }
 
@@ -1186,31 +1196,47 @@ object SkinEditJson {
      * (its places from [placements], in whole units inside the layout as any rect the editor writes); a key with none
      * left goes.
      */
-    private fun writeCombos(root: JSONObject, layouts: JSONObject, combos: List<SkinCombo>, placements: Map<SkinLayoutId, List<SkinElement>>) {
-        SkinFormat.combosText(combos)?.let { root.put("combos", JSONArray(it)) } ?: root.remove("combos")
+    private fun writeCombos(
+        root: JSONObject, layouts: JSONObject, combos: List<SkinCombo>, placements: Map<SkinLayoutId, List<SkinElement>>, keep: Set<String>,
+    ) {
+        // What a newer app wrote and this one left out on reading ([keep]: SkinFormat's "left out, not refused") stays
+        // as it was: those root entries and their places.
+        val ours = combos.map { it.id }.toSet()
+        val foreign = root.optJSONArray("combos").objects().filter { it.optString("id") in keep && it.optString("id") !in ours }
+        val foreignIds = foreign.map { it.optString("id") }.toSet()
+        val rootArray = SkinFormat.combosText(combos)?.let { JSONArray(it) } ?: JSONArray()
+        foreign.forEach { rootArray.put(it) }
+        if (rootArray.length() > 0) root.put("combos", rootArray) else root.remove("combos")
         for (key in layouts.keys().asSequence().toList()) {
             val layout = layouts.optJSONObject(key) ?: continue
+            val kept = layout.optJSONArray("combos").objects().filter { it.optString("id") in foreignIds }
             val placed = SkinLayoutId.byId(key)?.let { placements[it] }.orEmpty()
-            val text = SkinFormat.layoutCombosText(placed)
-            if (text == null) {
-                layout.remove("combos")
-                continue
-            }
             val size = layout.getJSONObject("size")
             val w = size.getInt("width")
             val h = size.getInt("height")
-            val array = JSONArray(text)
+            val array = SkinFormat.layoutCombosText(placed)?.let { JSONArray(it) } ?: JSONArray()
             for (i in 0 until array.length()) {
                 val c = array.getJSONObject(i)
-                val width = c.getDouble("width").roundToInt().coerceIn(1, w)
-                val height = c.getDouble("height").roundToInt().coerceIn(1, h)
-                c.put("x", c.getDouble("x").roundToInt().coerceIn(0, w - width)).put("y", c.getDouble("y").roundToInt().coerceIn(0, h - height))
-                c.put("width", width).put("height", height)
+                putRect(c, SkinRect(c.getDouble("x").toFloat(), c.getDouble("y").toFloat(), c.getDouble("width").toFloat(), c.getDouble("height").toFloat()), w, h)
                 SCALED.forEach { k -> if (c.has(k)) c.put(k, tenth(c.getDouble(k))) }
                 c.optJSONObject("labelOffset")?.let { o -> o.put("x", tenth(o.getDouble("x"))).put("y", tenth(o.getDouble("y"))) }
             }
-            layout.put("combos", array)
+            kept.forEach { array.put(it) }
+            if (array.length() > 0) layout.put("combos", array) else layout.remove("combos")
         }
+    }
+
+    /** The objects of [this] array (none when it is null). */
+    private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
+
+    /** [r] into [target] in whole units: at least 1 wide and tall, inside a [w] x [h] layout. */
+    private fun putRect(target: JSONObject, r: SkinRect, w: Int, h: Int) {
+        val width = r.width.roundToInt().coerceIn(1, w)
+        val height = r.height.roundToInt().coerceIn(1, h)
+        target.put("x", r.x.roundToInt().coerceIn(0, w - width))
+        target.put("y", r.y.roundToInt().coerceIn(0, h - height))
+        target.put("width", width)
+        target.put("height", height)
     }
 
     /** [argb] as the format writes a colour: `#RRGGBB`, or `#RRGGBBAA` when it is not opaque. */

@@ -251,7 +251,8 @@ object SkinFormat {
         val console = Console.byId(consoleId) ?: throw SkinFormatException(SkinError.UNKNOWN_CONSOLE, "console", consoleId)
         val name = root.string("name", "name")
         if (name.isBlank()) throw SkinFormatException(SkinError.BAD_VALUE, "name", "empty")
-        val combos = root.optArray("combos", "combos")?.let { combos(it, "combos") }.orEmpty()
+        val allCombos = root.optArray("combos", "combos")?.let { combos(it, "combos") }.orEmpty()
+        val combos = allCombos.filterValues { SkinCombos.valid(it) }
         val layoutsJson = root.obj("layouts", "layouts")
         if (layoutsJson.length() == 0) throw SkinFormatException(SkinError.NO_LAYOUTS, "layouts")
         val layouts = linkedMapOf<SkinLayoutId, SkinLayout>()
@@ -266,7 +267,10 @@ object SkinFormat {
             l.copy(elements = l.elements.map { e -> if (e.isCombo) e.copy(label = labels.getValue(e.id)) else e })
         }
         // A fixed order, whatever the file's: the model (and the round trip) does not depend on how it was written.
-        return OpenEmuxSkin(console, name, SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }, format)
+        return OpenEmuxSkin(
+            console, name, SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }, format,
+            leftOutCombos = allCombos.keys - combos.keys,
+        )
     }
 
     /**
@@ -287,10 +291,9 @@ object SkinFormat {
             val buttons = (0 until buttonsJson.length()).map {
                 buttonsJson.opt(it) as? String ?: throw SkinFormatException(SkinError.BAD_VALUE, "$at.buttons[$it]", "${buttonsJson.opt(it)}")
             }
-            // Kept until all are read, so a second combo with the same id is refused even when this one is left out.
             out[id] = buttons
         }
-        return out.filterValues { SkinCombos.valid(it) }
+        return out
     }
 
     /**
