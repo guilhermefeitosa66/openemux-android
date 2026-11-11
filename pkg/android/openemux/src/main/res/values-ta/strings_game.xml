@@ -35,8 +35,8 @@
     <string name="game_fast_forward">வேகமாக்கல்</string>
     <string name="game_slow_motion">மெதுவாக்கல்</string>
     <string name="game_screenshot">திரைப்பிடிப்பு</string>
-    <string name="game_audio">ஒலி</string>
-    <string name="game_muted">ஒலியடக்கம்</string>
+    <string name="game_mute">ஒலியடக்கு</string>
+    <string name="game_unmute">ஒலி இயக்கு</string>
     <string name="game_restart">மீண்டும் தொடங்கு</string>
     <string name="game_restart_confirm_title">விளையாட்டை மீண்டும் தொடங்கவா?</string>
     <string name="game_restart_confirm_body">கடைசியாகச் சேமித்ததற்குப் பிறகான முன்னேற்றம் இழக்கப்படும்.</string>

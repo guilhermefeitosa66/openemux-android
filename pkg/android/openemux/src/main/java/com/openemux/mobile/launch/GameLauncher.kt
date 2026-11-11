@@ -311,6 +311,8 @@ class GameLauncher(
             "network_cmd_enable" to "true",
             "network_cmd_port" to "55355",
             "config_save_on_exit" to "false",
+            // Every game starts with sound: the pause sheet's Audio tile assumes it until the engine reports a change.
+            "audio_mute_enable" to "false",
             // The app ships its own shaders and core info; extracting the APK would also save the config with a toast.
             "bundle_assets_extract_enable" to "false",
             "confirm_quit" to "false",

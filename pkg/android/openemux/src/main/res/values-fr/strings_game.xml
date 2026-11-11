@@ -35,8 +35,8 @@
     <string name="game_fast_forward">Avance rapide</string>
     <string name="game_slow_motion">Ralenti</string>
     <string name="game_screenshot">Capture d’écran</string>
-    <string name="game_audio">Audio</string>
-    <string name="game_muted">Muet</string>
+    <string name="game_mute">Couper le son</string>
+    <string name="game_unmute">Activer le son</string>
     <string name="game_restart">Redémarrer le jeu</string>
     <string name="game_restart_confirm_title">Redémarrer le jeu ?</string>
     <string name="game_restart_confirm_body">Votre progression depuis la dernière sauvegarde sera perdue.</string>

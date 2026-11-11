@@ -35,8 +35,8 @@
     <string name="game_fast_forward">早送り</string>
     <string name="game_slow_motion">スローモーション</string>
     <string name="game_screenshot">スクリーンショット</string>
-    <string name="game_audio">サウンド</string>
-    <string name="game_muted">ミュート</string>
+    <string name="game_mute">ミュート</string>
+    <string name="game_unmute">ミュート解除</string>
     <string name="game_restart">ゲームをリセット</string>
     <string name="game_restart_confirm_title">ゲームをリセットしますか？</string>
     <string name="game_restart_confirm_body">最後のセーブ以降の進行状況は失われます。</string>

@@ -178,6 +178,7 @@ struct android_app
    jmethodID onPadShortcut;
    jmethodID onOverlayChanged;
    jmethodID onToggleStates;
+   jmethodID onMuteChanged;
    jmethodID onAnchorFeedback;
    jmethodID autoSaveOnPause;
    jmethodID onResumedIntoPause;
@@ -431,6 +432,12 @@ void android_app_overlay_changed(const char *name);
  * shows the engine's state and the anchor mode is kept per console. */
 void android_app_toggle_states(bool fast_forward, bool turbo,
       bool slow_motion, bool anchor);
+
+/* OpenEmux: tells the activity the game was muted or unmuted, whatever
+ * did it (the pause sheet's MUTE command, the mute hotkey, RetroArch's
+ * own menu, a config override), so its pause sheet shows the engine's
+ * state. runloop.c reports each change once (runloop_report_mute). */
+void android_app_mute_changed(bool muted);
 
 /* OpenEmux: tells the activity which buttons anchor mode holds and where
  * each holding finger is, when that changes: [count] floats,

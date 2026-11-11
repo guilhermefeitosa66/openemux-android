@@ -122,6 +122,17 @@ void android_app_toggle_states(bool fast_forward, bool turbo,
          anchor       ? JNI_TRUE : JNI_FALSE);
 }
 
+void android_app_mute_changed(bool muted)
+{
+   JNIEnv *env = jni_thread_getenv();
+
+   if (!env || !g_android || !g_android->onMuteChanged)
+      return;
+
+   CALL_VOID_METHOD_PARAM(env, g_android->activity->clazz,
+         g_android->onMuteChanged, muted ? JNI_TRUE : JNI_FALSE);
+}
+
 void android_app_anchor_feedback(const float *data, size_t count)
 {
    jfloatArray array;
@@ -3695,6 +3706,8 @@ static void frontend_unix_init(void *data)
          "onOverlayChanged", "(Ljava/lang/String;)V");
    GET_METHOD_ID(env, android_app->onToggleStates, class,
          "onToggleStates", "(ZZZZ)V");
+   GET_METHOD_ID(env, android_app->onMuteChanged, class,
+         "onMuteChanged", "(Z)V");
    GET_METHOD_ID(env, android_app->onAnchorFeedback, class,
          "onAnchorFeedback", "([F)V");
    GET_METHOD_ID(env, android_app->autoSaveOnPause, class,

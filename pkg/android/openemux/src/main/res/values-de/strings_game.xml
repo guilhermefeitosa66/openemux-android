@@ -35,8 +35,8 @@
     <string name="game_fast_forward">Vorspulen</string>
     <string name="game_slow_motion">Zeitlupe</string>
     <string name="game_screenshot">Bildschirmfoto</string>
-    <string name="game_audio">Audio</string>
-    <string name="game_muted">Stumm</string>
+    <string name="game_mute">Ton aus</string>
+    <string name="game_unmute">Ton an</string>
     <string name="game_restart">Spiel neu starten</string>
     <string name="game_restart_confirm_title">Spiel neu starten?</string>
     <string name="game_restart_confirm_body">Der Fortschritt seit dem letzten Speichern geht verloren.</string>

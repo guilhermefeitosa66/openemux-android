@@ -5614,6 +5614,24 @@ static void runloop_slowmotion_went_on(runloop_state_t *runloop_st)
       runloop_apply_fastmotion(false);
 }
 
+#if defined(ANDROID)
+/* OpenEmux: tells the activity when the game is muted or unmuted,
+ * once per change, whatever wrote the flag: the MUTE command and the
+ * mute hotkey (CMD_EVENT_AUDIO_MUTE_TOGGLE), RetroArch's own Audio >
+ * Mute setting, or a config override loaded with the content. The
+ * activity starts from "sound on", as GameLauncher launches it. */
+static void runloop_report_mute(const audio_driver_state_t *audio_st)
+{
+   static bool reported = false;
+   bool muted           = audio_st->mute_enable;
+
+   if (muted == reported)
+      return;
+   reported = muted;
+   android_app_mute_changed(muted);
+}
+#endif
+
 static bool runloop_can_set_speed(void)
 {
    if (!(runloop_state.flags & RUNLOOP_FLAG_CORE_RUNNING)
@@ -7884,6 +7902,10 @@ static enum runloop_state_enum runloop_check_state(
    /* Should be called once per frame */
    if (!aptMainLoop())
       return RUNLOOP_STATE_QUIT;
+#endif
+
+#if defined(ANDROID)
+   runloop_report_mute(audio_st);
 #endif
 
    BIT256_CLEAR_ALL_PTR(&current_bits);

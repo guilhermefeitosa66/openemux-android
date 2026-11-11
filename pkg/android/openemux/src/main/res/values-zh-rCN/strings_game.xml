@@ -35,8 +35,8 @@
     <string name="game_fast_forward">快进</string>
     <string name="game_slow_motion">慢动作</string>
     <string name="game_screenshot">截图</string>
-    <string name="game_audio">声音</string>
-    <string name="game_muted">静音</string>
+    <string name="game_mute">静音</string>
+    <string name="game_unmute">取消静音</string>
     <string name="game_restart">重启游戏</string>
     <string name="game_restart_confirm_title">重启游戏？</string>
     <string name="game_restart_confirm_body">上次存档之后的进度将会丢失。</string>

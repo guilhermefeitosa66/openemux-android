@@ -1155,6 +1155,15 @@ public class RetroActivityCommon extends NativeActivity
   }
 
   /**
+   * OpenEmux: the game was muted or unmuted, whatever did it (the pause
+   * sheet's MUTE command, the mute hotkey, RetroArch's own menu). Called
+   * from the engine thread.
+   */
+  public void onMuteChanged(boolean muted)
+  {
+  }
+
+  /**
    * OpenEmux: the buttons anchor mode holds changed, or a finger holding
    * one moved. Seven floats per held button: its drawn box (x, y, width,
    * height), 1 for a rectangular button or 0 for a round one, and the

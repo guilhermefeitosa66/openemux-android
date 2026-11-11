@@ -83,6 +83,12 @@ class GameActivity : RetroActivityFuture() {
     @Volatile private var fastForwardOn = false
     /** Written on the engine thread (onToggleStates): whether slow motion is on, for the pause sheet. */
     @Volatile private var slowMotionOn = false
+    /**
+     * Whether the game is muted, for the pause sheet's Audio tile: written on the engine thread (onMuteChanged) and by
+     * the sheet's own tap, so an engine library that never reports it still keeps the sheet right. A game starts
+     * with sound (GameLauncher pins audio_mute_enable).
+     */
+    @Volatile private var mutedOn = false
     /** Anchor mode (issue 841) as the launch set it, then as the engine reports it: a change is kept for the console. */
     private var anchor = AnchorFollow(false)
     private var anchorToast: android.widget.Toast? = null
@@ -582,6 +588,11 @@ class GameActivity : RetroActivityFuture() {
         if (this.anchor.report(anchor)) anchorChanged(anchor)
     }
 
+    /** Called on the engine thread when the game is muted or unmuted, whatever did it: the sheet, a hotkey, RetroArch's menu. */
+    override fun onMuteChanged(muted: Boolean) {
+        mutedOn = muted
+    }
+
     private fun anchorChanged(on: Boolean) {
         val console = intent.getStringExtra(GameExtras.CONSOLE)
         val dir = intent.getStringExtra(GameExtras.ANCHOR_PICKS)?.let(::File)
@@ -1062,7 +1073,7 @@ class GameActivity : RetroActivityFuture() {
         retroArchMenu.cancel()
         val sheet = ++sheetCount
         // A choice from the previous sheet not sent yet is what the tile shows, and this sheet's dismissal sends it.
-        val session = PauseSession.fromIntent(intent, sessionStart, speedWanted ?: Speed.of(fastForwardOn, slowMotionOn))
+        val session = PauseSession.fromIntent(intent, sessionStart, speedWanted ?: Speed.of(fastForwardOn, slowMotionOn), mutedOn)
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
@@ -1105,6 +1116,7 @@ class GameActivity : RetroActivityFuture() {
                         ) else null,
                         skins = gameSkins(),
                         onSpeed = { speedWanted = it },
+                        onMute = { mutedOn = it },
                         onRetroArchMenu = {
                             // The dismissal resumes the game as Back to game does; the menu is asked for after.
                             d.dismiss()

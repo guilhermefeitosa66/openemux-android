@@ -35,8 +35,8 @@
     <string name="game_fast_forward">Avance rápido</string>
     <string name="game_slow_motion">Cámara lenta</string>
     <string name="game_screenshot">Captura de pantalla</string>
-    <string name="game_audio">Audio</string>
-    <string name="game_muted">Silenciado</string>
+    <string name="game_mute">Silenciar</string>
+    <string name="game_unmute">Activar sonido</string>
     <string name="game_restart">Reiniciar juego</string>
     <string name="game_restart_confirm_title">¿Reiniciar juego?</string>
     <string name="game_restart_confirm_body">Se perderá el progreso desde la última partida guardada.</string>
