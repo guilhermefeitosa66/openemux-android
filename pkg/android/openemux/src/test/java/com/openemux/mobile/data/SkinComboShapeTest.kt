@@ -134,6 +134,13 @@ class SkinComboShapeTest {
         assertEquals(s, SkinFormat.parse(SkinFormat.toJson(s)))
     }
 
+    @Test fun aTriangleIsNeverTurned() {
+        val s = SkinFormat.parse(skin("""{"id":"combo-1","x":555,"y":1355,"width":90,"height":90,"shape":"triangle","corner":"top-left","rotation":30}"""))
+        assertEquals(0f, s.combo().rotation)
+        val pill = SkinFormat.parse(skin("""{"id":"combo-1","x":555,"y":1355,"width":160,"height":80,"shape":"pill","rotation":30}"""))
+        assertEquals(30f, pill.combo().rotation)
+    }
+
     @Test fun unknownOutlinesAreReadAsACircleNotRefused() {
         for (keys in listOf(""""shape":"star"""", """"shape":"triangle"""", """"shape":"triangle","corner":"middle"""", """"corner":"top-left"""")) {
             val s = SkinFormat.parse(skin("""{"id":"combo-1","x":555,"y":1355,"width":90,"height":90,$keys}"""))

@@ -315,7 +315,10 @@ object SkinFormat {
             listOf("image", "art", "group", "label", "shape", "corner").forEach { asButton.remove(it) }
             val e = element(asButton, at, size)
             val outline = ComboOutline.read(c.optText("shape", "$at.shape"), c.optText("corner", "$at.corner"))
-            out += e.copy(bind = SkinCombos.bind(buttons), shape = outline.shape, corner = outline.corner)
+            // A triangle is touched along its rect's diagonal (the overlay's _triangle): never turned, or the touch
+            // would miss what is drawn.
+            val rotation = if (outline.shape == SkinShape.TRIANGLE) 0f else e.rotation
+            out += e.copy(bind = SkinCombos.bind(buttons), shape = outline.shape, corner = outline.corner, rotation = rotation)
         }
         return out
     }

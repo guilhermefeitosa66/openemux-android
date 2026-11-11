@@ -249,7 +249,7 @@ triangle is a right triangle in its rect whose square corner points at `corner`:
 `top-left` or `top-right`. Its legs lie on the two edges of the rect that meet at that corner and its long edge
 crosses the rect, so it tucks into the gap between two round buttons (Y+B at the bottom left of a SNES diamond). It
 is touched on the triangle alone: a touch on the rest of its rect, over a neighbouring button, never presses it
-(the overlay desc's `_triangle` key). Its label sits at the triangle's centroid, pulled toward the square corner. A
+(the overlay desc's `_triangle` key), so a triangle is never turned: its `rotation` is read as 0. Its label sits at the triangle's centroid, pulled toward the square corner. A
 `shape` this app does not know, or a `triangle` with no known `corner`, is drawn as a circle rather than refused,
 so a newer app's outline still opens. The editor makes a circle and a triangle as wide as tall (the face buttons'
 diameter) and a pill 1.6 times as wide and 0.8 times as tall; Size scales any of them. `triangle` is for combos
