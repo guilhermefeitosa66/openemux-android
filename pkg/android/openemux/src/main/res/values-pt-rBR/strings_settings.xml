@@ -197,7 +197,7 @@
     <string name="backup_saves">Salvamentos e estados</string>
     <string name="backup_saves_desc">Salvamentos, estados salvos, tempo de jogo, capturas de tela</string>
     <string name="backup_settings">Ajustes e artes</string>
-    <string name="backup_settings_desc">Ajustes, favoritos, etiquetas, BIOS</string>
+    <string name="backup_settings_desc">Ajustes, favoritos, etiquetas, BIOS, skins</string>
     <string name="backup_include_roms">Incluir ROMs</string>
     <plurals name="backup_roms_count">
         <item quantity="one">%1$d jogo · %2$s</item>
