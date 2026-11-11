@@ -2,19 +2,40 @@ package com.openemux.mobile.data
 
 import java.io.File
 
-/** The numbered slots the in-game menu saves to, and removing a saved state (issue 828). */
+/** The numbered slots the in-game menu saves to, each ROM's current one (issue 857), and removing a saved state (issue 828). */
 object SaveSlots {
     /** What the arrows cover. [SCRATCH_SLOT] is out of it; a state already past the end stays listed and loadable. */
     val RANGE = 0..99
 
+    /** The current slot of a ROM that never had one (issue 857). */
+    const val DEFAULT = 0
+
     /**
-     * The slot the menu opens on, of the slots in [used]: the one after the highest in use, so a plain "Save" keeps
-     * overwriting nothing. Past the end, the lowest free one; with every slot taken, the first numbered slot.
+     * Where a ROM's current slot is kept (issue 857): `<stem>.slot` beside its states, so the game's process and the
+     * library's both reach it, a backup of the states carries it and no state listing sees it (they all read `<stem>.state…`).
      */
-    fun opening(used: Collection<Int>): Int {
-        val next = (used.filter { it > 0 }.maxOrNull() ?: 0) + 1
-        if (next in RANGE) return next
-        return (1..RANGE.last).firstOrNull { it !in used } ?: if (RANGE.first !in used) RANGE.first else 1
+    fun currentFile(statesDir: File, stem: String) = File(statesDir, "$stem.slot")
+
+    /** The slot the menu opens on and Save, Load, the strip and the controller use: [DEFAULT] when none was ever chosen. */
+    fun current(statesDir: File, stem: String): Int =
+        runCatching { currentFile(statesDir, stem).readText().trim().toInt() }.getOrNull()?.takeIf { it in RANGE } ?: DEFAULT
+
+    /**
+     * Makes [slot] the ROM's current slot; whether it was kept. One outside [RANGE] (the auto state, the scratch slot)
+     * changes nothing.
+     */
+    fun setCurrent(statesDir: File, stem: String, slot: Int): Boolean {
+        if (slot !in RANGE) return false
+        val target = currentFile(statesDir, stem)
+        // Through a temporary file: the other process never reads half a number.
+        val tmp = File(statesDir, ".${target.name}.tmp")
+        val kept = runCatching {
+            statesDir.mkdirs()
+            tmp.writeText("$slot\n")
+            tmp.renameTo(target)
+        }.getOrDefault(false)
+        if (!kept) tmp.delete()
+        return kept
     }
 
     /** [slot] moved by [delta], wrapping at both ends of [RANGE]. */

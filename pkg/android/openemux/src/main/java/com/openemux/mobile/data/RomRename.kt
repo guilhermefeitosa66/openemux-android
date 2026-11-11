@@ -23,7 +23,7 @@ sealed interface RenameResult {
 
 /**
  * Renames a game's file and carries everything the app keys on its name along (issue 790), as the
- * desktop's `rename_rom` does: save states with their thumbnails (the auto state included), battery
+ * desktop's `rename_rom` does: save states with their thumbnails (the auto state included) and the current slot, battery
  * saves, playtime, covers and labels with their records, and the per-game metadata. Every file moves
  * before anything else changes, and a move that fails undoes the ones before it, so a failed rename
  * leaves the game exactly as it was.
@@ -166,7 +166,7 @@ class RomRenamer(
         private const val LONGEST_SUFFIX = ".state.auto.png".length
         /** The temporary name a change of case goes through; a dotfile, so no scan lists it. */
         internal const val TMP_NAME = ".openemux-renaming"
-        /** After "<stem>": ".state", ".state<N>", ".state.auto", each with its ".png" thumbnail. */
-        private val STATE_SUFFIX = Regex("""\.state(\.auto|\d+)?(\.png)?""")
+        /** After "<stem>": ".state", ".state<N>", ".state.auto", each with its ".png" thumbnail, and ".slot", the current slot (issue 857). */
+        private val STATE_SUFFIX = Regex("""\.state(\.auto|\d+)?(\.png)?|\.slot""")
     }
 }

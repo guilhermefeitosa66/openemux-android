@@ -142,6 +142,10 @@ command interface (`network_cmd_enable`, UDP 127.0.0.1:55355):
 engine polls it on its own thread, paused or not. The sheet's window is
 not focusable, because an unfocused engine stops polling.
 
+Each ROM has a current save slot (issue 857), kept in `states/<console>/<stem>.slot`: the
+launcher passes it as `state_slot`, and the sheet sends `SET_STATE_SLOT <n>` (OpenEmux's own,
+`command.c`) when the player changes it, so the strip's and a controller's save/load keys follow it.
+
 One command is OpenEmux's own: `OVERLAY_LOAD <absolute path>` (`command.c`)
 loads another overlay file while the core runs. When the game's window
 changes size (a Fold unfolded, split screen, a free-form resize),

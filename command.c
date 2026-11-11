@@ -1758,6 +1758,30 @@ bool command_save_state_slot(command_t *cmd, const char *arg)
    return command_state_slot(cmd, arg, false);
 }
 
+/* The slot LOAD_STATE and SAVE_STATE (the hotkeys, an overlay's keys)
+ * use, as the state_slot option reports it. Takes effect at once, paused
+ * or not: no task, no state is touched. */
+bool command_set_state_slot(command_t *cmd, const char *arg)
+{
+   char         reply[64];
+   size_t       _len;
+   unsigned int slot     = 0;
+   settings_t  *settings = config_get_ptr();
+
+   if (!command_arg_slot(arg, &slot))
+   {
+      command_reply_error(cmd, "SET_STATE_SLOT", "a slot number, not %s",
+            (arg && *arg) ? arg : "nothing");
+      return false;
+   }
+
+   configuration_set_int(settings, settings->ints.state_slot, (int)slot);
+   _len = (size_t)snprintf(reply, sizeof(reply), "SET_STATE_SLOT %u\n",
+         slot);
+   cmd->replier(cmd, reply, _len);
+   return true;
+}
+
 bool command_play_replay_slot(command_t *cmd, const char *arg)
 {
 #ifdef HAVE_BSV_MOVIE

@@ -303,6 +303,21 @@ int main(int argc, char **argv)
       CHECK(!strncmp(net_reply,"SAVE_STATE_SLOT ERROR ",22));
    }
 
+   /* SET_STATE_SLOT moves the slot the hotkeys save to and load from */
+   {
+      settings_t *settings=config_get_ptr();
+      reply[0]=0;
+      CHECK(command_set_state_slot(&cmd,"7")
+            && !strcmp(reply,"SET_STATE_SLOT 7\n")
+            && settings->ints.state_slot==7);
+      reply[0]=0;
+      CHECK(!command_set_state_slot(&cmd,"x")
+            && !strncmp(reply,"SET_STATE_SLOT ERROR ",21)
+            && settings->ints.state_slot==7);
+      cmd.error=false;
+      CHECK(command_set_state_slot(&cmd,"0") && settings->ints.state_slot==0);
+   }
+
    /* READ_CORE_MEMORY and WRITE_CORE_MEMORY answer with the address and
     * the bytes in hexadecimal, at a system address the core maps */
    reply[0]=0;
