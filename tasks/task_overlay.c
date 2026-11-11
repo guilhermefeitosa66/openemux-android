@@ -1033,6 +1033,19 @@ static bool task_overlay_load_desc(
          && tmp_bool)
       desc->flags |= OVERLAY_DESC_EXCLUSIVE;
 
+   /* OpenEmux: a key that turns anchor mode on or off. */
+   strlcpy_lit(conf_key + _len, "_anchor_toggle", sizeof(conf_key) - _len);
+   desc->flags &= ~OVERLAY_DESC_ANCHOR_TOGGLE;
+   if (config_get_bool(conf, conf_key, &tmp_bool)
+         && tmp_bool)
+      desc->flags |= OVERLAY_DESC_ANCHOR_TOGGLE;
+
+   /* OpenEmux: a face, shoulder or trigger button anchor mode may hold. */
+   desc->flags &= ~OVERLAY_DESC_ANCHORABLE;
+   if (     desc->type == OVERLAY_TYPE_BUTTONS
+         && input_overlay_anchorable(&desc->button_mask))
+      desc->flags |= OVERLAY_DESC_ANCHORABLE;
+
    strlcpy_lit(conf_key + _len, "_reach_down",   sizeof(conf_key) - _len);
    if (config_get_float(conf, conf_key, &tmp_float))
       desc->reach_down = tmp_float;

@@ -107,7 +107,7 @@
 
 #ifdef ANDROID
 void android_app_toggle_states(bool fast_forward, bool turbo,
-      bool slow_motion)
+      bool slow_motion, bool anchor)
 {
    JNIEnv *env = jni_thread_getenv();
 
@@ -118,7 +118,8 @@ void android_app_toggle_states(bool fast_forward, bool turbo,
          g_android->onToggleStates,
          fast_forward ? JNI_TRUE : JNI_FALSE,
          turbo        ? JNI_TRUE : JNI_FALSE,
-         slow_motion  ? JNI_TRUE : JNI_FALSE);
+         slow_motion  ? JNI_TRUE : JNI_FALSE,
+         anchor       ? JNI_TRUE : JNI_FALSE);
 }
 
 static void frontend_unix_set_sustained_performance_mode(bool on);
@@ -3675,7 +3676,7 @@ static void frontend_unix_init(void *data)
    GET_METHOD_ID(env, android_app->onOverlayChanged, class,
          "onOverlayChanged", "(Ljava/lang/String;)V");
    GET_METHOD_ID(env, android_app->onToggleStates, class,
-         "onToggleStates", "(ZZZ)V");
+         "onToggleStates", "(ZZZZ)V");
    GET_METHOD_ID(env, android_app->autoSaveOnPause, class,
          "autoSaveOnPause", "()Z");
    GET_METHOD_ID(env, android_app->onResumedIntoPause, class,
