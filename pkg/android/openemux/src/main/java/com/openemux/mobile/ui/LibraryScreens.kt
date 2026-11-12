@@ -769,20 +769,26 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val zoom = zoomApplies(layout, tabletop)
     val context = LocalContext.current
     val listSize = if (zoom) LibraryZoomPref.list else ListSize.Normal
-    // The columns the picked view shows; a covers group on a cartridge page follows the cartridge view's step.
-    val zoomColumns = if (mode == ViewMode.Covers) LibraryZoomPref.covers else LibraryZoomPref.carts
+    // A console without cartridge art shows its covers even in the cartridge view; the pick itself stays.
+    val shown = if (mode == ViewMode.Carts && console != null) groupView(console) else mode
     var zoomMoving by remember { mutableStateOf(false) }
     var zoomAnchor by remember { mutableStateOf<ZoomAnchor?>(null) }
     var pill by remember { mutableStateOf<ZoomPill?>(null) }
-    // Sets the picked view's step; false when it was already there.
-    fun setZoom(value: Int): Boolean {
-        when (mode) {
+    // Sets [view]'s step; false when it was already there. Read from the stored steps, never from a
+    // composition: the pinch's handler can run against an older one.
+    fun setZoom(view: ViewMode, value: Int): Boolean {
+        when (view) {
             ViewMode.Carts -> if (value == LibraryZoomPref.carts) return false else LibraryZoomPref.setCarts(context, value)
             ViewMode.Covers -> if (value == LibraryZoomPref.covers) return false else LibraryZoomPref.setCovers(context, value)
             ViewMode.List -> if (value == LibraryZoomPref.list.ordinal) return false else LibraryZoomPref.setList(context, ListSize.entries[value])
         }
-        pill = ZoomPill(mode, value)
+        pill = ZoomPill(view, value)
         return true
+    }
+    fun zoomStep(view: ViewMode): Int = when (view) {
+        ViewMode.Carts -> LibraryZoomPref.carts
+        ViewMode.Covers -> LibraryZoomPref.covers
+        ViewMode.List -> LibraryZoomPref.list.ordinal
     }
     // Selection mode (issue #585): it only ever holds games on screen, so a hidden one is never removed.
     var selection by remember { mutableStateOf(RomSelection()) }
@@ -965,9 +971,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val playtimes by produceState(emptyMap<String, Long>(), tableShown, roms, revision) {
         if (tableShown) value = withContext(Dispatchers.IO) { roms.associate { it.key to lib.playtimeSeconds(it) } }
     }
-    // Zoomed, the caption follows the step (none at five columns; the art still names the game to TalkBack).
-    val cartCaption = zoomGrid(zoomColumns, carts = true).captionSp
-    val coverCaption = zoomGrid(zoomColumns, carts = false).captionSp
+    // Zoomed, the caption follows its view's step (none at five columns; the art still names the game to TalkBack).
+    val cartCaption = zoomGrid(LibraryZoomPref.carts, carts = true).captionSp
+    val coverCaption = zoomGrid(LibraryZoomPref.covers, carts = false).captionSp
     // One game in the grid, in view mode m; a striped list row carries the zebra tint (issue 874).
     val tile: @Composable (Rom, ViewMode, Boolean) -> Unit = { rom, m, striped ->
             val romMeta = meta.roms[rom.key]
@@ -1029,14 +1035,14 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 }
             }
     }
-    // A console without cartridge art shows its covers even in the cartridge view; the pick itself stays.
-    val shown = if (mode == ViewMode.Carts && console != null && console.frame == null) ViewMode.Covers else mode
-    // On a mixed page each console's group decides for itself, so each lays out its own columns.
+    // On a mixed page each console's group decides for itself, so each lays out its own columns and keeps its view's step.
     val perGroup = console == null && mode == ViewMode.Carts && groups.any { it.first?.frame == null }
     // As many columns as the width holds, never fewer than a phone shows.
     val spec = when (shown) { ViewMode.Carts -> GridSpec.Carts; ViewMode.Covers -> GridSpec.Covers; ViewMode.List -> GridSpec.List }
-    // Zoomed, the picked step is the column count, whatever the width (the list keeps its one column).
-    val fixedColumns = zoomColumns.takeIf { zoom && shown != ViewMode.List }
+    // Zoomed, the shown view's step is the column count, whatever the width (the list keeps its one column).
+    // Each view keeps its own step, and a grid follows the view it shows: covers take the cover view's
+    // step even on a cartridge page, so zooming them never changes the cartridges (issue 868).
+    val fixedColumns = zoomStep(shown).takeIf { zoom && shown != ViewMode.List }
     val zoomed = fixedColumns?.let { zoomGrid(it, carts = shown == ViewMode.Carts) }
     // Staggered, so each box art keeps its own proportions in the covers mode.
     // Held out here: crossing into or out of the pane moves the grid to another place in the tree, and it keeps its scroll.
@@ -1045,8 +1051,13 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     fun pinch(bigger: Boolean, x: Float, y: Float) {
         val info = gridState.layoutInfo
         val anchor = anchorItem(info.visibleItemsInfo.map { ZoomSlot(it.index, it.offset.x, it.offset.y + info.beforeContentPadding, it.size.width, it.size.height) }, x, y)
-        val value = if (mode == ViewMode.List) listSize.step(bigger).ordinal else stepColumns(zoomColumns, bigger)
-        if (!setZoom(value)) return
+        // The view whose step moves is the one under the fingers: on a mixed page, the console group's own,
+        // whether the fingers are on its games or on its header.
+        val key = anchor?.let { a -> info.visibleItemsInfo.firstOrNull { it.index == a.index }?.key } as? String
+        val groupId = key?.let { k -> listOf("grid-", "group-").firstOrNull { k.startsWith(it) }?.let { k.removePrefix(it) } }
+        val view = groupId?.takeIf { perGroup }?.let(Console::byId)?.let(::groupView) ?: shown
+        val value = if (view == ViewMode.List) LibraryZoomPref.list.step(bigger).ordinal else stepColumns(zoomStep(view), bigger)
+        if (!setZoom(view, value)) return
         zoomMoving = true
         zoomAnchor = ZoomAnchor(anchor?.index, anchor?.let { it.top - info.beforeContentPadding } ?: 0)
     }
@@ -1102,7 +1113,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 if (!tabletop) ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
                 Row(Modifier.padding(top = 22.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(if (sort == SortMode.Az) R.string.library_section_carts else R.string.library_section_recent), style = Type.Section.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
-                    if (zoom) SizeButton(mode, if (mode == ViewMode.List) listSize.ordinal else zoomColumns, ::setZoom, Modifier.padding(end = 6.dp))
+                    if (zoom) SizeButton(shown, zoomStep(shown), { setZoom(shown, it) }, Modifier.padding(end = 6.dp))
                     if (!tabletop) ViewToggle(mode) { mode = it }
                 }
                 if (list.isEmpty() && known) {
@@ -1117,10 +1128,11 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         groups.forEach { (group, groupRoms) ->
             if (group != null) item(key = "group-${group.id}", span = StaggeredGridItemSpan.FullLine) { GroupHeader(group, groupRoms.size) }
             if (perGroup && group != null) {
-                val groupMode = if (group.frame == null) ViewMode.Covers else ViewMode.Carts
+                val groupMode = groupView(group)
                 item(key = "grid-${group.id}", span = StaggeredGridItemSpan.FullLine) {
                     val groupSpec = if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts
-                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(zoomColumns, carts = groupMode == ViewMode.Carts) else null, zoomColumns) { tile(it, groupMode, false) }
+                    val groupColumns = zoomStep(groupMode)
+                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(groupColumns, carts = groupMode == ViewMode.Carts) else null, groupColumns) { tile(it, groupMode, false) }
                 }
             } else {
                 // The zebra restarts under each group's header: its first row is plain.
@@ -1359,6 +1371,9 @@ private fun CappedCell(spec: GridSpec?, content: @Composable (Modifier) -> Unit)
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         content(if (spec == null) Modifier.fillMaxWidth() else Modifier.widthIn(max = spec.max.dp).fillMaxWidth())
     }
+
+/** The view a console's group shows on a mixed cartridge page: its covers when it has no cartridge art. */
+private fun groupView(console: Console?): ViewMode = if (console?.frame == null) ViewMode.Covers else ViewMode.Carts
 
 /** The item a zoom step keeps in place ([index] null for none) and its offset from the grid's content top; a new one per step. */
 private class ZoomAnchor(val index: Int?, val offset: Int)
