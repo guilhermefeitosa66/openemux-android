@@ -179,8 +179,6 @@ object Icons {
     const val Qr = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M20 14v2M14 18h2v2M18 18h2v2"
     const val Pencil = "M4 20h4L19 9l-4-4L4 16v4z"
     const val Copy = "M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"
-    /** Saved states: two frames stacked (the pause sheet's Save states tile). */
-    const val States = "M8 3h13v13H8zM4 7v14h14"
     /** The on-screen controls: a phone with a D-pad on it (the pause sheet's Touch controls tile, issue 865). */
     const val TouchControls = "M8.5 2.5h7a2.5 2.5 0 0 1 2.5 2.5v14a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 6 19V5a2.5 2.5 0 0 1 2.5-2.5zM12 8.5v5M9.5 11h5"
     /** A skin: a gamepad's outline, its D-pad and two buttons. */

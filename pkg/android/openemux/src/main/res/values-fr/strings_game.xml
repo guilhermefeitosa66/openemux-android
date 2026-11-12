@@ -45,12 +45,6 @@
     <string name="game_retroarch_menu">Menu RetroArch</string>
     <string name="game_touch_controls">Commandes tactiles</string>
     <string name="game_retroarch_menu_detail">Cette session uniquement</string>
-    <string name="game_states_none">Aucun enregistré</string>
-    <plurals name="game_states_saved">
-        <item quantity="one">%d enregistré</item>
-        <item quantity="many">%d enregistrés</item>
-        <item quantity="other">%d enregistrés</item>
-    </plurals>
     <string name="game_quit">Quitter le jeu</string>
     <string name="game_no_states">Aucun état sauvegardé pour l’instant.</string>
     <string name="game_state_auto">AUTO</string>

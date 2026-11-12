@@ -45,10 +45,6 @@
     <string name="game_retroarch_menu">RetroArch 菜单</string>
     <string name="game_touch_controls">触屏按键</string>
     <string name="game_retroarch_menu_detail">仅限本次会话</string>
-    <string name="game_states_none">无存档</string>
-    <plurals name="game_states_saved">
-        <item quantity="other">已保存 %d 个</item>
-    </plurals>
     <string name="game_quit">退出游戏</string>
     <string name="game_no_states">还没有即时存档。</string>
     <string name="game_state_auto">自动</string>

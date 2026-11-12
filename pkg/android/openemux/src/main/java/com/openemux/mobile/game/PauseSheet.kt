@@ -134,7 +134,6 @@ import com.openemux.mobile.ui.RadioCard
 import com.openemux.mobile.ui.SkinChoices
 import com.openemux.mobile.ui.SkinListState
 import com.openemux.mobile.ui.StateTile
-import com.openemux.mobile.ui.countString
 import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
@@ -573,7 +572,6 @@ fun PauseSheet(
                             onResume = onResume,
                             hardcore = session.hardcore,
                             speed = speed,
-                            stateCount = states.count { !it.isAutoSlot() },
                             slot = slot,
                             slotInUse = slot in usedSlots,
                             usedSlots = usedSlots,
@@ -752,7 +750,6 @@ private fun MainPage(
     onResume: () -> Unit,
     hardcore: Boolean,
     speed: Speed,
-    stateCount: Int,
     /** The slot "Save" writes to, whether a state is there already, and an arrow's step. */
     slot: Int,
     slotInUse: Boolean,
@@ -761,7 +758,7 @@ private fun MainPage(
     /** Makes a slot current: the slider was dragged, tapped or stepped. */
     onSlot: (Int) -> Unit,
     onSave: () -> Unit,
-    /** Opens the save states page ("See all", the Save states tile). */
+    /** Opens the save states page ("See all"). */
     onLoad: () -> Unit,
     /** Loads the state in [slot] (Load beside Save). */
     onLoadSlot: () -> Unit,
@@ -833,10 +830,6 @@ private fun MainPage(
                 PauseTile.SHADER -> ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader)
                 PauseTile.SCREENS -> ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = screens?.let { stringResource(it.label) }, onClick = onScreens)
                 PauseTile.AUDIO -> MuteTile.of(muted).let { mute -> ActionTile(stringResource(mute.label), mute.icon, false, warn = mute.warn, onClick = onAudio) }
-                PauseTile.SAVE_STATES -> {
-                    val saved = if (stateCount == 0) stringResource(R.string.game_states_none) else countString(R.plurals.game_states_saved, stateCount, stateCount)
-                    ActionTile(stringResource(R.string.game_save_states), Icons.States, false, enabled = !hardcore, detail = saved, onClick = onLoad)
-                }
                 PauseTile.CHANGE_SKIN -> ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin)
                 PauseTile.EDIT_SKIN -> ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin)
                 PauseTile.TOUCH_CONTROLS -> ActionTile(stringResource(R.string.game_touch_controls), Icons.TouchControls, touchControls == true, onClick = onTouchControls)
