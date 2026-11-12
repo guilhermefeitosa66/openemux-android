@@ -520,7 +520,11 @@ class SkinEditorModel(
                 grown[id] = present(base(id), now.combos).rects()
                 looks[id] = base(id).look()
             }
-            now.copy(rects = grown, looks = looks)
+            val on = now.copy(rects = grown, looks = looks)
+            // The layouts switched on draw each control in the outline it has on the layout being edited, or on the
+            // first the skin offers when none is (issue 891): a layout coming back keeps no outline the others lost.
+            val from = layoutId ?: SkinLayoutId.entries.firstOrNull { it in now.rects }
+            from?.let { outlined(on, ids.filter { it !in now.rects }, outlinesOf(on, it)) } ?: on
         } else {
             val gone = ids.toSet()
             // The layouts' image edits go with them: what they staged is not written for a layout the skin drops.
@@ -776,14 +780,26 @@ class SkinEditorModel(
         history.push(withLayout(id, saved.filterKeys { it in keys }, gone = keys - saved.keys))
     }
 
-    /** The whole layout being edited back to how the skin has it, its combos' outlines (issue 842) included. */
+    /**
+     * The whole layout being edited back to how the skin has it, its buttons' and combos' outlines (issues 842, 891)
+     * included. An outline is the control's, not one layout's: the other layouts take the outlines this one went back
+     * to, each control staying where it is there; a layout switched on this session takes the others' instead.
+     */
     fun resetLayout() {
         val id = layoutId ?: return
         val base = present(base(id), combos)
         val saved = base.rects()
         val reset = withLayout(id, saved, gone = current().keys - saved.keys)
         val look = reset.looks.getValue(id)
-        history.push(reset.copy(looks = reset.looks + (id to look.copy(shapes = base.look().shapes))))
+        val back = reset.copy(looks = reset.looks + (id to look.copy(shapes = base.look().shapes)))
+        if (id in this.saved.layouts) {
+            history.push(outlined(back, back.rects.keys - id, outlinesOf(back, id)))
+            return
+        }
+        // A layout switched on this session has no outlines of the skin's: it holds the ones of the layout it was made
+        // from, at that time. It takes the ones the others have now, which a later Shape choice made.
+        val from = SkinLayoutId.entries.firstOrNull { it != id && it in back.rects }
+        history.push(from?.let { outlined(back, listOf(id), outlinesOf(back, it)) } ?: back)
     }
 
     /**
@@ -895,14 +911,18 @@ class SkinEditorModel(
 
     /** The rects that differ from the skin's, per layout the skin had and still offers. */
     fun edits(): SkinRects = rects.filterKeys { it in original }.mapValues { (layout, now) ->
-        now.filter { (id, r) -> original.getValue(layout)[id] != r }
+        // A button read in another outline than the file gives it (issue 891) is written where it is drawn, with that
+        // outline ([lookEdits]): the file still has it in the skin's own.
+        val mended = saved.mended[layout].orEmpty()
+        now.filter { (id, r) -> original.getValue(layout)[id] != r || id in mended }
     }.filterValues { it.isNotEmpty() }
 
     /**
      * The colours of the layouts the skin had, still offers and whose colours changed; [SkinLook.colors] holds only the
      * controls that changed. A layout switched on is written whole by [addedLayouts], colours included.
      */
-    fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks.filter { (id, look) -> id in originalLooks && look != originalLooks.getValue(id) }
+    fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks
+        .filter { (id, look) -> id in originalLooks && (look != originalLooks.getValue(id) || id in saved.mended) }
         .mapValues { (id, look) ->
             val was = originalLooks.getValue(id)
             look.copy(
@@ -1009,31 +1029,55 @@ class SkinEditorModel(
     val shapeMixed: Boolean get() = shapeTargets.map(ComboOutline::chosen).distinct().size > 1
 
     /**
-     * The Shape tool: each of [shapeTargets] drawn as [outline] on the layout being edited, about its centre and at the
-     * size it has (a pill as wide as [ComboOutline.PILL_WIDE] circles), kept inside the layout; null (issue 891) brings
-     * back the skin's own outline in the skin's own proportions. One undo step; the other layouts keep theirs.
+     * The Shape tool: each of [shapeTargets] drawn as [outline], about its centre and at the size it has (a pill as wide
+     * as [ComboOutline.PILL_WIDE] circles), kept inside the layout; null (issue 891) brings back the skin's own outline in
+     * the skin's own proportions. An outline is the control's, not one layout's: every layout the skin offers that has
+     * the control takes it, each at the control's own place and size there, as a colour does. One undo step.
      */
     fun shape(outline: ComboOutline?) {
-        val id = layoutId ?: return
         val targets = shapeTargets
         if (targets.isEmpty() || (outline == null && !shapeOriginal)) return
         // Off the last undo step, not a drag still in progress (which this drops).
         cancelGesture()
         val now = history.current
-        val look = now.looks.getValue(id)
-        val base = present(base(id), now.combos)
-        var rects = now.rects.getValue(id)
-        var shapes = look.shapes
-        for (e in targets) {
-            if (ComboOutline.chosen(e) == outline) continue
-            val after = ComboOutline.drawn(e, outline)
-            val skin = base.elements.firstOrNull { it.id == e.id }
-            rects = rects + (e.id to if (outline == null && skin != null) restored(e, skin, base.size) else ComboOutline.reshape(e.rect, ComboOutline.of(e), ComboOutline.of(after), base.size))
-            shapes = if (outline == null) shapes - e.id else shapes + (e.id to outline)
-        }
-        if (shapes == look.shapes) return
-        history.push(now.copy(rects = now.rects + (id to rects), looks = now.looks + (id to look.copy(shapes = shapes))))
+        val next = outlined(now, now.rects.keys, targets.associate { it.id to outline })
+        if (next != now) history.push(next)
     }
+
+    /**
+     * [state] with each control of [outlines] drawn in its outline (null: the skin's own) on each layout of [layouts]
+     * that has it as a button or a key (issue 891): about its centre there and at the size it has, kept inside that
+     * layout.
+     */
+    private fun outlined(state: SkinEditState, layouts: Collection<SkinLayoutId>, outlines: Map<String, ComboOutline?>): SkinEditState {
+        var rects = state.rects
+        var looks = state.looks
+        for (id in layouts) {
+            val shown = layoutIn(state, id)
+            val base = present(base(id), state.combos)
+            val look = looks.getValue(id)
+            var placed = rects.getValue(id)
+            var shapes = look.shapes
+            for ((key, outline) in outlines) {
+                val e = shown.elements.firstOrNull { it.id == key && ComboOutline.shapeable(it) } ?: continue
+                if (ComboOutline.chosen(e) == outline) continue
+                val skin = base.elements.firstOrNull { it.id == key }
+                placed = placed + (
+                    key to if (outline == null && skin != null) restored(e, skin, base.size)
+                    else ComboOutline.reshape(e.rect, ComboOutline.of(e), ComboOutline.of(ComboOutline.drawn(e, outline)), base.size)
+                    )
+                shapes = if (outline == null) shapes - key else shapes + (key to outline)
+            }
+            if (shapes == look.shapes) continue
+            rects = rects + (id to placed)
+            looks = looks + (id to look.copy(shapes = shapes))
+        }
+        return state.copy(rects = rects, looks = looks)
+    }
+
+    /** The outline of each button and key of layout [id] in [state]: the player's, or null for the skin's own. */
+    private fun outlinesOf(state: SkinEditState, id: SkinLayoutId): Map<String, ComboOutline?> =
+        layoutIn(state, id).elements.filter(ComboOutline::shapeable).associate { it.id to ComboOutline.chosen(it) }
 
     /** [now]'s rect back in [skin]'s own outline: the skin's own proportions at [now]'s size (issue 891). */
     private fun restored(now: SkinElement, skin: SkinElement, size: SkinSize): SkinRect {

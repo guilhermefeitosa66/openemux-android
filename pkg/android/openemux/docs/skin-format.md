@@ -244,7 +244,7 @@ or the FDS disk key. Its label is the name the skin gives each of its buttons (a
 colours with a light ring round its face, so it never reads as one of the console's own buttons, and pressing it
 presses all its buttons; releasing it releases them.
 
-**Outline.** Each layout gives a combo its own outline: `shape` is `circle` (the default), `pill`, `rect` (a rounded
+**Outline.** A combo's outline is written on each layout's place for it: `shape` is `circle` (the default), `pill`, `rect` (a rounded
 square, issue 891) or `triangle`. A
 triangle is a right triangle in its rect whose square corner points at `corner`: `bottom-left`, `bottom-right`,
 `top-left` or `top-right`. Its legs lie on the two edges of the rect that meet at that corner and its long edge
@@ -252,7 +252,8 @@ crosses the rect, so it tucks into the gap between two round buttons (Y+B at the
 is touched on the triangle alone: a touch on the rest of its rect, over a neighbouring button, never presses it
 (the overlay desc's `_triangle` key), so a triangle is never turned: its `rotation` is read as 0. Its label sits at the triangle's centroid, pulled toward the square corner. A
 `shape` this app does not know, or a `triangle` with no known `corner`, is drawn as a circle rather than refused,
-so a newer app's outline still opens. The editor makes a circle, a rounded square and a triangle as wide as tall (the
+so a newer app's outline still opens (or in the outline another layout gives the combo: "One outline per control",
+below). The editor makes a circle, a rounded square and a triangle as wide as tall (the
 face buttons' diameter) and a pill 1.6 times as wide and 0.8 times as tall; Size scales any of them. A triangle's
 three corners are rounded as much as a rounded square's (issue 891). An element's own `shape` is never `triangle`:
 one with it is refused (`BAD_SHAPE`); a button the player gave a triangle says so in its `outline` (below).
@@ -288,8 +289,16 @@ and B on a GBA layout look right as circles, not as the pills the skin drew. The
 The element is drawn in that outline from its colours (an image of its own is the skin's drawing of its own outline,
 and is not used), and a triangle is never turned and is touched on the triangle alone, as a combo's. The rect keys
 are where the player put it, in that outline. An `outline` this app cannot read (not an object, an unknown `shape`, a
-`triangle` with no known `corner`) is ignored, and the skin's own outline drawn; one on a D-pad, a stick or a quick
+`triangle` with no known `corner`) is ignored, and the skin's own outline drawn (unless another layout gives the
+control an outline, which it then takes: below); one on a D-pad, a stick or a quick
 action is ignored too. An app from before it ignores the key and draws the skin's own. "Original" removes the key.
+
+**One outline per control.** An outline is the control's, not one layout's: the editor gives it to every layout that
+has the control (each where the control is there, about its centre), as it does a colour. A skin whose layouts
+disagree (saved by an earlier build, which kept one outline per layout, combos' included) is read with each control
+in the outline the player picked on most of its layouts, the first in layout order (`phone-portrait`,
+`phone-landscape`, `tablet-portrait`, …) on a tie; a layout in the skin's own outline (a combo's circle) never wins
+over one the player picked. The file is not rewritten until the player saves; the save then writes each such control where it is drawn, with its `outline`.
 
 ```json
 { "id": "l", "type": "button", "bind": "l", "x": 520, "y": 1330, "width": 100, "height": 100, "shape": "pill",

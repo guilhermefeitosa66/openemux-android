@@ -181,7 +181,7 @@ class SkinComboShapeTest {
     private fun model(s: OpenEmuxSkin = twoLayouts) = SkinEditorModel(s).also { it.show(SkinForm.PHONE, SkinOrientation.PORTRAIT) }
     private fun SkinEditorModel.combo(id: SkinLayoutId = SkinLayoutId.PHONE_PORTRAIT) = layoutOf(id)!!.elements.first { it.isCombo }
 
-    @Test fun theShapeToolChangesTheComboOnThisLayoutOnly() {
+    @Test fun theShapeToolChangesTheComboOnEveryLayout() {
         val m = model()
         m.addCombo(setOf("y", "b"))
         assertEquals(ComboOutline.CIRCLE, m.selectedOutline)
@@ -198,9 +198,15 @@ class SkinComboShapeTest {
         m.shape(triangleBL)
         assertEquals(triangleBL, ComboOutline.of(m.combo()))
         m.combo().rect.let { assertEquals(before.x, it.x, 0.01f); assertEquals(before.width, it.width, 0.01f); assertEquals(before.height, it.height, 0.01f) }
-        // The other layout keeps its circle.
-        assertEquals(ComboOutline.CIRCLE, ComboOutline.of(m.combo(SkinLayoutId.PHONE_LANDSCAPE)))
+        // The other layout takes it too (the bug QA found on issue 891: landscape stayed a circle), at its own size there.
+        val other = m.combo(SkinLayoutId.PHONE_LANDSCAPE)
+        assertEquals(triangleBL, ComboOutline.of(other))
+        assertEquals(other.rect.width, other.rect.height, 0.01f)
         assertTrue(m.changed(SkinLayoutId.PHONE_PORTRAIT))
+        assertTrue(m.changed(SkinLayoutId.PHONE_LANDSCAPE))
+        // Saved and read back: the triangle on both.
+        val saved = SkinFormat.parse(m.json(SkinFormat.toJson(twoLayouts)))
+        saved.layouts.values.forEach { l -> assertEquals(triangleBL, ComboOutline.of(l.elements.first { it.isCombo })) }
     }
 
     @Test fun eachShapeIsAnUndoStep() {
@@ -239,6 +245,20 @@ class SkinComboShapeTest {
         assertFalse(m.dirty)
     }
 
+    @Test fun aComboSavedInOneOutlinePerLayoutIsReadInThePickedOne() {
+        val made = SkinFormat.parse(model().apply { addCombo(setOf("y", "b")) }.json(SkinFormat.toJson(twoLayouts)))
+        // As an earlier build saved it: a triangle in portrait, the default circle in landscape.
+        val portraitOnly = made.copy(
+            layouts = made.layouts.mapValues { (id, l) ->
+                if (id != SkinLayoutId.PHONE_PORTRAIT) l else l.copy(elements = l.elements.map { if (it.isCombo) ComboOutline.drawn(it, triangleBL) else it })
+            },
+        )
+        val read = SkinFormat.parse(SkinFormat.toJson(portraitOnly))
+        read.layouts.values.forEach { l -> assertEquals(triangleBL, ComboOutline.of(l.elements.first { it.isCombo })) }
+        // Circles everywhere stay circles.
+        assertEquals(made, SkinFormat.parse(SkinFormat.toJson(made)))
+    }
+
     @Test fun nothingToShapeWithNothingSelected() {
         val m = model()
         assertNull(m.selectedOutline)
@@ -267,7 +287,8 @@ class SkinComboShapeTest {
         val c = placed.getJSONObject("phone-portrait").getJSONArray("combos").getJSONObject(0)
         assertEquals("triangle", c.getString("shape"))
         assertEquals("bottom-right", c.getString("corner"))
-        assertFalse(placed.getJSONObject("phone-landscape").getJSONArray("combos").getJSONObject(0).has("shape"))
+        // The other layout's place says the same (issue 891: one outline per combo).
+        assertEquals("triangle", placed.getJSONObject("phone-landscape").getJSONArray("combos").getJSONObject(0).getString("shape"))
 
         // A draft brings it back; the saved skin opens with it.
         val draft = SkinFormat.parse(text)

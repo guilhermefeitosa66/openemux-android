@@ -267,10 +267,14 @@ object SkinFormat {
             l.copy(elements = l.elements.map { e -> if (e.isCombo) e.copy(label = labels.getValue(e.id)) else e })
         }
         // A fixed order, whatever the file's: the model (and the round trip) does not depend on how it was written.
-        return OpenEmuxSkin(
-            console, name, SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }, format,
-            leftOutCombos = allCombos.keys - combos.keys,
-        )
+        val ordered = SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }
+        // Each control in one outline on every layout (issue 891), whatever an earlier build saved.
+        val unified = ComboOutline.unify(ordered)
+        // The buttons that took another outline (a combo's place is written whole on every save anyway).
+        val mended = unified.mapValues { (id, l) ->
+            l.elements.zip(ordered.getValue(id).elements).filter { (now, was) -> now != was && !now.isCombo }.map { it.first.id }.toSet()
+        }.filterValues { it.isNotEmpty() }
+        return OpenEmuxSkin(console, name, unified, format, leftOutCombos = allCombos.keys - combos.keys, mended = mended)
     }
 
     /**

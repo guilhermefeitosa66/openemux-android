@@ -9,7 +9,7 @@ import org.junit.Test
 
 /**
  * A button drawn in an outline of the player's (issue 891): circle, pill, rounded square or a triangle at a corner, or
- * the skin's own ("Original"), per layout; kept in the skin's `outline` key.
+ * the skin's own ("Original"), on every layout that has the button; kept in the skin's `outline` key.
  */
 class SkinButtonShapeTest {
     private val triangleTR = ComboOutline(SkinShape.TRIANGLE, SkinCorner.TOP_RIGHT)
@@ -179,7 +179,7 @@ class SkinButtonShapeTest {
         assertTrue(m.shapeTargets.isEmpty())
     }
 
-    @Test fun lBecomesACircleOnThisLayoutOnly() {
+    @Test fun lBecomesACircleOnEveryLayout() {
         val m = model()
         m.one("l")
         m.shape(ComboOutline.CIRCLE)
@@ -190,13 +190,18 @@ class SkinButtonShapeTest {
         assertEquals(ComboOutline.CIRCLE, m.selectedOutline)
         assertEquals(100, m.percent())
         assertTrue(m.dirty)
-        // The other rotation keeps the skin's pill.
-        assertEquals(SkinShape.PILL, m.el("l", SkinLayoutId.PHONE_LANDSCAPE).shape)
-        assertNull(m.el("l", SkinLayoutId.PHONE_LANDSCAPE).own)
+        // The other rotation takes it too, about L's centre there (an outline is the control's, as a colour is).
+        val turned = m.el("l", SkinLayoutId.PHONE_LANDSCAPE)
+        assertEquals(SkinShape.CIRCLE, turned.shape)
+        assertEquals(SkinRect(100f, 40f, 100f, 100f), turned.rect)
+        assertEquals(SkinOwnOutline(SkinShape.PILL, 10f, 200f, 80f), turned.own)
+        assertTrue(m.changed(SkinLayoutId.PHONE_LANDSCAPE))
         // The same outline again is nothing.
         m.shape(ComboOutline.CIRCLE)
+        // One undo step brings both back.
         m.undo()
         assertEquals(l, m.el("l"))
+        assertEquals(landscape.elements[0], m.el("l", SkinLayoutId.PHONE_LANDSCAPE))
         assertFalse(m.canUndo)
         m.redo()
         assertEquals(SkinShape.CIRCLE, m.el("l").shape)
@@ -208,6 +213,7 @@ class SkinButtonShapeTest {
         m.shape(ComboOutline.SQUARE)
         m.shape(null)
         assertEquals(l, m.el("l"))
+        assertEquals(landscape.elements[0], m.el("l", SkinLayoutId.PHONE_LANDSCAPE))
         assertNull(m.selectedOutline)
         assertFalse(m.dirty)
     }
@@ -240,6 +246,151 @@ class SkinButtonShapeTest {
         assertEquals(SkinShape.CIRCLE, m.el("l").shape)
         m.resetLayout()
         assertEquals(l, m.el("l"))
+        // The other rotation goes back to the skin's pill with it, where L is there.
+        assertEquals(landscape.elements[0], m.el("l", SkinLayoutId.PHONE_LANDSCAPE))
+    }
+
+    @Test fun theOutlineSurvivesASwitchBetweenLayouts() {
+        val m = model()
+        m.one("l")
+        m.shape(triangleTR)
+        m.one("a")
+        m.shape(ComboOutline.SQUARE)
+        // The device turned: the editor shows landscape, where L and A already have their outlines.
+        m.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE)
+        assertEquals(triangleTR, ComboOutline.of(m.el("l", SkinLayoutId.PHONE_LANDSCAPE)))
+        assertEquals(ComboOutline.SQUARE, ComboOutline.of(m.el("a", SkinLayoutId.PHONE_LANDSCAPE)))
+        m.one("l")
+        assertEquals(triangleTR, m.selectedOutline)
+        // Changed there, portrait follows.
+        m.shape(ComboOutline.PILL)
+        assertEquals(SkinShape.PILL, m.el("l").shape)
+        assertEquals(SkinOwnOutline(SkinShape.PILL, 10f, 200f, 80f), m.el("l").own)
+        // Saved and read back, after a restart: every layout has the same outlines.
+        val saved = SkinFormat.parse(m.json(SkinFormat.toJson(skin)))
+        for (layout in saved.layouts.values) {
+            assertEquals(ComboOutline.PILL, ComboOutline.chosen(layout.elements.first { it.id == "l" }))
+            assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(layout.elements.first { it.id == "a" }))
+        }
+    }
+
+    @Test fun aFormSwitchedOnTakesTheOutlines() {
+        val m = model()
+        m.one("l")
+        m.shape(ComboOutline.CIRCLE)
+        assertTrue(m.setForm(SkinForm.TABLET, true))
+        for (id in SkinForms.layoutsOf(SkinForm.TABLET)) assertEquals(ComboOutline.CIRCLE, ComboOutline.chosen(m.el("l", id)))
+        // A form the skin had, switched off and on again after the outline changed, takes the new one.
+        val tablet = SkinFormat.parse(m.json(SkinFormat.toJson(skin)))
+        val next = model(tablet)
+        assertTrue(next.setForm(SkinForm.TABLET, false))
+        next.one("l")
+        next.shape(ComboOutline.SQUARE)
+        assertTrue(next.setForm(SkinForm.TABLET, true))
+        for (id in SkinForms.layoutsOf(SkinForm.TABLET)) assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(next.el("l", id)))
+        // Nothing shown: a form switched on keeps what it had.
+        assertTrue(SkinEditorModel(tablet).run { setForm(SkinForm.TABLET, false) && setForm(SkinForm.TABLET, true) })
+        // Nothing shown (a rotation the skin lacks) after the outline changed: the form takes the outline the skin's
+        // first layout has, not the one it was saved with.
+        val away = model(tablet)
+        assertTrue(away.setForm(SkinForm.TABLET, false))
+        away.one("l")
+        away.shape(ComboOutline.PILL)
+        away.show(SkinForm.FOLD, SkinOrientation.PORTRAIT)
+        assertNull(away.layout)
+        assertTrue(away.setForm(SkinForm.TABLET, true))
+        for (id in SkinForms.layoutsOf(SkinForm.TABLET)) assertEquals(ComboOutline.PILL, ComboOutline.chosen(away.el("l", id)))
+        // Nothing offered at all: nothing to take an outline from.
+        val none = SkinEditorModel(tablet)
+        for (form in SkinForm.entries) none.setForm(form, false)
+        assertTrue(none.setForm(SkinForm.TABLET, true))
+    }
+
+    @Test fun resetLayoutOnAFormSwitchedOnKeepsTheLaterOutline() {
+        val m = model()
+        m.one("l")
+        m.shape(triangleTR)
+        // Tablets made from the triangle, then L made a square everywhere.
+        assertTrue(m.setForm(SkinForm.TABLET, true))
+        m.shape(ComboOutline.SQUARE)
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        m.resetLayout()
+        for (id in m.rects.keys) assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(m.el("l", id)))
+    }
+
+    // --- A skin saved while each layout kept its own outline ---
+
+    private fun withOutline(e: SkinElement, o: ComboOutline) = ComboOutline.drawn(e, o).let { it.at(ComboOutline.reshape(e.rect, ComboOutline.of(e), o)) }
+
+    @Test fun readingASkinWhoseLayoutsDisagreeGivesEveryLayoutOneOutline() {
+        // Portrait made L a triangle, landscape left it the skin's pill (the report on issue 891).
+        val split = skin.copy(
+            layouts = mapOf(
+                SkinLayoutId.PHONE_PORTRAIT to portrait.copy(elements = listOf(withOutline(l, triangleTR), r, a, b, pad, stick)),
+                SkinLayoutId.PHONE_LANDSCAPE to landscape,
+            ),
+        )
+        val read = SkinFormat.parse(SkinFormat.toJson(split))
+        val turned = read.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "l" }
+        assertEquals(triangleTR, ComboOutline.chosen(turned))
+        assertEquals(SkinRect(100f, 40f, 100f, 100f), turned.rect)
+        assertEquals(SkinOwnOutline(SkinShape.PILL, 10f, 200f, 80f), turned.own)
+        // Portrait as it was; A, in the skin's own on both, as it was.
+        assertEquals(triangleTR, ComboOutline.chosen(read.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.first { it.id == "l" }))
+        assertNull(read.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "a" }.own)
+        assertEquals(mapOf(SkinLayoutId.PHONE_LANDSCAPE to setOf("l")), read.mended)
+        assertTrue(SkinFormat.parse(SkinFormat.toJson(skin)).mended.isEmpty())
+    }
+
+    @Test fun aSkinMendedOnReadingIsSavedAsItIsDrawn() {
+        val split = skin.copy(
+            layouts = mapOf(
+                SkinLayoutId.PHONE_PORTRAIT to portrait.copy(elements = listOf(withOutline(l, triangleTR), r, a, b, pad, stick)),
+                SkinLayoutId.PHONE_LANDSCAPE to landscape,
+            ),
+        )
+        val text = SkinFormat.toJson(split)
+        val read = SkinFormat.parse(text)
+        val drawn = read.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "l" }
+        // Opening it changes nothing to save.
+        assertFalse(SkinEditorModel(read).dirty)
+        // A colour on landscape, or A moved there: the file's landscape L takes the triangle and the place it is drawn in,
+        // never one without the other (a triangle stretched over the pill's box, or a pill squeezed into the triangle's).
+        val painted = SkinEditorModel(read).also { it.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE) }
+        painted.paint(SkinTarget.Background, emptyList(), SkinPart.BACKGROUND, 0xFF112233.toInt())
+        painted.endGesture()
+        val moved = SkinEditorModel(read).also { it.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE) }
+        moved.one("a")
+        moved.nudge(3, 0)
+        for (m in listOf(painted, moved)) {
+            val again = SkinFormat.parse(m.json(text))
+            assertTrue(again.mended.isEmpty())
+            assertEquals(drawn, again.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "l" })
+        }
+    }
+
+    @Test fun theOutlinePickedOnMostLayoutsWinsTheFirstOnATie() {
+        fun at(x: Float) = l.copy(rect = SkinRect(x, 100f, 200f, 80f), rotation = 0f)
+        fun layout(e: SkinElement) = SkinLayout(size, listOf(SkinRect(0f, 0f, 900f, 700f)), elements = listOf(e))
+        val ids = SkinLayoutId.entries
+        // Square on two layouts, circle on one: the square, though the circle is on the first.
+        val most = mapOf(
+            ids[0] to layout(withOutline(at(0f), ComboOutline.CIRCLE)),
+            ids[1] to layout(withOutline(at(0f), ComboOutline.SQUARE)),
+            ids[2] to layout(withOutline(at(0f), ComboOutline.SQUARE)),
+            ids[3] to layout(at(0f)),
+        )
+        ComboOutline.unify(most).values.forEach { assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(it.elements[0])) }
+        // One each: the first layout's (in layout order, whatever the map's).
+        val tie = linkedMapOf(ids[1] to layout(withOutline(at(0f), ComboOutline.PILL)), ids[0] to layout(withOutline(at(0f), triangleTR)))
+        ComboOutline.unify(tie).values.forEach { assertEquals(triangleTR, ComboOutline.chosen(it.elements[0])) }
+        // Already one outline everywhere, or none picked: the layouts as they are.
+        val same = mapOf(ids[0] to layout(withOutline(at(0f), ComboOutline.PILL)), ids[1] to layout(withOutline(at(5f), ComboOutline.PILL)))
+        assertEquals(same, ComboOutline.unify(same))
+        assertEquals(skin.layouts, ComboOutline.unify(skin.layouts))
+        // The D-pad is never given one, whatever its id.
+        val withPad = mapOf(ids[0] to layout(withOutline(at(0f), ComboOutline.SQUARE)), ids[1] to layout(pad.copy(id = "l")))
+        assertEquals(withPad.getValue(ids[1]), ComboOutline.unify(withPad).getValue(ids[1]))
     }
 
     @Test fun savingWritesTheOutlineAndReadingItBackKeepsOriginal() {

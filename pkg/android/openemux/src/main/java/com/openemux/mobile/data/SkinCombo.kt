@@ -163,7 +163,8 @@ object SkinCombos {
 /**
  * A button's outline on one layout: a circle, a pill, a rounded square, or a right triangle whose square corner points
  * at [corner] of its rect, to tuck into the gap between two round buttons. A combo's (issue 842; a circle until the
- * player picks another), or the one the player gave any other button (issue 891). Each layout keeps its own.
+ * player picks another), or the one the player gave any other button (issue 891). It is the control's, not one
+ * layout's: every layout of the skin draws the control in the same outline ([unify]).
  */
 data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
     companion object {
@@ -226,6 +227,38 @@ data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
             val own = e.own ?: SkinOwnOutline(e.shape, e.rotation, e.rect.width, e.rect.height)
             val rotation = if (outline.shape == SkinShape.TRIANGLE) 0f else own.rotation
             return e.copy(shape = outline.shape, corner = outline.corner, rotation = rotation, own = own)
+        }
+
+        /**
+         * [layouts] with each button and key in one outline on all of them (issue 891): an outline is the control's, not
+         * one layout's. A skin saved while each layout kept its own (a combo's since issue 842, a button's in the first
+         * builds of issue 891) gives every layout the outline the player picked on most of them, the first layout's in
+         * [SkinLayoutId] order on a tie; a layout where the control is in its default (the skin's own outline, a
+         * combo's circle) never wins over one the player picked. Each control keeps its centre and its size there.
+         */
+        fun unify(layouts: Map<SkinLayoutId, SkinLayout>): Map<SkinLayoutId, SkinLayout> {
+            val picked = LinkedHashMap<String, MutableList<ComboOutline>>()
+            for (id in SkinLayoutId.entries) {
+                for (e in layouts[id]?.elements.orEmpty()) {
+                    val o = chosen(e)?.takeIf { !(e.isCombo && it == CIRCLE) } ?: continue
+                    picked.getOrPut(e.id) { mutableListOf() } += o
+                }
+            }
+            val winners = picked.mapValues { (_, os) ->
+                val count = os.groupingBy { it }.eachCount()
+                val most = count.values.max()
+                os.first { count.getValue(it) == most }
+            }
+            if (winners.isEmpty()) return layouts
+            return layouts.mapValues { (_, l) ->
+                l.copy(
+                    elements = l.elements.map { e ->
+                        val o = winners[e.id]?.takeIf { shapeable(e) && chosen(e) != it } ?: return@map e
+                        val after = drawn(e, o)
+                        after.at(reshape(e.rect, of(e), of(after), l.size))
+                    },
+                )
+            }
         }
 
         /** How large [rect] drawn as [o] is: a pill [PILL_TALL] of its height's circle, anything else its width. */
