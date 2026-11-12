@@ -631,7 +631,7 @@
     <issue
         id="ModifierParameter"
         message="Modifier parameter should be named modifier"
-        errorLine1="private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boolean, focus: Modifier, pick: TilePick, open: () -> Unit) {"
+        errorLine1="private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boolean, focus: Modifier, pick: TilePick, open: () -> Unit, striped: Boolean) {"
         errorLine2="                                                                                    ~~~~~">
         <location
             file="src/main/java/com/openemux/mobile/ui/LibraryScreens.kt"

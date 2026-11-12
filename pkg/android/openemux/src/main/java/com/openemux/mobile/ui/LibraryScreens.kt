@@ -63,6 +63,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -967,8 +968,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // Zoomed, the caption follows the step (none at five columns; the art still names the game to TalkBack).
     val cartCaption = zoomGrid(zoomColumns, carts = true).captionSp
     val coverCaption = zoomGrid(zoomColumns, carts = false).captionSp
-    // One game in the grid, in view mode m.
-    val tile: @Composable (Rom, ViewMode) -> Unit = { rom, m ->
+    // One game in the grid, in view mode m; a striped list row carries the zebra tint (issue 874).
+    val tile: @Composable (Rom, ViewMode, Boolean) -> Unit = { rom, m, striped ->
             val romMeta = meta.roms[rom.key]
             val isPicked = pane && picked == rom.key
             val open = {
@@ -1006,10 +1007,10 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
                     }
                 }
-                ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open)
+                ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped && !isPicked)
                 else Row(
                     Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
-                        .then(if (chosen) Modifier.background(Oe.AccentSoft, RoundedCornerShape(12.dp)) else Modifier)
+                        .listRowBackground(chosen, striped && !isPicked, selection.active)
                         .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selection.active) 8.dp else 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1119,12 +1120,13 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 val groupMode = if (group.frame == null) ViewMode.Covers else ViewMode.Carts
                 item(key = "grid-${group.id}", span = StaggeredGridItemSpan.FullLine) {
                     val groupSpec = if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts
-                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(zoomColumns, carts = groupMode == ViewMode.Carts) else null, zoomColumns) { tile(it, groupMode) }
+                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(zoomColumns, carts = groupMode == ViewMode.Carts) else null, zoomColumns) { tile(it, groupMode, false) }
                 }
             } else {
-                items(groupRoms, key = { it.key }) { rom ->
+                // The zebra restarts under each group's header: its first row is plain.
+                itemsIndexed(groupRoms, key = { _, rom -> rom.key }) { index, rom ->
                     // The tiles glide to their new places after a zoom step, and only then: filtering and sorting stay instant.
-                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = if (zoomMoving) tween(ZOOM_MOVE_MS) else null, fadeOutSpec = null)) { tile(rom, shown) }
+                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = if (zoomMoving) tween(ZOOM_MOVE_MS) else null, fadeOutSpec = null)) { tile(rom, shown, zebraStriped(index)) }
                 }
             }
         }
@@ -1183,7 +1185,7 @@ private fun TableHeader() {
 
 /** A game as a table row: its art, title and file, time played, when it was last played and its star. */
 @Composable
-private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boolean, focus: Modifier, pick: TilePick, open: () -> Unit) {
+private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boolean, focus: Modifier, pick: TilePick, open: () -> Unit, striped: Boolean) {
     val lib = LocalActions.current.app.library
     val selecting = pick.selection.active
     val chosen = rom.key in pick.selection
@@ -1195,7 +1197,7 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
     Row(
         Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus)
             .semantics { contentDescription = description }.pickable(pick, rom.key, open)
-            .then(if (chosen) Modifier.background(Oe.AccentSoft, RoundedCornerShape(12.dp)) else Modifier)
+            .listRowBackground(chosen, striped, selecting)
             .padding(vertical = 6.dp, horizontal = if (selecting) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1215,6 +1217,29 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
         }
     }
 }
+
+/** Whether the list row at [indexInGroup] carries the zebra tint: every second row, the group's first one plain. */
+internal fun zebraStriped(indexInGroup: Int): Boolean = indexInGroup % 2 == 1
+
+/**
+ * A list row's card: the accent when it is chosen, else the zebra tint on a striped row, else nothing.
+ * Outside selection the row has no inner padding, so the stripe reaches [LIST_STRIPE_OUTSET_DP] past
+ * each side into the grid's margin: the art and the star keep their place and never touch its edge.
+ */
+private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean, selecting: Boolean): Modifier = when {
+    chosen -> background(Oe.AccentSoft, ListRowShape)
+    striped -> drawBehind {
+        val off = if (selecting) 0f else LIST_STRIPE_OUTSET_DP.dp.toPx()
+        drawRoundRect(Oe.RowAlt, Offset(-off, 0f), Size(size.width + off * 2, size.height), CornerRadius(12.dp.toPx()))
+    }
+    else -> this
+}
+
+/** How far a stripe reaches past a list row's sides outside selection: the inset a selected row's content takes. */
+private const val LIST_STRIPE_OUTSET_DP = 8
+
+/** The rounded card behind a list row, shared by the selection and the zebra stripe. */
+private val ListRowShape = RoundedCornerShape(12.dp)
 
 /** What a tap and a long press on a game do: open it and start selecting, or toggle it while selecting. */
 private class TilePick(
