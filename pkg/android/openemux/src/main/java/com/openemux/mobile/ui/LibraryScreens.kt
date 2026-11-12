@@ -1007,11 +1007,11 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
                     }
                 }
-                ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped)
+                ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped && !isPicked)
                 else Row(
                     Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
-                        .listRowBackground(chosen, striped)
-                        .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = 8.dp),
+                        .listRowBackground(chosen, striped && !isPicked, selection.active)
+                        .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selection.active) 8.dp else 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (selection.active) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
@@ -1174,8 +1174,7 @@ private fun Modifier.pickedRing(picked: Boolean, outset: Boolean): Modifier =
 /** The table's column names over the list view on a tablet; the rows say them to a screen reader. */
 @Composable
 private fun TableHeader() {
-    // The rows' 8 dp inset, so the columns stay over theirs.
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp, start = 8.dp, end = 8.dp).clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp).clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
         val caps = Type.Tag.copy(color = Oe.Muted, fontSize = 12.sp, letterSpacing = 1.sp)
         Text(stringResource(R.string.library_col_game).uppercase(), style = caps, modifier = Modifier.weight(1f).padding(start = 4.dp))
         Text(stringResource(R.string.library_col_time).uppercase(), style = caps, modifier = Modifier.width(96.dp))
@@ -1198,8 +1197,8 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
     Row(
         Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus)
             .semantics { contentDescription = description }.pickable(pick, rom.key, open)
-            .listRowBackground(chosen, striped)
-            .padding(vertical = 6.dp, horizontal = 8.dp),
+            .listRowBackground(chosen, striped, selecting)
+            .padding(vertical = 6.dp, horizontal = if (selecting) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (selecting) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
@@ -1222,12 +1221,22 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
 /** Whether the list row at [indexInGroup] carries the zebra tint: every second row, the group's first one plain. */
 internal fun zebraStriped(indexInGroup: Int): Boolean = indexInGroup % 2 == 1
 
-/** A list row's card: the accent when it is chosen, else the zebra tint on a striped row, else nothing. */
-private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean): Modifier = when {
+/**
+ * A list row's card: the accent when it is chosen, else the zebra tint on a striped row, else nothing.
+ * Outside selection the row has no inner padding, so the stripe reaches [LIST_STRIPE_OUTSET_DP] past
+ * each side into the grid's margin: the art and the star keep their place and never touch its edge.
+ */
+private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean, selecting: Boolean): Modifier = when {
     chosen -> background(Oe.AccentSoft, ListRowShape)
-    striped -> background(Oe.RowAlt, ListRowShape)
+    striped -> drawBehind {
+        val off = if (selecting) 0f else LIST_STRIPE_OUTSET_DP.dp.toPx()
+        drawRoundRect(Oe.RowAlt, Offset(-off, 0f), Size(size.width + off * 2, size.height), CornerRadius(12.dp.toPx()))
+    }
     else -> this
 }
+
+/** How far a stripe reaches past a list row's sides outside selection: the inset a selected row's content takes. */
+private const val LIST_STRIPE_OUTSET_DP = 8
 
 /** The rounded card behind a list row, shared by the selection and the zebra stripe. */
 private val ListRowShape = RoundedCornerShape(12.dp)
