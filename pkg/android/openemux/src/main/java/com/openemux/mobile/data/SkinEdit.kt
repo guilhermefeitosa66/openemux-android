@@ -468,7 +468,8 @@ class SkinEditorModel(
     /** Layout [id] with its current rects and colours, or null when the skin does not offer it now. */
     fun layoutOf(id: SkinLayoutId): SkinLayout? {
         val now = rects[id] ?: return null
-        return present(base(id), combos).withRects(now).withLook(looks.getValue(id))
+        // The look first: a button the player shaped (issue 891) keeps the skin's own size, which its rect then replaces.
+        return present(base(id), combos).withLook(looks.getValue(id)).withRects(now)
     }
 
     /** Edits [form]'s layout in [orientation]; the selection is dropped. */
@@ -511,7 +512,7 @@ class SkinEditorModel(
                     val source = SkinForms.closest(id, grown.keys) ?: return false
                     // Made from the source as it is when first switched on this session: its rects and its colours
                     // (not its images). Kept in [derived] afterwards, so undo and redo find the same layout.
-                    val layouts = grown.keys.associateWith { present(base(it), now.combos).withRects(grown.getValue(it)).withLook(looks.getValue(it)) }
+                    val layouts = grown.keys.associateWith { present(base(it), now.combos).withLook(looks.getValue(it)).withRects(grown.getValue(it)) }
                     derived[id] = SkinForms.derive(layouts.getValue(source), SkinForms.size(id, layouts))
                 }
                 // A combo made after the layout was, or one the skin's own layout lacks, starts at a spot of its own.
@@ -820,7 +821,7 @@ class SkinEditorModel(
 
     /** Layout [id] as [state] has it: its rects and its colours. */
     private fun layoutIn(state: SkinEditState, id: SkinLayoutId): SkinLayout =
-        present(base(id), state.combos).withRects(state.rects.getValue(id)).withLook(state.looks.getValue(id))
+        present(base(id), state.combos).withLook(state.looks.getValue(id)).withRects(state.rects.getValue(id))
 
     /**
      * Whether the image at [path] of [layout] is a picture the player put there, which a colour picked in another

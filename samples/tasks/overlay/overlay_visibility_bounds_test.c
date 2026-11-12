@@ -34,6 +34,13 @@
  *  11. a press does not show it while its state is off;
  *  12. LED images behave as before on a page that also has lit descs;
  *  13. the pack's string names the state, and an unknown one none.
+ *
+ * OpenEmux: a desc lit by "press" is a button's pressed look (issue
+ * 891):
+ *
+ *  14. its image shows only while the overlay presses every one of its
+ *      binds (a combo's together), and never for a desc with none;
+ *  15. other lit descs and plain images are not moved by it.
  */
 
 #include <stdio.h>
@@ -420,6 +427,62 @@ static void test_lit_by_with_leds(void)
          "without lit descs no state hides anything");
 }
 
+/* --- a button's pressed look (OpenEmux, issue 891) -------------------- */
+
+/* Image 1 is A's pressed look, image 2 a combo's (A and B together),
+ * image 3 lit by fast forward. */
+static void build_press(void)
+{
+   build(NULL);
+   descs[1].lit_by = OVERLAY_LIT_BY_PRESS;
+   BIT256_SET(descs[1].button_mask, 8);
+   descs[2].lit_by = OVERLAY_LIT_BY_PRESS;
+   BIT256_SET(descs[2].button_mask, 8);
+   BIT256_SET(descs[2].button_mask, 0);
+   descs[3].lit_by = OVERLAY_LIT_BY_FAST_FORWARD;
+   pack.flags     |= INPUT_OVERLAY_HAS_LIT_BY;
+}
+
+static void test_press(void)
+{
+   printf("a button's pressed look\n");
+
+   build_press();
+   check(lit_hidden(1, 0, 0, NULL) && lit_hidden(2, 0, 0, NULL),
+         "nothing pressed, every pressed look is hidden");
+   check(!lit_hidden(0, 0, 0, NULL) && !lit_hidden(4, 0, 0, NULL),
+         "and the plain images are not");
+
+   BIT256_SET(pack.overlay_state.buttons, 8);
+   check(!lit_hidden(1, 0, 0, NULL) && lit_hidden(2, 0, 0, NULL),
+         "A pressed shows A's look, not the combo's");
+   BIT256_SET(pack.overlay_state.buttons, 0);
+   check(!lit_hidden(1, 0, 0, NULL) && !lit_hidden(2, 0, 0, NULL),
+         "A and B pressed show both");
+   check(lit_hidden(3, 0, 0, NULL) && !lit_hidden(3, FF, 0, NULL),
+         "a state's image still follows its state alone");
+
+   with_cache();
+   lit_pass(false, 0);
+   check(alpha[1] == 0.7f && alpha[2] == 0.7f && alpha[3] == 0.0f,
+         "the pass shows the pressed looks");
+   BIT256_CLEAR_ALL(pack.overlay_state.buttons);
+   lit_pass(false, 0);
+   check(alpha[1] == 0.0f && alpha[2] == 0.0f && alpha[0] == 0.7f,
+         "and hides them on release");
+
+   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state.buttons),
+         "a desc with no bind is never pressed");
+   BIT256_SET(pack.overlay_state.buttons, 3);
+   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state.buttons),
+         "whatever is pressed");
+   check(!input_overlay_press_lit(NULL, &pack.overlay_state.buttons)
+         && !input_overlay_press_lit(&descs[1], NULL),
+         "and nothing is pressed without a desc or a state");
+   check(input_overlay_lit_by_parse("press") == OVERLAY_LIT_BY_PRESS,
+         "\"press\" names it");
+}
+
 static void test_lit_by_parse(void)
 {
    printf("the _lit_by string\n");
@@ -450,6 +513,7 @@ int main(void)
    test_lit_by_pressed();
    test_lit_by_with_leds();
    test_lit_by_parse();
+   test_press();
 
    if (failures)
    {
