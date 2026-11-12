@@ -153,11 +153,8 @@ fun OpenEmuxRoot() {
     // Not a pad press: the window's scope lets Compose and the screen's initial item take focus as usual.
     val inputModes = LocalInputModeManager.current
     val padScope = LocalPadScope.current
-    // Keyed on the layout without the last press: under Touch screen a press turns the layout on too, and that
-    // press lands focus itself (issue 873).
-    val layoutUnpressed = padLayoutOn(ControllerLayoutPref.value, InputMode.padConnected, lastPad = false)
-    LaunchedEffect(layoutUnpressed) {
-        if (layoutUnpressed) {
+    LaunchedEffect(InputMode.padLayout) {
+        if (InputMode.padLayout) {
             inputModes.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
             padScope.touchExit = false
         }

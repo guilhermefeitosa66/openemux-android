@@ -85,6 +85,18 @@ private val DPAD = setOf(
     KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER,
 )
 
+/**
+ * The phone's own keys: volume, mute, power, camera, the media keys. Never a controller press, whatever device they
+ * come from: a phone that reports its buttons as a gamepad (the false controller of issue 873) must not bring the
+ * controller look back with the volume rocker.
+ */
+private val SYSTEM_KEYS = setOf(
+    KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE, KeyEvent.KEYCODE_MUTE,
+    KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_CAMERA, KeyEvent.KEYCODE_FOCUS, KeyEvent.KEYCODE_HEADSETHOOK,
+    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
+    KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_STOP,
+)
+
 /** The gamepad's button codes, from A to Mode and the generic 1 to 16 (KeyEvent.isGamepadButton, testable). */
 fun isPadButton(code: Int) =
     code in KeyEvent.KEYCODE_BUTTON_A..KeyEvent.KEYCODE_BUTTON_MODE ||
@@ -98,7 +110,7 @@ fun isPadButton(code: Int) =
  * silently: one that finds nothing to act on lands focus where it shows.
  */
 fun decidePadKey(code: Int, action: Int, fromPad: Boolean, focusShown: Boolean, landed: Int): PadDecision {
-    if (!fromPad && !isPadButton(code) && code !in DPAD) return PadDecision.NotPad
+    if (code in SYSTEM_KEYS || (!fromPad && !isPadButton(code) && code !in DPAD)) return PadDecision.NotPad
     val up = action == KeyEvent.ACTION_UP
     if (up && code == landed) return PadDecision.Swallow
     val bus = when (code) {
@@ -324,9 +336,7 @@ class PadRouter(
 
     private fun route(event: KeyEvent, dispatch: (KeyEvent) -> Boolean): Boolean {
         val code = event.keyCode
-        // A pad that reports itself oddly (only as a joystick) still counts, whatever key it sends (issue 873).
-        val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD) ||
-            event.isFromSource(InputDevice.SOURCE_JOYSTICK)
+        val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
         val s = scope()
         // A screen reading the pad's buttons as they are (the skin editor's combo capture) sees them first.
         if (fromPad && PadCapture.listener?.invoke(event) == true) return true

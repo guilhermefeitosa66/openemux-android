@@ -22,6 +22,15 @@ class PadRouterTest {
     }
 
     @Test
+    fun thePhonesOwnKeysAreNeverThePads() {
+        // A phone that reports its buttons as a gamepad: the volume rocker must not bring the controller look back.
+        for (code in listOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)) {
+            assertEquals(PadDecision.NotPad, decide(code, fromPad = true))
+            assertEquals(PadDecision.NotPad, decide(code, fromPad = false))
+        }
+    }
+
+    @Test
     fun theDpadAndTheButtonsArePadKeysFromAnyDevice() {
         // adb's injected D-pad comes from the keyboard source: still the pad's.
         assertEquals(PadDecision.Pass, decide(KeyEvent.KEYCODE_DPAD_RIGHT, fromPad = false))

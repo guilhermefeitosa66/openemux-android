@@ -7,18 +7,18 @@ class ControllerLayoutTest {
     private val prefs = listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS, ControllerLayoutPref.NEVER)
 
     @Test fun theLayoutFollowsTheSettingAndTheConnection() {
-        for (connected in listOf(false, true)) for (lastPad in listOf(false, true)) {
-            assertEquals(connected, padLayoutOn(ControllerLayoutPref.AUTO, connected, lastPad))
-            assertEquals(true, padLayoutOn(ControllerLayoutPref.ALWAYS, connected, lastPad))
+        for (connected in listOf(false, true)) {
+            assertEquals(connected, padLayoutOn(ControllerLayoutPref.AUTO, connected))
+            assertEquals(true, padLayoutOn(ControllerLayoutPref.ALWAYS, connected))
+            assertEquals(false, padLayoutOn(ControllerLayoutPref.NEVER, connected))
         }
     }
 
-    @Test fun touchScreenComesBackToControllerModeOnAPadPress() {
-        // A detected pad alone shows nothing (the false-pad case); a press brings the whole layout back, a touch
-        // takes it away again, with or without a pad the system reports.
+    @Test fun touchScreenComesBackToTheControllerLookOnAPadPress() {
+        // A detected pad alone shows nothing (the false-pad case); a press brings the ring and the hints back, a
+        // touch takes them away again, with or without a pad the system reports (issue 873).
         for (connected in listOf(false, true)) {
-            assertEquals(false, padLayoutOn(ControllerLayoutPref.NEVER, connected, lastPad = false))
-            assertEquals(true, padLayoutOn(ControllerLayoutPref.NEVER, connected, lastPad = true))
+            assertEquals(false, gamepadLook(ControllerLayoutPref.NEVER, connected, lastPad = false))
             assertEquals(true, gamepadLook(ControllerLayoutPref.NEVER, connected, lastPad = true))
         }
     }
