@@ -39,7 +39,6 @@
     <string name="game_screenshot">Screenshot</string>
     <string name="game_mute">Mute</string>
     <string name="game_unmute">Unmute</string>
-    <string name="game_restart">Restart game</string>
     <string name="game_restart_confirm_title">Restart game?</string>
     <string name="game_restart_confirm_body">Your progress since the last save will be lost.</string>
     <string name="game_retroarch_menu">RetroArch</string>

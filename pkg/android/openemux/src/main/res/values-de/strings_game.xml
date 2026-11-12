@@ -39,7 +39,6 @@
     <string name="game_screenshot">Bildschirmfoto</string>
     <string name="game_mute">Ton aus</string>
     <string name="game_unmute">Ton an</string>
-    <string name="game_restart">Spiel neu starten</string>
     <string name="game_restart_confirm_title">Spiel neu starten?</string>
     <string name="game_restart_confirm_body">Der Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="game_retroarch_menu">RetroArch</string>

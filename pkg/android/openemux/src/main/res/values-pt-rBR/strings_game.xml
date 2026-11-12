@@ -39,7 +39,6 @@
     <string name="game_screenshot">Captura</string>
     <string name="game_mute">Silenciar</string>
     <string name="game_unmute">Ativar som</string>
-    <string name="game_restart">Reiniciar jogo</string>
     <string name="game_restart_confirm_title">Reiniciar jogo?</string>
     <string name="game_restart_confirm_body">O progresso desde o último salvamento será perdido.</string>
     <string name="game_retroarch_menu">RetroArch</string>

@@ -31,7 +31,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +125,6 @@ import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.MarginFocusScroll
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
-import com.openemux.mobile.ui.ListRow
 import com.openemux.mobile.ui.LocalWindowLayout
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.OpenEmuxTheme
@@ -567,7 +565,6 @@ fun PauseSheet(
                         Page.Main -> MainPage(
                             landscape = landscape,
                             tabletop = tabletop,
-                            quickRows = layout.quickRows,
                             tileColumns = tileColumns(layout),
                             onResume = onResume,
                             hardcore = session.hardcore,
@@ -740,10 +737,8 @@ private fun SheetIconButton(path: String, label: String, onClick: () -> Unit) {
 @Composable
 private fun MainPage(
     landscape: Boolean,
-    /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Restart in them. */
+    /** The bottom half of a half-open fold (DobFoldPausa): the grid, the tiles and Quit, nothing beside them. */
     tabletop: Boolean,
-    /** A phone, upright or on its side (issues 849, 855): Continue and Restart on top, Load beside Save, no Restart row in the list. */
-    quickRows: Boolean,
     /** The action tiles' columns: 4 on a phone upright, 5 elsewhere (issue 858). */
     tileColumns: Int,
     onResume: () -> Unit,
@@ -796,28 +791,6 @@ private fun MainPage(
                 }
         }
     }
-    // Save and Load, "See all" and the slot slider under them: the same block in every form (issue 867). [saveFocus] is
-    // where the pad starts on the panel and the fold, which have no Continue at the top.
-    val saveArea = @Composable { modifier: Modifier, saveFocus: Modifier ->
-        SaveLoadRow(
-            slot, slotInUse, usedSlots, modifier, saveFocus, onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore,
-            onSeeAll = onSeeAll, canSeeAll = !hardcore,
-        )
-    }
-    val firstFocus = @Composable { Modifier.restorableFocus("save", remember { mutableStateOf<String?>(null) }, initial = true) }
-    // Continue takes the pad's first focus there: A right after pausing resumes.
-    val resumeRow = @Composable { modifier: Modifier ->
-        Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BigButton(
-                stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
-                Modifier.weight(1.6f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
-            )
-            BigButton(
-                stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
-                iconYields = true,
-            )
-        }
-    }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
         val items = pauseTiles(nds = nds, skin = hasSkin, tabletop = tabletop, touch = touchControls != null)
@@ -849,70 +822,39 @@ private fun MainPage(
             }
         }
     }
-    if (tabletop) {
-        Column {
-            note()
-            val backToGame = @Composable { modifier: Modifier ->
-                BigButton(stringResource(R.string.game_back_to_game), Icons.Play, Oe.Raised, Oe.Text, modifier, onResume)
-            }
-            BoxWithConstraints(Modifier.padding(top = 4.dp).fillMaxWidth()) {
-                if (maxWidth >= TabletopSaveRowWidth) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        saveArea(Modifier.weight(1f), firstFocus())
-                        backToGame(Modifier.width(168.dp))
-                    }
-                } else {
-                    // A small fold has no room for Back to game beside Save and Load: it goes under the slider.
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        saveArea(Modifier.fillMaxWidth(), firstFocus())
-                        backToGame(Modifier.fillMaxWidth())
-                    }
-                }
-            }
-            tiles(Modifier.padding(top = 16.dp))
-            BigButton(
-                stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text,
-                Modifier.padding(top = 16.dp).fillMaxWidth().focusRequester(restartEntry), onReset,
-            )
-        }
-        return
-    }
+    // The essentials first (upright, all above the first stop's fold): the hardcore note goes under them.
+    // The top of the sheet in every form (issue 881): a 2-column grid, Continue | Restart over Save | Load, the four the
+    // same width and height, then "See all" and the slot slider (issue 867). Continue leads by its purple, not its width,
+    // and takes the pad's first focus: A right after pausing resumes.
     val actions = @Composable { modifier: Modifier ->
         Column(modifier) {
-            if (quickRows) {
-                // The essentials first (upright, all above the first stop's fold): the note goes under them.
-                resumeRow(Modifier.padding(top = 16.dp).fillMaxWidth())
-                saveArea(Modifier.padding(top = 10.dp).fillMaxWidth(), Modifier)
-                note()
-            } else {
-                note()
-                saveArea(Modifier.padding(top = 16.dp).fillMaxWidth(), firstFocus())
+            Row(Modifier.padding(top = if (tabletop) 4.dp else 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GRID_GAP)) {
+                BigButton(
+                    stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
+                    Modifier.weight(1f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
+                    iconYields = true,
+                )
+                BigButton(
+                    stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
+                    iconYields = true,
+                )
             }
+            SaveLoadRow(
+                slot, slotInUse, usedSlots, Modifier.padding(top = GRID_GAP).fillMaxWidth(), onSlot, onSave, onLoadSlot,
+                canLoad = slotInUse && !hardcore, onSeeAll = onSeeAll, canSeeAll = !hardcore,
+            )
+            note()
             // On its side the tiles go to the right half, beside these rows (issue 862).
-            if (!landscape) tiles(Modifier.padding(top = 18.dp))
-        }
-    }
-    val rest = @Composable { modifier: Modifier ->
-        Column(modifier) {
-            if (landscape) tiles(Modifier.padding(top = 16.dp))
-            // On a phone Restart sits beside Continue; the tablet panel keeps its row.
-            if (!quickRows) {
-                Column(Modifier.padding(top = 20.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
-                    Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), onClick = onReset) }
-                }
-            }
+            if (!landscape) tiles(Modifier.padding(top = if (tabletop) 16.dp else 18.dp))
         }
     }
     if (landscape) {
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             actions(Modifier.weight(1f))
-            rest(Modifier.weight(1f))
+            tiles(Modifier.weight(1f).padding(top = 16.dp))
         }
     } else {
-        Column {
-            actions(Modifier)
-            rest(Modifier)
-        }
+        actions(Modifier)
     }
 }
 
@@ -925,9 +867,6 @@ private fun SheetButton(text: String, bg: Color, fg: Color, modifier: Modifier, 
         contentAlignment = Alignment.Center,
     ) { Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp)) }
 }
-
-/** Below this width, a tabletop's bottom half puts Back to game under the save block instead of beside it. */
-private val TabletopSaveRowWidth = 800.dp
 
 /**
  * The top half of a half-open fold, over the dimmed game: the "Paused" chip and the game's card. A tap anywhere
@@ -990,7 +929,7 @@ private fun PausedArea(states: List<PauseSession.State>, modifier: Modifier, onP
 @Composable
 private fun BigButton(
     text: String, icon: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit,
-    enabled: Boolean = true, showIcon: Boolean = true,
+    enabled: Boolean = true,
     /** The icon steps aside when the label would be cut, so the whole word shows (Tamil's Restart in landscape, issue 855). */
     iconYields: Boolean = false,
 ) {
@@ -1002,7 +941,7 @@ private fun BigButton(
             .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showIcon && iconFits) {
+        if (iconFits) {
             Icon(icon, fg, 22.dp, filled = icon == Icons.SaveState || icon == Icons.LoadState)
             Spacer(Modifier.width(8.dp))
         }
@@ -1013,45 +952,41 @@ private fun BigButton(
     }
 }
 
-/** Below this width the phone's save row leaves the icons out of Save and Load, so neither label is cut. */
-private val SaveLoadIconsWidth = 360.dp
+/** The pause grid's gap, between its two columns and its two rows alike (issue 881). */
+private val GRID_GAP = 10.dp
 
 /**
- * The save block (issues 849, 867): "Save" and Load beside it, which loads the slot shown; under Load, "See all", which
- * opens the save-states page; under both, the slot slider. Save shows the slot and whether it is in use; Load is off for
- * an empty slot ([canLoad]). [saveFocus] goes on Save.
+ * The save block (issues 849, 867, 881): "Save" and Load beside it, the grid's second row, which loads the slot shown;
+ * under them "See all", which opens the save-states page, and the slot slider. Save shows the slot and whether it is in
+ * use; Load is off for an empty slot ([canLoad]). Both always carry the icons of the strip's save and load keys
+ * (`OpenEmuxSkinRenderer`): a narrow phone shortens the text, never the icon.
  */
 @Composable
 private fun SaveLoadRow(
-    slot: Int, inUse: Boolean, used: Set<Int>, modifier: Modifier, saveFocus: Modifier, onPick: (Int) -> Unit, onSave: () -> Unit,
+    slot: Int, inUse: Boolean, used: Set<Int>, modifier: Modifier, onPick: (Int) -> Unit, onSave: () -> Unit,
     onLoad: () -> Unit, canLoad: Boolean, onSeeAll: () -> Unit, canSeeAll: Boolean,
 ) {
-    BoxWithConstraints(modifier) {
-        val icons = maxWidth >= SaveLoadIconsWidth
-        Column {
-            Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.weight(1.25f).fillMaxHeight().then(saveFocus).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Oe.Raised).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
-                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (icons) {
-                        Icon(Icons.SaveState, Oe.Text, 20.dp, filled = true)
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    Column(horizontalAlignment = if (icons) Alignment.Start else Alignment.CenterHorizontally) {
-                        Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
-                            style = Type.Caption.copy(color = if (inUse) Oe.AccentOnSoft else Oe.Muted, fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(GRID_GAP), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.weight(1f).fillMaxHeight().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
+                    .background(Oe.Raised).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.SaveState, Oe.Text, 20.dp, filled = true)
+                Spacer(Modifier.width(6.dp))
+                Column(Modifier.weight(1f, fill = false)) {
+                    Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        stringResource(if (inUse) R.string.game_slot_used else R.string.game_slot_empty, slot),
+                        style = Type.Caption.copy(color = if (inUse) Oe.AccentOnSoft else Oe.Muted, fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = canLoad, showIcon = icons)
             }
-            SlotStrip(slot, used, Modifier.padding(top = 2.dp).fillMaxWidth(), onPick, onSeeAll, canSeeAll)
+            BigButton(stringResource(R.string.game_load), Icons.LoadState, Oe.Raised, Oe.Text, Modifier.weight(1f), onLoad, enabled = canLoad)
         }
+        SlotStrip(slot, used, Modifier.padding(top = 2.dp).fillMaxWidth(), onPick, onSeeAll, canSeeAll)
     }
 }
 

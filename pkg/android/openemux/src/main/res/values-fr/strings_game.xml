@@ -39,7 +39,6 @@
     <string name="game_screenshot">Capture d’écran</string>
     <string name="game_mute">Couper le son</string>
     <string name="game_unmute">Activer le son</string>
-    <string name="game_restart">Redémarrer le jeu</string>
     <string name="game_restart_confirm_title">Redémarrer le jeu ?</string>
     <string name="game_restart_confirm_body">Votre progression depuis la dernière sauvegarde sera perdue.</string>
     <string name="game_retroarch_menu">RetroArch</string>

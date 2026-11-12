@@ -1,8 +1,6 @@
 package com.openemux.mobile.game
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PauseLayoutTest {
@@ -20,12 +18,5 @@ class PauseLayoutTest {
     @Test fun aPhoneIsLandscapeOnItsSideAndPhoneUpright() {
         assertEquals(PauseLayout.LANDSCAPE, pauseLayout(tablet = false, tabletop = false, wide = true))
         assertEquals(PauseLayout.PHONE, pauseLayout(tablet = false, tabletop = false, wide = false))
-    }
-
-    @Test fun onlyAPhoneUprightOrOnItsSideGetsTheQuickRows() {
-        assertTrue(PauseLayout.PHONE.quickRows)
-        assertTrue(PauseLayout.LANDSCAPE.quickRows)
-        assertFalse(PauseLayout.PANEL.quickRows)
-        assertFalse(PauseLayout.TABLETOP.quickRows)
     }
 }
