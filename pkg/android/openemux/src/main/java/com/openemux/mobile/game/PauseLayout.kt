@@ -9,10 +9,7 @@ enum class PauseLayout {
     /** A tablet: a side panel on the right, the game still showing on the left. */
     PANEL,
     /** A half-open fold: the menu on the bottom half, the game on the top one. */
-    TABLETOP;
-
-    /** Continue beside Restart and Load beside Save at the top, and no Restart row in the list (issues 849, 855). */
-    val quickRows get() = this == PHONE || this == LANDSCAPE
+    TABLETOP,
 }
 
 /** The pause sheet's layout: tabletop wins over a tablet, which wins over a wide (landscape) window. */
