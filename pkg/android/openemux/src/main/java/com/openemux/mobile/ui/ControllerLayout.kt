@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 /**
  * Settings › Controllers › Interface mode: when the app shows the gamepad layout (the focus ring, the hint bar, the
  * larger targets). "auto" (Automatic) while a controller is connected, "always" (Controller) for handhelds with
- * built-in controls, "never" (Touch screen) for the touch layout, games included (issue 873).
+ * built-in controls, "never" (Touch screen) for the touch layout, games included, until a controller button is
+ * pressed (issue 873).
  */
 object ControllerLayoutPref {
     const val AUTO = "auto"
