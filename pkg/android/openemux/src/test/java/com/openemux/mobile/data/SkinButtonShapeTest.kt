@@ -306,6 +306,18 @@ class SkinButtonShapeTest {
         assertTrue(none.setForm(SkinForm.TABLET, true))
     }
 
+    @Test fun resetLayoutOnAFormSwitchedOnKeepsTheLaterOutline() {
+        val m = model()
+        m.one("l")
+        m.shape(triangleTR)
+        // Tablets made from the triangle, then L made a square everywhere.
+        assertTrue(m.setForm(SkinForm.TABLET, true))
+        m.shape(ComboOutline.SQUARE)
+        m.show(SkinForm.TABLET, SkinOrientation.PORTRAIT)
+        m.resetLayout()
+        for (id in m.rects.keys) assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(m.el("l", id)))
+    }
+
     // --- A skin saved while each layout kept its own outline ---
 
     private fun withOutline(e: SkinElement, o: ComboOutline) = ComboOutline.drawn(e, o).let { it.at(ComboOutline.reshape(e.rect, ComboOutline.of(e), o)) }

@@ -783,7 +783,7 @@ class SkinEditorModel(
     /**
      * The whole layout being edited back to how the skin has it, its buttons' and combos' outlines (issues 842, 891)
      * included. An outline is the control's, not one layout's: the other layouts take the outlines this one went back
-     * to, each control staying where it is there.
+     * to, each control staying where it is there; a layout switched on this session takes the others' instead.
      */
     fun resetLayout() {
         val id = layoutId ?: return
@@ -792,7 +792,14 @@ class SkinEditorModel(
         val reset = withLayout(id, saved, gone = current().keys - saved.keys)
         val look = reset.looks.getValue(id)
         val back = reset.copy(looks = reset.looks + (id to look.copy(shapes = base.look().shapes)))
-        history.push(outlined(back, back.rects.keys - id, outlinesOf(back, id)))
+        if (id in this.saved.layouts) {
+            history.push(outlined(back, back.rects.keys - id, outlinesOf(back, id)))
+            return
+        }
+        // A layout switched on this session has no outlines of the skin's: it holds the ones of the layout it was made
+        // from, at that time. It takes the ones the others have now, which a later Shape choice made.
+        val from = SkinLayoutId.entries.firstOrNull { it != id && it in back.rects }
+        history.push(from?.let { outlined(back, listOf(id), outlinesOf(back, it)) } ?: back)
     }
 
     /**
