@@ -95,7 +95,7 @@ class SkinRenderer(private val context: Context) {
      * Every page has its twins (OverlayName): the gamepad layout, with the app controls only, and each with the app
      * controls collapsed to the key that shows them again. A package skin gets the gamepad ones only, its art being
      * its author's; with [under] on NDS, [ndsLayouts] says the package drew one page per layout (ImportedSkinRenderer),
-     * and the gamepad pages follow them. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page.
+     * and the gamepad pages follow them. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page, and a package skin on its first page's gamepad twin.
      */
     fun render(
         console: Console, width: Int, height: Int, outDir: File, cutout: Int = 0,
@@ -194,7 +194,7 @@ class SkinRenderer(private val context: Context) {
             File(outDir, TABLETOP_FILE).writeText(props.toString())
         }
         val file = File(outDir, "skin.cfg")
-        file.writeText(base?.let { withOverlays(it, specs.size, cfg.toString()) } ?: "overlays = ${specs.size}\n$cfg")
+        file.writeText(base?.let { packageOpening(withOverlays(it, specs.size, cfg.toString()), flat, names, gamepad) } ?: "overlays = ${specs.size}\n$cfg")
         return file
     }
 

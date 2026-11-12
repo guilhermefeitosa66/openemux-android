@@ -36,7 +36,7 @@ object GameSkin {
      * [density] makes one tablet decision for both skins, from the window they are drawn
      * for (a package's iPad art, the drawn tablet shape); [first] is the overlay RetroArch opens on.
      * [fold], the one the window has now, adds the drawn tabletop overlays when it runs across the long side.
-     * [gamepad]: a gamepad is connected, the drawn skin opens on its gamepad layout.
+     * [gamepad]: the gamepad layout is wanted (a gamepad connected, or picked, issue 865): the skin opens on it.
      * [variant]: which of the app's packages the console plays with (its own colors, Dark or one of its official colors).
      * [custom]: the player's skin picked for the console ([SkinStore.ref]); null, or one no longer there, plays [variant].
      */
@@ -80,7 +80,7 @@ object GameSkin {
             val file = runCatching {
                 SkinRenderer(context).render(
                     console, size, outDir, pages, hardcore = hardcore, coreId = coreId, density = density,
-                    fold = fold, ndsTabletop = ndsTabletop, under = packaged,
+                    fold = fold, ndsTabletop = ndsTabletop, under = packaged, gamepad = gamepad,
                 )
             }.onFailure { e -> Log.e("ImportedSkin", "no gamepad or tabletop overlays", e) }.getOrDefault(packaged)
             return Drawn(file, true, pages)

@@ -851,6 +851,7 @@ class GameActivity : RetroActivityFuture() {
         val previous = overlay
         overlay = name
         val byApp = name == appSelected
+        if (BuildConfig.DEBUG) Log.d(TAG, "overlay $previous -> $name${if (byApp) " (app)" else ""}")
         if (byApp) appSelected = null
         if (TABLETOP !in name) flatOverlay = name
         // The overlay shown is not the one the posture asks for: turned back upright while half open (auto-rotate

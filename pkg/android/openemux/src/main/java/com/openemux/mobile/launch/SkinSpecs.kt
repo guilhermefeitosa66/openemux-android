@@ -3,6 +3,7 @@ package com.openemux.mobile.launch
 import com.openemux.mobile.data.NDS_LAYOUTS
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.ScreenLayout
+import com.openemux.mobile.game.available
 
 /** The tabletop overlay's name ("<name>@<layout>" on NDS): "portrait" in it keeps the engine's auto-rotate reading it as one. */
 const val TABLETOP = "portrait-tabletop"
@@ -154,6 +155,32 @@ private fun ndsTabletopSpecs(ndsTabletop: ScreenLayout?, rotate: String, tablet:
 fun overlayNames(cfg: String): List<String> =
     Regex("""^overlay(\d+)_name = "(.*)"$""", RegexOption.MULTILINE).findAll(cfg)
         .map { it.groupValues[1].toInt() to it.groupValues[2] }.sortedBy { it.first }.map { it.second }.toList()
+
+/**
+ * [cfg] with the overlays [a] and [b] trading places, every key of each moving with it: the engine opens a skin on its
+ * first overlay, so a package skin opens on its gamepad twin this way when a gamepad layout is wanted (issue 865).
+ */
+fun swapOverlays(cfg: String, a: Int, b: Int): String {
+    if (a == b) return cfg
+    return Regex("""^overlay(\d+)_""", RegexOption.MULTILINE).replace(cfg) { m ->
+        when (m.groupValues[1].toInt()) {
+            a -> "overlay${b}_"
+            b -> "overlay${a}_"
+            else -> m.value
+        }
+    }
+}
+
+/**
+ * A package skin's [cfg] (its own overlays [flat], then the app's: every one in [names]) opening on the gamepad twin of
+ * its first page when a [gamepad] layout is wanted, as the drawn skin does: switching to it once the game runs races
+ * the engine loading the skin (issue 865).
+ */
+fun packageOpening(cfg: String, flat: List<String>, names: List<String>, gamepad: Boolean): String {
+    val first = flat.firstOrNull()?.takeIf { gamepad } ?: return cfg
+    val twin = OverlayName.parse(first)?.let { available(it.withGamepad(true), names) } ?: return cfg
+    return swapOverlays(cfg, 0, names.indexOf(twin))
+}
 
 /** [cfg] with [added] more overlays, written in [body] from the index after its own. */
 fun withOverlays(cfg: String, added: Int, body: String): String {

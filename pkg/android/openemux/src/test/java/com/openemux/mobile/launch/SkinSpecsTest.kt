@@ -89,6 +89,27 @@ class SkinSpecsTest {
         assertEquals(emptyList<String>(), overlayNames(""))
     }
 
+    @Test fun swappingTwoOverlaysMovesEveryKeyOfEach() {
+        val cfg = "overlays = 3\noverlay0_name = \"landscape\"\noverlay0_desc0 = \"a\"\noverlay1_name = \"portrait\"\n" +
+            "overlay2_name = \"pad-landscape\"\noverlay2_desc0 = \"b\"\n"
+        val swapped = swapOverlays(cfg, 0, 2)
+        assertEquals(listOf("pad-landscape", "portrait", "landscape"), overlayNames(swapped))
+        assertTrue("overlay0_desc0 = \"b\"" in swapped && "overlay2_desc0 = \"a\"" in swapped)
+        assertEquals(cfg, swapOverlays(cfg, 1, 1))
+    }
+
+    @Test fun aPackageSkinOpensOnItsFirstPagesGamepadTwinWhenOneIsWanted() {
+        val flat = listOf("landscape", "portrait")
+        val names = flat + listOf("pad-portrait", "pad-landscape", "min-pad-landscape")
+        val cfg = names.mapIndexed { i, n -> "overlay${i}_name = \"$n\"" }.joinToString("\n", "overlays = 5\n", "\n")
+        assertEquals("pad-landscape", overlayNames(packageOpening(cfg, flat, names, gamepad = true)).first())
+        // No gamepad wanted, no twin drawn (the app's pages failed), or no page of the package's own: as it was.
+        assertEquals(cfg, packageOpening(cfg, flat, names, gamepad = false))
+        assertEquals(cfg, packageOpening(cfg, flat, flat, gamepad = true))
+        assertEquals(cfg, packageOpening(cfg, emptyList(), names, gamepad = true))
+        assertEquals(cfg, packageOpening(cfg, listOf("skin-page"), names, gamepad = true))
+    }
+
     @Test fun withOverlaysCountsTheAddedOnesAndAppendsThem() {
         val cfg = "overlays = 2\noverlay0_name = \"portrait\"\noverlay1_name = \"landscape\"\n\n"
         val body = "overlay2_name = \"$TABLETOP\"\n"
