@@ -14,6 +14,15 @@ class ControllerLayoutTest {
         }
     }
 
+    @Test fun touchScreenComesBackToTheControllerLookOnAPadPress() {
+        // A detected pad alone shows nothing (the false-pad case); a press brings the ring and the hints back, a
+        // touch takes them away again, with or without a pad the system reports (issue 873).
+        for (connected in listOf(false, true)) {
+            assertEquals(false, gamepadLook(ControllerLayoutPref.NEVER, connected, lastPad = false))
+            assertEquals(true, gamepadLook(ControllerLayoutPref.NEVER, connected, lastPad = true))
+        }
+    }
+
     @Test fun theLookIsOnInTheGamepadLayoutOrAfterAPress() {
         for (pref in prefs) for (connected in listOf(false, true)) for (lastPad in listOf(false, true)) {
             val expected = lastPad || pref == ControllerLayoutPref.ALWAYS || (pref == ControllerLayoutPref.AUTO && connected)
@@ -24,7 +33,7 @@ class ControllerLayoutTest {
     @Test fun aTouchInTheGamepadLayoutKeepsTheLook() {
         // A touch clears the last input, the look stays: a controller is connected.
         assertEquals(true, gamepadLook(ControllerLayoutPref.AUTO, connected = true, lastPad = false))
-        // Never keeps today's behaviour: the touch hides it.
+        // Touch screen: the touch hides it.
         assertEquals(false, gamepadLook(ControllerLayoutPref.NEVER, connected = true, lastPad = false))
     }
 

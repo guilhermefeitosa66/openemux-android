@@ -234,7 +234,7 @@
     <string name="settings_interface_mode_auto">自动</string>
     <string name="settings_interface_mode_auto_desc">连接手柄时为手柄模式，否则为触屏模式。</string>
     <string name="settings_interface_mode_touch">触屏</string>
-    <string name="settings_interface_mode_touch_desc">始终触屏：在按下手柄按键之前不显示焦点框和按键提示，游戏以屏幕虚拟按键启动。如果应用误认为已连接手柄，请选择此项。</string>
+    <string name="settings_interface_mode_touch_desc">触屏操作，如同没有连接手柄。按下手柄按键会切换到手柄操作，直到再次触摸屏幕。游戏以屏幕虚拟按键启动。如果应用误认为已连接手柄，请选择此项。</string>
     <string name="settings_interface_mode_controller">手柄模式</string>
     <string name="settings_interface_mode_controller_desc">始终为手柄模式，即使尚未检测到手柄。适用于带内置按键的掌机。</string>
     <string name="settings_button_labels">按键标注</string>

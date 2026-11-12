@@ -234,7 +234,7 @@
     <string name="settings_interface_mode_auto">自動</string>
     <string name="settings_interface_mode_auto_desc">コントローラーが接続されている間はコントローラーモード、それ以外はタッチモード。</string>
     <string name="settings_interface_mode_touch">タッチスクリーン</string>
-    <string name="settings_interface_mode_touch_desc">常にタッチ：コントローラーのボタンが押されるまでフォーカス枠やボタンガイドは表示されず、ゲームは画面上のコントロールで始まります。コントローラーが接続されていないのに接続されているとアプリが判断する場合はこちらを選んでください。</string>
+    <string name="settings_interface_mode_touch_desc">タッチ操作。コントローラーが接続されていないものとして動作します。コントローラーのボタンを押すと、もう一度画面に触れるまでコントローラー操作に切り替わります。ゲームは画面上のコントロールで始まります。コントローラーが接続されていないのに接続されているとアプリが判断する場合はこちらを選んでください。</string>
     <string name="settings_interface_mode_controller">コントローラーモード</string>
     <string name="settings_interface_mode_controller_desc">コントローラーが検出される前でも、常にコントローラーモード。コントロール内蔵の携帯機向け。</string>
     <string name="settings_button_labels">ボタン表記</string>

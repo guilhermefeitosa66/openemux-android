@@ -258,7 +258,7 @@
     <string name="settings_interface_mode_auto">Automático</string>
     <string name="settings_interface_mode_auto_desc">Modo mando mientras haya un mando conectado; modo táctil en los demás casos.</string>
     <string name="settings_interface_mode_touch">Pantalla táctil</string>
-    <string name="settings_interface_mode_touch_desc">Siempre táctil: sin anillo de foco ni ayudas de botones hasta pulsar un botón del mando, y los juegos se abren con los controles en pantalla. Elígelo si la app cree que hay un mando conectado y no lo hay.</string>
+    <string name="settings_interface_mode_touch_desc">Navegación táctil, como si no hubiera ningún mando conectado. Pulsar un botón del mando cambia a la navegación con mando hasta que vuelvas a tocar la pantalla. Los juegos se abren con los controles en pantalla. Elígelo si la app cree que hay un mando conectado y no lo hay.</string>
     <string name="settings_interface_mode_controller">Mando</string>
     <string name="settings_interface_mode_controller_desc">Siempre el modo mando, aunque todavía no se detecte ningún mando. Para consolas portátiles con controles integrados.</string>
     <string name="settings_button_labels">Etiquetas de botones</string>

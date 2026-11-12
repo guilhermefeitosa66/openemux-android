@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 /**
  * Settings › Controllers › Interface mode: when the app shows the gamepad layout (the focus ring, the hint bar, the
  * larger targets). "auto" (Automatic) while a controller is connected, "always" (Controller) for handhelds with
- * built-in controls, "never" (Touch screen) for the touch layout, games included (issue 873).
+ * built-in controls, "never" (Touch screen) for the touch layout, games included, until a controller button is
+ * pressed (issue 873).
  */
 object ControllerLayoutPref {
     const val AUTO = "auto"
@@ -50,7 +51,9 @@ fun padLayoutOn(pref: String, connected: Boolean): Boolean = when (pref) {
 
 /**
  * Whether the gamepad look shows: always in the gamepad layout, and otherwise after a pad press until the next
- * touch ([lastPad]), as the touch layout always did.
+ * touch ([lastPad]), as the touch layout always did. Under Touch screen that is the whole point: a phone that reports
+ * a pad it does not have never shows it, and any controller button, however oddly the pad is reported, brings the
+ * focus ring and the hints back at once, until the next touch (issue 873).
  */
 fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = padLayoutOn(pref, connected) || lastPad
 
