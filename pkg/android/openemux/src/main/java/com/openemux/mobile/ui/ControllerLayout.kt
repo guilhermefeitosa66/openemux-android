@@ -60,4 +60,10 @@ fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = p
  * a phone that reports a pad it does not have (issue 873).
  */
 fun gamepadSkin(pref: String, detected: Boolean, forced: Boolean): Boolean =
-    pref != ControllerLayoutPref.NEVER && detected && !forced
+    touchControlsTile(pref, detected) && !forced
+
+/**
+ * Whether the pause sheet offers the Touch controls tile: a pad is [detected], unless the interface mode [pref] is
+ * Touch screen, which keeps the touch controls whatever is detected and has no gamepad layout to switch from (issue 873).
+ */
+fun touchControlsTile(pref: String, detected: Boolean): Boolean = pref != ControllerLayoutPref.NEVER && detected

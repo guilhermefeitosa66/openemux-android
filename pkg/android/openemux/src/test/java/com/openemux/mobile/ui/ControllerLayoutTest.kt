@@ -79,4 +79,12 @@ class ControllerLayoutTest {
             assertEquals(false, gamepadSkin(pref, detected = false, forced = false))
         }
     }
+
+    @Test fun touchScreenOffersNoTouchControlsTile() {
+        for (detected in listOf(true, false)) assertEquals(false, touchControlsTile(ControllerLayoutPref.NEVER, detected))
+        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) {
+            assertEquals(true, touchControlsTile(pref, detected = true))
+            assertEquals(false, touchControlsTile(pref, detected = false))
+        }
+    }
 }

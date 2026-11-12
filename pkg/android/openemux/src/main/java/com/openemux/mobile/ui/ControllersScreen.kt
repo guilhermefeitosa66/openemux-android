@@ -79,8 +79,7 @@ fun ControllersScreen(embedded: Boolean = false) {
                     )
                 }
             }
-            Spacer(Modifier.height(28.dp))
-            Spacer(Modifier.height(hintBarInset))
+            Spacer(Modifier.height(28.dp + hintBarInset))
         }
     }
 }
