@@ -139,7 +139,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1354,8 +1353,9 @@ private fun SelectionBar(count: Int, allSelected: Boolean, onClose: () -> Unit, 
 private fun GroupGrid(roms: List<Rom>, spec: GridSpec, zoomed: ZoomGrid?, zoomColumns: Int, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
     val columns = if (zoomed != null) zoomColumns else gridColumns(maxWidth.value, spec.min, spec.gap, spec.floor)
     val gap = (zoomed?.gapDp ?: spec.gap).dp
-    // Columns of one width, so equal-shaped tiles are equally tall in each and the rows stay level.
-    val cell = ((maxWidth - gap * (columns - 1)) / columns).coerceAtLeast(0.dp)
+    // Columns of one width in whole pixels (the grid's own lanes), so equal-shaped tiles are equally tall
+    // in each and the rows stay level: widths in dp round per column and can overrun the row by a pixel.
+    val cell = with(LocalDensity.current) { evenCellSizes(constraints.maxWidth, gap.roundToPx(), columns)[0].toDp() }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
         repeat(columns) { c ->
             Column(Modifier.width(cell), verticalArrangement = Arrangement.spacedBy((zoomed?.rowGapDp ?: 18f).dp)) {

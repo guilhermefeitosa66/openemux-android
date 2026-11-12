@@ -97,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.DEFAULT_COVER_ASPECT
 import com.openemux.mobile.data.coverAspect
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.launch.CartArt
@@ -789,7 +790,7 @@ fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = n
     var measured by remember(url) { mutableStateOf(boxAspects[url]) }
     var loaded by remember(url) { mutableStateOf(false) }
     val shape = Modifier.let { if (maxHeight != null) it.height(maxHeight) else it.fillMaxWidth() }
-        .aspectRatio(aspect ?: measured ?: 0.72f, matchHeightConstraintsFirst = maxHeight != null)
+        .aspectRatio(aspect ?: measured ?: DEFAULT_COVER_ASPECT, matchHeightConstraintsFirst = maxHeight != null)
     Box(modifier.then(shape).background(Oe.Surface), contentAlignment = Alignment.Center) {
         if (url != null) {
             AsyncImage(
@@ -804,8 +805,8 @@ fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = n
                 },
             )
         }
-        // The title stands in until the art shows: measured once for its own shape, loaded for a fixed one.
-        if (url == null || (if (aspect != null) !loaded && measured == null else measured == null)) {
+        // The title stands in until the art shows (a shape measured before counts as shown).
+        if (url == null || (!loaded && measured == null)) {
             Text(
                 title, style = Type.Caption.copy(color = Oe.Muted, fontSize = if (maxHeight != null) 9.sp else 12.sp),
                 textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(6.dp),
