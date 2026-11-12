@@ -138,7 +138,6 @@ import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
 import com.openemux.mobile.ui.stateTag
-import com.openemux.mobile.ui.text
 import com.openemux.mobile.ui.Tag
 import com.openemux.mobile.ui.Type
 import com.openemux.mobile.ui.holdGamepadFocus
@@ -332,7 +331,8 @@ fun PauseSheet(
         val statesFocus = remember { mutableStateOf<String?>(null) }
         val statesGrid = remember(refresh) { LazyGridState() }
         val skinList = skins?.let { rememberGameSkinList(it) }
-        val skinName = skinValue(skinList)?.text()
+        // Whether the game has a skin in use, which brings the skin tiles; its name is not shown on the sheet (issue 875).
+        val hasSkin = skinValue(skinList) != null
         val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
@@ -601,10 +601,10 @@ fun PauseSheet(
                                 )
                             },
                             onScreenshot = { command("SCREENSHOT", context.getString(R.string.game_toast_screenshot)) },
-                            screens = screens?.let { screenLayout(it.shown.value) },
+                            nds = screens != null,
                             onScreens = { page = Page.Screens },
                             onShader = { page = Page.Shader },
-                            skinName = skinName,
+                            hasSkin = hasSkin,
                             onSkin = { page = Page.Skin },
                             canEditSkin = skinList?.let { skinToEdit(it) != null } == true,
                             onEditSkin = { skins?.edit?.invoke() },
@@ -765,15 +765,15 @@ private fun MainPage(
     onSpeed: (Speed) -> Unit,
     onScreenshot: () -> Unit,
     onShader: () -> Unit,
-    /** The name of the skin in use; null: no skin rows. */
-    skinName: String?,
+    /** Whether a skin is in use; false: no skin tiles. */
+    hasSkin: Boolean,
     onSkin: () -> Unit,
     canEditSkin: Boolean,
     onEditSkin: () -> Unit,
     muted: Boolean,
     onAudio: () -> Unit,
-    /** NDS: the layout in use, which the Screens tile names; null for other consoles (no tile). */
-    screens: ScreenLayout?,
+    /** NDS, which has the Screens tile; its page marks the layout in use. */
+    nds: Boolean,
     onScreens: () -> Unit,
     onReset: () -> Unit,
     /** Takes the pad back to the Restart entry after a cancelled dialog. */
@@ -820,19 +820,19 @@ private fun MainPage(
     }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
-        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop, touch = touchControls != null)
+        val items = pauseTiles(nds = nds, skin = hasSkin, tabletop = tabletop, touch = touchControls != null)
         val tileView = @Composable { tile: PauseTile ->
             when (tile) {
                 PauseTile.FAST_FORWARD -> ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) }
                 PauseTile.SLOW_MOTION -> ActionTile(stringResource(R.string.game_slow_motion), Icons.SlowMotion, speed == Speed.SLOW, enabled = !hardcore) { onSpeed(Speed.SLOW) }
                 PauseTile.SCREENSHOT -> ActionTile(stringResource(R.string.game_screenshot), Icons.Camera, false, onClick = onScreenshot)
                 PauseTile.SHADER -> ActionTile(stringResource(R.string.game_shader), Icons.Shader, false, onClick = onShader)
-                PauseTile.SCREENS -> ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, detail = screens?.let { stringResource(it.label) }, onClick = onScreens)
+                PauseTile.SCREENS -> ActionTile(stringResource(R.string.game_screens), Icons.Screens, false, onClick = onScreens)
                 PauseTile.AUDIO -> MuteTile.of(muted).let { mute -> ActionTile(stringResource(mute.label), mute.icon, false, warn = mute.warn, onClick = onAudio) }
-                PauseTile.CHANGE_SKIN -> ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, detail = skinName, onClick = onSkin)
+                PauseTile.CHANGE_SKIN -> ActionTile(stringResource(R.string.game_change_skin), Icons.Skin, false, onClick = onSkin)
                 PauseTile.EDIT_SKIN -> ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin)
                 PauseTile.TOUCH_CONTROLS -> ActionTile(stringResource(R.string.game_touch_controls), Icons.TouchControls, touchControls == true, onClick = onTouchControls)
-                PauseTile.RETROARCH_MENU -> ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
+                PauseTile.RETROARCH_MENU -> ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, onClick = onRetroArchMenu)
                 // The muted tile's red (issue 861), always: an action that ends the game, never lit or unlit.
                 PauseTile.QUIT -> ActionTile(stringResource(R.string.game_quit), Icons.Quit, false, warn = true, onClick = onQuit)
             }
@@ -1148,7 +1148,7 @@ private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: Wi
     }
 
 @Composable
-private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, warn: Boolean = false, onClick: () -> Unit) {
+private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, warn: Boolean = false, onClick: () -> Unit) {
     // [warn]: the danger tone, for a state to notice rather than a feature that is on (the muted game, issue 861) and
     // for the action that ends the game (Quit, issue 875).
     val ring = when { warn -> Oe.Danger; on -> Oe.AccentBright; else -> null }
@@ -1163,18 +1163,8 @@ private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean
                 .let { if (ring != null) it.border(1.5.dp, ring, RoundedCornerShape(18.dp)) else it },
             contentAlignment = Alignment.Center,
         ) { Icon(icon, when { warn -> Oe.Danger; on -> Oe.AccentOnSoft; else -> Oe.Text }, 22.dp, filled = filled) }
+        // The name alone, never a second line under it (issue 875): every row of the grid is the same height.
         TileLabel(label)
-        // What the tile is set to now (the NDS layout), under its name: as narrow as the tile, two lines at most.
-        if (detail != null) {
-            Text(
-                detail,
-                style = Type.Caption.copy(color = Oe.Muted, fontSize = 10.sp, lineHeight = 12.sp, textAlign = TextAlign.Center),
-                maxLines = 2,
-                // A long skin name or translation ends in an ellipsis rather than cut off mid-word.
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 76.dp),
-            )
-        }
     }
 }
 

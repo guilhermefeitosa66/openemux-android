@@ -42,9 +42,8 @@
     <string name="game_restart">Restart game</string>
     <string name="game_restart_confirm_title">Restart game?</string>
     <string name="game_restart_confirm_body">Your progress since the last save will be lost.</string>
-    <string name="game_retroarch_menu">RetroArch menu</string>
+    <string name="game_retroarch_menu">RetroArch</string>
     <string name="game_touch_controls">Touch controls</string>
-    <string name="game_retroarch_menu_detail">This session only</string>
     <string name="game_quit">Quit</string>
     <string name="game_no_states">No save states yet.</string>
     <string name="game_state_auto">AUTO</string>
