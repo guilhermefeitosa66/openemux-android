@@ -138,7 +138,6 @@ import com.openemux.mobile.ui.readSkinList
 import com.openemux.mobile.ui.skinValue
 import com.openemux.mobile.ui.stateDeleteBody
 import com.openemux.mobile.ui.stateTag
-import com.openemux.mobile.ui.text
 import com.openemux.mobile.ui.Tag
 import com.openemux.mobile.ui.Type
 import com.openemux.mobile.ui.holdGamepadFocus
@@ -332,7 +331,8 @@ fun PauseSheet(
         val statesFocus = remember { mutableStateOf<String?>(null) }
         val statesGrid = remember(refresh) { LazyGridState() }
         val skinList = skins?.let { rememberGameSkinList(it) }
-        val skinName = skinValue(skinList)?.text()
+        // Whether the game has a skin in use, which brings the skin tiles; its name is not shown on the sheet (issue 875).
+        val hasSkin = skinValue(skinList) != null
         val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
@@ -601,10 +601,10 @@ fun PauseSheet(
                                 )
                             },
                             onScreenshot = { command("SCREENSHOT", context.getString(R.string.game_toast_screenshot)) },
-                            screens = screens?.let { screenLayout(it.shown.value) },
+                            nds = screens != null,
                             onScreens = { page = Page.Screens },
                             onShader = { page = Page.Shader },
-                            skinName = skinName,
+                            hasSkin = hasSkin,
                             onSkin = { page = Page.Skin },
                             canEditSkin = skinList?.let { skinToEdit(it) != null } == true,
                             onEditSkin = { skins?.edit?.invoke() },
@@ -765,15 +765,15 @@ private fun MainPage(
     onSpeed: (Speed) -> Unit,
     onScreenshot: () -> Unit,
     onShader: () -> Unit,
-    /** The name of the skin in use; null: no skin tiles. */
-    skinName: String?,
+    /** Whether a skin is in use; false: no skin tiles. */
+    hasSkin: Boolean,
     onSkin: () -> Unit,
     canEditSkin: Boolean,
     onEditSkin: () -> Unit,
     muted: Boolean,
     onAudio: () -> Unit,
-    /** NDS: the layout in use (its page marks it); null for other consoles (no Screens tile). */
-    screens: ScreenLayout?,
+    /** NDS, which has the Screens tile; its page marks the layout in use. */
+    nds: Boolean,
     onScreens: () -> Unit,
     onReset: () -> Unit,
     /** Takes the pad back to the Restart entry after a cancelled dialog. */
@@ -820,7 +820,7 @@ private fun MainPage(
     }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
-        val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop, touch = touchControls != null)
+        val items = pauseTiles(nds = nds, skin = hasSkin, tabletop = tabletop, touch = touchControls != null)
         val tileView = @Composable { tile: PauseTile ->
             when (tile) {
                 PauseTile.FAST_FORWARD -> ActionTile(stringResource(R.string.game_fast_forward), Icons.FastForward, speed == Speed.FAST, filled = true, enabled = !hardcore) { onSpeed(Speed.FAST) }
