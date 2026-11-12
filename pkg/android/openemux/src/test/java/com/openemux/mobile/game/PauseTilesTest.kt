@@ -43,7 +43,7 @@ class PauseTilesTest {
         )
     }
 
-    @Test fun aDetectedGamepadAddsTouchControlsBeforeTheRetroArchMenu() {
+    @Test fun aSkinWithAGamepadLayoutAddsTouchControlsBeforeTheRetroArchMenu() {
         assertEquals(
             listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, CHANGE_SKIN, EDIT_SKIN, TOUCH_CONTROLS, RETROARCH_MENU, QUIT),
             pauseTiles(nds = false, skin = true, tabletop = false, touch = true),

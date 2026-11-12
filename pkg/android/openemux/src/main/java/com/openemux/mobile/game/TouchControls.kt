@@ -4,11 +4,12 @@ import com.openemux.mobile.launch.OverlayName
 import java.io.File
 
 /**
- * The touch controls shown over a detected gamepad (issue 865): a phone may report a built-in device as a joystick, and
- * the gamepad layout leaves it with no on-screen pad. The player brings it back with the gamepad layout's key and turns
- * it off from the pause sheet. The choice is kept per controller: by the descriptors of the devices counted as gamepads
- * when it was made, so the false pad needs no tap on every launch, while a real controller plugged in later still gets
- * the gamepad layout.
+ * The touch controls turned on or off by hand (issue 865). A controller connected shows the gamepad layout and one gone
+ * brings the on-screen controls back; the gamepad layout's key and the pause sheet's tile override that, with or
+ * without a controller, until the next connect or disconnect. A phone may report a built-in device as a joystick, so
+ * the touch controls brought back over a pad are kept per controller: by the descriptors of the devices counted as
+ * gamepads when it was done, so the false pad needs no tap on every launch, while a real controller plugged in later
+ * still gets the gamepad layout. With no pad, the gamepad layout picked is kept per console.
  */
 object TouchControls {
     /** The pads the debug broadcast says are connected, which have no device of their own. */
@@ -27,6 +28,12 @@ object TouchControls {
     fun set(stored: Set<String>, pads: Set<String>, on: Boolean): Set<String> = if (on) stored + pads else stored - pads
 
     /**
+     * Whether the skin has a gamepad page to turn the touch controls off to: every page has one, unless drawing a
+     * package skin's failed. Without one the tile is not offered, so it never leaves the game with no controls.
+     */
+    fun offered(overlays: Collection<String>): Boolean = overlays.any { OverlayName.parse(it)?.gamepad == true }
+
+    /**
      * Whether the overlay going from [previous] to [current] is the touch controls key: from an expanded gamepad page to
      * a touch page of the same orientation while the app still [wantGamepad]. The app itself only switches to a touch
      * page once it no longer wants the gamepad, and the engine's auto-rotate changes the orientation.
@@ -40,16 +47,17 @@ object TouchControls {
 }
 
 /**
- * Where [TouchControls]' choice lives: a file of descriptors, one per line, read afresh each time. The library and the
+ * Where [TouchControls]' choice lives: a file of keys, one per line, read afresh each time. [of]: the descriptors the
+ * touch controls were brought back for over a pad; [consoles]: the consoles the gamepad layout was picked for with none. The library and the
  * game run in two processes, so a cached preference would go stale in one of them; a write replaces the file whole.
  */
 class TouchControlsStore(private val file: File) {
     fun read(): Set<String> = runCatching { file.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-    fun write(descriptors: Set<String>) {
+    fun write(keys: Set<String>) {
         file.parentFile?.mkdirs()
         val temp = File(file.parentFile, "${file.name}.tmp")
-        temp.writeText(descriptors.sorted().joinToString("") { "$it\n" })
+        temp.writeText(keys.sorted().joinToString("") { "$it\n" })
         if (!temp.renameTo(file)) {
             file.writeText(temp.readText())
             temp.delete()
@@ -62,7 +70,12 @@ class TouchControlsStore(private val file: File) {
     /** Turns them [on] or off for the [pads] detected now. */
     fun set(pads: Set<String>, on: Boolean) = write(TouchControls.set(read(), pads, on))
 
+    /** Whether [key] is kept: for [consoles], whether the console plays on the gamepad layout with no pad. */
+    operator fun contains(key: String): Boolean = key in read()
+
     companion object {
         fun of(filesDir: File) = TouchControlsStore(File(filesDir, "touch_controls"))
+
+        fun consoles(filesDir: File) = TouchControlsStore(File(filesDir, "gamepad_layout_consoles"))
     }
 }

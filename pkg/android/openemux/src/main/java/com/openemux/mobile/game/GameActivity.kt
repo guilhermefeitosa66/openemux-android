@@ -46,7 +46,7 @@ import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.gamepadSkin
-import com.openemux.mobile.ui.touchControlsTile
+import com.openemux.mobile.ui.padsCount
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.PadLabels
@@ -168,17 +168,27 @@ class GameActivity : RetroActivityFuture() {
     /** Where each of the skin's overlays has the game end, from the window's top (GameViewport): the pause sheet opens under it. */
     @Volatile private var skinBottoms: Map<String, Float> = emptyMap()
     /**
-     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected, the player has not
-     * brought the touch controls back for it (issue 865) and the interface mode is not Touch screen (issue 873).
+     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected (the interface mode not
+     * Touch screen, issue 873) and the player has not brought the touch controls back for it, or none is and the player
+     * turned them off (issue 865).
      */
     private var wantGamepad = false
-    /** Whether a gamepad is detected, touch controls or not: the pause sheet's Touch controls tile shows then, unless the interface mode is Touch screen. */
+    /**
+     * The touch controls turned on (false) or off (true) with the key or the pause sheet's tile in this session (under
+     * ndsLayouts' lock): it wins until the detected pads change, when the automatic rule applies again (issue 865).
+     */
+    private var manualGamepad: Boolean? = null
+    /** The pads that count as last read (none with Touch screen), to tell a controller connected or gone; null before the first read. */
+    private var seenPads: Pair<Boolean, Set<String>>? = null
+    /** Whether a gamepad is detected, touch controls or not. */
     @Volatile private var padDetected = false
     /** The detected pads by TouchControls.keys, which the touch controls choice is kept for. */
     @Volatile private var padKeys: Set<String> = emptySet()
     /** The pads last written to the log, so each change is logged once. */
     private var loggedPads: Set<String>? = null
     private val touchStore by lazy { TouchControlsStore.of(filesDir) }
+    /** The consoles the player turned the touch controls off for with no pad (issue 865). */
+    private val consoleStore by lazy { TouchControlsStore.consoles(filesDir) }
     /** Debug builds: a gamepad said to be connected or not (DEBUG_GAMEPAD), over what the devices say (main thread). */
     private var gamepadOverride: Boolean? = null
     /** Debug builds: the pads the override says are connected (DEBUG_GAMEPAD's "pads"), to stand for a second controller. */
@@ -204,7 +214,7 @@ class GameActivity : RetroActivityFuture() {
         // The interface mode decides with the pads whether the gamepad skin shows (issue 873).
         ControllerLayoutPref.load(this)
         readPads()
-        wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, touchStore.forced(padKeys))
+        wantGamepad = skinRule()
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -462,39 +472,82 @@ class GameActivity : RetroActivityFuture() {
 
     /** A gamepad connected or gone (main thread): the skin switches to its gamepad layout or back; the core keeps running. */
     private fun followGamepad() {
-        readPads()
+        val changed = readPads()
         // This process has no MainActivity to follow the pads for the pause sheet's gamepad layout.
         InputMode.padConnected = padDetected
-        val forced = touchStore.forced(padKeys)
+        // A controller connected or gone: the touch controls turned on or off by hand give way to the automatic rule,
+        // the console's pick of the gamepad layout with no pad included (issue 865).
+        if (changed) forgetConsolePick()
+        val rule = skinRule()
         synchronized(ndsLayouts) {
-            wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, forced)
+            if (changed) manualGamepad = null
+            wantGamepad = manualGamepad ?: rule
             switchGamepad()
         }
+    }
+
+    /**
+     * Whether the skin shows its gamepad layout by what is kept (issue 865): the pads detected, unless the touch controls
+     * were brought back for them; with none, the console's pick.
+     */
+    private fun skinRule(): Boolean {
+        val pref = ControllerLayoutPref.value
+        // Only the store the rule reads is read: this runs on the main thread on every input device event.
+        val counts = padsCount(pref, padDetected)
+        val console = intent.getStringExtra(GameExtras.CONSOLE)
+        val picked = !counts && console != null && runCatching { console in consoleStore }.getOrDefault(false)
+        return gamepadSkin(pref, padDetected, counts && touchStore.forced(padKeys), picked)
+    }
+
+    /** The console's pick of the gamepad layout with no pad, forgotten once a controller connects or goes. */
+    private fun forgetConsolePick() {
+        val console = intent.getStringExtra(GameExtras.CONSOLE) ?: return
+        runCatching { if (console in consoleStore) consoleStore.set(setOf(console), on = false) }
+            .onFailure { Log.w(TAG, "Gamepad layout pick not forgotten", it) }
+    }
+
+    /**
+     * Keeps the touch controls turned [on] or off by hand: for the pads detected now, or, with none (or the interface
+     * mode Touch screen), for the console, so the next launch opens the same way (issue 865).
+     */
+    private fun keepTouchControls(on: Boolean) {
+        runCatching {
+            if (padsCount(ControllerLayoutPref.value, padDetected)) touchStore.set(padKeys, on)
+            else intent.getStringExtra(GameExtras.CONSOLE)?.let { consoleStore.set(setOf(it), on = !on) }
+        }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
     }
 
     /**
      * The pads detected now, into [padDetected] and [padKeys]: the debug override's, else the devices'. Each device
      * counted as a gamepad is logged when the set changes, so a report names what fooled the detection (issue 865).
      */
-    private fun readPads() {
+    private fun readPads(): Boolean {
         val override = gamepadOverride
         if (override != null) {
             padDetected = override
             padKeys = if (override) debugPads ?: setOf(TouchControls.DEBUG_PAD) else emptySet()
-            return
+        } else {
+            val pads = Gamepads.pads(Gamepads.devices())
+            padDetected = pads.isNotEmpty()
+            padKeys = TouchControls.keys(pads)
+            if (padKeys != loggedPads) {
+                loggedPads = padKeys
+                pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
+            }
         }
-        val pads = Gamepads.pads(Gamepads.devices())
-        padDetected = pads.isNotEmpty()
-        padKeys = TouchControls.keys(pads)
-        if (padKeys != loggedPads) {
-            loggedPads = padKeys
-            pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
-        }
+        // With the interface mode Touch screen the pads do not count (issue 873): plugging one in is no change, and
+        // neither forgets the console's pick nor the choice made by hand.
+        val counts = padsCount(ControllerLayoutPref.value, padDetected)
+        val now = counts to (if (counts) padKeys else emptySet())
+        val before = seenPads
+        seenPads = now
+        return before != null && before != now
     }
 
-    /** The pause sheet's Touch controls tile: kept for the pads detected now, and the skin follows at once. */
+    /** The pause sheet's Touch controls tile: kept, and the skin follows at once, with or without a controller. */
     private fun setTouchControls(on: Boolean) {
-        runCatching { touchStore.set(padKeys, on) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
+        keepTouchControls(on)
+        synchronized(ndsLayouts) { manualGamepad = !on }
         followGamepad()
     }
 
@@ -804,17 +857,19 @@ class GameActivity : RetroActivityFuture() {
         val previous = overlay
         overlay = name
         val byApp = name == appSelected
+        if (BuildConfig.DEBUG) Log.d(TAG, "overlay $previous -> $name${if (byApp) " (app)" else ""}")
         if (byApp) appSelected = null
         if (TABLETOP !in name) flatOverlay = name
         // The overlay shown is not the one the posture asks for: turned back upright while half open (auto-rotate
         // picked the flat overlay), or a switch that reached the engine after the posture changed again. The overlay
         // switched to sets the core; stepping this one to its saved layout would race the switch.
         if ((TABLETOP in name) != wantTabletop && switchPosture()) return
-        // The gamepad layout's touch controls key (issue 865): kept for these pads, and not switched back below.
+        // The gamepad layout's touch controls key (issue 865): kept, and not switched back below, with or without a pad.
         // The engine reports no overlay until the first switch: before it, the skin's first one is shown.
         if (!byApp && TouchControls.tapped(previous ?: skinOverlays.firstOrNull(), name, wantGamepad)) {
             wantGamepad = false
-            runCatching { touchStore.set(padKeys, true) }.onFailure { Log.w(TAG, "Touch controls not kept", it) }
+            manualGamepad = false
+            keepTouchControls(true)
             runOnUiThread { showTouchControlsToast() }
         }
         // The same for the gamepad: connected or gone while the overlay was switching.
@@ -1147,9 +1202,10 @@ class GameActivity : RetroActivityFuture() {
         // The sheet follows the app's theme; it may have changed since this process started.
         ThemePref.load(this)
         ControllerLayoutPref.load(this)
-        readPads()
-        InputMode.padConnected = padDetected
-        val touch = if (touchControlsTile(ControllerLayoutPref.value, padDetected)) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
+        // The pads now: one connected or gone while nothing listened applies the automatic rule first.
+        followGamepad()
+        // Offered with or without a controller, lit while the on-screen controls show (issue 865).
+        val touch = if (TouchControls.offered(skinOverlays)) TouchToggle(!synchronized(ndsLayouts) { wantGamepad }, ::setTouchControls) else null
         ButtonLabelsPref.load(this)
         // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.

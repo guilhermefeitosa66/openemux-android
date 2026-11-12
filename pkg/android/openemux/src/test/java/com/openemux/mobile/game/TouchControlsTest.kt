@@ -96,4 +96,25 @@ class TouchControlsTest {
         assertEquals(listOf(pad), Gamepads.pads(listOf(pad, keyboard)))
         assertTrue(pad.describe().contains("\"Sensor\"") && pad.describe().contains("descriptor=d1"))
     }
+
+    @Test fun theTileIsOfferedWhenTheSkinHasAGamepadPage() {
+        assertTrue(TouchControls.offered(listOf("landscape", "pad-landscape")))
+        assertTrue(TouchControls.offered(listOf("skin-page", "min-pad-portrait")))
+        // A package skin whose gamepad twins could not be drawn: turning the touch controls off would leave none.
+        assertFalse(TouchControls.offered(listOf("skin-page", "landscape", "portrait")))
+        assertFalse(TouchControls.offered(emptyList()))
+    }
+
+    @Test fun theConsolesPickIsKeptApartFromThePads() {
+        val files = File(tmp.root, "files")
+        val consoles = TouchControlsStore.consoles(files)
+        assertFalse("SFC" in consoles)
+        consoles.set(setOf("SFC"), on = true)
+        assertTrue("SFC" in TouchControlsStore.consoles(files))
+        assertFalse("GBA" in consoles)
+        // The pads' file is another one.
+        assertEquals(emptySet<String>(), TouchControlsStore.of(files).read())
+        consoles.set(setOf("SFC"), on = false)
+        assertFalse("SFC" in consoles)
+    }
 }

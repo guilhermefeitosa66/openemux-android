@@ -298,7 +298,7 @@ fun PauseSheet(
     onMute: (Boolean) -> Unit = {},
     /** Closes the sheet and opens RetroArch's own menu over the game, for advanced settings. */
     onRetroArchMenu: () -> Unit = {},
-    /** A gamepad detected: the Touch controls tile and its state (issue 865); null: no tile. */
+    /** The Touch controls tile and its state (issue 865); null: no tile (a skin with no gamepad layout). */
     touchControls: TouchToggle? = null,
     /**
      * Where the game's picture ends on screen, in pixels from its top (GameViewport); null: not known. A phone in
@@ -774,7 +774,7 @@ private fun MainPage(
     /** Takes the pad back to the Restart entry after a cancelled dialog. */
     restartEntry: FocusRequester,
     onRetroArchMenu: () -> Unit,
-    /** Whether the Touch controls tile is lit; null: no gamepad, no tile (issue 865). */
+    /** Whether the Touch controls tile is lit; null: no tile (issue 865). */
     touchControls: Boolean?,
     onTouchControls: () -> Unit,
     /** The Quit tile, the grid's last (issue 875). */

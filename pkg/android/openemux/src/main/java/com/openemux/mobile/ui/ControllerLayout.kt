@@ -58,15 +58,15 @@ fun padLayoutOn(pref: String, connected: Boolean): Boolean = when (pref) {
 fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = padLayoutOn(pref, connected) || lastPad
 
 /**
- * Whether a game shows the gamepad skin: a pad is [detected] and the player did not bring the touch controls back for
- * it ([forced], issue 865), unless the interface mode [pref] is Touch screen, which keeps the on-screen controls for
- * a phone that reports a pad it does not have (issue 873).
+ * Whether a game shows the gamepad skin (issue 865): with a pad [detected], unless the player brought the touch controls
+ * back for it ([forced]); with none, or with the interface mode [pref] Touch screen, which counts no pad (issue 873),
+ * when the player turned the touch controls off for the console ([picked]).
  */
-fun gamepadSkin(pref: String, detected: Boolean, forced: Boolean): Boolean =
-    touchControlsTile(pref, detected) && !forced
+fun gamepadSkin(pref: String, detected: Boolean, forced: Boolean, picked: Boolean): Boolean =
+    if (padsCount(pref, detected)) !forced else picked
 
 /**
- * Whether the pause sheet offers the Touch controls tile: a pad is [detected], unless the interface mode [pref] is
- * Touch screen, which keeps the touch controls whatever is detected and has no gamepad layout to switch from (issue 873).
+ * Whether the pads [detected] decide the game's skin: not with the interface mode [pref] Touch screen (issue 873). When
+ * they do, the touch controls choice is kept for them; when not, for the console (issue 865).
  */
-fun touchControlsTile(pref: String, detected: Boolean): Boolean = pref != ControllerLayoutPref.NEVER && detected
+fun padsCount(pref: String, detected: Boolean): Boolean = pref != ControllerLayoutPref.NEVER && detected

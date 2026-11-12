@@ -95,7 +95,7 @@ class SkinRenderer(private val context: Context) {
      * Every page has its twins (OverlayName): the gamepad layout, with the app controls only, and each with the app
      * controls collapsed to the key that shows them again. A package skin gets the gamepad ones only, its art being
      * its author's; with [under] on NDS, [ndsLayouts] says the package drew one page per layout (ImportedSkinRenderer),
-     * and the gamepad pages follow them. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page.
+     * and the gamepad pages follow them. [gamepad] opens the drawn skin on the gamepad layout when [first] names no page, and a package skin on its first page's gamepad twin.
      */
     fun render(
         console: Console, width: Int, height: Int, outDir: File, cutout: Int = 0,
@@ -182,19 +182,21 @@ class SkinRenderer(private val context: Context) {
             )
             if (spec.layout != null && spec.tabletop) gaps[spec.name] = layout.gap
         }
+        val text = base?.let { packageOpening(withOverlays(it, specs.size, cfg.toString()), flat, names, gamepad) } ?: "overlays = ${specs.size}\n$cfg"
         File(outDir, TABLETOP_FILE).delete()
         if (band != null) {
             // In the launch window's dp, as the activity measures the fold it sees.
             val props = StringBuilder()
             props.append(String.format(Locale.US, "band_start_dp=%.2f\nband_end_dp=%.2f\n", (band.startPx + cutout) / density, (band.endPx + cutout) / density))
-            props.append("overlays=${names.joinToString(",")}\n")
+            // In skin.cfg's order: the first is the one the engine opens on, a package skin's gamepad twin included.
+            props.append("overlays=${(if (base != null) overlayNames(text) else names).joinToString(",")}\n")
             gaps.forEach { (name, gap) -> props.append("gap.$name=$gap\n") }
             // A package with one page per layout sets the core from the page it lands on, as the drawn skin does.
             if (base != null && console == Console.NDS && ndsLayouts == null) props.append("flat_layout=$PACKAGE_NDS_LAYOUT\n")
             File(outDir, TABLETOP_FILE).writeText(props.toString())
         }
         val file = File(outDir, "skin.cfg")
-        file.writeText(base?.let { withOverlays(it, specs.size, cfg.toString()) } ?: "overlays = ${specs.size}\n$cfg")
+        file.writeText(text)
         return file
     }
 
