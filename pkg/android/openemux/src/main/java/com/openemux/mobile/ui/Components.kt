@@ -97,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.coverAspect
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.launch.CartArt
 import com.retroarch.R
@@ -218,10 +219,8 @@ fun labelFor(rom: Rom): File? {
     return found[rom.key]
 }
 
-/** Aspect of what [Cartridge] draws: the frame, or a box for consoles without one. */
-val Console.cartAspect: Float get() = frame?.aspect ?: BOX_ASPECT
-
-private const val BOX_ASPECT = 0.72f
+/** Aspect of what [Cartridge] draws: the frame, or the console's cover shape for consoles without one. */
+val Console.cartAspect: Float get() = frame?.aspect ?: coverAspect
 
 /**
  * The cartridge: label art cropped into the label window, frame art on top.
@@ -241,11 +240,11 @@ fun Cartridge(
     val context = LocalContext.current
     val cartFrame = console.frame
     if (cartFrame == null) {
-        // No cartridge for this console: its box art, at its own proportions, as in the covers view.
+        // No cartridge for this console: its box art in the console's cover shape, as in the covers view.
         if (cover != null) {
-            CoverArt(cover, title, modifier.clip(RoundedCornerShape(10.dp)))
+            CoverArt(cover, title, modifier.clip(RoundedCornerShape(10.dp)), aspect = console.coverAspect)
         } else {
-            Box(modifier.aspectRatio(BOX_ASPECT).clip(RoundedCornerShape(8.dp)).background(Oe.Surface2), contentAlignment = Alignment.Center) {
+            Box(modifier.aspectRatio(console.coverAspect).clip(RoundedCornerShape(8.dp)).background(Oe.Surface2), contentAlignment = Alignment.Center) {
                 BoxTitle(title, console)
             }
         }
@@ -780,26 +779,33 @@ fun formatAgo(time: Long, now: Long = System.currentTimeMillis()): String {
 fun countString(@PluralsRes id: Int, count: Int, vararg args: Any): String =
     pluralStringResource(id, if (count == 0) 2 else count, *args)
 
-/** Box art at its own aspect ratio; a placeholder of the usual box shape until it loads. */
+/**
+ * Box art at its own aspect ratio; a placeholder of the usual box shape until it loads. With [aspect],
+ * the art is drawn in that shape instead, filling it and cropped from the centre, and the placeholder
+ * takes the same shape: every cover of a console is then the same size (issue 882).
+ */
 @Composable
-fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = null) {
-    var aspect by remember(url) { mutableStateOf(boxAspects[url]) }
+fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = null, aspect: Float? = null) {
+    var measured by remember(url) { mutableStateOf(boxAspects[url]) }
+    var loaded by remember(url) { mutableStateOf(false) }
     val shape = Modifier.let { if (maxHeight != null) it.height(maxHeight) else it.fillMaxWidth() }
-        .aspectRatio(aspect ?: 0.72f, matchHeightConstraintsFirst = maxHeight != null)
+        .aspectRatio(aspect ?: measured ?: 0.72f, matchHeightConstraintsFirst = maxHeight != null)
     Box(modifier.then(shape).background(Oe.Surface), contentAlignment = Alignment.Center) {
         if (url != null) {
             AsyncImage(
-                url, title, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+                url, title, Modifier.fillMaxSize(), contentScale = if (aspect != null) ContentScale.Crop else ContentScale.Fit,
                 onSuccess = { state ->
+                    loaded = true
                     val size = state.painter.intrinsicSize
                     if (size.width > 0f && size.height > 0f) {
-                        aspect = size.width / size.height
-                        boxAspects[url] = aspect!!
+                        measured = size.width / size.height
+                        boxAspects[url] = measured!!
                     }
                 },
             )
         }
-        if (url == null || aspect == null) {
+        // The title stands in until the art shows: measured once for its own shape, loaded for a fixed one.
+        if (url == null || (if (aspect != null) !loaded && measured == null else measured == null)) {
             Text(
                 title, style = Type.Caption.copy(color = Oe.Muted, fontSize = if (maxHeight != null) 9.sp else 12.sp),
                 textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(6.dp),

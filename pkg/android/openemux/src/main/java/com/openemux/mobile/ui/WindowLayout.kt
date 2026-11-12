@@ -223,12 +223,14 @@ fun gridColumns(availableDp: Float, minDp: Float, gapDp: Float, floor: Int): Int
     if (availableDp <= 0f || minDp <= 0f) floor
     else maxOf(floor, ((availableDp + gapDp) / (minDp + gapDp)).toInt())
 
-/** [count] cells sharing [available] pixels with [spacing] between them; the leftover pixels go to the first cells. */
-fun cellSizes(available: Int, spacing: Int, count: Int): IntArray {
+/**
+ * [count] cells of exactly the same width sharing [available] pixels with [spacing] between them; the
+ * leftover pixels (fewer than [count]) stay unused at the end. A cell of a fixed shape is then as tall
+ * in every lane, so a staggered grid fills its rows left to right, in order (issue 882).
+ */
+fun evenCellSizes(available: Int, spacing: Int, count: Int): IntArray {
     val room = (available - spacing * (count - 1)).coerceAtLeast(0)
-    val slot = room / count
-    val extra = room % count
-    return IntArray(count) { slot + if (it < extra) 1 else 0 }
+    return IntArray(count) { room / count }
 }
 
 /** Where the main tabs go: under everything, in the phone's side rail, or in the tablet's rail with the logo. */

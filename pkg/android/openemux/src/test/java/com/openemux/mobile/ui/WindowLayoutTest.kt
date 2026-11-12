@@ -96,13 +96,14 @@ class WindowLayoutTest {
     }
 
     @Test
-    fun cellSizesShareTheWidthLeftByTheSpacing() {
-        assertArrayEquals(intArrayOf(100, 100, 100), cellSizes(332, 16, 3))
-        val uneven = cellSizes(337, 16, 3)
-        assertArrayEquals(intArrayOf(102, 102, 101), uneven)
-        assertEquals(337 - 2 * 16, uneven.sum())
-        assertArrayEquals(intArrayOf(500), cellSizes(500, 16, 1))
-        assertArrayEquals(intArrayOf(0, 0), cellSizes(10, 16, 2))
+    fun evenCellsAreAllTheSameWidthAndLeaveTheRemainderUnused() {
+        assertArrayEquals(intArrayOf(100, 100, 100), evenCellSizes(332, 16, 3))
+        // 305 px of room in three lanes: 101 each, two pixels left over at the end.
+        val uneven = evenCellSizes(337, 16, 3)
+        assertArrayEquals(intArrayOf(101, 101, 101), uneven)
+        assertTrue(337 - 2 * 16 - uneven.sum() in 0 until 3)
+        assertArrayEquals(intArrayOf(500), evenCellSizes(500, 16, 1))
+        assertArrayEquals(intArrayOf(0, 0), evenCellSizes(10, 16, 2))
     }
 
     @Test
