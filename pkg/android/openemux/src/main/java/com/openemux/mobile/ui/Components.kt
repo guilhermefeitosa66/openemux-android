@@ -220,12 +220,13 @@ fun labelFor(rom: Rom): File? {
     return found[rom.key]
 }
 
-/** Aspect of what [Cartridge] draws: the frame, or the console's cover shape for consoles without one. */
-val Console.cartAspect: Float get() = frame?.aspect ?: coverAspect
+/** Aspect of what [Cartridge] draws: the frame, or a box for consoles without one. */
+val Console.cartAspect: Float get() = frame?.aspect ?: DEFAULT_COVER_ASPECT
 
 /**
  * The cartridge: label art cropped into the label window, frame art on top.
- * Consoles with no frame (discs, Atari...) show the box art instead, like the desktop.
+ * Consoles with no frame (discs, Atari...) show the box art instead, like the desktop: [cropped] to the
+ * console's cover shape in the library's grid, so its rows line up (issue 882), whole everywhere else.
  */
 @Composable
 fun Cartridge(
@@ -237,15 +238,17 @@ fun Cartridge(
     shadow: Boolean = true,
     pending: Boolean = false,
     cover: String? = null,
+    cropped: Boolean = false,
 ) {
     val context = LocalContext.current
     val cartFrame = console.frame
     if (cartFrame == null) {
-        // No cartridge for this console: its box art in the console's cover shape, as in the covers view.
+        // No cartridge for this console: its box art, in the console's cover shape in the grid, as in the covers view.
+        val shape = if (cropped) console.coverAspect else null
         if (cover != null) {
-            CoverArt(cover, title, modifier.clip(RoundedCornerShape(10.dp)), aspect = console.coverAspect)
+            CoverArt(cover, title, modifier.clip(RoundedCornerShape(10.dp)), aspect = shape)
         } else {
-            Box(modifier.aspectRatio(console.coverAspect).clip(RoundedCornerShape(8.dp)).background(Oe.Surface2), contentAlignment = Alignment.Center) {
+            Box(modifier.aspectRatio(shape ?: DEFAULT_COVER_ASPECT).clip(RoundedCornerShape(8.dp)).background(Oe.Surface2), contentAlignment = Alignment.Center) {
                 BoxTitle(title, console)
             }
         }

@@ -994,7 +994,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
-                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
+                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom), cropped = true)
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
                         if (caption != null) GameName(
