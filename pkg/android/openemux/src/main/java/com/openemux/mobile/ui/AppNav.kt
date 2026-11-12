@@ -111,6 +111,7 @@ object Routes {
     const val BIOS = "bios"
     const val ACHIEVEMENTS = "achievements"
     const val BACKUP = "backup"
+    const val CONTROLLERS = "controllers"
     const val ABOUT = "about"
     const val LICENSES = "about/licenses"
     const val LICENSE = "about/license/{id}"
@@ -270,6 +271,7 @@ fun OpenEmuxRoot() {
                         composable(Routes.BIOS) { RememberRowFocus { BiosScreen() } }
                         composable(Routes.ACHIEVEMENTS) { RememberRowFocus { AchievementsScreen() } }
                         composable(Routes.BACKUP) { RememberRowFocus { BackupScreen() } }
+                        composable(Routes.CONTROLLERS) { RememberRowFocus { ControllersScreen() } }
                         composable(Routes.ABOUT) { RememberRowFocus { AboutScreen() } }
                         composable(Routes.LICENSES) { RememberRowFocus { LicensesScreen() } }
                         composable(Routes.LICENSE) { RememberRowFocus { LicenseTextScreen(it.arguments?.getString("id").orEmpty()) } }

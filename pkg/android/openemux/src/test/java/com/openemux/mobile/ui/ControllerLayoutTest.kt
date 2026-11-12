@@ -67,4 +67,24 @@ class ControllerLayoutTest {
             InputMode.padConnected = before
         }
     }
+
+    @Test fun touchScreenKeepsTheTouchControlsInGame() {
+        val never = ControllerLayoutPref.NEVER
+        for (detected in listOf(true, false)) for (forced in listOf(true, false)) {
+            assertEquals(false, gamepadSkin(never, detected, forced))
+        }
+        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) {
+            assertEquals(true, gamepadSkin(pref, detected = true, forced = false))
+            assertEquals(false, gamepadSkin(pref, detected = true, forced = true))
+            assertEquals(false, gamepadSkin(pref, detected = false, forced = false))
+        }
+    }
+
+    @Test fun touchScreenOffersNoTouchControlsTile() {
+        for (detected in listOf(true, false)) assertEquals(false, touchControlsTile(ControllerLayoutPref.NEVER, detected))
+        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) {
+            assertEquals(true, touchControlsTile(pref, detected = true))
+            assertEquals(false, touchControlsTile(pref, detected = false))
+        }
+    }
 }

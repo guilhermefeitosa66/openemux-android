@@ -6,7 +6,7 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** The controller layout strings exist, translated, in every locale. */
+/** The Controllers screen's strings (issue 873) exist, translated, in every locale, and the rows it replaced are gone. */
 class StringsControllerLayoutTest {
     private val res = File("src/main/res")
 
@@ -19,8 +19,8 @@ class StringsControllerLayoutTest {
     @Test
     fun `every locale translates the controller layout strings`() {
         val keys = mapOf(
-            "strings_settings.xml" to listOf("auto", "always", "never").flatMap { listOf("settings_controller_layout_$it", "settings_controller_layout_${it}_desc") } +
-                listOf("settings_controller_layout", "settings_controller_layout_lead"),
+            "strings_settings.xml" to listOf("auto", "touch", "controller").flatMap { listOf("settings_interface_mode_$it", "settings_interface_mode_${it}_desc") } +
+                listOf("settings_interface_mode", "settings_interface_mode_lead", "settings_controllers", "settings_controllers_lead", "settings_button_labels_lead"),
             "strings_library.xml" to listOf("library_hint_console"),
         )
         for ((file, names) in keys) {
@@ -34,6 +34,15 @@ class StringsControllerLayoutTest {
                     if (name != "library_hint_console") assertTrue("$name untranslated in $locale", text != english.getValue(name))
                 }
             }
+        }
+    }
+
+    @Test
+    fun `the rows the Controllers screen replaced are gone from every locale`() {
+        val gone = listOf("settings_controls", "settings_controls_value", "settings_controller_layout", "settings_controller_layout_lead")
+        for (folder in listOf("values", "values-de", "values-es", "values-fr", "values-ja", "values-pt-rBR", "values-ta", "values-zh-rCN")) {
+            val strings = read(folder, "strings_settings.xml")
+            for (name in gone) assertTrue("$name still in $folder", name !in strings)
         }
     }
 }

@@ -38,8 +38,6 @@
     <string name="settings_section_consoles_trailing">コア · シェーダー</string>
     <string name="settings_section_general">全般</string>
     <string name="settings_rom_folder">ROM フォルダー</string>
-    <string name="settings_controls">操作</string>
-    <string name="settings_controls_value">タッチ + 物理コントローラー</string>
     <string name="settings_about">このアプリについて</string>
 
     <!-- Console defaults -->
@@ -228,16 +226,19 @@
     <string name="settings_language_lead">アプリの表示に適用されます。ゲーム名はファイル名のままです。</string>
     <string name="settings_about_licenses">このアプリについてとライセンス</string>
     <string name="settings_licenses_hint">タップして全文を表示</string>
-    <string name="settings_controller_layout">コントローラーレイアウト</string>
-    <string name="settings_controller_layout_lead">コントローラー用のフォーカスとボタンガイドを表示するタイミング。</string>
-    <string name="settings_controller_layout_auto">自動</string>
-    <string name="settings_controller_layout_auto_desc">コントローラーの接続中はコントローラーレイアウトにします。</string>
-    <string name="settings_controller_layout_always">常に</string>
-    <string name="settings_controller_layout_always_desc">操作ボタン内蔵の携帯機向け。</string>
-    <string name="settings_controller_layout_never">使わない</string>
-    <string name="settings_controller_layout_never_desc">コントローラーを接続していてもタッチ用レイアウトにします。</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">コントローラー</string>
+    <string name="settings_controllers_lead">物理コントローラーの設定：ゲームパッドと携帯機の内蔵コントロール。</string>
+    <string name="settings_interface_mode">操作モード</string>
+    <string name="settings_interface_mode_lead">アプリをコントローラーで使うかタッチで使うか。コントローラーモードではフォーカス枠とボタンガイドが表示されます。</string>
+    <string name="settings_interface_mode_auto">自動</string>
+    <string name="settings_interface_mode_auto_desc">コントローラーが接続されている間はコントローラーモード、それ以外はタッチモード。</string>
+    <string name="settings_interface_mode_touch">タッチスクリーン</string>
+    <string name="settings_interface_mode_touch_desc">常にタッチ：コントローラーのボタンが押されるまでフォーカス枠やボタンガイドは表示されず、ゲームは画面上のコントロールで始まります。コントローラーが接続されていないのに接続されているとアプリが判断する場合はこちらを選んでください。</string>
+    <string name="settings_interface_mode_controller">コントローラーモード</string>
+    <string name="settings_interface_mode_controller_desc">コントローラーが検出される前でも、常にコントローラーモード。コントロール内蔵の携帯機向け。</string>
     <string name="settings_button_labels">ボタン表記</string>
-    <string name="settings_button_labels_lead">ボタンヒントでの各ボタンの表記です。下のボタンは常に決定、右のボタンは戻るです。</string>
+    <string name="settings_button_labels_lead">コントローラーで操作するときにガイドに表示されるボタンのスタイル（例：A で決定、B で戻る）。下のボタンは常に決定、右のボタンは戻るです。</string>
     <string name="settings_button_labels_auto">自動</string>
     <string name="settings_button_labels_auto_desc">使用中のコントローラーに合わせます。不明な場合は Xbox 表記です。</string>
     <string name="settings_button_labels_xbox">Xbox</string>

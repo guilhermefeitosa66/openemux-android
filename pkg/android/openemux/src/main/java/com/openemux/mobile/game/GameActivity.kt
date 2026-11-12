@@ -45,6 +45,8 @@ import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.gamepadSkin
+import com.openemux.mobile.ui.touchControlsTile
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.PadLabels
@@ -166,11 +168,11 @@ class GameActivity : RetroActivityFuture() {
     /** Where each of the skin's overlays has the game end, from the window's top (GameViewport): the pause sheet opens under it. */
     @Volatile private var skinBottoms: Map<String, Float> = emptyMap()
     /**
-     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected and the player has not
-     * brought the touch controls back for it (issue 865).
+     * Whether the skin shows its gamepad layout (under ndsLayouts' lock): a gamepad is connected, the player has not
+     * brought the touch controls back for it (issue 865) and the interface mode is not Touch screen (issue 873).
      */
     private var wantGamepad = false
-    /** Whether a gamepad is detected, touch controls or not: the pause sheet's Touch controls tile shows then. */
+    /** Whether a gamepad is detected, touch controls or not: the pause sheet's Touch controls tile shows then, unless the interface mode is Touch screen. */
     @Volatile private var padDetected = false
     /** The detected pads by TouchControls.keys, which the touch controls choice is kept for. */
     @Volatile private var padKeys: Set<String> = emptySet()
@@ -199,8 +201,10 @@ class GameActivity : RetroActivityFuture() {
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
         skinBottoms = skinDir?.let(::readBottoms).orEmpty()
+        // The interface mode decides with the pads whether the gamepad skin shows (issue 873).
+        ControllerLayoutPref.load(this)
         readPads()
-        wantGamepad = padDetected && !touchStore.forced(padKeys)
+        wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, touchStore.forced(padKeys))
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -463,7 +467,7 @@ class GameActivity : RetroActivityFuture() {
         InputMode.padConnected = padDetected
         val forced = touchStore.forced(padKeys)
         synchronized(ndsLayouts) {
-            wantGamepad = padDetected && !forced
+            wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, forced)
             switchGamepad()
         }
     }
@@ -1145,7 +1149,7 @@ class GameActivity : RetroActivityFuture() {
         ControllerLayoutPref.load(this)
         readPads()
         InputMode.padConnected = padDetected
-        val touch = if (padDetected) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
+        val touch = if (touchControlsTile(ControllerLayoutPref.value, padDetected)) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
         ButtonLabelsPref.load(this)
         // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.

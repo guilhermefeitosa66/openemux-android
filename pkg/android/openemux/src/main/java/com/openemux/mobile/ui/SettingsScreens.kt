@@ -92,23 +92,10 @@ internal fun SectionHeader(text: String, trailing: String? = null) {
     }
 }
 
-private val BUTTON_LABELS = listOf(
-    Triple(ButtonLabelsKeys.AUTO, R.string.settings_button_labels_auto, R.string.settings_button_labels_auto_desc),
-    Triple(ButtonLabelsKeys.XBOX, R.string.settings_button_labels_xbox, R.string.settings_button_labels_xbox_desc),
-    Triple(ButtonLabelsKeys.NINTENDO, R.string.settings_button_labels_nintendo, R.string.settings_button_labels_nintendo_desc),
-    Triple(ButtonLabelsKeys.PLAYSTATION, R.string.settings_button_labels_playstation, R.string.settings_button_labels_playstation_desc),
-)
-
 private val THEMES = listOf(
     Triple(ThemePref.SYSTEM, R.string.settings_theme_system, R.string.settings_theme_system_desc),
     Triple(ThemePref.LIGHT, R.string.settings_theme_light, R.string.settings_theme_light_desc),
     Triple(ThemePref.DARK, R.string.settings_theme_dark, R.string.settings_theme_dark_desc),
-)
-
-private val CONTROLLER_LAYOUTS = listOf(
-    Triple(ControllerLayoutPref.AUTO, R.string.settings_controller_layout_auto, R.string.settings_controller_layout_auto_desc),
-    Triple(ControllerLayoutPref.ALWAYS, R.string.settings_controller_layout_always, R.string.settings_controller_layout_always_desc),
-    Triple(ControllerLayoutPref.NEVER, R.string.settings_controller_layout_never, R.string.settings_controller_layout_never_desc),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,8 +104,6 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
     // Saveable: a density change recreates the activity, and an open sheet must still be there.
     var themeSheet by rememberSaveable { mutableStateOf(false) }
     var languageSheet by rememberSaveable { mutableStateOf(false) }
-    var controllerSheet by rememberSaveable { mutableStateOf(false) }
-    var buttonLabelsSheet by rememberSaveable { mutableStateOf(false) }
     var nameSheet by rememberSaveable { mutableStateOf(false) }
     GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_open), "B" to stringResource(R.string.settings_hint_back), "L1 R1" to stringResource(R.string.settings_hint_tabs)))
     val a = LocalActions.current
@@ -131,8 +116,6 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
         when (item) {
             SettingsItem.Theme -> themeSheet = true
             SettingsItem.Language -> languageSheet = true
-            SettingsItem.ControllerLayout -> controllerSheet = true
-            SettingsItem.ButtonLabels -> buttonLabelsSheet = true
             else -> item.route?.let { a.nav.navigate(it) }
         }
     }
@@ -144,12 +127,10 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             // A license text sits on About on a phone too, so Back steps there first as it does in the pane.
             if (it is SettingsItem.License) openAlone(SettingsItem.About)
             openAlone(it)
-        } else sheetToPane(themeSheet, languageSheet, controllerSheet, buttonLabelsSheet)?.let {
+        } else sheetToPane(themeSheet, languageSheet)?.let {
             // The phone's sheet becomes the pane's item; the screens of their own hand theirs back by themselves.
             themeSheet = false
             languageSheet = false
-            controllerSheet = false
-            buttonLabelsSheet = false
             pickedKey = it.key
         }
     }
@@ -174,35 +155,6 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
                 Text(stringResource(R.string.settings_theme), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
                 ThemeOptions()
             }
-        }
-    }
-    if (controllerSheet) {
-        OeSheet({ controllerSheet = false }) {
-            SheetBarIcons()
-            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.settings_controller_layout), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
-                ControllerLayoutOptions()
-            }
-        }
-    }
-    if (buttonLabelsSheet) {
-        OeSheet({ buttonLabelsSheet = false }, scroll = false) {
-            SheetBarIcons()
-            // The cards take only the height left over by the hint bar below: in landscape they scroll
-            // and the bar stays at the bottom of the sheet, instead of being pushed out of the window.
-            MarginFocusScroll { Column(
-                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(stringResource(R.string.settings_button_labels), style = Type.Title.copy(fontSize = 22.sp))
-                Text(stringResource(R.string.settings_button_labels_lead), style = Type.Small, modifier = Modifier.padding(bottom = 6.dp))
-                ButtonLabelOptions(Oe.Raised)
-            } }
-            // A sheet is a window of its own, over the screen's hint bar: it draws its hints itself,
-            // so choosing a family shows at once what the buttons read.
-            val hints = listOf("A" to stringResource(R.string.settings_hint_choose), "B" to stringResource(R.string.settings_hint_back))
-            GamepadButtons(hints = hints)
-            HintBar(hints)
         }
     }
     if (languageSheet) {
@@ -340,15 +292,9 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
         SectionHeader(stringResource(R.string.settings_section_general))
         Card(Modifier.padding(horizontal = 20.dp)) {
             ListRow(stringResource(R.string.settings_rom_folder), subtitle = "Android/data/${context.packageName}/files/roms", value = "${roms.size}")
-            ListRow(stringResource(R.string.settings_controls), value = stringResource(R.string.settings_controls_value), divider = true)
             ListRow(
-                stringResource(R.string.settings_controller_layout), divider = true,
-                value = stringResource(CONTROLLER_LAYOUTS.first { it.first == ControllerLayoutPref.value }.second),
-                selected = picked == SettingsItem.ControllerLayout, onClick = { onPick(SettingsItem.ControllerLayout) },
-            )
-            ListRow(
-                stringResource(R.string.settings_button_labels), value = stringResource(BUTTON_LABELS.first { it.first == ButtonLabelsPref.value }.second),
-                divider = true, selected = picked == SettingsItem.ButtonLabels, onClick = { onPick(SettingsItem.ButtonLabels) },
+                stringResource(R.string.settings_controllers), subtitle = controllersSummary(), divider = true, minHeight = 60.dp,
+                selected = picked == SettingsItem.Controllers, onClick = { onPick(SettingsItem.Controllers) },
             )
             ListRow(
                 stringResource(R.string.settings_backup), subtitle = stringResource(R.string.settings_backup_desc), divider = true, minHeight = 60.dp,
@@ -383,8 +329,7 @@ private fun SettingsPane(picked: SettingsItem?, onPick: (SettingsItem) -> Unit) 
                     SettingsItem.Bios -> BiosScreen(embedded = true)
                     SettingsItem.Theme -> ThemePane()
                     SettingsItem.Language -> LanguagePane()
-                    SettingsItem.ControllerLayout -> ControllerLayoutPane()
-                    SettingsItem.ButtonLabels -> ButtonLabelsPane()
+                    SettingsItem.Controllers -> ControllersScreen(embedded = true)
                     SettingsItem.Achievements -> AchievementsScreen(embedded = true)
                     SettingsItem.ArtworkProviders -> ArtworkProvidersScreen(embedded = true)
                     SettingsItem.Backup -> BackupScreen(embedded = true)
@@ -412,52 +357,6 @@ private fun ThemeOptions() {
     THEMES.forEach { (id, name, blurb) ->
         RadioCard(ThemePref.value == id, stringResource(name), stringResource(blurb), onClick = { ThemePref.set(context, id) }, background = Oe.Raised)
     }
-}
-
-/** When the gamepad layout shows, as the sheet and the pane list it. */
-@Composable
-private fun ControllerLayoutOptions(background: androidx.compose.ui.graphics.Color = Oe.Raised) {
-    val context = LocalContext.current
-    CONTROLLER_LAYOUTS.forEach { (id, name, blurb) ->
-        RadioCard(ControllerLayoutPref.value == id, stringResource(name), stringResource(blurb), onClick = { ControllerLayoutPref.set(context, id) }, background = background)
-    }
-}
-
-/** Controller layout in the settings pane: the same three choices, applied at once. */
-@Composable
-private fun ControllerLayoutPane() {
-    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        PaneTitle(stringResource(R.string.settings_controller_layout), stringResource(R.string.settings_controller_layout_lead))
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ControllerLayoutOptions(background = Oe.Surface)
-        }
-        Spacer(Modifier.height(hintBarInset))
-    } }
-}
-
-/** The "Button labels" choices, each with the faces it draws. */
-@Composable
-private fun ButtonLabelOptions(background: androidx.compose.ui.graphics.Color) {
-    val context = LocalContext.current
-    BUTTON_LABELS.forEach { (id, name, blurb) ->
-        RadioCard(
-            ButtonLabelsPref.value == id, stringResource(name), stringResource(blurb),
-            onClick = { ButtonLabelsPref.set(context, id) }, background = background,
-            leading = { FaceDiamond(effectiveFamily(id, PadLabels.detected)) },
-        )
-    }
-}
-
-/** Button labels in the settings pane: the same cards as the phone's sheet. */
-@Composable
-private fun ButtonLabelsPane() {
-    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        PaneTitle(stringResource(R.string.settings_button_labels), stringResource(R.string.settings_button_labels_lead))
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ButtonLabelOptions(Oe.Surface)
-        }
-        Spacer(Modifier.height(hintBarInset))
-    } }
 }
 
 /** The language choices as the sheet lists them; [onPicked] runs before a new language restarts the screen. */

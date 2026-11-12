@@ -12,8 +12,8 @@ sealed interface SettingsItem {
     data object Bios : SettingsItem
     data object Theme : SettingsItem
     data object Language : SettingsItem
-    data object ControllerLayout : SettingsItem
-    data object ButtonLabels : SettingsItem
+    /** The physical-controller settings, one screen (issue 873). */
+    data object Controllers : SettingsItem
     data object Achievements : SettingsItem
     data object ArtworkProviders : SettingsItem
     data object Backup : SettingsItem
@@ -27,8 +27,7 @@ sealed interface SettingsItem {
             Bios -> "bios"
             Theme -> "theme"
             Language -> "language"
-            ControllerLayout -> "controller_layout"
-            ButtonLabels -> "button_labels"
+            Controllers -> "controllers"
             Achievements -> "achievements"
             ArtworkProviders -> "artwork_providers"
             Backup -> "backup"
@@ -44,9 +43,10 @@ sealed interface SettingsItem {
             Achievements -> Routes.ACHIEVEMENTS
             ArtworkProviders -> Routes.ARTWORK_PROVIDERS
             Backup -> Routes.BACKUP
+            Controllers -> Routes.CONTROLLERS
             About -> Routes.ABOUT
             is License -> Routes.license(id)
-            Theme, Language, ControllerLayout, ButtonLabels -> null
+            Theme, Language -> null
         }
 
     companion object {
@@ -59,8 +59,9 @@ sealed interface SettingsItem {
                 "bios" -> Bios
                 "theme" -> Theme
                 "language" -> Language
-                "controller_layout" -> ControllerLayout
-                "button_labels" -> ButtonLabels
+                "controllers" -> Controllers
+                // The two items the Controllers screen took in (issue 873), from a state saved before it.
+                "controller_layout", "button_labels" -> Controllers
                 "achievements" -> Achievements
                 "artwork_providers" -> ArtworkProviders
                 "backup" -> Backup
@@ -75,13 +76,9 @@ sealed interface SettingsItem {
 fun sheetToPane(
     themeSheet: Boolean,
     languageSheet: Boolean,
-    controllerSheet: Boolean = false,
-    buttonLabelsSheet: Boolean = false,
 ): SettingsItem? = when {
     themeSheet -> SettingsItem.Theme
     languageSheet -> SettingsItem.Language
-    controllerSheet -> SettingsItem.ControllerLayout
-    buttonLabelsSheet -> SettingsItem.ButtonLabels
     else -> null
 }
 

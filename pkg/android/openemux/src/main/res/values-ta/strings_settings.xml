@@ -40,8 +40,6 @@
     <string name="settings_section_consoles_trailing">கோர் · ஷேடர்</string>
     <string name="settings_section_general">பொது</string>
     <string name="settings_rom_folder">ROM கோப்புறை</string>
-    <string name="settings_controls">கட்டுப்பாடுகள்</string>
-    <string name="settings_controls_value">தொடுதிரை + கன்ட்ரோலர்</string>
     <string name="settings_about">பற்றி</string>
 
     <!-- Console defaults -->
@@ -240,16 +238,19 @@
     <string name="settings_language_lead">செயலியின் உரைகளுக்குப் பொருந்தும். விளையாட்டுப் பெயர்கள் கோப்பைப் பின்பற்றும்.</string>
     <string name="settings_about_licenses">பற்றி மற்றும் உரிமங்கள்</string>
     <string name="settings_licenses_hint">முழு உரையைப் படிக்கத் தட்டவும்</string>
-    <string name="settings_controller_layout">கன்ட்ரோலர் தளவமைப்பு</string>
-    <string name="settings_controller_layout_lead">கன்ட்ரோலருக்கான ஃபோகஸையும் பொத்தான் குறிப்புகளையும் ஆப் எப்போது காட்டும்.</string>
-    <string name="settings_controller_layout_auto">தானியங்கி</string>
-    <string name="settings_controller_layout_auto_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருக்கும்போது கன்ட்ரோலர் தளவமைப்பு.</string>
-    <string name="settings_controller_layout_always">எப்போதும்</string>
-    <string name="settings_controller_layout_always_desc">உள்ளமைந்த கட்டுப்பாடுகள் கொண்ட கையடக்கக் கருவிகளுக்கு.</string>
-    <string name="settings_controller_layout_never">ஒருபோதும் இல்லை</string>
-    <string name="settings_controller_layout_never_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருந்தாலும் தொடுதிரை தளவமைப்பு.</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">கன்ட்ரோலர்கள்</string>
+    <string name="settings_controllers_lead">இயற்பியல் கன்ட்ரோலர்களுக்கான அமைப்புகள்: கேம்பேடுகளும் கையடக்கக் கருவிகளின் உள்ளமைந்த பொத்தான்களும்.</string>
+    <string name="settings_interface_mode">இடைமுக முறை</string>
+    <string name="settings_interface_mode_lead">ஆப்பைக் கன்ட்ரோலருடன் பயன்படுத்துவதா தொடுதல் மூலம் பயன்படுத்துவதா. கன்ட்ரோலர் முறை ஃபோகஸ் வளையத்தையும் பொத்தான் குறிப்புகளையும் காட்டும்.</string>
+    <string name="settings_interface_mode_auto">தானியங்கி</string>
+    <string name="settings_interface_mode_auto_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருக்கும்போது கன்ட்ரோலர் முறை, இல்லையெனில் தொடு முறை.</string>
+    <string name="settings_interface_mode_touch">தொடுதிரை</string>
+    <string name="settings_interface_mode_touch_desc">எப்போதும் தொடுதல்: கன்ட்ரோலர் பொத்தான் அழுத்தப்படும் வரை ஃபோகஸ் வளையமோ பொத்தான் குறிப்புகளோ இல்லை, கேம்கள் திரைக் கட்டுப்பாடுகளுடன் திறக்கும். கன்ட்ரோலர் இல்லாதபோதும் இணைக்கப்பட்டிருப்பதாக ஆப் நினைத்தால் இதைத் தேர்வுசெய்யவும்.</string>
+    <string name="settings_interface_mode_controller">கன்ட்ரோலர் முறை</string>
+    <string name="settings_interface_mode_controller_desc">கன்ட்ரோலர் கண்டறியப்படுவதற்கு முன்பும் எப்போதும் கன்ட்ரோலர் முறை. உள்ளமைந்த பொத்தான்கள் கொண்ட கையடக்கக் கருவிகளுக்கு.</string>
     <string name="settings_button_labels">பொத்தான் பெயர்கள்</string>
-    <string name="settings_button_labels_lead">பொத்தான் குறிப்புகள் ஒவ்வொரு பொத்தானையும் எப்படிப் பெயரிடுகின்றன என்பது. கீழ்ப் பொத்தான் எப்போதும் உறுதிசெய்யும், வலது பொத்தான் பின்செல்லும்.</string>
+    <string name="settings_button_labels_lead">கன்ட்ரோலருடன் வழிசெலுத்தும்போது குறிப்புகளில் காட்டப்படும் பொத்தான் பாணி (எ.கா. உறுதிசெய்ய A, பின்செல்ல B). கீழ்ப் பொத்தான் எப்போதும் உறுதிசெய்யும், வலது பொத்தான் பின்செல்லும்.</string>
     <string name="settings_button_labels_auto">தானியங்கி</string>
     <string name="settings_button_labels_auto_desc">பயன்பாட்டில் உள்ள கன்ட்ரோலரைப் பின்பற்றும். தெரியாதபோது Xbox பாணி.</string>
     <string name="settings_button_labels_xbox">Xbox</string>

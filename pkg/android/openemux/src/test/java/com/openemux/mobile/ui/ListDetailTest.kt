@@ -10,8 +10,7 @@ import org.junit.Test
 class ListDetailTest {
 
     private val items = listOf(
-        SettingsItem.Console("GBA"), SettingsItem.Bios, SettingsItem.Theme, SettingsItem.Language, SettingsItem.ControllerLayout,
-        SettingsItem.ButtonLabels,
+        SettingsItem.Console("GBA"), SettingsItem.Bios, SettingsItem.Theme, SettingsItem.Language, SettingsItem.Controllers,
         SettingsItem.Achievements, SettingsItem.Backup, SettingsItem.About, SettingsItem.License("gpl"),
     )
 
@@ -122,8 +121,7 @@ class ListDetailTest {
         assertEquals("about/license/gpl", SettingsItem.License("gpl").route)
         assertNull(SettingsItem.Theme.route)
         assertNull(SettingsItem.Language.route)
-        assertNull(SettingsItem.ControllerLayout.route)
-        assertNull(SettingsItem.ButtonLabels.route)
+        assertEquals(Routes.CONTROLLERS, SettingsItem.Controllers.route)
     }
 
     @Test
@@ -168,11 +166,15 @@ class ListDetailTest {
     fun anOpenSheetBecomesThePanesItem() {
         assertEquals(SettingsItem.Theme, sheetToPane(themeSheet = true, languageSheet = false))
         assertEquals(SettingsItem.Language, sheetToPane(themeSheet = false, languageSheet = true))
-        assertEquals(SettingsItem.ControllerLayout, sheetToPane(themeSheet = false, languageSheet = false, controllerSheet = true))
         assertNull(sheetToPane(themeSheet = false, languageSheet = false))
-        assertEquals(SettingsItem.ButtonLabels, sheetToPane(themeSheet = false, languageSheet = false, buttonLabelsSheet = true))
-        assertNull(sheetToPane(themeSheet = false, languageSheet = false, buttonLabelsSheet = false))
-        assertEquals("button_labels", SettingsItem.ButtonLabels.key)
-        assertEquals(SettingsItem.ButtonLabels, SettingsItem.of("button_labels"))
+    }
+
+    @Test
+    fun theControllerItemsBecameOneControllersScreen() {
+        assertEquals("controllers", SettingsItem.Controllers.key)
+        assertEquals(SettingsItem.Controllers, SettingsItem.of("controllers"))
+        // A state saved before issue 873 opens the screen that took its item in.
+        assertEquals(SettingsItem.Controllers, SettingsItem.of("controller_layout"))
+        assertEquals(SettingsItem.Controllers, SettingsItem.of("button_labels"))
     }
 }

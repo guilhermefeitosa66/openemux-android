@@ -31,6 +31,8 @@ import com.openemux.mobile.game.GameExtras
 import com.openemux.mobile.game.Gamepads
 import com.openemux.mobile.game.TouchControls
 import com.openemux.mobile.game.TouchControlsStore
+import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.gamepadSkin
 import com.openemux.mobile.ui.folds
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
@@ -184,9 +186,13 @@ class GameLauncher(
             // The skin is drawn upright: the fold goes with it.
             val upright = SkinGeometry.portraitFold(fold, metrics.bounds.width(), metrics.bounds.height())
             val landscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            // A gamepad opens the gamepad layout, unless the player brought the touch controls back for it (issue 865).
+            // A gamepad opens the gamepad layout, unless the player brought the touch controls back for it (issue 865)
+            // or the interface mode is Touch screen (issue 873).
             val pads = Gamepads.pads(Gamepads.devices())
-            val gamepad = pads.isNotEmpty() && !TouchControlsStore.of(context.filesDir).forced(TouchControls.keys(pads))
+            val gamepad = gamepadSkin(
+                ControllerLayoutPref.read(context), pads.isNotEmpty(),
+                TouchControlsStore.of(context.filesDir).forced(TouchControls.keys(pads)),
+            )
             // A package skin opens on its page for the orientation the game starts in (the NDS's saved layout there).
             val drawn = GameSkin.render(
                 context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id,

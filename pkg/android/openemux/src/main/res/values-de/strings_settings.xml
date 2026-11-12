@@ -40,8 +40,6 @@
     <string name="settings_section_consoles_trailing">Kern · Shader</string>
     <string name="settings_section_general">Allgemein</string>
     <string name="settings_rom_folder">ROM-Ordner</string>
-    <string name="settings_controls">Steuerung</string>
-    <string name="settings_controls_value">Touch + physischer Controller</string>
     <string name="settings_about">Über</string>
 
     <!-- Console defaults -->
@@ -240,16 +238,19 @@
     <string name="settings_language_lead">Gilt für die Texte der App. Spielnamen folgen der Datei.</string>
     <string name="settings_about_licenses">Über und Lizenzen</string>
     <string name="settings_licenses_hint">Tippen für den vollen Text</string>
-    <string name="settings_controller_layout">Controller-Layout</string>
-    <string name="settings_controller_layout_lead">Wann die App den Fokus und die Tastenhinweise für einen Controller zeigt.</string>
-    <string name="settings_controller_layout_auto">Automatisch</string>
-    <string name="settings_controller_layout_auto_desc">Das Controller-Layout, solange ein Controller verbunden ist.</string>
-    <string name="settings_controller_layout_always">Immer</string>
-    <string name="settings_controller_layout_always_desc">Für Handhelds mit eingebauter Steuerung.</string>
-    <string name="settings_controller_layout_never">Nie</string>
-    <string name="settings_controller_layout_never_desc">Das Touch-Layout, auch wenn ein Controller verbunden ist.</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">Controller</string>
+    <string name="settings_controllers_lead">Einstellungen für physische Controller: Gamepads und die eingebauten Tasten von Handhelds.</string>
+    <string name="settings_interface_mode">Bedienmodus</string>
+    <string name="settings_interface_mode_lead">Ob die App mit einem Controller oder per Touch bedient wird. Der Controller-Modus zeigt den Fokusrahmen und die Tastenhinweise.</string>
+    <string name="settings_interface_mode_auto">Automatisch</string>
+    <string name="settings_interface_mode_auto_desc">Controller-Modus, solange ein Controller verbunden ist, sonst Touch-Modus.</string>
+    <string name="settings_interface_mode_touch">Touchscreen</string>
+    <string name="settings_interface_mode_touch_desc">Immer Touch: kein Fokusrahmen und keine Tastenhinweise, bis eine Controller-Taste gedrückt wird, und Spiele starten mit der Bildschirmsteuerung. Wähle das, wenn die App einen Controller erkennt, obwohl keiner verbunden ist.</string>
+    <string name="settings_interface_mode_controller">Controller-Modus</string>
+    <string name="settings_interface_mode_controller_desc">Immer der Controller-Modus, auch bevor ein Controller erkannt wird. Für Handhelds mit eingebauten Tasten.</string>
     <string name="settings_button_labels">Tastenbeschriftung</string>
-    <string name="settings_button_labels_lead">Wie die Tastenhinweise jede Taste benennen. Die untere Taste bestätigt immer, die rechte geht zurück.</string>
+    <string name="settings_button_labels_lead">Der Tastenstil in den Hinweisen, während du mit einem Controller navigierst (zum Beispiel A zum Bestätigen und B für zurück). Die untere Taste bestätigt immer, die rechte geht zurück.</string>
     <string name="settings_button_labels_auto">Automatisch</string>
     <string name="settings_button_labels_auto_desc">Folgt dem verwendeten Controller. Xbox-Stil, wenn er nicht erkannt wird.</string>
     <string name="settings_button_labels_xbox">Xbox</string>

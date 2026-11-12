@@ -6,8 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /**
- * When the app shows the gamepad layout (the focus ring, the hint bar, the larger targets): "auto" while a
- * controller is connected, "always" for handhelds with built-in controls, "never" for the touch layout.
+ * Settings › Controllers › Interface mode: when the app shows the gamepad layout (the focus ring, the hint bar, the
+ * larger targets). "auto" (Automatic) while a controller is connected, "always" (Controller) for handhelds with
+ * built-in controls, "never" (Touch screen) for the touch layout, games included (issue 873).
  */
 object ControllerLayoutPref {
     const val AUTO = "auto"
@@ -27,8 +28,11 @@ object ControllerLayoutPref {
 
     private fun prefs(context: Context) = context.getSharedPreferences("openemux", Context.MODE_PRIVATE)
 
+    /** The stored choice, without touching [value]: for a game launch off the main thread. */
+    fun read(context: Context): String = parse(prefs(context).getString(KEY, AUTO))
+
     fun load(context: Context) {
-        value = parse(prefs(context).getString(KEY, AUTO))
+        value = read(context)
     }
 
     fun set(context: Context, layout: String) {
@@ -49,3 +53,17 @@ fun padLayoutOn(pref: String, connected: Boolean): Boolean = when (pref) {
  * touch ([lastPad]), as the touch layout always did.
  */
 fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = padLayoutOn(pref, connected) || lastPad
+
+/**
+ * Whether a game shows the gamepad skin: a pad is [detected] and the player did not bring the touch controls back for
+ * it ([forced], issue 865), unless the interface mode [pref] is Touch screen, which keeps the on-screen controls for
+ * a phone that reports a pad it does not have (issue 873).
+ */
+fun gamepadSkin(pref: String, detected: Boolean, forced: Boolean): Boolean =
+    touchControlsTile(pref, detected) && !forced
+
+/**
+ * Whether the pause sheet offers the Touch controls tile: a pad is [detected], unless the interface mode [pref] is
+ * Touch screen, which keeps the touch controls whatever is detected and has no gamepad layout to switch from (issue 873).
+ */
+fun touchControlsTile(pref: String, detected: Boolean): Boolean = pref != ControllerLayoutPref.NEVER && detected
