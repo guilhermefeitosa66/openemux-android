@@ -671,11 +671,11 @@ fun Modifier.rowFocus(key: String): Modifier = composed {
     if (saved == null) this else restorableFocus(key, saved)
 }
 
-/** The gamepad hint bar: badge + label pairs, only in gamepad mode. */
+/** The gamepad hint bar: badge + label pairs, only in gamepad mode; [opaque] where it sits on the tab bar. */
 @Composable
-fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier, opaque: Boolean = false) {
     AnimatedVisibility(InputMode.gamepad, modifier, enter = fadeIn(tween(120)), exit = fadeOut(tween(120))) {
-        Column(Modifier.fillMaxWidth().background(Oe.Bg.copy(alpha = 0.94f))) {
+        Column(Modifier.fillMaxWidth().background(Oe.Bg.copy(alpha = if (opaque) 1f else 0.94f))) {
             HorizontalDivider(color = Oe.Surface2, thickness = 1.dp)
             // A screen with many hints on a narrow phone shrinks them all rather than lose the last one.
             Box(Modifier.fillMaxWidth().height(HintBarHeight - 1.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) { Row(

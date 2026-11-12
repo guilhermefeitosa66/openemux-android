@@ -11,6 +11,8 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.foundation.layout.width
@@ -234,6 +236,8 @@ fun OpenEmuxRoot() {
                 val topFocus = remember { FocusRequester() }
                 val navFocus = remember { FocusFlag() }
                 val density = LocalDensity.current.density
+                // The bottom tab bar's real height: it wraps the system navigation bar, so 86dp is only a first guess.
+                var tabBarMeasured by remember { mutableStateOf(Dp.Unspecified) }
                 Box(Modifier.fillMaxSize().background(Oe.Bg)) {
                 // The NavHost keeps its place in the tree whatever the posture, so its screens keep their state.
                 Column(Modifier.fillMaxSize().onGloballyPositioned { c ->
@@ -244,7 +248,7 @@ fun OpenEmuxRoot() {
                     (if (halves != null) Modifier.fillMaxWidth().height(halves.first.dp) else Modifier.fillMaxWidth().weight(1f))
                         .focusRequester(topFocus).focusRestorer().focusGroup(),
                 ) {
-                CompositionLocalProvider(LocalRail provides rail, LocalTabletop provides tabletop, LocalDeckSlot provides deck, LocalNavFocus provides navFocus) {
+                CompositionLocalProvider(LocalRail provides rail, LocalTabletop provides tabletop, LocalTabBarMeasured provides tabBarMeasured, LocalDeckSlot provides deck, LocalNavFocus provides navFocus) {
                     NavHost(
                         nav,
                         startDestination = Routes.SHELF,
@@ -290,10 +294,11 @@ fun OpenEmuxRoot() {
                         ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = 12.dp))
                         HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(start = railWidth))
                     } else if (showTabs) {
-                        TabBar(route, Modifier.align(Alignment.BottomCenter))
+                        TabBar(route, Modifier.align(Alignment.BottomCenter).onSizeChanged { tabBarMeasured = (it.height / density).dp })
                         TransferChip(Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight + 12.dp + hintBarInset))
                         ArtworkDoneToast(Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight + 12.dp))
-                        HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight))
+                        // Flush on the tab bar, both opaque: one block at the foot, nothing showing between or behind them.
+                        HintBar(GamepadBus.hints, Modifier.align(Alignment.BottomCenter).padding(bottom = TabBarHeight), opaque = true)
                     } else {
                         // What to Send has its own bar at the bottom, with Done on it.
                         if (route != Routes.SHARE_ITEMS) TransferChip(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp + hintBarInset))
@@ -347,7 +352,7 @@ private fun ShareLinks() {
 
 @Composable
 private fun TabBar(route: String?, modifier: Modifier) {
-    Column(modifier.fillMaxWidth().background(Oe.Bg.copy(alpha = 0.94f))) {
+    Column(modifier.fillMaxWidth().background(Oe.Bg.copy(alpha = if (InputMode.gamepad) 1f else 0.94f))) {
         HorizontalDivider(color = Oe.Surface2, thickness = 1.dp)
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -495,9 +500,22 @@ fun ConsoleBadge(text: String) {
 /** True on the main tabs when they are a rail on the left (a phone on its side, a tablet), not a bar under everything. */
 val LocalRail = compositionLocalOf { false }
 
+/** The bottom tab bar's height as laid out (it wraps the system navigation bar), unspecified until it is. */
+val LocalTabBarMeasured = compositionLocalOf { Dp.Unspecified }
+
+/** The tab bar's height before it is first measured. */
+val DefaultTabBarHeight = 86.dp
+
+/** The room the bottom tab bar takes: none for the side rail or the tabletop's bottom half, else its measured height. */
+fun tabBarInset(rail: Boolean, tabletop: Boolean, measured: Dp): Dp = when {
+    rail || tabletop -> 0.dp
+    measured.isSpecified -> measured
+    else -> DefaultTabBarHeight
+}
+
 /** The room the bottom tab bar takes, none when the tabs are the side rail or on the tabletop's bottom half. */
 val TabBarHeight: Dp
-    @Composable get() = if (LocalRail.current || LocalTabletop.current) 0.dp else 86.dp
+    @Composable get() = tabBarInset(LocalRail.current, LocalTabletop.current, LocalTabBarMeasured.current)
 
 /** The rail's width for this window: 80dp, 88dp on a wide tablet. */
 val RailWidth: Dp
