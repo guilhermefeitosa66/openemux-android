@@ -178,7 +178,7 @@ class GameActivity : RetroActivityFuture() {
      * ndsLayouts' lock): it wins until the detected pads change, when the automatic rule applies again (issue 865).
      */
     private var manualGamepad: Boolean? = null
-    /** The pads as last read, to tell a controller connected or gone; null before the first read. */
+    /** The pads that count as last read (none with Touch screen), to tell a controller connected or gone; null before the first read. */
     private var seenPads: Pair<Boolean, Set<String>>? = null
     /** Whether a gamepad is detected, touch controls or not. */
     @Volatile private var padDetected = false
@@ -491,9 +491,12 @@ class GameActivity : RetroActivityFuture() {
      * were brought back for them; with none, the console's pick.
      */
     private fun skinRule(): Boolean {
+        val pref = ControllerLayoutPref.value
+        // Only the store the rule reads is read: this runs on the main thread on every input device event.
+        val counts = padsCount(pref, padDetected)
         val console = intent.getStringExtra(GameExtras.CONSOLE)
-        val picked = console != null && runCatching { console in consoleStore }.getOrDefault(false)
-        return gamepadSkin(ControllerLayoutPref.value, padDetected, touchStore.forced(padKeys), picked)
+        val picked = !counts && console != null && runCatching { console in consoleStore }.getOrDefault(false)
+        return gamepadSkin(pref, padDetected, counts && touchStore.forced(padKeys), picked)
     }
 
     /** The console's pick of the gamepad layout with no pad, forgotten once a controller connects or goes. */
@@ -532,7 +535,10 @@ class GameActivity : RetroActivityFuture() {
                 pads.forEach { Log.i(TAG, "counted as a gamepad: ${it.describe()}") }
             }
         }
-        val now = padDetected to padKeys
+        // With the interface mode Touch screen the pads do not count (issue 873): plugging one in is no change, and
+        // neither forgets the console's pick nor the choice made by hand.
+        val counts = padsCount(ControllerLayoutPref.value, padDetected)
+        val now = counts to (if (counts) padKeys else emptySet())
         val before = seenPads
         seenPads = now
         return before != null && before != now
