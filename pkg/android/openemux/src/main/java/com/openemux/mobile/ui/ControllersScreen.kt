@@ -34,11 +34,13 @@ internal val BUTTON_LABELS = listOf(
     Triple(ButtonLabelsKeys.PLAYSTATION, R.string.settings_button_labels_playstation, R.string.settings_button_labels_playstation_desc),
 )
 
-/** The settings list's summary of this screen: the interface mode and the button labels picked now. */
+/**
+ * The settings list's summary of this screen: the interface mode picked now. The button labels stay off it: both
+ * lists call their default "Automatic", and "Automatic · Automatic" would not say which is which.
+ */
 @Composable
 internal fun controllersSummary(): String =
-    stringResource(INTERFACE_MODES.first { it.first == ControllerLayoutPref.value }.second) + " · " +
-        stringResource(BUTTON_LABELS.first { it.first == ButtonLabelsPref.value }.second)
+    stringResource(INTERFACE_MODES.first { it.first == ControllerLayoutPref.value }.second)
 
 /**
  * Settings › Controllers (issue 873): every setting about physical controllers on one screen, a screen of its own on a
