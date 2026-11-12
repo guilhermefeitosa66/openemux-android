@@ -60,7 +60,7 @@ class PauseTilesTest {
 
     @Test fun saveStatesHasNoTileSinceSeeAllOpensTheList() {
         // Issue 867: "See all" under the slot slider opens the same list.
-        assertEquals(PauseTile.entries.map { it.name }.filter { "STATE" in it }, emptyList<String>())
+        assertEquals(emptyList<String>(), PauseTile.entries.map { it.name }.filter { "STATE" in it })
     }
 
     @Test fun eightTilesWrapFourFourUprightAndFiveThreeElsewhere() {

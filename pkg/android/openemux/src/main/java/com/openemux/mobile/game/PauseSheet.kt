@@ -587,7 +587,7 @@ fun PauseSheet(
                                     refresh++
                                 }
                             },
-                            onLoad = { page = Page.States },
+                            onSeeAll = { page = Page.States },
                             onLoadSlot = { states.firstOrNull { it.slot == slot }?.let(::load) },
                             onSpeed = { tapped ->
                                 speed = speed.tap(tapped)
@@ -759,7 +759,7 @@ private fun MainPage(
     onSlot: (Int) -> Unit,
     onSave: () -> Unit,
     /** Opens the save states page ("See all"). */
-    onLoad: () -> Unit,
+    onSeeAll: () -> Unit,
     /** Loads the state in [slot] (Load beside Save). */
     onLoadSlot: () -> Unit,
     /** The fast-forward (FAST) or slow-motion (SLOW) tile was tapped. */
@@ -802,7 +802,7 @@ private fun MainPage(
     val saveArea = @Composable { modifier: Modifier, saveFocus: Modifier ->
         SaveLoadRow(
             slot, slotInUse, usedSlots, modifier, saveFocus, onSlot, onSave, onLoadSlot, canLoad = slotInUse && !hardcore,
-            onSeeAll = onLoad, canSeeAll = !hardcore,
+            onSeeAll = onSeeAll, canSeeAll = !hardcore,
         )
     }
     val firstFocus = @Composable { Modifier.restorableFocus("save", remember { mutableStateOf<String?>(null) }, initial = true) }
