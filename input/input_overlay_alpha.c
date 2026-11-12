@@ -35,7 +35,8 @@
  * A desc lit by a frontend state (overlayN_descM_lit_by = fast_forward
  * or turbo) shows its image only while that state is on, with or
  * without the LED driver: a skin draws a toggle's "on" look that way
- * over its button. */
+ * over its button. OpenEmux: one lit by "press" shows while the
+ * overlay presses its binds, a button's "pressed" look. */
 
 #include <boolean.h>
 
@@ -46,6 +47,8 @@
 #ifdef HAVE_OVERLAY
 
 #include <string.h>
+
+#include <retro_miscellaneous.h>
 
 #include "input_overlay.h"
 #include "../led/led_defines.h"
@@ -87,8 +90,38 @@ uint8_t input_overlay_lit_by_parse(const char *name)
       /* OpenEmux: anchor mode */
       if (!strcmp(name, "anchor"))
          return OVERLAY_LIT_BY_ANCHOR;
+      /* OpenEmux: the desc's own press */
+      if (!strcmp(name, "press"))
+         return OVERLAY_LIT_BY_PRESS;
    }
    return OVERLAY_LIT_BY_NONE;
+}
+
+/* OpenEmux: a button's "pressed" look shows while the overlay presses
+ * every bind of its desc (a combo's together), whichever touch did:
+ * the button's own, a combo's, or anchor mode holding it; a key's
+ * (retrok_*, a keypad key) while the overlay holds that key. */
+bool input_overlay_press_lit(const struct overlay_desc *desc,
+      const input_overlay_state_t *state)
+{
+   size_t i;
+   bool any = false;
+
+   if (!desc || !state)
+      return false;
+   if (desc->type == OVERLAY_TYPE_KEYBOARD)
+      return     desc->retro_key_idx
+             &&  desc->retro_key_idx < RETROK_LAST
+             && OVERLAY_GET_KEY(state, desc->retro_key_idx);
+   for (i = 0; i < ARRAY_SIZE(desc->button_mask.data); i++)
+   {
+      uint32_t want = desc->button_mask.data[i];
+      if ((state->buttons.data[i] & want) != want)
+         return false;
+      if (want)
+         any = true;
+   }
+   return any;
 }
 
 bool input_overlay_image_hidden(const input_overlay_t *ol,
@@ -105,10 +138,17 @@ bool input_overlay_image_hidden(const input_overlay_t *ol,
       for (i = 0; i < ol->active->size; i++)
       {
          const struct overlay_desc *desc = &ol->active->descs[i];
-         if (     desc->lit_by
-               && desc->image_index == image
-               && OVERLAY_HAS_IMAGE(&desc->image)
-               && !(states & (1u << (desc->lit_by - 1))))
+         if (     !desc->lit_by
+               || desc->image_index != image
+               || !OVERLAY_HAS_IMAGE(&desc->image))
+            continue;
+         /* OpenEmux: a pressed look, while the overlay presses it */
+         if (desc->lit_by == OVERLAY_LIT_BY_PRESS)
+         {
+            if (!input_overlay_press_lit(desc, &ol->overlay_state))
+               return true;
+         }
+         else if (!(states & (1u << (desc->lit_by - 1))))
             return true;
       }
    }

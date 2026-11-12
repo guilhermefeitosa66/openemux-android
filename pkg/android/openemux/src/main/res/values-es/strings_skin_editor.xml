@@ -70,6 +70,8 @@
     <string name="editor_combo_shape">Forma</string>
     <string name="editor_shape_circle">Círculo</string>
     <string name="editor_shape_pill">Píldora</string>
+    <string name="editor_shape_square">Cuadrado redondeado</string>
+    <string name="editor_shape_original">Original</string>
     <string name="editor_shape_bottom_left">Triángulo, abajo a la izquierda</string>
     <string name="editor_shape_bottom_right">Triángulo, abajo a la derecha</string>
     <string name="editor_shape_top_left">Triángulo, arriba a la izquierda</string>

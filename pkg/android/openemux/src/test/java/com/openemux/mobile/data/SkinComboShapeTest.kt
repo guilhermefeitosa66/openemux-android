@@ -15,12 +15,15 @@ class SkinComboShapeTest {
 
     // --- The outline itself ---
 
-    @Test fun theToolOffersCirclePillAndTheFourTriangles() {
-        assertEquals(6, ComboOutline.ALL.size)
+    @Test fun theToolOffersCirclePillRoundedSquareAndTheFourTriangles() {
+        assertEquals(7, ComboOutline.ALL.size)
         assertEquals(ComboOutline.CIRCLE, ComboOutline.ALL[0])
         assertEquals(ComboOutline.PILL, ComboOutline.ALL[1])
-        assertEquals(SkinCorner.entries.toList(), ComboOutline.ALL.drop(2).map { it.corner })
-        assertTrue(ComboOutline.ALL.drop(2).all { it.shape == SkinShape.TRIANGLE })
+        // The rounded square (issue 891) is the format's rect.
+        assertEquals(ComboOutline.SQUARE, ComboOutline.ALL[2])
+        assertEquals(SkinShape.RECT, ComboOutline.SQUARE.shape)
+        assertEquals(SkinCorner.entries.toList(), ComboOutline.ALL.drop(3).map { it.corner })
+        assertTrue(ComboOutline.ALL.drop(3).all { it.shape == SkinShape.TRIANGLE })
     }
 
     @Test fun cornersPointAwayFromTheCentre() {
@@ -41,7 +44,7 @@ class SkinComboShapeTest {
         assertEquals(ComboOutline.CIRCLE, ComboOutline.read("triangle", null))
         assertEquals(ComboOutline.CIRCLE, ComboOutline.read("triangle", "middle"))
         assertEquals(ComboOutline.CIRCLE, ComboOutline.read("star", null))
-        assertEquals(ComboOutline.CIRCLE, ComboOutline.read("rect", null))
+        assertEquals(ComboOutline.SQUARE, ComboOutline.read("rect", null))
     }
 
     @Test fun anElementsOutline() {
@@ -183,7 +186,7 @@ class SkinComboShapeTest {
         m.addCombo(setOf("y", "b"))
         assertEquals(ComboOutline.CIRCLE, m.selectedOutline)
         val before = m.combo().rect
-        m.shapeCombo(ComboOutline.PILL)
+        m.shape(ComboOutline.PILL)
         val pill = m.combo()
         assertEquals(SkinShape.PILL, pill.shape)
         assertEquals(before.width * ComboOutline.PILL_WIDE, pill.rect.width, 0.01f)
@@ -192,7 +195,7 @@ class SkinComboShapeTest {
         // Measured against the circle it was: still 100 %.
         assertEquals(100, m.percent())
         assertEquals(ComboOutline.PILL, m.selectedOutline)
-        m.shapeCombo(triangleBL)
+        m.shape(triangleBL)
         assertEquals(triangleBL, ComboOutline.of(m.combo()))
         m.combo().rect.let { assertEquals(before.x, it.x, 0.01f); assertEquals(before.width, it.width, 0.01f); assertEquals(before.height, it.height, 0.01f) }
         // The other layout keeps its circle.
@@ -203,10 +206,10 @@ class SkinComboShapeTest {
     @Test fun eachShapeIsAnUndoStep() {
         val m = model()
         m.addCombo(setOf("y", "b"))
-        m.shapeCombo(ComboOutline.PILL)
-        m.shapeCombo(triangleBL)
+        m.shape(ComboOutline.PILL)
+        m.shape(triangleBL)
         // The same outline again is no step.
-        m.shapeCombo(triangleBL)
+        m.shape(triangleBL)
         m.undo()
         assertEquals(ComboOutline.PILL, ComboOutline.of(m.combo()))
         m.undo()
@@ -220,7 +223,7 @@ class SkinComboShapeTest {
         val m = model(SkinFormat.parse(model().apply { addCombo(setOf("y", "b")) }.json(SkinFormat.toJson(twoLayouts))))
         m.tap("combo-1")
         val circle = m.combo().rect
-        m.shapeCombo(ComboOutline.PILL)
+        m.shape(ComboOutline.PILL)
         val pill = m.combo().rect
         m.sizeStep(1)
         // Reset: the pill at its saved size, not squeezed into the circle's square.
@@ -236,23 +239,20 @@ class SkinComboShapeTest {
         assertFalse(m.dirty)
     }
 
-    @Test fun nothingToShapeWithoutAComboSelected() {
+    @Test fun nothingToShapeWithNothingSelected() {
         val m = model()
         assertNull(m.selectedOutline)
-        m.shapeCombo(ComboOutline.PILL)
-        assertFalse(m.canUndo)
-        m.tap("y")
-        assertNull(m.selectedOutline)
-        m.shapeCombo(ComboOutline.PILL)
+        m.shape(ComboOutline.PILL)
         assertFalse(m.canUndo)
         // No layout shown.
-        SkinEditorModel(twoLayouts).shapeCombo(ComboOutline.PILL)
+        SkinEditorModel(twoLayouts).shape(ComboOutline.PILL)
+        // Any other button takes an outline too since issue 891 (SkinButtonShapeTest).
     }
 
     @Test fun aTriangleIsSelectedOnItsTriangleOnly() {
         val m = model()
         m.addCombo(setOf("y", "b"))
-        m.shapeCombo(ComboOutline(SkinShape.TRIANGLE, SkinCorner.TOP_LEFT))
+        m.shape(ComboOutline(SkinShape.TRIANGLE, SkinCorner.TOP_LEFT))
         val r = m.combo().rect
         assertEquals("combo-1", m.hit(r.x + 5f, r.y + 5f))
         assertNull(m.hit(r.x + r.width - 2f, r.y + r.height - 2f))
@@ -261,7 +261,7 @@ class SkinComboShapeTest {
     @Test fun theShapeIsSavedResumedAndDeletedWithTheCombo() {
         val m = model()
         m.addCombo(setOf("y", "b"))
-        m.shapeCombo(ComboOutline(SkinShape.TRIANGLE, SkinCorner.BOTTOM_RIGHT))
+        m.shape(ComboOutline(SkinShape.TRIANGLE, SkinCorner.BOTTOM_RIGHT))
         val text = m.json(SkinFormat.toJson(twoLayouts))
         val placed = JSONObject(text).getJSONObject("layouts")
         val c = placed.getJSONObject("phone-portrait").getJSONArray("combos").getJSONObject(0)
@@ -279,7 +279,7 @@ class SkinComboShapeTest {
 
         // Changed again on the saved skin: only the outline is an edit of the look.
         saved.tap("combo-1")
-        saved.shapeCombo(ComboOutline.PILL)
+        saved.shape(ComboOutline.PILL)
         assertEquals(mapOf("combo-1" to ComboOutline.PILL), saved.lookEdits().getValue(SkinLayoutId.PHONE_PORTRAIT).shapes)
         assertEquals("pill", JSONObject(saved.json(text)).getJSONObject("layouts").getJSONObject("phone-portrait").getJSONArray("combos").getJSONObject(0).getString("shape"))
 

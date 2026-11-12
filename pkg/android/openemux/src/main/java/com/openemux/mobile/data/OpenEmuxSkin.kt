@@ -69,8 +69,9 @@ enum class SkinElementType(val id: String, val colorParts: List<String>, val ima
 }
 
 /**
- * The outline an element is drawn with when it has no image. [TRIANGLE] is a combo button's alone (issue 842): a right
- * triangle in its rect whose square corner is the element's [SkinElement.corner].
+ * The outline an element is drawn with when it has no image. [TRIANGLE] is a right triangle in its rect whose square
+ * corner is the element's [SkinElement.corner]: a combo button's (issue 842), or a button the player gave that outline
+ * (issue 891), never a skin's own.
  */
 enum class SkinShape(val id: String) {
     CIRCLE("circle"), PILL("pill"), RECT("rect"), TRIANGLE("triangle");
@@ -92,6 +93,13 @@ enum class SkinCorner(val id: String) {
         fun byId(id: String?): SkinCorner? = entries.firstOrNull { it.id == id }
     }
 }
+
+/**
+ * The outline a skin gives a control the player drew in another (issue 891): its [shape] (null: the type's default),
+ * its [rotation], and the [width] x [height] it had when the player's outline was chosen, whose proportions "Original"
+ * brings back.
+ */
+data class SkinOwnOutline(val shape: SkinShape?, val rotation: Float, val width: Float, val height: Float)
 
 /** Whether a quick action's icon is light or dark on its "active" background. */
 enum class SkinIconTone(val id: String) {
@@ -182,6 +190,11 @@ data class SkinElement(
     val art: SkinArt = SkinArt.FULL,
     /** Where a [SkinShape.TRIANGLE] points (issue 842); null for every other shape. */
     val corner: SkinCorner? = null,
+    /**
+     * What the skin itself draws this control as, while the player draws it in another outline (issue 891): [shape],
+     * [corner] and [rotation] are then the player's. Null: the skin's own.
+     */
+    val own: SkinOwnOutline? = null,
 ) {
     /** The element's image files, one per [SkinElementType.imageSuffixes] entry, in that order. */
     val imageFiles: List<String> get() = type.imageSuffixes.map { "${image ?: id}$it.png" }
@@ -192,10 +205,10 @@ data class SkinElement(
     /**
      * [this] in [to]: what is measured in the layout's units ([depth], [radius], the label's size and place) follows
      * the width, so a control resized keeps its proportions. A combo button follows the height: a circle made a pill
-     * (issue 842) gets wider, not deeper.
+     * (issue 842) gets wider, not deeper; and so does a button drawn in an outline of the player's (issue 891).
      */
     fun at(to: SkinRect): SkinElement {
-        val k = if (isCombo) to.height / rect.height else to.width / rect.width
+        val k = scale(rect, to, byHeight = isCombo || own != null)
         if (k == 1f) return copy(rect = to)
         return copy(
             rect = to, radius = radius?.times(k), depth = depth * k, labelSize = labelSize?.times(k),
@@ -206,6 +219,15 @@ data class SkinElement(
     companion object {
         /** The least of a control's height its face keeps, whatever [depth] says. */
         const val MIN_FACE = 0.25f
+
+        /**
+         * How much what a control measures in units follows its rect going from [from] to [to] ([at]): the width, so a
+         * control resized keeps its proportions; the height with [byHeight], a control whose outline changes its width
+         * (a combo, issue 842; a button in an outline of the player's, issue 891): a pill made a circle keeps its relief
+         * and its label as tall as it is, not as wide as the outline made it.
+         */
+        fun scale(from: SkinRect, to: SkinRect, byHeight: Boolean): Float =
+            if (byHeight) to.height / from.height else to.width / from.width
     }
 }
 

@@ -244,16 +244,18 @@ or the FDS disk key. Its label is the name the skin gives each of its buttons (a
 colours with a light ring round its face, so it never reads as one of the console's own buttons, and pressing it
 presses all its buttons; releasing it releases them.
 
-**Outline.** Each layout gives a combo its own outline: `shape` is `circle` (the default), `pill` or `triangle`. A
+**Outline.** Each layout gives a combo its own outline: `shape` is `circle` (the default), `pill`, `rect` (a rounded
+square, issue 891) or `triangle`. A
 triangle is a right triangle in its rect whose square corner points at `corner`: `bottom-left`, `bottom-right`,
 `top-left` or `top-right`. Its legs lie on the two edges of the rect that meet at that corner and its long edge
 crosses the rect, so it tucks into the gap between two round buttons (Y+B at the bottom left of a SNES diamond). It
 is touched on the triangle alone: a touch on the rest of its rect, over a neighbouring button, never presses it
 (the overlay desc's `_triangle` key), so a triangle is never turned: its `rotation` is read as 0. Its label sits at the triangle's centroid, pulled toward the square corner. A
 `shape` this app does not know, or a `triangle` with no known `corner`, is drawn as a circle rather than refused,
-so a newer app's outline still opens. The editor makes a circle and a triangle as wide as tall (the face buttons'
-diameter) and a pill 1.6 times as wide and 0.8 times as tall; Size scales any of them. `triangle` is for combos
-only: an element with it is refused (`BAD_SHAPE`).
+so a newer app's outline still opens. The editor makes a circle, a rounded square and a triangle as wide as tall (the
+face buttons' diameter) and a pill 1.6 times as wide and 0.8 times as tall; Size scales any of them. A triangle's
+three corners are rounded as much as a rounded square's (issue 891). An element's own `shape` is never `triangle`:
+one with it is refused (`BAD_SHAPE`); a button the player gave a triangle says so in its `outline` (below).
 
 ```json
 "combos": [{ "id": "combo-1", "x": 520, "y": 1390, "width": 90, "height": 90, "shape": "triangle", "corner": "bottom-left" }]
@@ -272,6 +274,38 @@ its own combos other ids.
 
 Combos are on the layout's own page: not on its keypad page, nor on an NDS layout's screen-layout pages.
 
+### Outline of the player's
+
+A player can draw any button or keypad key of their own skin in another outline (issue 891): L and R moved next to A
+and B on a GBA layout look right as circles, not as the pills the skin drew. The element keeps the skin's own
+`shape`, `rotation` and rect keys as the skin had them, and says what the player chose in `outline`:
+
+- `shape`: `circle`, `pill`, `rect` (a rounded square) or `triangle`;
+- `corner`: for a `triangle`, the corner its square corner points at, as a combo's (above);
+- `width`, `height`: the control's size in the skin's own outline when the player first chose another, whose
+  proportions "Original" in the editor brings back.
+
+The element is drawn in that outline from its colours (an image of its own is the skin's drawing of its own outline,
+and is not used), and a triangle is never turned and is touched on the triangle alone, as a combo's. The rect keys
+are where the player put it, in that outline. An `outline` this app cannot read (not an object, an unknown `shape`, a
+`triangle` with no known `corner`) is ignored, and the skin's own outline drawn; one on a D-pad, a stick or a quick
+action is ignored too. An app from before it ignores the key and draws the skin's own. "Original" removes the key.
+
+```json
+{ "id": "l", "type": "button", "bind": "l", "x": 520, "y": 1330, "width": 100, "height": 100, "shape": "pill",
+  "outline": { "shape": "circle", "width": 200, "height": 80 } }
+```
+
+### Pressed look
+
+While a button is held in game, it is drawn tinted (issue 891): 30 % black over a light face, 35 % white over a dark
+one, judged from what the button draws, over its own pixels only (its outline and its label keep their shape). Each
+of the D-pad's four directions is tinted on its own, the wedge from its centre to that side, under its ball. The tint
+follows what the overlay presses, not where the finger is: a combo lights, and so does a button anchor mode holds. It
+is not a key of the skin: every skin in this format has it. The overlay draws it from an image per button written
+with `overlayN_descM_lit_by = "press"`, which the engine shows only while the overlay presses every bind of that desc
+and which takes no touch.
+
 ### Rect
 
 `x`, `y`, `width`, `height`: numbers (decimals allowed), in the layout's pixel space, from its top-left corner.
@@ -288,6 +322,7 @@ Combos are on the layout's own page: not on its keypad page, nor on an NDS layou
 | `group` | string | no | The group the editor moves it with (`face`, `dpad`, `shoulders-left`, `center`…). Free text; elements with the same value move together. |
 | `x`, `y`, `width`, `height` | numbers | yes | The element's rect (see Rect): the whole control, its relief included. |
 | `shape` | string | no | `circle`, `pill` or `rect`: the outline drawn when the element has no image. |
+| `outline` | object | no | The outline the player gave a `button` or a `keypad` key in the editor (issue 891), drawn instead of `shape` (below). |
 | `radius` | number | no | How round a `rect` shape's corners are. 0 or more; left out, a share of its shorter side. |
 | `rotation` | number | no | Degrees the shape is turned, clockwise (-40 to 40). The rect is then the box around the turned shape. |
 | `depth` | number | no | A button's, a key's or the D-pad's relief: how many units of the rect's height, at the bottom, show the same shape again under the face, in the `relief` colour. Left out or 0: flat. At most three quarters of the height. |

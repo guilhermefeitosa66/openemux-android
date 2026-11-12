@@ -161,16 +161,20 @@ object SkinCombos {
 }
 
 /**
- * A combo button's outline on one layout (issue 842): a circle (the default), a pill, or a right triangle whose square
- * corner points at [corner] of its rect, to tuck into the gap between two round buttons. Each layout keeps its own.
+ * A button's outline on one layout: a circle, a pill, a rounded square, or a right triangle whose square corner points
+ * at [corner] of its rect, to tuck into the gap between two round buttons. A combo's (issue 842; a circle until the
+ * player picks another), or the one the player gave any other button (issue 891). Each layout keeps its own.
  */
 data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
     companion object {
         val CIRCLE = ComboOutline(SkinShape.CIRCLE)
         val PILL = ComboOutline(SkinShape.PILL)
 
-        /** The outlines the Shape tool offers, in its order: circle, pill, then the triangle at each corner. */
-        val ALL: List<ComboOutline> = listOf(CIRCLE, PILL) + SkinCorner.entries.map { ComboOutline(SkinShape.TRIANGLE, it) }
+        /** The rounded square (issue 891): the skin format's `rect`, its corners rounded as the renderer rounds them. */
+        val SQUARE = ComboOutline(SkinShape.RECT)
+
+        /** The outlines the Shape tool offers, in its order: circle, pill, rounded square, then the triangle at each corner. */
+        val ALL: List<ComboOutline> = listOf(CIRCLE, PILL, SQUARE) + SkinCorner.entries.map { ComboOutline(SkinShape.TRIANGLE, it) }
 
         /** A pill is this many times as wide as the circle it was, and [PILL_TALL] times as tall. */
         const val PILL_WIDE = 1.6f
@@ -182,23 +186,76 @@ data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
          */
         fun read(shape: String?, corner: String?): ComboOutline = when (SkinShape.byId(shape.orEmpty())) {
             SkinShape.PILL -> PILL
+            SkinShape.RECT -> SQUARE
             SkinShape.TRIANGLE -> SkinCorner.byId(corner)?.let { ComboOutline(SkinShape.TRIANGLE, it) } ?: CIRCLE
             else -> CIRCLE
         }
 
+        /** The outline a [shape] of a [type] draws: no shape is the type's default (a key's rounded square, else a circle). */
+        fun of(shape: SkinShape?, corner: SkinCorner?, type: SkinElementType): ComboOutline =
+            when (shape ?: if (type == SkinElementType.KEYPAD) SkinShape.RECT else SkinShape.CIRCLE) {
+                SkinShape.PILL -> PILL
+                SkinShape.RECT -> SQUARE
+                SkinShape.TRIANGLE -> corner?.let { ComboOutline(SkinShape.TRIANGLE, it) } ?: CIRCLE
+                SkinShape.CIRCLE -> CIRCLE
+            }
+
         /** [e]'s outline. */
-        fun of(e: SkinElement): ComboOutline =
-            if (e.shape == SkinShape.TRIANGLE && e.corner != null) ComboOutline(SkinShape.TRIANGLE, e.corner) else if (e.shape == SkinShape.PILL) PILL else CIRCLE
+        fun of(e: SkinElement): ComboOutline = of(e.shape, e.corner, e.type)
 
         /**
-         * [rect] (drawn as [from]) drawn as [to], about the same centre: a circle and a triangle are as wide as tall, a
-         * pill [PILL_WIDE] times as wide and [PILL_TALL] times as tall as the circle it was; with a [size], moved back
-         * inside the layout (and never larger than it).
+         * Whether the Shape tool takes [e] (issue 891): a button or a keypad key, a combo too; never the D-pad, a stick or
+         * a quick action on the frame.
+         */
+        fun shapeable(e: SkinElement): Boolean = e.type == SkinElementType.BUTTON || e.type == SkinElementType.KEYPAD
+
+        /** The outline the player gave [e]: a combo's always, another button's only when it is not the skin's own. */
+        fun chosen(e: SkinElement): ComboOutline? = if (e.isCombo || e.own != null) of(e) else null
+
+        /**
+         * [e] drawn as [outline] (issue 891), its rect left as it is: a triangle is never turned, as a combo's, so the
+         * overlay's touch on its diagonal meets what is drawn. Null brings back the skin's own outline and turn. A combo
+         * only takes the outline (its own is always one of these).
+         */
+        fun drawn(e: SkinElement, outline: ComboOutline?): SkinElement {
+            if (e.isCombo) return if (outline == null) e else e.copy(shape = outline.shape, corner = outline.corner)
+            if (outline == null) {
+                val own = e.own ?: return e
+                return e.copy(shape = own.shape, corner = null, rotation = own.rotation, own = null)
+            }
+            val own = e.own ?: SkinOwnOutline(e.shape, e.rotation, e.rect.width, e.rect.height)
+            val rotation = if (outline.shape == SkinShape.TRIANGLE) 0f else own.rotation
+            return e.copy(shape = outline.shape, corner = outline.corner, rotation = rotation, own = own)
+        }
+
+        /** How large [rect] drawn as [o] is: a pill [PILL_TALL] of its height's circle, anything else its width. */
+        fun side(rect: SkinRect, o: ComboOutline): Float = if (o.shape == SkinShape.PILL) rect.height / PILL_TALL else rect.width
+
+        /**
+         * [rect] (drawn as [from]) drawn as [to], about the same centre: a circle, a rounded square and a triangle are as
+         * wide as tall, a pill [PILL_WIDE] times as wide and [PILL_TALL] times as tall as the circle it was; with a
+         * [size], moved back inside the layout (and never larger than it).
          */
         fun reshape(rect: SkinRect, from: ComboOutline, to: ComboOutline, size: SkinSize? = null): SkinRect {
-            val side = if (from.shape == SkinShape.PILL) rect.width / PILL_WIDE else rect.width
-            var w = if (to.shape == SkinShape.PILL) side * PILL_WIDE else side
-            var h = if (to.shape == SkinShape.PILL) side * PILL_TALL else side
+            val side = side(rect, from)
+            val w = if (to.shape == SkinShape.PILL) side * PILL_WIDE else side
+            val h = if (to.shape == SkinShape.PILL) side * PILL_TALL else side
+            return centred(rect, w, h, size)
+        }
+
+        /**
+         * [rect] (drawn as [from]) back in the skin's own outline [to], whose rect was [own] (issue 891): [own]'s
+         * proportions at the size [rect] has, about the same centre; with a [size], kept inside the layout.
+         */
+        fun restore(rect: SkinRect, from: ComboOutline, own: SkinRect, to: ComboOutline, size: SkinSize? = null): SkinRect {
+            val k = side(rect, from) / side(own, to)
+            return centred(rect, own.width * k, own.height * k, size)
+        }
+
+        /** A [w] x [h] rect about [rect]'s centre; with a [size], never larger than it and moved back inside it. */
+        private fun centred(rect: SkinRect, w0: Float, h0: Float, size: SkinSize?): SkinRect {
+            var w = w0
+            var h = h0
             if (size != null) {
                 val k = minOf(1f, size.width / w, size.height / h)
                 w *= k

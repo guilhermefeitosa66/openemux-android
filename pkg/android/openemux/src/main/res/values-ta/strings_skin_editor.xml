@@ -70,6 +70,8 @@
     <string name="editor_combo_shape">வடிவம்</string>
     <string name="editor_shape_circle">வட்டம்</string>
     <string name="editor_shape_pill">மாத்திரை வடிவம்</string>
+    <string name="editor_shape_square">வளைந்த மூலை சதுரம்</string>
+    <string name="editor_shape_original">அசல் வடிவம்</string>
     <string name="editor_shape_bottom_left">முக்கோணம், கீழ் இடது</string>
     <string name="editor_shape_bottom_right">முக்கோணம், கீழ் வலது</string>
     <string name="editor_shape_top_left">முக்கோணம், மேல் இடது</string>

@@ -186,15 +186,19 @@ private const val MINUS = "M5 12h14"
 private const val COMBO_ICON = "M7 8h10a4 4 0 0 1 0 8H7a4 4 0 0 1 0-8zM12 10v4M10 12h4"
 private const val COMBO_BUTTONS = "M7 8h10a4 4 0 0 1 0 8H7a4 4 0 0 1 0-8zM8 12h2M14 12h2"
 
-/** A combo's outlines as the Shape tool shows them (issue 842), in [ComboOutline.ALL] order. */
+/** The outlines as the Shape tool shows them (issues 842, 891), in [ComboOutline.ALL] order. */
 private val OUTLINE_ICONS = listOf(
     "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M7 7h10a5 5 0 0 1 0 10H7a5 5 0 0 1 0-10z",
+    "M4 8a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z",
     "M4 4v16h16z", "M20 4v16H4z", "M4 4h16L4 20z", "M4 4h16v16z",
 )
 private val OUTLINE_NAMES = listOf(
-    R.string.editor_shape_circle, R.string.editor_shape_pill, R.string.editor_shape_bottom_left, R.string.editor_shape_bottom_right,
-    R.string.editor_shape_top_left, R.string.editor_shape_top_right,
+    R.string.editor_shape_circle, R.string.editor_shape_pill, R.string.editor_shape_square, R.string.editor_shape_bottom_left,
+    R.string.editor_shape_bottom_right, R.string.editor_shape_top_left, R.string.editor_shape_top_right,
 )
+
+/** The Shape tool's own icon in the actions bar (issue 891): a rounded square's outline. */
+private const val SHAPE_ICON = "M5 9a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"
 private const val FRAME_ICON = "M3 5h18v14H3zM7 9h10v6H7z"
 
 /** The longest side a texture is drawn at for the stage while it is being framed (issue 786). */
@@ -478,7 +482,7 @@ private fun EditorBody(host: SkinEditorHost, console: Console, target: SkinEditT
                 val frame = if (before != null && before.frameKey == frameKey) before.frame else renderer.previewFrame(view, id, layout, scale)?.asImageBitmap()
                 // A control's relief and corners follow its size, so a control being resized is not drawn again.
                 val keys = layout.elements.associate { e ->
-                    e.id to listOf(e.colors, e.art, if (e.type == SkinElementType.ACTION) look.frame else null, edits(e.imageFiles), e.shape, e.corner)
+                    e.id to listOf(e.colors, e.art, if (e.type == SkinElementType.ACTION) look.frame else null, edits(e.imageFiles), e.shape, e.corner, e.rotation, e.own)
                 }
                 // Drawn at twice the size, so a control grown to 200 % stays sharp.
                 val elements = layout.elements.associate { e ->
@@ -1369,8 +1373,9 @@ private fun Stage(
             }
             tool == Tool.SIZE && !fixed -> SizeRow(m.percent() ?: 100, bottom.width(barWidth), onStep = { m.sizeStep(it); onChange(true) }, onDone = { onTool(Tool.NONE) })
             tool == Tool.NUDGE && !fixed -> NudgeRow(bottom.width(barWidth), onNudge = { x, y -> m.nudge(x, y); onChange(true) }, onDone = { onTool(Tool.NONE) })
-            tool == Tool.SHAPE && m.selectedOutline != null -> ShapeRow(
-                m.selectedOutline!!, bottom.width(barWidth), onShape = { m.shapeCombo(it); onChange(true) }, onDone = { onTool(Tool.NONE) },
+            tool == Tool.SHAPE && m.shapeTargets.isNotEmpty() -> ShapeRow(
+                m.selectedOutline, m.shapeMixed, m.shapeOriginal, bottom.width(barWidth), onShape = { m.shape(it); onChange(true) },
+                onDone = { onTool(Tool.NONE) },
             )
             else -> ActionsBar(
                 m.percent() ?: 100, bottom.width(barWidth), paintable = paintable,
@@ -1379,6 +1384,8 @@ private fun Stage(
                 movable = !fixed,
                 onColour = onColour, onTexture = onTexture,
                 onSize = { onTool(Tool.SIZE) }, onNudge = { onTool(Tool.NUDGE) }, onReset = { m.reset(); onChange(true) },
+                // Any other button or key takes an outline of the player's (issue 891); a combo has its own Shape tool.
+                onShape = { onTool(Tool.SHAPE) }.takeIf { m.selectedCombo == null && m.shapeTargets.isNotEmpty() },
                 // A combo (issue 842) records its buttons again and is deleted where another control is put back.
                 combo = m.selectedCombo?.let { c ->
                     ComboTools(onButtons = { onCombo(c.id) }, onShape = { onTool(Tool.SHAPE) }, onDelete = { onDeleteCombo(c.id) })
@@ -1534,11 +1541,12 @@ private fun ToolButton(label: String, modifier: Modifier, onClick: () -> Unit, t
 @Composable
 private fun ActionsBar(
     percent: Int, modifier: Modifier, paintable: Boolean, texturable: Boolean, movable: Boolean, onColour: () -> Unit, onTexture: () -> Unit,
-    onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit, combo: ComboTools? = null,
+    onSize: () -> Unit, onNudge: () -> Unit, onReset: () -> Unit, combo: ComboTools? = null, onShape: (() -> Unit)? = null,
 ) {
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically) {
+        onShape?.let { ToolButton(stringResource(R.string.editor_combo_shape), Modifier.weight(1f), it) { Icon(SHAPE_ICON, BarText, 22.dp) } }
         combo?.let { ToolButton(stringResource(R.string.editor_combo_buttons), Modifier.weight(1f), it.onButtons) { Icon(COMBO_BUTTONS, BarText, 22.dp) } }
-        combo?.let { ToolButton(stringResource(R.string.editor_combo_shape), Modifier.weight(1f), it.onShape) { Icon(OUTLINE_ICONS[2], BarText, 22.dp) } }
+        combo?.let { ToolButton(stringResource(R.string.editor_combo_shape), Modifier.weight(1f), it.onShape) { Icon(OUTLINE_ICONS[3], BarText, 22.dp) } }
         if (paintable) {
             ToolButton(stringResource(R.string.editor_colour), Modifier.weight(1f), onColour) {
                 Canvas(Modifier.size(22.dp)) {
@@ -1691,15 +1699,19 @@ private fun SizeRow(percent: Int, modifier: Modifier, onStep: (Int) -> Unit, onD
 }
 
 /**
- * The Shape tool (issue 842): the selected combo's outline on this layout, [current] marked: a circle, a pill, or a
- * triangle pointing at one of the four corners.
+ * The Shape tool (issues 842, 891): the outline of the selection on this layout, [current] marked (none when [mixed]):
+ * the skin's own ("Original", null, offered when [original]), a circle, a pill, a rounded square, or a triangle
+ * pointing at one of the four corners.
  */
 @Composable
-private fun ShapeRow(current: ComboOutline, modifier: Modifier, onShape: (ComboOutline) -> Unit, onDone: () -> Unit) {
+private fun ShapeRow(
+    current: ComboOutline?, mixed: Boolean, original: Boolean, modifier: Modifier, onShape: (ComboOutline?) -> Unit, onDone: () -> Unit,
+) {
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        ComboOutline.ALL.forEachIndexed { i, outline ->
-            val on = outline == current
-            val label = stringResource(OUTLINE_NAMES[i])
+        val choices = (if (original) listOf(null) else emptyList()) + ComboOutline.ALL
+        for (outline in choices) {
+            val on = !mixed && outline == current
+            val label = stringResource(outline?.let { OUTLINE_NAMES[ComboOutline.ALL.indexOf(it)] } ?: R.string.editor_shape_original)
             Box(
                 Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
                     .background(if (on) Lilac.copy(alpha = 0.18f) else Color.Transparent)
@@ -1707,7 +1719,10 @@ private fun ShapeRow(current: ComboOutline, modifier: Modifier, onShape: (ComboO
                     .selectable(selected = on, role = Role.RadioButton) { onShape(outline) }
                     .semantics { contentDescription = label },
                 contentAlignment = Alignment.Center,
-            ) { Icon(OUTLINE_ICONS[i], if (on) Lilac else BarText, 20.dp) }
+            ) {
+                if (outline == null) Icon(Icons.Reset, if (on) Lilac else BarText, 20.dp)
+                else Icon(OUTLINE_ICONS[ComboOutline.ALL.indexOf(outline)], if (on) Lilac else BarText, 20.dp)
+            }
         }
         DoneButton(onDone)
     }

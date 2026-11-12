@@ -5723,6 +5723,10 @@ static bool input_overlay_coords_inside_hitbox(const struct overlay_desc *desc,
 {
    float range_x, range_y;
 
+   /* OpenEmux: a button's pressed look is a picture, not a button */
+   if (desc->lit_by == OVERLAY_LIT_BY_PRESS)
+      return false;
+
    if (use_range_mod)
    {
       range_x = desc->range_x_mod;

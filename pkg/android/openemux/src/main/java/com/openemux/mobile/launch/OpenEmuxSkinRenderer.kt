@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.CornerPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -106,7 +105,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             val image = "$prefix.png"
             val bitmap = page(pkg, id, layout, plan, w, h, page.keypad, page.screen)
             val elements = layout.elements(page.keypad)
-            val descs = plan.elements.flatMap { descs(pkg, id, layout, elements[it.index], it, page.keypad, page.screen) }
+            val descs = plan.elements.flatMap { descs(pkg, id, layout, elements[it.index], it, page.keypad, page.screen, pressed = true) }
             OverlayWriter.saveImages(outDir, image, bitmap, descs, prefix)
             bitmap.recycle()
             val viewport = plan.viewport.rect()
@@ -354,18 +353,20 @@ class OpenEmuxSkinRenderer(context: Context) {
      */
     private fun descs(
         pkg: SkinPackage, id: SkinLayoutId, layout: SkinLayout, element: SkinElement, plan: ElementPlan, keypad: Boolean,
-        screen: String? = null, labels: Boolean = true,
+        screen: String? = null, labels: Boolean = true, pressed: Boolean = false,
     ): List<OverlayDesc> {
         val files = if (screen != null) pkg.screenImages(id, screen, element) else pkg.images(id, element, keypad)
         val box = plan.box.rect()
         return when (plan) {
-            // A triangular combo (issue 842) is touched on its triangle alone, never over the buttons beside it.
-            is ElementPlan.Button -> listOf(
-                OverlayDesc(
-                    plan.bind ?: "nul", box, image = control(pkg, files[0], element, box, labels),
-                    corner = element.corner?.takeIf { element.shape == SkinShape.TRIANGLE }?.id,
-                ),
-            )
+            // A triangular button (a combo, issue 842; any button, issue 891) is touched on its triangle alone, never
+            // over the buttons beside it. A button drawn in an outline of the player's is drawn from its colours: its
+            // image is the skin's drawing of its own outline (issue 891).
+            is ElementPlan.Button -> {
+                val face = control(pkg, files[0].takeIf { element.own == null }, element, box, labels)
+                // Pressed (issue 891): the same face, tinted, shown by the engine while the overlay presses its binds.
+                val press = plan.bind?.takeIf { pressed }?.let { OverlayDesc(it, RectF(box), image = tinted(face, pressTint(face)), press = true) }
+                listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, image = face, corner = element.corner?.takeIf { element.shape == SkinShape.TRIANGLE }?.id), press)
+            }
             is ElementPlan.Toggle ->
                 listOf(OverlayDesc(if (plan.next != null) "overlay_next" else "nul", box, next = plan.next, image = control(pkg, files[0], element, box, labels)))
             is ElementPlan.Action -> {
@@ -388,7 +389,15 @@ class OpenEmuxSkinRenderer(context: Context) {
                 // A second D-pad on a console with none is drawn, ball at rest, and presses nothing.
                 val area = plan.binds?.let { OverlayDesc("dpad_area", travel, dpad = it, reach = plan.reach, knob = ball) }
                     ?: OverlayDesc("nul", travel, image = ball)
-                listOf(OverlayDesc("nul", box, image = pad), area)
+                // Each direction pressed (issue 891): its arm of the pad tinted, under the ball, which keeps moving
+                // over it.
+                val arms = plan.binds?.takeIf { pressed }?.let { binds ->
+                    // One tint for the four arms: the pad's pixels are read once.
+                    val tint = pressTint(pad)
+                    val face = faceOf(element, RectF(0f, 0f, box.width(), box.height()))
+                    binds.zip(Arm.entries).map { (bind, arm) -> OverlayDesc(bind, RectF(box), image = tinted(pad, tint, arm, face), press = true) }
+                }.orEmpty()
+                listOf(OverlayDesc("nul", box, image = pad)) + arms + area
             }
             is ElementPlan.Stick -> {
                 val base = image(pkg, files[0], box) ?: disc(box, element.colors["base"] ?: DEFAULT_BASE)
@@ -474,6 +483,44 @@ class OpenEmuxSkinRenderer(context: Context) {
         return out
     }
 
+    /** A D-pad's arms, in the order a plan's binds name them (up, down, left, right). */
+    private enum class Arm { UP, DOWN, LEFT, RIGHT }
+
+    /**
+     * [art] (a button as [control] draws it, or the D-pad as [pad] does) pressed (issue 891): a copy with [tint]
+     * ([pressTint]) laid over its own pixels, so it keeps its outline and its label; for the D-pad, only its [arm], the
+     * wedge from the centre of its [face] (the face's box in [art]) to that side.
+     */
+    private fun tinted(art: Bitmap, tint: Int, arm: Arm? = null, face: RectF? = null): Bitmap {
+        val out = createBitmap(art.width, art.height)
+        val c = Canvas(out)
+        if (arm != null && face != null) {
+            val w = art.width.toFloat()
+            val h = art.height.toFloat()
+            val cx = face.centerX()
+            val cy = face.centerY()
+            c.clipPath(
+                Path().apply {
+                    moveTo(cx, cy)
+                    when (arm) {
+                        Arm.UP -> { lineTo(0f, 0f); lineTo(w, 0f) }
+                        Arm.DOWN -> { lineTo(w, h); lineTo(0f, h) }
+                        Arm.LEFT -> { lineTo(0f, h); lineTo(0f, 0f) }
+                        Arm.RIGHT -> { lineTo(w, 0f); lineTo(w, h) }
+                    }
+                    close()
+                },
+            )
+        }
+        c.drawBitmap(art, 0f, 0f, null)
+        c.drawColor(tint, PorterDuff.Mode.SRC_ATOP)
+        return out
+    }
+
+    /** [SkinPaintDefaults.pressTint] of [art]'s pixels. */
+    private fun pressTint(art: Bitmap): Int =
+        SkinPaintDefaults.pressTint(IntArray(art.width * art.height).also { art.getPixels(it, 0, art.width, 0, 0, art.width, art.height) })
+
     /** How far down [r] the face of [e] ends: [r] stands for the element's whole rect, relief included. */
     private fun faceOf(e: SkinElement, r: RectF) = RectF(r.left, r.top, r.right, r.top + r.height() * e.face.height / e.rect.height)
 
@@ -531,11 +578,8 @@ class OpenEmuxSkinRenderer(context: Context) {
             when (shapeOf(e)) {
                 SkinShape.CIRCLE -> drawOval(own, paint(own))
                 SkinShape.PILL -> (minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
-                SkinShape.TRIANGLE -> drawPath(
-                    triangle(own, e.corner ?: SkinCorner.BOTTOM_LEFT),
-                    paint(own).apply { pathEffect = CornerPathEffect(minOf(w, h) * TRIANGLE_ROUND) },
-                )
-                SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * 0.16f)).coerceAtMost(minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
+                SkinShape.TRIANGLE -> drawPath(triangle(own, e.corner ?: SkinCorner.BOTTOM_LEFT, minOf(w, h) * SkinShapes.ROUND), paint(own))
+                SkinShape.RECT -> (e.radius?.times(k) ?: (minOf(w, h) * SkinShapes.ROUND)).coerceAtMost(minOf(w, h) / 2f).let { drawRoundRect(own, it, it, paint(own)) }
             }
         }
     }
@@ -555,13 +599,24 @@ class OpenEmuxSkinRenderer(context: Context) {
         return RectF(ix + (r.left - ix) * f, iy + (r.top - iy) * f, ix + (r.right - ix) * f, iy + (r.bottom - iy) * f)
     }
 
-    /** The right triangle in [r] whose square corner is [corner] (issue 842): its legs on the two edges that meet there. */
-    private fun triangle(r: RectF, corner: SkinCorner): Path {
+    /**
+     * The right triangle in [r] whose square corner is [corner] (issue 842): its legs on the two edges that meet there,
+     * its three corners rounded to [round] (issue 891, [SkinShapes.roundedCorners]).
+     */
+    private fun triangle(r: RectF, corner: SkinCorner, round: Float): Path {
         val x = if (corner.sx < 0f) r.left else r.right
         val y = if (corner.sy < 0f) r.top else r.bottom
         val ox = if (corner.sx < 0f) r.right else r.left
         val oy = if (corner.sy < 0f) r.bottom else r.top
-        return Path().apply { moveTo(x, oy); lineTo(x, y); lineTo(ox, y); close() }
+        val c = SkinShapes.roundedCorners(floatArrayOf(x, oy, x, y, ox, y), round)
+        return Path().apply {
+            moveTo(c[0], c[1])
+            for (i in 0 until 3) {
+                if (i > 0) lineTo(c[i * 6], c[i * 6 + 1])
+                quadTo(c[i * 6 + 2], c[i * 6 + 3], c[i * 6 + 4], c[i * 6 + 5])
+            }
+            close()
+        }
     }
 
     /** [e]'s label on a canvas where [r] stands for the element's rect. */
@@ -859,9 +914,6 @@ class OpenEmuxSkinRenderer(context: Context) {
 
         /** A combo's ring, as a share of its face's short side. */
         private const val COMBO_RING = 0.06f
-
-        /** How round a triangular combo's corners are, as a share of its short side (issue 842). */
-        private const val TRIANGLE_ROUND = 0.12f
 
         /** The quick actions' glyphs, by the app action that draws them (OpenEmuxBinds), in 24-unit paths. */
         private val GLYPHS = mapOf(
