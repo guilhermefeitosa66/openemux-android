@@ -205,10 +205,10 @@ data class SkinElement(
     /**
      * [this] in [to]: what is measured in the layout's units ([depth], [radius], the label's size and place) follows
      * the width, so a control resized keeps its proportions. A combo button follows the height: a circle made a pill
-     * (issue 842) gets wider, not deeper.
+     * (issue 842) gets wider, not deeper; and so does a button drawn in an outline of the player's (issue 891).
      */
     fun at(to: SkinRect): SkinElement {
-        val k = if (isCombo) to.height / rect.height else to.width / rect.width
+        val k = scale(rect, to, byHeight = isCombo || own != null)
         if (k == 1f) return copy(rect = to)
         return copy(
             rect = to, radius = radius?.times(k), depth = depth * k, labelSize = labelSize?.times(k),
@@ -219,6 +219,15 @@ data class SkinElement(
     companion object {
         /** The least of a control's height its face keeps, whatever [depth] says. */
         const val MIN_FACE = 0.25f
+
+        /**
+         * How much what a control measures in units follows its rect going from [from] to [to] ([at]): the width, so a
+         * control resized keeps its proportions; the height with [byHeight], a control whose outline changes its width
+         * (a combo, issue 842; a button in an outline of the player's, issue 891): a pill made a circle keeps its relief
+         * and its label as tall as it is, not as wide as the outline made it.
+         */
+        fun scale(from: SkinRect, to: SkinRect, byHeight: Boolean): Float =
+            if (byHeight) to.height / from.height else to.width / from.width
     }
 }
 

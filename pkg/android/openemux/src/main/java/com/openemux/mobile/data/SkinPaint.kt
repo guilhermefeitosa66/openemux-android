@@ -206,7 +206,6 @@ object SkinColorMath {
 
     fun darken(argb: Int, t: Float): Int = mix(argb, 0x000000, t)
 
-    /** WCAG 2's relative luminance of [argb] (its alpha ignored), 0 for black to 1 for white. */
     /**
      * The relative luminance of [pixels] (ARGB) as seen: each pixel's [luminance] weighed by how opaque it is; 0 for
      * nothing opaque.
@@ -223,6 +222,7 @@ object SkinColorMath {
         return if (weight == 0.0) 0.0 else sum / weight
     }
 
+    /** WCAG 2's relative luminance of [argb] (its alpha ignored), 0 for black to 1 for white. */
     fun luminance(argb: Int): Double {
         fun channel(c: Int): Double {
             val s = c / 255.0

@@ -99,19 +99,24 @@ uint8_t input_overlay_lit_by_parse(const char *name)
 
 /* OpenEmux: a button's "pressed" look shows while the overlay presses
  * every bind of its desc (a combo's together), whichever touch did:
- * the button's own, a combo's, or anchor mode holding it. */
+ * the button's own, a combo's, or anchor mode holding it; a key's
+ * (retrok_*, a keypad key) while the overlay holds that key. */
 bool input_overlay_press_lit(const struct overlay_desc *desc,
-      const input_bits_t *buttons)
+      const input_overlay_state_t *state)
 {
    size_t i;
    bool any = false;
 
-   if (!desc || !buttons)
+   if (!desc || !state)
       return false;
+   if (desc->type == OVERLAY_TYPE_KEYBOARD)
+      return     desc->retro_key_idx
+             &&  desc->retro_key_idx < RETROK_LAST
+             && OVERLAY_GET_KEY(state, desc->retro_key_idx);
    for (i = 0; i < ARRAY_SIZE(desc->button_mask.data); i++)
    {
       uint32_t want = desc->button_mask.data[i];
-      if ((buttons->data[i] & want) != want)
+      if ((state->buttons.data[i] & want) != want)
          return false;
       if (want)
          any = true;
@@ -140,7 +145,7 @@ bool input_overlay_image_hidden(const input_overlay_t *ol,
          /* OpenEmux: a pressed look, while the overlay presses it */
          if (desc->lit_by == OVERLAY_LIT_BY_PRESS)
          {
-            if (!input_overlay_press_lit(desc, &ol->overlay_state.buttons))
+            if (!input_overlay_press_lit(desc, &ol->overlay_state))
                return true;
          }
          else if (!(states & (1u << (desc->lit_by - 1))))

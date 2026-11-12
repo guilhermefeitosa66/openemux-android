@@ -907,7 +907,9 @@ class SkinEditorModel(
             val was = originalLooks.getValue(id)
             look.copy(
                 colors = look.colors.filter { (e, c) -> was.colors[e] != c }, art = look.art.filter { (e, a) -> was.art[e] != a },
-                shapes = look.shapes.filter { (e, o) -> was.shapes[e] != o },
+                // Whole, not only the changed ones: the patch reads a control missing here as one back in the skin's
+                // own outline (issue 891), so a colour edit would otherwise drop every outline left as it was.
+                shapes = look.shapes,
             )
         }
 
@@ -1237,8 +1239,11 @@ object SkinEditJson {
                     val e = elements.getJSONObject(i)
                     val id = e.optString("id")
                     rects[id]?.let { r ->
-                        // What is measured in the layout's units follows the control's width (SkinElement.at).
-                        val k = e.optDouble("width").takeIf { it > 0.0 }?.let { r.width / it } ?: 1.0
+                        // What is measured in the layout's units follows the control's width, or its height in an
+                        // outline of the player's, written above (SkinElement.at).
+                        val ww = e.optDouble("width").toFloat()
+                        val wh = e.optDouble("height").toFloat()
+                        val k = if (ww > 0f && wh > 0f) SkinElement.scale(SkinRect(0f, 0f, ww, wh), r, byHeight = e.has("outline")).toDouble() else 1.0
                         put(e, r)
                         // Only a control resized: one that only moved keeps these as the file has them, to the digit.
                         if (kotlin.math.abs(k - 1.0) > 1e-4) {

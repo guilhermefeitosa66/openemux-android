@@ -274,6 +274,35 @@ class SkinButtonShapeTest {
         assertEquals(200.0, o.getDouble("width"), 0.0)
     }
 
+    @Test fun aColourEditKeepsTheOutlinesLeftAsTheyWere() {
+        val m = model()
+        m.one("l")
+        m.shape(ComboOutline.CIRCLE)
+        val saved = SkinFormat.parse(m.json(SkinFormat.toJson(skin)))
+        // Only a colour changes on the saved skin: L stays a circle once saved again.
+        val next = model(saved)
+        next.paint(SkinTarget.Controls(SkinElementType.BUTTON), listOf("a"), SkinPart.BUTTON, 0xFFFF0000.toInt())
+        next.endGesture()
+        val back = SkinFormat.parse(next.json(SkinFormat.toJson(saved))).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.first { it.id == "l" }
+        assertEquals(SkinShape.CIRCLE, back.shape)
+        assertEquals(SkinOwnOutline(SkinShape.PILL, 10f, 200f, 80f), back.own)
+    }
+
+    @Test fun anOutlineChangeScalesTheReliefAndLabelByHeight() {
+        val deep = l.copy(depth = 8f, labelSize = 40f)
+        val deepSkin = skin.copy(layouts = skin.layouts + (SkinLayoutId.PHONE_PORTRAIT to portrait.copy(elements = listOf(deep, r, a, b, pad, stick))))
+        val m = model(deepSkin)
+        m.one("l")
+        m.shape(ComboOutline.CIRCLE)
+        // 80 tall made a 100 x 100 circle: 1.25 times as tall, not half as wide.
+        assertEquals(10f, m.el("l").depth, 1e-4f)
+        assertEquals(50f, m.el("l").labelSize!!, 1e-4f)
+        // The file says the same.
+        val saved = SkinFormat.parse(m.json(SkinFormat.toJson(deepSkin))).layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.first { it.id == "l" }
+        assertEquals(10f, saved.depth, 1e-4f)
+        assertEquals(50f, saved.labelSize!!, 1e-4f)
+    }
+
     @Test fun aDraftKeepsItsOutlinesAndItsOriginals() {
         val m = model()
         m.one("l")

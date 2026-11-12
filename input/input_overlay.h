@@ -631,10 +631,11 @@ void input_overlay_alpha_pass(input_overlay_t *ol, float mod,
 uint8_t input_overlay_lit_by_parse(const char *name);
 
 /* OpenEmux: whether a desc lit by its press (OVERLAY_LIT_BY_PRESS)
- * shows: every bind of @desc is set in @buttons, what the overlay
- * presses this poll. A desc with no bind never shows. */
+ * shows: every bind of @desc is set in @state's buttons, what the
+ * overlay presses this poll (a keyboard desc: its key is held in
+ * @state's keys). A desc with no bind never shows. */
 bool input_overlay_press_lit(const struct overlay_desc *desc,
-      const input_bits_t *buttons);
+      const input_overlay_state_t *state);
 
 /* The driver was handed a page: nothing it holds is known any more. */
 void input_overlay_alpha_forget(input_overlay_t *ol);

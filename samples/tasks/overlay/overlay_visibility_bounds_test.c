@@ -471,16 +471,30 @@ static void test_press(void)
    check(alpha[1] == 0.0f && alpha[2] == 0.0f && alpha[0] == 0.7f,
          "and hides them on release");
 
-   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state.buttons),
+   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state),
          "a desc with no bind is never pressed");
    BIT256_SET(pack.overlay_state.buttons, 3);
-   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state.buttons),
+   check(!input_overlay_press_lit(&descs[0], &pack.overlay_state),
          "whatever is pressed");
-   check(!input_overlay_press_lit(NULL, &pack.overlay_state.buttons)
+   check(!input_overlay_press_lit(NULL, &pack.overlay_state)
          && !input_overlay_press_lit(&descs[1], NULL),
          "and nothing is pressed without a desc or a state");
    check(input_overlay_lit_by_parse("press") == OVERLAY_LIT_BY_PRESS,
          "\"press\" names it");
+
+   /* A keypad key's look follows its key, not the buttons. */
+   build_press();
+   descs[1].type          = OVERLAY_TYPE_KEYBOARD;
+   descs[1].retro_key_idx = RETROK_KP5;
+   BIT256_CLEAR_ALL(descs[1].button_mask);
+   check(lit_hidden(1, 0, 0, NULL), "a key not held hides its look");
+   BIT256_SET(pack.overlay_state.buttons, 8);
+   check(lit_hidden(1, 0, 0, NULL), "whatever button is pressed");
+   pack.overlay_state.keys[RETROK_KP5 / 32] |= 1u << (RETROK_KP5 % 32);
+   check(!lit_hidden(1, 0, 0, NULL), "a key held shows it");
+   descs[1].retro_key_idx = 0;
+   check(!input_overlay_press_lit(&descs[1], &pack.overlay_state),
+         "a key desc naming no key is never pressed");
 }
 
 static void test_lit_by_parse(void)

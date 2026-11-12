@@ -364,7 +364,7 @@ class OpenEmuxSkinRenderer(context: Context) {
             is ElementPlan.Button -> {
                 val face = control(pkg, files[0].takeIf { element.own == null }, element, box, labels)
                 // Pressed (issue 891): the same face, tinted, shown by the engine while the overlay presses its binds.
-                val press = plan.bind?.takeIf { pressed }?.let { OverlayDesc(it, RectF(box), image = tinted(face), press = true) }
+                val press = plan.bind?.takeIf { pressed }?.let { OverlayDesc(it, RectF(box), image = tinted(face, pressTint(face)), press = true) }
                 listOfNotNull(OverlayDesc(plan.bind ?: "nul", box, image = face, corner = element.corner?.takeIf { element.shape == SkinShape.TRIANGLE }?.id), press)
             }
             is ElementPlan.Toggle ->
@@ -391,8 +391,11 @@ class OpenEmuxSkinRenderer(context: Context) {
                     ?: OverlayDesc("nul", travel, image = ball)
                 // Each direction pressed (issue 891): its arm of the pad tinted, under the ball, which keeps moving
                 // over it.
-                val arms = plan.binds?.takeIf { pressed }?.zip(Arm.entries)?.map { (bind, arm) ->
-                    OverlayDesc(bind, RectF(box), image = tinted(pad, arm, faceOf(element, RectF(0f, 0f, box.width(), box.height()))), press = true)
+                val arms = plan.binds?.takeIf { pressed }?.let { binds ->
+                    // One tint for the four arms: the pad's pixels are read once.
+                    val tint = pressTint(pad)
+                    val face = faceOf(element, RectF(0f, 0f, box.width(), box.height()))
+                    binds.zip(Arm.entries).map { (bind, arm) -> OverlayDesc(bind, RectF(box), image = tinted(pad, tint, arm, face), press = true) }
                 }.orEmpty()
                 listOf(OverlayDesc("nul", box, image = pad)) + arms + area
             }
@@ -484,12 +487,11 @@ class OpenEmuxSkinRenderer(context: Context) {
     private enum class Arm { UP, DOWN, LEFT, RIGHT }
 
     /**
-     * [art] (a button as [control] draws it, or the D-pad as [pad] does) pressed (issue 891): a copy with
-     * [SkinPaintDefaults.pressTint] laid over its own pixels, so it keeps its outline and its label; for the D-pad,
-     * only its [arm], the wedge from the centre of its [face] (the face's box in [art]) to that side.
+     * [art] (a button as [control] draws it, or the D-pad as [pad] does) pressed (issue 891): a copy with [tint]
+     * ([pressTint]) laid over its own pixels, so it keeps its outline and its label; for the D-pad, only its [arm], the
+     * wedge from the centre of its [face] (the face's box in [art]) to that side.
      */
-    private fun tinted(art: Bitmap, arm: Arm? = null, face: RectF? = null): Bitmap {
-        val pixels = IntArray(art.width * art.height).also { art.getPixels(it, 0, art.width, 0, 0, art.width, art.height) }
+    private fun tinted(art: Bitmap, tint: Int, arm: Arm? = null, face: RectF? = null): Bitmap {
         val out = createBitmap(art.width, art.height)
         val c = Canvas(out)
         if (arm != null && face != null) {
@@ -511,9 +513,13 @@ class OpenEmuxSkinRenderer(context: Context) {
             )
         }
         c.drawBitmap(art, 0f, 0f, null)
-        c.drawColor(SkinPaintDefaults.pressTint(pixels), PorterDuff.Mode.SRC_ATOP)
+        c.drawColor(tint, PorterDuff.Mode.SRC_ATOP)
         return out
     }
+
+    /** [SkinPaintDefaults.pressTint] of [art]'s pixels. */
+    private fun pressTint(art: Bitmap): Int =
+        SkinPaintDefaults.pressTint(IntArray(art.width * art.height).also { art.getPixels(it, 0, art.width, 0, 0, art.width, art.height) })
 
     /** How far down [r] the face of [e] ends: [r] stands for the element's whole rect, relief included. */
     private fun faceOf(e: SkinElement, r: RectF) = RectF(r.left, r.top, r.right, r.top + r.height() * e.face.height / e.rect.height)
