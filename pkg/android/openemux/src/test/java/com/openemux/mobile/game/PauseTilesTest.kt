@@ -4,6 +4,7 @@ import com.openemux.mobile.game.PauseTile.AUDIO
 import com.openemux.mobile.game.PauseTile.CHANGE_SKIN
 import com.openemux.mobile.game.PauseTile.EDIT_SKIN
 import com.openemux.mobile.game.PauseTile.FAST_FORWARD
+import com.openemux.mobile.game.PauseTile.QUIT
 import com.openemux.mobile.game.PauseTile.RETROARCH_MENU
 import com.openemux.mobile.game.PauseTile.SCREENS
 import com.openemux.mobile.game.PauseTile.SCREENSHOT
@@ -16,40 +17,40 @@ import org.junit.Test
 class PauseTilesTest {
     @Test fun theRowsComeAfterTheTilesThatWereAlreadyThere() {
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, CHANGE_SKIN, EDIT_SKIN, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, CHANGE_SKIN, EDIT_SKIN, RETROARCH_MENU, QUIT),
             pauseTiles(nds = false, skin = true, tabletop = false),
         )
     }
 
     @Test fun anNdsGameHasItsScreensTileBeforeAudio() {
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, SCREENS, AUDIO, CHANGE_SKIN, EDIT_SKIN, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, SCREENS, AUDIO, CHANGE_SKIN, EDIT_SKIN, RETROARCH_MENU, QUIT),
             pauseTiles(nds = true, skin = true, tabletop = false),
         )
     }
 
     @Test fun noSkinMeansNoSkinTiles() {
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, RETROARCH_MENU, QUIT),
             pauseTiles(nds = false, skin = false, tabletop = false),
         )
     }
 
     @Test fun aHalfOpenFoldNeverOffersTheSkinTiles() {
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, SCREENS, AUDIO, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, SCREENS, AUDIO, RETROARCH_MENU, QUIT),
             pauseTiles(nds = true, skin = true, tabletop = true),
         )
     }
 
     @Test fun aDetectedGamepadAddsTouchControlsBeforeTheRetroArchMenu() {
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, CHANGE_SKIN, EDIT_SKIN, TOUCH_CONTROLS, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, CHANGE_SKIN, EDIT_SKIN, TOUCH_CONTROLS, RETROARCH_MENU, QUIT),
             pauseTiles(nds = false, skin = true, tabletop = false, touch = true),
         )
         // On a half-open fold too: its row has the key.
         assertEquals(
-            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, TOUCH_CONTROLS, RETROARCH_MENU),
+            listOf(FAST_FORWARD, SLOW_MOTION, SCREENSHOT, SHADER, AUDIO, TOUCH_CONTROLS, RETROARCH_MENU, QUIT),
             pauseTiles(nds = false, skin = true, tabletop = true, touch = true),
         )
     }
@@ -63,9 +64,19 @@ class PauseTilesTest {
         assertEquals(emptyList<String>(), PauseTile.entries.map { it.name }.filter { "STATE" in it })
     }
 
-    @Test fun eightTilesWrapFourFourUprightAndFiveThreeElsewhere() {
+    @Test fun nineTilesWrapFourFourOneUprightAndFiveFourElsewhere() {
         val tiles = pauseTiles(nds = false, skin = true, tabletop = false)
-        assertEquals(listOf(4, 4), tiles.chunked(tileColumns(PauseLayout.PHONE)).map { it.size })
-        assertEquals(listOf(5, 3), tiles.chunked(tileColumns(PauseLayout.LANDSCAPE)).map { it.size })
+        assertEquals(listOf(4, 4, 1), tiles.chunked(tileColumns(PauseLayout.PHONE)).map { it.size })
+        assertEquals(listOf(5, 4), tiles.chunked(tileColumns(PauseLayout.LANDSCAPE)).map { it.size })
+    }
+
+    @Test fun quitClosesTheGridInEveryFormAndNeverLightsUp() {
+        // Issue 875: Quit left the sheet's foot for the grid's last place, whatever else the grid holds.
+        for (nds in listOf(false, true)) for (skin in listOf(false, true)) for (tabletop in listOf(false, true)) for (touch in listOf(false, true)) {
+            val tiles = pauseTiles(nds, skin, tabletop, touch)
+            assertEquals(QUIT, tiles.last())
+            assertEquals(1, tiles.count { it == QUIT })
+        }
+        assertEquals(false, QUIT.toggle)
     }
 }

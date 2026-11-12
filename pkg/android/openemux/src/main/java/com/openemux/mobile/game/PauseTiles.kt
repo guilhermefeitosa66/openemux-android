@@ -17,13 +17,16 @@ enum class PauseTile(
     /** Only while a gamepad is detected: the on-screen controls over it (issue 865). */
     TOUCH_CONTROLS(toggle = true),
     RETROARCH_MENU,
+    /** Always the last one, in the muted Audio tile's red (issue 875): it ends the game, as the button it replaced did. */
+    QUIT,
 }
 
 /**
  * The tiles the pause sheet shows, in reading order (issue 862): every action is a tile, the ones that were list rows
  * after the rest. Save states has no tile: "See all" under the slot slider opens that list (issue 867). [nds] adds the
  * screens' layout before Audio; [skin] (a game drawn with a skin) adds Change skin and Edit skin, which a half-open fold
- * ([tabletop]) never offers; [touch] (a gamepad detected) adds Touch controls before the RetroArch menu.
+ * ([tabletop]) never offers; [touch] (a gamepad detected) adds Touch controls before the RetroArch menu. Quit closes
+ * the grid in every form (issue 875).
  */
 fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean, touch: Boolean = false): List<PauseTile> = buildList {
     add(PauseTile.FAST_FORWARD)
@@ -38,6 +41,7 @@ fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean, touch: Boolean = 
     }
     if (touch) add(PauseTile.TOUCH_CONTROLS)
     add(PauseTile.RETROARCH_MENU)
+    add(PauseTile.QUIT)
 }
 
 /**

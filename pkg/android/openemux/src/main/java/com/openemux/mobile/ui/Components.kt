@@ -150,6 +150,8 @@ object Icons {
     /** Two screens, one over the other: the NDS screen layout. */
     const val Screens = "M6 3h12v8H6zM6 13h12v8H6z"
     const val Audio = "M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7"
+    /** Leaving: a door frame open on the right with an arrow going out (the pause sheet's Quit tile). */
+    const val Quit = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
     const val Mute = "M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6"
     const val Reset = "M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"
     const val Trash = "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"

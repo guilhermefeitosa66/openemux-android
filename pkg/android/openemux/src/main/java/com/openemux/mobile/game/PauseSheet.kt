@@ -546,7 +546,7 @@ fun PauseSheet(
                     SheetIconButton(Icons.Close, stringResource(R.string.game_back_to_game), onResume)
                 }
 
-                // On the panel the page fills the height, so Quit stays at its foot.
+                // On the panel and the fold the page fills the height.
                 MarginFocusScroll { Column(Modifier.weight(1f, fill = panel || tabletop).verticalScroll(rememberScrollState())) {
                 if (toast != null) {
                     Row(
@@ -623,7 +623,7 @@ fun PauseSheet(
                                 touchControls?.onChange?.invoke(touchOn)
                                 toast = context.getString(if (touchOn) R.string.game_toast_touch_controls_on else R.string.game_toast_touch_controls_off)
                             },
-                            onQuit = onQuit.takeUnless { panel },
+                            onQuit = onQuit,
                         )
                         Page.States -> StatesPage(states, statesFocus, statesGrid, ::load, ::options)
                         Page.StateOptions -> StateOptionsPage { page = Page.StateDelete }
@@ -664,7 +664,6 @@ fun PauseSheet(
                     }
                 }
                 } }
-                if (panel && page == Page.Main) QuitButton(Modifier.padding(top = 12.dp), onQuit)
                 HintBar(
                     listOfNotNull(
                         "A" to stringResource(R.string.game_choose),
@@ -741,7 +740,7 @@ private fun SheetIconButton(path: String, label: String, onClick: () -> Unit) {
 @Composable
 private fun MainPage(
     landscape: Boolean,
-    /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Quit in them. */
+    /** The bottom half of a half-open fold (DobFoldPausa): three rows, Back to game and Restart in them. */
     tabletop: Boolean,
     /** A phone, upright or on its side (issues 849, 855): Continue and Restart on top, Load beside Save, no Restart row in the list. */
     quickRows: Boolean,
@@ -783,8 +782,8 @@ private fun MainPage(
     /** Whether the Touch controls tile is lit; null: no gamepad, no tile (issue 865). */
     touchControls: Boolean?,
     onTouchControls: () -> Unit,
-    /** Null on the tablet panel, which pins Quit at its foot. */
-    onQuit: (() -> Unit)?,
+    /** The Quit tile, the grid's last (issue 875). */
+    onQuit: () -> Unit,
 ) {
     val note = @Composable {
         if (hardcore) {
@@ -834,6 +833,8 @@ private fun MainPage(
                 PauseTile.EDIT_SKIN -> ActionTile(stringResource(R.string.game_edit_skin), Icons.Pencil, false, enabled = canEditSkin, onClick = onEditSkin)
                 PauseTile.TOUCH_CONTROLS -> ActionTile(stringResource(R.string.game_touch_controls), Icons.TouchControls, touchControls == true, onClick = onTouchControls)
                 PauseTile.RETROARCH_MENU -> ActionTile(stringResource(R.string.game_retroarch_menu), Icons.Sliders, false, detail = stringResource(R.string.game_retroarch_menu_detail), onClick = onRetroArchMenu)
+                // The muted tile's red (issue 861), always: an action that ends the game, never lit or unlit.
+                PauseTile.QUIT -> ActionTile(stringResource(R.string.game_quit), Icons.Quit, false, warn = true, onClick = onQuit)
             }
         }
         // A grid of fixed columns that wraps from the left (issue 858): 5 tiles upright are 4 + 1, never 3 + 2.
@@ -869,10 +870,10 @@ private fun MainPage(
                 }
             }
             tiles(Modifier.padding(top = 16.dp))
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BigButton(stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset)
-                if (onQuit != null) QuitButton(Modifier.width(168.dp).height(56.dp), onQuit)
-            }
+            BigButton(
+                stringResource(R.string.game_restart), Icons.Reset, Oe.Raised, Oe.Text,
+                Modifier.padding(top = 16.dp).fillMaxWidth().focusRequester(restartEntry), onReset,
+            )
         }
         return
     }
@@ -900,7 +901,6 @@ private fun MainPage(
                     Box(Modifier.focusRequester(restartEntry).focusGroup()) { ListRow(stringResource(R.string.game_restart), onClick = onReset) }
                 }
             }
-            if (onQuit != null) QuitButton(Modifier.padding(top = if (landscape) 16.dp else 20.dp), onQuit)
         }
     }
     if (landscape) {
@@ -914,11 +914,6 @@ private fun MainPage(
             rest(Modifier)
         }
     }
-}
-
-@Composable
-private fun QuitButton(modifier: Modifier, onQuit: () -> Unit) {
-    SheetButton(stringResource(R.string.game_quit), Oe.DangerBg, Oe.Danger, modifier, onQuit)
 }
 
 /** A plain button of the sheet: full width, 50 dp tall unless [modifier] says otherwise. */
