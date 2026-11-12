@@ -246,7 +246,7 @@
     <string name="settings_interface_mode_auto">Automático</string>
     <string name="settings_interface_mode_auto_desc">Modo controle enquanto houver um controle conectado; modo toque nos outros casos.</string>
     <string name="settings_interface_mode_touch">Tela de toque</string>
-    <string name="settings_interface_mode_touch_desc">Sempre toque: sem anel de foco nem dicas de botões até um botão do controle ser apertado, e os jogos abrem com os controles na tela. Escolha esta opção se o app acha que há um controle conectado e não há.</string>
+    <string name="settings_interface_mode_touch_desc">Navegação por toque, como se não houvesse controle conectado. Apertar um botão do controle passa para a navegação por controle até você tocar na tela de novo. Os jogos abrem com os controles na tela. Escolha esta opção se o app acha que há um controle conectado e não há.</string>
     <string name="settings_interface_mode_controller">Controle</string>
     <string name="settings_interface_mode_controller_desc">Sempre o modo controle, mesmo antes de um controle ser detectado. Para portáteis com controles embutidos.</string>
     <string name="settings_button_labels">Nomes dos botões</string>

@@ -247,7 +247,7 @@
     <string name="settings_interface_mode_auto">Automatic</string>
     <string name="settings_interface_mode_auto_desc">Controller mode while a controller is connected, touch mode otherwise.</string>
     <string name="settings_interface_mode_touch">Touch screen</string>
-    <string name="settings_interface_mode_touch_desc">Always touch: no focus ring or button hints until a controller button is pressed, and games open with the on-screen controls. Pick this if the app thinks a controller is connected and there is none.</string>
+    <string name="settings_interface_mode_touch_desc">Touch navigation, as if no controller were connected. Pressing a controller button switches to controller navigation until you touch the screen again. Games open with the on-screen controls. Pick this if the app thinks a controller is connected and there is none.</string>
     <string name="settings_interface_mode_controller">Controller</string>
     <string name="settings_interface_mode_controller_desc">Always controller mode, even before a controller is detected. For handhelds with built-in controls.</string>
     <string name="settings_button_labels">Button labels</string>

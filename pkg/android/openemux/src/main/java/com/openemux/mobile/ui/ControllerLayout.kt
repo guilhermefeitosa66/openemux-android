@@ -41,10 +41,15 @@ object ControllerLayoutPref {
     }
 }
 
-/** Whether the gamepad layout is on, from the setting [pref] and whether a controller is [connected]. */
-fun padLayoutOn(pref: String, connected: Boolean): Boolean = when (pref) {
+/**
+ * Whether the gamepad layout is on, from the setting [pref], whether a controller is [connected] and whether the last
+ * input was a pad press ([lastPad]). Touch screen navigates as if no controller were there, but a controller button
+ * brings the whole controller mode back at once, until the next touch: a phone that reports a pad it does not have
+ * never shows it, and a real pad, however oddly reported, is never left unable to navigate (issue 873).
+ */
+fun padLayoutOn(pref: String, connected: Boolean, lastPad: Boolean): Boolean = when (pref) {
     ControllerLayoutPref.ALWAYS -> true
-    ControllerLayoutPref.NEVER -> false
+    ControllerLayoutPref.NEVER -> lastPad
     else -> connected
 }
 
@@ -52,7 +57,7 @@ fun padLayoutOn(pref: String, connected: Boolean): Boolean = when (pref) {
  * Whether the gamepad look shows: always in the gamepad layout, and otherwise after a pad press until the next
  * touch ([lastPad]), as the touch layout always did.
  */
-fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = padLayoutOn(pref, connected) || lastPad
+fun gamepadLook(pref: String, connected: Boolean, lastPad: Boolean): Boolean = padLayoutOn(pref, connected, lastPad) || lastPad
 
 /**
  * Whether a game shows the gamepad skin: a pad is [detected] and the player did not bring the touch controls back for

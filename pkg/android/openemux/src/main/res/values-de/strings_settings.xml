@@ -246,7 +246,7 @@
     <string name="settings_interface_mode_auto">Automatisch</string>
     <string name="settings_interface_mode_auto_desc">Controller-Modus, solange ein Controller verbunden ist, sonst Touch-Modus.</string>
     <string name="settings_interface_mode_touch">Touchscreen</string>
-    <string name="settings_interface_mode_touch_desc">Immer Touch: kein Fokusrahmen und keine Tastenhinweise, bis eine Controller-Taste gedrückt wird, und Spiele starten mit der Bildschirmsteuerung. Wähle das, wenn die App einen Controller erkennt, obwohl keiner verbunden ist.</string>
+    <string name="settings_interface_mode_touch_desc">Touch-Bedienung, als wäre kein Controller verbunden. Ein Druck auf eine Controller-Taste wechselt zur Controller-Bedienung, bis du den Bildschirm wieder berührst. Spiele starten mit der Bildschirmsteuerung. Wähle das, wenn die App einen Controller erkennt, obwohl keiner verbunden ist.</string>
     <string name="settings_interface_mode_controller">Controller-Modus</string>
     <string name="settings_interface_mode_controller_desc">Immer der Controller-Modus, auch bevor ein Controller erkannt wird. Für Handhelds mit eingebauten Tasten.</string>
     <string name="settings_button_labels">Tastenbeschriftung</string>

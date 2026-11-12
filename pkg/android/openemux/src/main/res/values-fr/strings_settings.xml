@@ -258,7 +258,7 @@
     <string name="settings_interface_mode_auto">Automatique</string>
     <string name="settings_interface_mode_auto_desc">Mode manette tant qu’une manette est connectée, mode tactile sinon.</string>
     <string name="settings_interface_mode_touch">Écran tactile</string>
-    <string name="settings_interface_mode_touch_desc">Toujours tactile : ni anneau de focus ni aides des boutons avant l’appui sur un bouton de manette, et les jeux s’ouvrent avec les commandes à l’écran. Choisissez-le si l’app croit qu’une manette est connectée alors qu’il n’y en a pas.</string>
+    <string name="settings_interface_mode_touch_desc">Navigation tactile, comme si aucune manette n’était connectée. Appuyer sur un bouton de manette passe à la navigation à la manette jusqu’à ce que vous touchiez à nouveau l’écran. Les jeux s’ouvrent avec les commandes à l’écran. Choisissez-le si l’app croit qu’une manette est connectée alors qu’il n’y en a pas.</string>
     <string name="settings_interface_mode_controller">Manette</string>
     <string name="settings_interface_mode_controller_desc">Toujours le mode manette, même avant qu’une manette soit détectée. Pour les consoles portables avec commandes intégrées.</string>
     <string name="settings_button_labels">Libellés des boutons</string>

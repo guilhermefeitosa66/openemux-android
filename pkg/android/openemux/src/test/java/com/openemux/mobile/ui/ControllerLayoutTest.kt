@@ -7,10 +7,19 @@ class ControllerLayoutTest {
     private val prefs = listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS, ControllerLayoutPref.NEVER)
 
     @Test fun theLayoutFollowsTheSettingAndTheConnection() {
+        for (connected in listOf(false, true)) for (lastPad in listOf(false, true)) {
+            assertEquals(connected, padLayoutOn(ControllerLayoutPref.AUTO, connected, lastPad))
+            assertEquals(true, padLayoutOn(ControllerLayoutPref.ALWAYS, connected, lastPad))
+        }
+    }
+
+    @Test fun touchScreenComesBackToControllerModeOnAPadPress() {
+        // A detected pad alone shows nothing (the false-pad case); a press brings the whole layout back, a touch
+        // takes it away again, with or without a pad the system reports.
         for (connected in listOf(false, true)) {
-            assertEquals(connected, padLayoutOn(ControllerLayoutPref.AUTO, connected))
-            assertEquals(true, padLayoutOn(ControllerLayoutPref.ALWAYS, connected))
-            assertEquals(false, padLayoutOn(ControllerLayoutPref.NEVER, connected))
+            assertEquals(false, padLayoutOn(ControllerLayoutPref.NEVER, connected, lastPad = false))
+            assertEquals(true, padLayoutOn(ControllerLayoutPref.NEVER, connected, lastPad = true))
+            assertEquals(true, gamepadLook(ControllerLayoutPref.NEVER, connected, lastPad = true))
         }
     }
 
@@ -24,7 +33,7 @@ class ControllerLayoutTest {
     @Test fun aTouchInTheGamepadLayoutKeepsTheLook() {
         // A touch clears the last input, the look stays: a controller is connected.
         assertEquals(true, gamepadLook(ControllerLayoutPref.AUTO, connected = true, lastPad = false))
-        // Never keeps today's behaviour: the touch hides it.
+        // Touch screen: the touch hides it.
         assertEquals(false, gamepadLook(ControllerLayoutPref.NEVER, connected = true, lastPad = false))
     }
 

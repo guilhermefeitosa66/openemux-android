@@ -106,8 +106,11 @@ object InputMode {
         get() = gamepadLook(ControllerLayoutPref.value, padConnected, lastInputPad)
         set(value) { lastInputPad = value }
 
-    /** The gamepad layout: a controller connected, or the setting says always. Larger targets and the L1/R1 pills follow it. */
-    val padLayout: Boolean get() = padLayoutOn(ControllerLayoutPref.value, padConnected)
+    /**
+     * The gamepad layout: a controller connected, or the setting says always, or (Touch screen) a pad press until the
+     * next touch. Larger targets and the L1/R1 pills follow it.
+     */
+    val padLayout: Boolean get() = padLayoutOn(ControllerLayoutPref.value, padConnected, lastInputPad)
 
     /** Pad presses so far, so a screen can tell focus the player moved from focus the platform put somewhere. */
     var presses = 0L

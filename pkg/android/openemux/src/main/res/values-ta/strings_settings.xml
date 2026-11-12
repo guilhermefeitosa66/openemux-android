@@ -246,7 +246,7 @@
     <string name="settings_interface_mode_auto">தானியங்கி</string>
     <string name="settings_interface_mode_auto_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருக்கும்போது கன்ட்ரோலர் முறை, இல்லையெனில் தொடு முறை.</string>
     <string name="settings_interface_mode_touch">தொடுதிரை</string>
-    <string name="settings_interface_mode_touch_desc">எப்போதும் தொடுதல்: கன்ட்ரோலர் பொத்தான் அழுத்தப்படும் வரை ஃபோகஸ் வளையமோ பொத்தான் குறிப்புகளோ இல்லை, கேம்கள் திரைக் கட்டுப்பாடுகளுடன் திறக்கும். கன்ட்ரோலர் இல்லாதபோதும் இணைக்கப்பட்டிருப்பதாக ஆப் நினைத்தால் இதைத் தேர்வுசெய்யவும்.</string>
+    <string name="settings_interface_mode_touch_desc">தொடுதல் வழிசெலுத்தல், கன்ட்ரோலர் எதுவும் இணைக்கப்படாதது போல. கன்ட்ரோலர் பொத்தானை அழுத்தினால், நீங்கள் மீண்டும் திரையைத் தொடும் வரை கன்ட்ரோலர் வழிசெலுத்தலுக்கு மாறும். கேம்கள் திரைக் கட்டுப்பாடுகளுடன் திறக்கும். கன்ட்ரோலர் இல்லாதபோதும் இணைக்கப்பட்டிருப்பதாக ஆப் நினைத்தால் இதைத் தேர்வுசெய்யவும்.</string>
     <string name="settings_interface_mode_controller">கன்ட்ரோலர் முறை</string>
     <string name="settings_interface_mode_controller_desc">கன்ட்ரோலர் கண்டறியப்படுவதற்கு முன்பும் எப்போதும் கன்ட்ரோலர் முறை. உள்ளமைந்த பொத்தான்கள் கொண்ட கையடக்கக் கருவிகளுக்கு.</string>
     <string name="settings_button_labels">பொத்தான் பெயர்கள்</string>

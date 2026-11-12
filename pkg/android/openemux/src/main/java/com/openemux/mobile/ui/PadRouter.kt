@@ -324,7 +324,9 @@ class PadRouter(
 
     private fun route(event: KeyEvent, dispatch: (KeyEvent) -> Boolean): Boolean {
         val code = event.keyCode
-        val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)
+        // A pad that reports itself oddly (only as a joystick) still counts, whatever key it sends (issue 873).
+        val fromPad = event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD) ||
+            event.isFromSource(InputDevice.SOURCE_JOYSTICK)
         val s = scope()
         // A screen reading the pad's buttons as they are (the skin editor's combo capture) sees them first.
         if (fromPad && PadCapture.listener?.invoke(event) == true) return true
