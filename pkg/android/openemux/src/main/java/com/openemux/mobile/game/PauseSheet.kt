@@ -791,28 +791,6 @@ private fun MainPage(
                 }
         }
     }
-    // The top of the sheet in every form (issue 881): a 2-column grid, Continue | Restart over Save | Load, the four the
-    // same width and height, then "See all" and the slot slider (issue 867). Continue leads by its purple, not its width,
-    // and takes the pad's first focus: A right after pausing resumes.
-    val quickBlock = @Composable { modifier: Modifier ->
-        Column(modifier) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GRID_GAP)) {
-                BigButton(
-                    stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
-                    Modifier.weight(1f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
-                    iconYields = true,
-                )
-                BigButton(
-                    stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
-                    iconYields = true,
-                )
-            }
-            SaveLoadRow(
-                slot, slotInUse, usedSlots, Modifier.padding(top = GRID_GAP).fillMaxWidth(), onSlot, onSave, onLoadSlot,
-                canLoad = slotInUse && !hardcore, onSeeAll = onSeeAll, canSeeAll = !hardcore,
-            )
-        }
-    }
     val tiles = @Composable { modifier: Modifier ->
         // Every action is a tile (issue 862); only the toggles ever light up.
         val items = pauseTiles(nds = screens != null, skin = skinName != null, tabletop = tabletop, touch = touchControls != null)
@@ -845,9 +823,26 @@ private fun MainPage(
         }
     }
     // The essentials first (upright, all above the first stop's fold): the hardcore note goes under them.
+    // The top of the sheet in every form (issue 881): a 2-column grid, Continue | Restart over Save | Load, the four the
+    // same width and height, then "See all" and the slot slider (issue 867). Continue leads by its purple, not its width,
+    // and takes the pad's first focus: A right after pausing resumes.
     val actions = @Composable { modifier: Modifier ->
         Column(modifier) {
-            quickBlock(Modifier.padding(top = if (tabletop) 4.dp else 16.dp).fillMaxWidth())
+            Row(Modifier.padding(top = if (tabletop) 4.dp else 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GRID_GAP)) {
+                BigButton(
+                    stringResource(R.string.game_continue), Icons.Play, Oe.Accent, Color.White,
+                    Modifier.weight(1f).restorableFocus("continue", remember { mutableStateOf<String?>(null) }, initial = true), onResume,
+                    iconYields = true,
+                )
+                BigButton(
+                    stringResource(R.string.game_restart_short), Icons.Reset, Oe.Raised, Oe.Text, Modifier.weight(1f).focusRequester(restartEntry), onReset,
+                    iconYields = true,
+                )
+            }
+            SaveLoadRow(
+                slot, slotInUse, usedSlots, Modifier.padding(top = GRID_GAP).fillMaxWidth(), onSlot, onSave, onLoadSlot,
+                canLoad = slotInUse && !hardcore, onSeeAll = onSeeAll, canSeeAll = !hardcore,
+            )
             note()
             // On its side the tiles go to the right half, beside these rows (issue 862).
             if (!landscape) tiles(Modifier.padding(top = if (tabletop) 16.dp else 18.dp))
