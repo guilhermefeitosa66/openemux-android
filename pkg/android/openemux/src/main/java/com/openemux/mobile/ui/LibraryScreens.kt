@@ -145,6 +145,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.openemux.mobile.data.Console
+import com.openemux.mobile.data.coverAspect
 import com.openemux.mobile.data.Meta
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.ShelfContent
@@ -993,7 +994,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
-                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom))
+                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom), cropped = true)
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
                         if (caption != null) GameName(
@@ -1007,7 +1008,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                     val caption = if (zoom) coverCaption else 12
                     Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
                         Box(Modifier.selectionLook(selection.active, chosen)) {
-                            BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)))
+                            BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)), cropped = true)
                             TileBadges(selection.active, chosen, romMeta?.favorite == true)
                         }
                         if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
@@ -1044,7 +1045,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // step even on a cartridge page, so zooming them never changes the cartridges (issue 868).
     val fixedColumns = zoomStep(shown).takeIf { zoom && shown != ViewMode.List }
     val zoomed = fixedColumns?.let { zoomGrid(it, carts = shown == ViewMode.Carts) }
-    // Staggered, so each box art keeps its own proportions in the covers mode.
+    // Staggered, though every cell of a console's group is the same height (each cover is cropped to its
+    // console's shape, issue 882), so with lanes of one width it fills row by row like a regular grid.
     // Held out here: crossing into or out of the pane moves the grid to another place in the tree, and it keeps its scroll.
     val gridState = rememberLazyStaggeredGridState()
     // A pinch's step, keeping the game under the fingers where it was: its index and its top, read before the grid reflows.
@@ -1350,19 +1352,23 @@ private fun SelectionBar(count: Int, allSelected: Boolean, onClose: () -> Unit, 
 @Composable
 private fun GroupGrid(roms: List<Rom>, spec: GridSpec, zoomed: ZoomGrid?, zoomColumns: Int, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
     val columns = if (zoomed != null) zoomColumns else gridColumns(maxWidth.value, spec.min, spec.gap, spec.floor)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy((zoomed?.gapDp ?: spec.gap).dp)) {
+    val gap = (zoomed?.gapDp ?: spec.gap).dp
+    // Columns of one width in whole pixels (the grid's own lanes), so equal-shaped tiles are equally tall
+    // in each and the rows stay level: widths in dp round per column and can overrun the row by a pixel.
+    val cell = with(LocalDensity.current) { evenCellSizes(constraints.maxWidth, gap.roundToPx(), columns)[0].toDp() }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
         repeat(columns) { c ->
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy((zoomed?.rowGapDp ?: 18f).dp)) {
+            Column(Modifier.width(cell), verticalArrangement = Arrangement.spacedBy((zoomed?.rowGapDp ?: 18f).dp)) {
                 roms.filterIndexed { i, _ -> i % columns == c }.forEach { tile(it) }
             }
         }
     }
 }
 
-/** The grid's lanes: [fixed] of them when zoomed, else as many as [spec] fits in the width, sharing it evenly. */
+/** The grid's lanes: [fixed] of them when zoomed, else as many as [spec] fits in the width, all of one width. */
 private data class AdaptiveCells(private val spec: GridSpec, private val fixed: Int? = null) : StaggeredGridCells {
     override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): IntArray =
-        cellSizes(availableSize, spacing, fixed ?: gridColumns(availableSize.toDp().value, spec.min, spacing.toDp().value, spec.floor))
+        evenCellSizes(availableSize, spacing, fixed ?: gridColumns(availableSize.toDp().value, spec.min, spacing.toDp().value, spec.floor))
 }
 
 /** A card no wider than [spec]'s maximum (as wide as its cell with none), centred in a wider cell; [content] gets the capped modifier. */
@@ -1574,9 +1580,10 @@ private fun GroupLabels(groups: List<Pair<Console?, List<Rom>>>, state: LazyList
     }
 }
 
+/** A game's box art: [cropped] to its console's cover shape in the cover views, whole in the list. */
 @Composable
-private fun BoxArt(rom: Rom, modifier: Modifier, maxHeight: Dp? = null) =
-    CoverArt(coverFor(rom), rom.title, modifier, maxHeight)
+private fun BoxArt(rom: Rom, modifier: Modifier, maxHeight: Dp? = null, cropped: Boolean = false) =
+    CoverArt(coverFor(rom), rom.title, modifier, maxHeight, aspect = if (cropped) rom.console.coverAspect else null)
 
 /**
  * Landscape: one header row (the filter pager in it, issue 669) and one row of games that scrolls
@@ -1682,7 +1689,7 @@ private fun LandscapeLibrary(
                                 if (itemMode == ViewMode.Carts) {
                                     Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(w!!), pending = labelPending(rom), cover = coverFor(rom))
                                 } else {
-                                    BoxArt(rom, Modifier.clip(RoundedCornerShape(10.dp)), maxHeight = itemH)
+                                    BoxArt(rom, Modifier.clip(RoundedCornerShape(10.dp)), maxHeight = itemH, cropped = true)
                                 }
                                 TileBadges(selecting, picked, favorite)
                             }
