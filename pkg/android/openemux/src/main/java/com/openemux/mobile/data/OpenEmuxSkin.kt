@@ -16,6 +16,12 @@ data class OpenEmuxSkin(
      * the editor keeps them in the file and gives its own combos other ids.
      */
     val leftOutCombos: Set<String> = emptySet(),
+    /**
+     * The buttons and keys of each layout drawn in another outline than skin.json gives them there (issue 891): a skin
+     * saved while each layout kept its own, read with each control in one outline ([ComboOutline.unify]). The editor
+     * writes their outlines and rects with its next save, so the file says what is drawn.
+     */
+    val mended: Map<SkinLayoutId, Set<String>> = emptyMap(),
 ) {
     /** The device forms the skin has at least one layout for, in [SkinForm] order. */
     val forms: List<SkinForm> get() = SkinForm.entries.filter { form -> layouts.keys.any { it.form == form } }

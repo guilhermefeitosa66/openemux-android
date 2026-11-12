@@ -521,8 +521,10 @@ class SkinEditorModel(
                 looks[id] = base(id).look()
             }
             val on = now.copy(rects = grown, looks = looks)
-            // The layouts switched on draw each control in the outline it has on the layout being edited (issue 891).
-            layoutId?.let { outlined(on, ids.filter { it !in now.rects }, outlinesOf(on, it)) } ?: on
+            // The layouts switched on draw each control in the outline it has on the layout being edited, or on the
+            // first the skin offers when none is (issue 891): a layout coming back keeps no outline the others lost.
+            val from = layoutId ?: SkinLayoutId.entries.firstOrNull { it in now.rects }
+            from?.let { outlined(on, ids.filter { it !in now.rects }, outlinesOf(on, it)) } ?: on
         } else {
             val gone = ids.toSet()
             // The layouts' image edits go with them: what they staged is not written for a layout the skin drops.
@@ -902,14 +904,18 @@ class SkinEditorModel(
 
     /** The rects that differ from the skin's, per layout the skin had and still offers. */
     fun edits(): SkinRects = rects.filterKeys { it in original }.mapValues { (layout, now) ->
-        now.filter { (id, r) -> original.getValue(layout)[id] != r }
+        // A button read in another outline than the file gives it (issue 891) is written where it is drawn, with that
+        // outline ([lookEdits]): the file still has it in the skin's own.
+        val mended = saved.mended[layout].orEmpty()
+        now.filter { (id, r) -> original.getValue(layout)[id] != r || id in mended }
     }.filterValues { it.isNotEmpty() }
 
     /**
      * The colours of the layouts the skin had, still offers and whose colours changed; [SkinLook.colors] holds only the
      * controls that changed. A layout switched on is written whole by [addedLayouts], colours included.
      */
-    fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks.filter { (id, look) -> id in originalLooks && look != originalLooks.getValue(id) }
+    fun lookEdits(): Map<SkinLayoutId, SkinLook> = looks
+        .filter { (id, look) -> id in originalLooks && (look != originalLooks.getValue(id) || id in saved.mended) }
         .mapValues { (id, look) ->
             val was = originalLooks.getValue(id)
             look.copy(

@@ -296,7 +296,7 @@ has the control (each where the control is there, about its centre), as it does 
 disagree (saved by an earlier build, which kept one outline per layout, combos' included) is read with each control
 in the outline the player picked on most of its layouts, the first in layout order (`phone-portrait`,
 `phone-landscape`, `tablet-portrait`, …) on a tie; a layout in the skin's own outline (a combo's circle) never wins
-over one the player picked. The file is not rewritten until the player saves.
+over one the player picked. The file is not rewritten until the player saves; the save then writes each such control where it is drawn, with its `outline`.
 
 ```json
 { "id": "l", "type": "button", "bind": "l", "x": 520, "y": 1330, "width": 100, "height": 100, "shape": "pill",

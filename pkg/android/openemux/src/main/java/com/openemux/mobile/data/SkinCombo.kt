@@ -246,7 +246,8 @@ data class ComboOutline(val shape: SkinShape, val corner: SkinCorner? = null) {
             }
             val winners = picked.mapValues { (_, os) ->
                 val count = os.groupingBy { it }.eachCount()
-                os.first { count.getValue(it) == count.values.max() }
+                val most = count.values.max()
+                os.first { count.getValue(it) == most }
             }
             if (winners.isEmpty()) return layouts
             return layouts.mapValues { (_, l) ->

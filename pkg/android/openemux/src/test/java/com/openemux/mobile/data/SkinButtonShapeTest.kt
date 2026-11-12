@@ -290,6 +290,20 @@ class SkinButtonShapeTest {
         for (id in SkinForms.layoutsOf(SkinForm.TABLET)) assertEquals(ComboOutline.SQUARE, ComboOutline.chosen(next.el("l", id)))
         // Nothing shown: a form switched on keeps what it had.
         assertTrue(SkinEditorModel(tablet).run { setForm(SkinForm.TABLET, false) && setForm(SkinForm.TABLET, true) })
+        // Nothing shown (a rotation the skin lacks) after the outline changed: the form takes the outline the skin's
+        // first layout has, not the one it was saved with.
+        val away = model(tablet)
+        assertTrue(away.setForm(SkinForm.TABLET, false))
+        away.one("l")
+        away.shape(ComboOutline.PILL)
+        away.show(SkinForm.FOLD, SkinOrientation.PORTRAIT)
+        assertNull(away.layout)
+        assertTrue(away.setForm(SkinForm.TABLET, true))
+        for (id in SkinForms.layoutsOf(SkinForm.TABLET)) assertEquals(ComboOutline.PILL, ComboOutline.chosen(away.el("l", id)))
+        // Nothing offered at all: nothing to take an outline from.
+        val none = SkinEditorModel(tablet)
+        for (form in SkinForm.entries) none.setForm(form, false)
+        assertTrue(none.setForm(SkinForm.TABLET, true))
     }
 
     // --- A skin saved while each layout kept its own outline ---
@@ -312,6 +326,35 @@ class SkinButtonShapeTest {
         // Portrait as it was; A, in the skin's own on both, as it was.
         assertEquals(triangleTR, ComboOutline.chosen(read.layouts.getValue(SkinLayoutId.PHONE_PORTRAIT).elements.first { it.id == "l" }))
         assertNull(read.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "a" }.own)
+        assertEquals(mapOf(SkinLayoutId.PHONE_LANDSCAPE to setOf("l")), read.mended)
+        assertTrue(SkinFormat.parse(SkinFormat.toJson(skin)).mended.isEmpty())
+    }
+
+    @Test fun aSkinMendedOnReadingIsSavedAsItIsDrawn() {
+        val split = skin.copy(
+            layouts = mapOf(
+                SkinLayoutId.PHONE_PORTRAIT to portrait.copy(elements = listOf(withOutline(l, triangleTR), r, a, b, pad, stick)),
+                SkinLayoutId.PHONE_LANDSCAPE to landscape,
+            ),
+        )
+        val text = SkinFormat.toJson(split)
+        val read = SkinFormat.parse(text)
+        val drawn = read.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "l" }
+        // Opening it changes nothing to save.
+        assertFalse(SkinEditorModel(read).dirty)
+        // A colour on landscape, or A moved there: the file's landscape L takes the triangle and the place it is drawn in,
+        // never one without the other (a triangle stretched over the pill's box, or a pill squeezed into the triangle's).
+        val painted = SkinEditorModel(read).also { it.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE) }
+        painted.paint(SkinTarget.Background, emptyList(), SkinPart.BACKGROUND, 0xFF112233.toInt())
+        painted.endGesture()
+        val moved = SkinEditorModel(read).also { it.show(SkinForm.PHONE, SkinOrientation.LANDSCAPE) }
+        moved.one("a")
+        moved.nudge(3, 0)
+        for (m in listOf(painted, moved)) {
+            val again = SkinFormat.parse(m.json(text))
+            assertTrue(again.mended.isEmpty())
+            assertEquals(drawn, again.layouts.getValue(SkinLayoutId.PHONE_LANDSCAPE).elements.first { it.id == "l" })
+        }
     }
 
     @Test fun theOutlinePickedOnMostLayoutsWinsTheFirstOnATie() {
