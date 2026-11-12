@@ -68,23 +68,25 @@ class ControllerLayoutTest {
         }
     }
 
-    @Test fun touchScreenKeepsTheTouchControlsInGame() {
+    @Test fun touchScreenCountsNoPadInGame() {
+        // Touch screen: the pads do not count, only the console's pick does.
         val never = ControllerLayoutPref.NEVER
-        for (detected in listOf(true, false)) for (forced in listOf(true, false)) {
-            assertEquals(false, gamepadSkin(never, detected, forced))
-        }
-        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) {
-            assertEquals(true, gamepadSkin(pref, detected = true, forced = false))
-            assertEquals(false, gamepadSkin(pref, detected = true, forced = true))
-            assertEquals(false, gamepadSkin(pref, detected = false, forced = false))
+        for (detected in listOf(true, false)) for (forced in listOf(true, false)) for (picked in listOf(true, false)) {
+            assertEquals(picked, gamepadSkin(never, detected, forced, picked))
         }
     }
 
-    @Test fun touchScreenOffersNoTouchControlsTile() {
-        for (detected in listOf(true, false)) assertEquals(false, touchControlsTile(ControllerLayoutPref.NEVER, detected))
-        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) {
-            assertEquals(true, touchControlsTile(pref, detected = true))
-            assertEquals(false, touchControlsTile(pref, detected = false))
+    @Test fun aDetectedPadShowsTheGamepadSkinUnlessTheTouchControlsWereKeptForIt() {
+        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) for (picked in listOf(true, false)) {
+            assertEquals(true, gamepadSkin(pref, detected = true, forced = false, picked = picked))
+            assertEquals(false, gamepadSkin(pref, detected = true, forced = true, picked = picked))
+        }
+    }
+
+    @Test fun withNoPadTheConsolesPickDecides() {
+        for (pref in listOf(ControllerLayoutPref.AUTO, ControllerLayoutPref.ALWAYS)) for (forced in listOf(true, false)) {
+            assertEquals(false, gamepadSkin(pref, detected = false, forced = forced, picked = false))
+            assertEquals(true, gamepadSkin(pref, detected = false, forced = forced, picked = true))
         }
     }
 }
