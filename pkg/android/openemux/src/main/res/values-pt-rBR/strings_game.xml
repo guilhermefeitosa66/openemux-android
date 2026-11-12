@@ -45,11 +45,6 @@
     <string name="game_retroarch_menu">Menu do RetroArch</string>
     <string name="game_touch_controls">Controles na tela</string>
     <string name="game_retroarch_menu_detail">Só nesta sessão</string>
-    <string name="game_states_none">Nenhum salvo</string>
-    <plurals name="game_states_saved">
-        <item quantity="one">%d salvo</item>
-        <item quantity="other">%d salvos</item>
-    </plurals>
     <string name="game_quit">Sair do jogo</string>
     <string name="game_no_states">Nenhum estado salvo ainda.</string>
     <string name="game_state_auto">AUTO</string>
@@ -57,7 +52,7 @@
     <string name="game_slot_empty">Slot %1$d · Vazio</string>
     <string name="game_slot_used">Slot %1$d · Em uso</string>
     <string name="game_see_all">Ver todos</string>
-    <string name="game_slot_slider">Slot de salvamento</string>
+    <string name="game_slot_slider">Slot do save</string>
     <string name="game_state_options">Opções de %1$s</string>
     <string name="game_state_delete">Apagar</string>
     <string name="game_state_delete_title">Apagar este estado?</string>

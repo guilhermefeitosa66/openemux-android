@@ -45,10 +45,6 @@
     <string name="game_retroarch_menu">RetroArch メニュー</string>
     <string name="game_touch_controls">タッチ操作</string>
     <string name="game_retroarch_menu_detail">このセッションのみ</string>
-    <string name="game_states_none">保存なし</string>
-    <plurals name="game_states_saved">
-        <item quantity="other">%d 件保存</item>
-    </plurals>
     <string name="game_quit">ゲームを終了</string>
     <string name="game_no_states">ステートセーブはまだありません。</string>
     <string name="game_state_auto">オート</string>

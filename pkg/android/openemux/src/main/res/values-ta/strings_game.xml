@@ -45,11 +45,6 @@
     <string name="game_retroarch_menu">RetroArch மெனு</string>
     <string name="game_touch_controls">தொடு கட்டுப்பாடுகள்</string>
     <string name="game_retroarch_menu_detail">இந்த அமர்வுக்கு மட்டும்</string>
-    <string name="game_states_none">எதுவும் சேமிக்கப்படவில்லை</string>
-    <plurals name="game_states_saved">
-        <item quantity="one">%d சேமிக்கப்பட்டது</item>
-        <item quantity="other">%d சேமிக்கப்பட்டன</item>
-    </plurals>
     <string name="game_quit">விளையாட்டிலிருந்து வெளியேறு</string>
     <string name="game_no_states">இன்னும் சேமிப்பு நிலைகள் இல்லை.</string>
     <string name="game_state_auto">தானியங்கி</string>

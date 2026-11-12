@@ -45,11 +45,6 @@
     <string name="game_retroarch_menu">RetroArch menu</string>
     <string name="game_touch_controls">Touch controls</string>
     <string name="game_retroarch_menu_detail">This session only</string>
-    <string name="game_states_none">None saved</string>
-    <plurals name="game_states_saved">
-        <item quantity="one">%d saved</item>
-        <item quantity="other">%d saved</item>
-    </plurals>
     <string name="game_quit">Quit game</string>
     <string name="game_no_states">No save states yet.</string>
     <string name="game_state_auto">AUTO</string>

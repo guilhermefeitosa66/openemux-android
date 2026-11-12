@@ -12,7 +12,6 @@ enum class PauseTile(
     /** NDS only: the screens' layout. */
     SCREENS,
     AUDIO(toggle = true),
-    SAVE_STATES,
     CHANGE_SKIN,
     EDIT_SKIN,
     /** Only while a gamepad is detected: the on-screen controls over it (issue 865). */
@@ -22,9 +21,9 @@ enum class PauseTile(
 
 /**
  * The tiles the pause sheet shows, in reading order (issue 862): every action is a tile, the ones that were list rows
- * after the rest. [nds] adds the screens' layout before Audio; [skin] (a game drawn with a skin) adds Change skin and
- * Edit skin, which a half-open fold ([tabletop]) never offers; [touch] (a gamepad detected) adds Touch controls before
- * the RetroArch menu.
+ * after the rest. Save states has no tile: "See all" under the slot slider opens that list (issue 867). [nds] adds the
+ * screens' layout before Audio; [skin] (a game drawn with a skin) adds Change skin and Edit skin, which a half-open fold
+ * ([tabletop]) never offers; [touch] (a gamepad detected) adds Touch controls before the RetroArch menu.
  */
 fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean, touch: Boolean = false): List<PauseTile> = buildList {
     add(PauseTile.FAST_FORWARD)
@@ -33,7 +32,6 @@ fun pauseTiles(nds: Boolean, skin: Boolean, tabletop: Boolean, touch: Boolean = 
     add(PauseTile.SHADER)
     if (nds) add(PauseTile.SCREENS)
     add(PauseTile.AUDIO)
-    add(PauseTile.SAVE_STATES)
     if (skin && !tabletop) {
         add(PauseTile.CHANGE_SKIN)
         add(PauseTile.EDIT_SKIN)

@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openemux.mobile.ui.DISABLED_ALPHA
@@ -89,13 +91,21 @@ private val ThumbHalo = 5.dp
 private val SliderHeight = 46.dp
 
 /**
- * "See all ›" on the right, then the slot slider: what sits under Save and Load in every form of the sheet (issue 867).
+ * The slider's caption ("Save slot") on the left and "See all ›" on the right, then the slot slider: what sits under
+ * Save and Load in every form of the sheet (issue 867).
  * [used] are the slots holding a state; [onPick] makes a slot current; [onSeeAll] opens the save-states page.
  */
 @Composable
 internal fun SlotStrip(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (Int) -> Unit, onSeeAll: () -> Unit, canSeeAll: Boolean) {
     Column(modifier) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // The caption names the numbers under it; the slider itself already carries that name for TalkBack.
+            Text(
+                stringResource(R.string.game_slot_slider),
+                Modifier.weight(1f).padding(start = 4.dp, end = 8.dp).clearAndSetSemantics {},
+                style = Type.Small.copy(color = Oe.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
             val link = stringResource(R.string.game_see_all)
             Row(
                 Modifier.heightIn(min = 32.dp).let { if (canSeeAll) it.gamepadFocus(corner = 8.dp) else it.alpha(DISABLED_ALPHA) }
