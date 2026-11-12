@@ -267,8 +267,9 @@ object SkinFormat {
             l.copy(elements = l.elements.map { e -> if (e.isCombo) e.copy(label = labels.getValue(e.id)) else e })
         }
         // A fixed order, whatever the file's: the model (and the round trip) does not depend on how it was written.
+        // Each control in one outline on every layout (issue 891), whatever an earlier build saved.
         return OpenEmuxSkin(
-            console, name, SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }, format,
+            console, name, ComboOutline.unify(SkinLayoutId.entries.filter { it in labelled }.associateWith { labelled.getValue(it) }), format,
             leftOutCombos = allCombos.keys - combos.keys,
         )
     }

@@ -71,10 +71,12 @@ class SkinFormatComboTest {
         for (i in 0 until portrait.getJSONArray("elements").length()) {
             assertFalse('|' in portrait.getJSONArray("elements").getJSONObject(i).getString("bind"))
         }
-        val entry = portrait.getJSONArray("combos").getJSONObject(0)
-        assertEquals(setOf("id", "x", "y", "width", "height", "depth", "colors"), entry.keys().asSequence().toSet())
-        // A shape other than the circle is written; the circle is the default.
+        // A shape other than the circle is written: the pill landscape picked, which portrait takes too (issue 891).
+        assertEquals("pill", portrait.getJSONArray("combos").getJSONObject(0).getString("shape"))
         assertEquals("pill", json.getJSONObject("layouts").getJSONObject("phone-landscape").getJSONArray("combos").getJSONObject(0).getString("shape"))
+        // The circle is the default, and not written.
+        val round = JSONObject(SkinFormat.toJson(SkinFormat.parse(skin(yb, placed)))).getJSONObject("layouts").getJSONObject("phone-portrait")
+        assertEquals(setOf("id", "x", "y", "width", "height", "depth", "colors"), round.getJSONArray("combos").getJSONObject(0).keys().asSequence().toSet())
     }
 
     @Test fun aSkinWithNoCombosWritesNoComboKeys() {

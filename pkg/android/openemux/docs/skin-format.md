@@ -244,7 +244,7 @@ or the FDS disk key. Its label is the name the skin gives each of its buttons (a
 colours with a light ring round its face, so it never reads as one of the console's own buttons, and pressing it
 presses all its buttons; releasing it releases them.
 
-**Outline.** Each layout gives a combo its own outline: `shape` is `circle` (the default), `pill`, `rect` (a rounded
+**Outline.** A combo's outline is written on each layout's place for it: `shape` is `circle` (the default), `pill`, `rect` (a rounded
 square, issue 891) or `triangle`. A
 triangle is a right triangle in its rect whose square corner points at `corner`: `bottom-left`, `bottom-right`,
 `top-left` or `top-right`. Its legs lie on the two edges of the rect that meet at that corner and its long edge
@@ -290,6 +290,13 @@ and is not used), and a triangle is never turned and is touched on the triangle 
 are where the player put it, in that outline. An `outline` this app cannot read (not an object, an unknown `shape`, a
 `triangle` with no known `corner`) is ignored, and the skin's own outline drawn; one on a D-pad, a stick or a quick
 action is ignored too. An app from before it ignores the key and draws the skin's own. "Original" removes the key.
+
+**One outline per control.** An outline is the control's, not one layout's: the editor gives it to every layout that
+has the control (each where the control is there, about its centre), as it does a colour. A skin whose layouts
+disagree (saved by an earlier build, which kept one outline per layout, combos' included) is read with each control
+in the outline the player picked on most of its layouts, the first in layout order (`phone-portrait`,
+`phone-landscape`, `tablet-portrait`, …) on a tie; a layout in the skin's own outline (a combo's circle) never wins
+over one the player picked. The file is not rewritten until the player saves.
 
 ```json
 { "id": "l", "type": "button", "bind": "l", "x": 520, "y": 1330, "width": 100, "height": 100, "shape": "pill",
