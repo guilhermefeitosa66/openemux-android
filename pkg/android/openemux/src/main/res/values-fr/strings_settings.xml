@@ -42,8 +42,6 @@
     <string name="settings_section_consoles_trailing">cœur · shader</string>
     <string name="settings_section_general">Général</string>
     <string name="settings_rom_folder">Dossier des ROMs</string>
-    <string name="settings_controls">Commandes</string>
-    <string name="settings_controls_value">Tactile + manette physique</string>
     <string name="settings_about">À propos</string>
 
     <!-- Console defaults -->
@@ -252,16 +250,19 @@
     <string name="settings_language_lead">S’applique aux textes de l’app. Les noms des jeux suivent le fichier.</string>
     <string name="settings_about_licenses">À propos et licences</string>
     <string name="settings_licenses_hint">Touchez pour lire le texte complet</string>
-    <string name="settings_controller_layout">Disposition manette</string>
-    <string name="settings_controller_layout_lead">Quand l’app affiche le focus et les aides des boutons pour une manette.</string>
-    <string name="settings_controller_layout_auto">Automatique</string>
-    <string name="settings_controller_layout_auto_desc">La disposition manette tant qu’une manette est connectée.</string>
-    <string name="settings_controller_layout_always">Toujours</string>
-    <string name="settings_controller_layout_always_desc">Pour les consoles portables avec commandes intégrées.</string>
-    <string name="settings_controller_layout_never">Jamais</string>
-    <string name="settings_controller_layout_never_desc">La disposition tactile, même avec une manette connectée.</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">Manettes</string>
+    <string name="settings_controllers_lead">Réglages des manettes physiques : manettes de jeu et commandes intégrées des consoles portables.</string>
+    <string name="settings_interface_mode">Mode d’interface</string>
+    <string name="settings_interface_mode_lead">Si l’app s’utilise avec une manette ou au toucher. Le mode manette affiche l’anneau de focus et les aides des boutons.</string>
+    <string name="settings_interface_mode_auto">Automatique</string>
+    <string name="settings_interface_mode_auto_desc">Mode manette tant qu’une manette est connectée, mode tactile sinon.</string>
+    <string name="settings_interface_mode_touch">Écran tactile</string>
+    <string name="settings_interface_mode_touch_desc">Toujours tactile : ni anneau de focus ni aides des boutons avant l’appui sur un bouton de manette, et les jeux s’ouvrent avec les commandes à l’écran. Choisissez-le si l’app croit qu’une manette est connectée alors qu’il n’y en a pas.</string>
+    <string name="settings_interface_mode_controller">Manette</string>
+    <string name="settings_interface_mode_controller_desc">Toujours le mode manette, même avant qu’une manette soit détectée. Pour les consoles portables avec commandes intégrées.</string>
     <string name="settings_button_labels">Libellés des boutons</string>
-    <string name="settings_button_labels_lead">Comment les indications nomment chaque bouton. Le bouton du bas confirme toujours et celui de droite revient en arrière.</string>
+    <string name="settings_button_labels_lead">Le style des boutons affiché dans les aides quand vous naviguez avec une manette (par exemple A pour valider et B pour revenir). Le bouton du bas valide toujours et celui de droite revient en arrière.</string>
     <string name="settings_button_labels_auto">Automatique</string>
     <string name="settings_button_labels_auto_desc">Suit la manette utilisée. Style Xbox si elle n’est pas reconnue.</string>
     <string name="settings_button_labels_xbox">Xbox</string>

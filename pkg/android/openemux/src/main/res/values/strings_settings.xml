@@ -40,8 +40,6 @@
     <string name="settings_section_consoles_trailing">core · shader</string>
     <string name="settings_section_general">General</string>
     <string name="settings_rom_folder">ROM folder</string>
-    <string name="settings_controls">Controls</string>
-    <string name="settings_controls_value">Touch + physical controller</string>
     <string name="settings_about">About</string>
 
     <!-- Console defaults -->
@@ -241,16 +239,19 @@
     <string name="settings_language_lead">Applies to the app\'s texts. Game names follow the file.</string>
     <string name="settings_about_licenses">About and licenses</string>
     <string name="settings_licenses_hint">Tap to read the full text</string>
-    <string name="settings_controller_layout">Controller layout</string>
-    <string name="settings_controller_layout_lead">When the app shows the focus and the button hints for a controller.</string>
-    <string name="settings_controller_layout_auto">Automatic</string>
-    <string name="settings_controller_layout_auto_desc">The controller layout while a controller is connected.</string>
-    <string name="settings_controller_layout_always">Always</string>
-    <string name="settings_controller_layout_always_desc">For handhelds with built-in controls.</string>
-    <string name="settings_controller_layout_never">Never</string>
-    <string name="settings_controller_layout_never_desc">The touch layout, even with a controller connected.</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">Controllers</string>
+    <string name="settings_controllers_lead">Settings for physical controllers: gamepads and the built-in controls of handhelds.</string>
+    <string name="settings_interface_mode">Interface mode</string>
+    <string name="settings_interface_mode_lead">Whether the app is used with a controller or by touch. Controller mode shows the focus ring and the button hints.</string>
+    <string name="settings_interface_mode_auto">Automatic</string>
+    <string name="settings_interface_mode_auto_desc">Controller mode while a controller is connected, touch mode otherwise.</string>
+    <string name="settings_interface_mode_touch">Touch screen</string>
+    <string name="settings_interface_mode_touch_desc">Always touch: no focus ring or button hints until a controller button is pressed, and games open with the on-screen controls. Pick this if the app thinks a controller is connected and there is none.</string>
+    <string name="settings_interface_mode_controller">Controller</string>
+    <string name="settings_interface_mode_controller_desc">Always controller mode, even before a controller is detected. For handhelds with built-in controls.</string>
     <string name="settings_button_labels">Button labels</string>
-    <string name="settings_button_labels_lead">How the button hints name each button. The bottom button always confirms and the right one goes back.</string>
+    <string name="settings_button_labels_lead">The button style shown in the hints while you navigate with a controller (for example, A to confirm and B to go back). The bottom button always confirms and the right one goes back.</string>
     <string name="settings_button_labels_auto">Automatic</string>
     <string name="settings_button_labels_auto_desc">Follows the controller in use. Xbox style when it is not known.</string>
     <string name="settings_button_labels_xbox">Xbox</string>

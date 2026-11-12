@@ -40,8 +40,6 @@
     <string name="settings_section_consoles_trailing">core · shader</string>
     <string name="settings_section_general">Geral</string>
     <string name="settings_rom_folder">Pasta de ROMs</string>
-    <string name="settings_controls">Controles</string>
-    <string name="settings_controls_value">Toque + controle físico</string>
     <string name="settings_about">Sobre</string>
 
     <!-- Console defaults -->
@@ -240,16 +238,19 @@
     <string name="settings_language_lead">Vale para os textos do app. Os nomes dos jogos seguem o arquivo.</string>
     <string name="settings_about_licenses">Sobre e licenças</string>
     <string name="settings_licenses_hint">Toque para ler o texto completo</string>
-    <string name="settings_controller_layout">Layout para controle</string>
-    <string name="settings_controller_layout_lead">Quando o app mostra o foco e as dicas de botões para um controle.</string>
-    <string name="settings_controller_layout_auto">Automático</string>
-    <string name="settings_controller_layout_auto_desc">O layout para controle enquanto houver um controle conectado.</string>
-    <string name="settings_controller_layout_always">Sempre</string>
-    <string name="settings_controller_layout_always_desc">Para portáteis com controles embutidos.</string>
-    <string name="settings_controller_layout_never">Nunca</string>
-    <string name="settings_controller_layout_never_desc">O layout de toque, mesmo com um controle conectado.</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">Controles</string>
+    <string name="settings_controllers_lead">Ajustes de controles físicos: gamepads e os controles embutidos de portáteis.</string>
+    <string name="settings_interface_mode">Modo da interface</string>
+    <string name="settings_interface_mode_lead">Se o app é usado com um controle ou pelo toque. O modo controle mostra o anel de foco e as dicas de botões.</string>
+    <string name="settings_interface_mode_auto">Automático</string>
+    <string name="settings_interface_mode_auto_desc">Modo controle enquanto houver um controle conectado; modo toque nos outros casos.</string>
+    <string name="settings_interface_mode_touch">Tela de toque</string>
+    <string name="settings_interface_mode_touch_desc">Sempre toque: sem anel de foco nem dicas de botões até um botão do controle ser apertado, e os jogos abrem com os controles na tela. Escolha esta opção se o app acha que há um controle conectado e não há.</string>
+    <string name="settings_interface_mode_controller">Controle</string>
+    <string name="settings_interface_mode_controller_desc">Sempre o modo controle, mesmo antes de um controle ser detectado. Para portáteis com controles embutidos.</string>
     <string name="settings_button_labels">Nomes dos botões</string>
-    <string name="settings_button_labels_lead">Como as dicas de botão chamam cada botão. O botão de baixo sempre confirma e o da direita volta.</string>
+    <string name="settings_button_labels_lead">O estilo dos botões mostrado nas dicas enquanto você navega com um controle (por exemplo, A para confirmar e B para voltar). O botão de baixo sempre confirma e o da direita volta.</string>
     <string name="settings_button_labels_auto">Automático</string>
     <string name="settings_button_labels_auto_desc">Segue o controle em uso. Estilo Xbox quando não é reconhecido.</string>
     <string name="settings_button_labels_xbox">Xbox</string>

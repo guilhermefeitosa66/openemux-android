@@ -45,6 +45,7 @@ import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.gamepadSkin
 import com.openemux.mobile.ui.ThemePref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.PadLabels
@@ -199,8 +200,10 @@ class GameActivity : RetroActivityFuture() {
         tabletopSkin = skinDir?.let(::readTabletopSkin)
         skinOverlays = skinDir?.let(::readOverlays).orEmpty()
         skinBottoms = skinDir?.let(::readBottoms).orEmpty()
+        // The interface mode decides with the pads whether the gamepad skin shows (issue 873).
+        ControllerLayoutPref.load(this)
         readPads()
-        wantGamepad = padDetected && !touchStore.forced(padKeys)
+        wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, touchStore.forced(padKeys))
         anchor = AnchorFollow(intent.getBooleanExtra(GameExtras.ANCHOR, false))
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -463,7 +466,7 @@ class GameActivity : RetroActivityFuture() {
         InputMode.padConnected = padDetected
         val forced = touchStore.forced(padKeys)
         synchronized(ndsLayouts) {
-            wantGamepad = padDetected && !forced
+            wantGamepad = gamepadSkin(ControllerLayoutPref.value, padDetected, forced)
             switchGamepad()
         }
     }
@@ -1145,7 +1148,8 @@ class GameActivity : RetroActivityFuture() {
         ControllerLayoutPref.load(this)
         readPads()
         InputMode.padConnected = padDetected
-        val touch = if (padDetected) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
+        // Touch screen keeps the touch controls whatever is detected: there is no gamepad layout to switch from.
+        val touch = if (padDetected && ControllerLayoutPref.value != ControllerLayoutPref.NEVER) TouchToggle(touchStore.forced(padKeys), ::setTouchControls) else null
         ButtonLabelsPref.load(this)
         // This process has no library screen to follow the pad in use: the pads connected now decide, read again on
         // every sheet so one plugged in (or swapped) since the last pause names the buttons. A debug override still wins.

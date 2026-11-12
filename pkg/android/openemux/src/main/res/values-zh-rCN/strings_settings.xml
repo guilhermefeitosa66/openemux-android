@@ -38,8 +38,6 @@
     <string name="settings_section_consoles_trailing">内核 · 着色器</string>
     <string name="settings_section_general">常规</string>
     <string name="settings_rom_folder">ROM 文件夹</string>
-    <string name="settings_controls">操控</string>
-    <string name="settings_controls_value">触屏 + 实体手柄</string>
     <string name="settings_about">关于</string>
 
     <!-- Console defaults -->
@@ -228,16 +226,19 @@
     <string name="settings_language_lead">适用于应用内的文字。游戏名称以文件为准。</string>
     <string name="settings_about_licenses">关于与许可</string>
     <string name="settings_licenses_hint">点按阅读全文</string>
-    <string name="settings_controller_layout">手柄布局</string>
-    <string name="settings_controller_layout_lead">应用何时显示手柄的焦点和按键提示。</string>
-    <string name="settings_controller_layout_auto">自动</string>
-    <string name="settings_controller_layout_auto_desc">连接手柄时使用手柄布局。</string>
-    <string name="settings_controller_layout_always">始终</string>
-    <string name="settings_controller_layout_always_desc">适用于内置按键的掌机。</string>
-    <string name="settings_controller_layout_never">从不</string>
-    <string name="settings_controller_layout_never_desc">即使连接了手柄也使用触屏布局。</string>
+    <!-- Settings › Controllers (issue 873). -->
+    <string name="settings_controllers">手柄</string>
+    <string name="settings_controllers_lead">实体手柄的设置：游戏手柄和掌机的内置按键。</string>
+    <string name="settings_interface_mode">界面模式</string>
+    <string name="settings_interface_mode_lead">应用是用手柄操作还是触屏操作。手柄模式会显示焦点框和按键提示。</string>
+    <string name="settings_interface_mode_auto">自动</string>
+    <string name="settings_interface_mode_auto_desc">连接手柄时为手柄模式，否则为触屏模式。</string>
+    <string name="settings_interface_mode_touch">触屏</string>
+    <string name="settings_interface_mode_touch_desc">始终触屏：在按下手柄按键之前不显示焦点框和按键提示，游戏以屏幕虚拟按键启动。如果应用误认为已连接手柄，请选择此项。</string>
+    <string name="settings_interface_mode_controller">手柄模式</string>
+    <string name="settings_interface_mode_controller_desc">始终为手柄模式，即使尚未检测到手柄。适用于带内置按键的掌机。</string>
     <string name="settings_button_labels">按键标注</string>
-    <string name="settings_button_labels_lead">按键提示如何称呼每个按键。下方按键始终用于确认，右侧按键用于返回。</string>
+    <string name="settings_button_labels_lead">使用手柄导航时提示中显示的按键样式（例如 A 确认、B 返回）。下方按键始终用于确认，右侧按键用于返回。</string>
     <string name="settings_button_labels_auto">自动</string>
     <string name="settings_button_labels_auto_desc">跟随正在使用的手柄。无法识别时使用 Xbox 样式。</string>
     <string name="settings_button_labels_xbox">Xbox</string>
