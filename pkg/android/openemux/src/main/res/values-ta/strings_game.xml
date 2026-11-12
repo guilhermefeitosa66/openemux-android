@@ -45,7 +45,7 @@
     <string name="game_retroarch_menu">RetroArch மெனு</string>
     <string name="game_touch_controls">தொடு கட்டுப்பாடுகள்</string>
     <string name="game_retroarch_menu_detail">இந்த அமர்வுக்கு மட்டும்</string>
-    <string name="game_quit">விளையாட்டிலிருந்து வெளியேறு</string>
+    <string name="game_quit">வெளியேறு</string>
     <string name="game_no_states">இன்னும் சேமிப்பு நிலைகள் இல்லை.</string>
     <string name="game_state_auto">தானியங்கி</string>
     <string name="game_state_slot">ஸ்லாட் %1$d</string>
