@@ -146,7 +146,11 @@ enum overlay_lit_by
    /* OpenEmux: the slow-motion toggle */
    OVERLAY_LIT_BY_SLOW_MOTION  = 3,
    /* OpenEmux: anchor mode (input_overlay_anchor) */
-   OVERLAY_LIT_BY_ANCHOR       = 4
+   OVERLAY_LIT_BY_ANCHOR       = 4,
+   /* OpenEmux: the desc's own binds, pressed by the overlay this poll
+    * (input_overlay_press_lit): a button's "pressed" look. Such a desc
+    * is a picture of a button and takes no touch. */
+   OVERLAY_LIT_BY_PRESS        = 5
 };
 
 /* OpenEmux: the corner a triangular desc's square corner points at
@@ -596,7 +600,9 @@ void input_overlay_set_led(int led, bool lit);
 
 /* Whether image @image of the active page is hidden: the image of a
  * desc lit by a frontend state (_lit_by) that is off in @states (bit
- * n: state n + 1 is on), whether or not the LED driver is in use; and
+ * n: state n + 1 is on), or lit by its press (OpenEmux) while the
+ * overlay's buttons (@ol's overlay_state) do not press it, whether or
+ * not the LED driver is in use; and
  * under the LED driver, the image of a desc naming an unlit LED (_led)
  * when the pack names its LED images, else the image of a "nul" desc
  * an unlit LED's @led_map entry points at - a button that does
@@ -623,6 +629,12 @@ void input_overlay_alpha_pass(input_overlay_t *ol, float mod,
 /* The overlay_lit_by value a pack's _lit_by string names, or
  * OVERLAY_LIT_BY_NONE for one it does not know. */
 uint8_t input_overlay_lit_by_parse(const char *name);
+
+/* OpenEmux: whether a desc lit by its press (OVERLAY_LIT_BY_PRESS)
+ * shows: every bind of @desc is set in @buttons, what the overlay
+ * presses this poll. A desc with no bind never shows. */
+bool input_overlay_press_lit(const struct overlay_desc *desc,
+      const input_bits_t *buttons);
 
 /* The driver was handed a page: nothing it holds is known any more. */
 void input_overlay_alpha_forget(input_overlay_t *ol);

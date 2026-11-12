@@ -464,7 +464,7 @@ object SkinFormat {
             SkinPoint(it.float("x", "$path.labelOffset.x"), it.float("y", "$path.labelOffset.y"))
         }
         val art = json.optText("art", "$path.art")?.let { SkinArt.byId(it) ?: bad("art", it) } ?: SkinArt.FULL
-        return SkinElement(
+        val element = SkinElement(
             id, type, bind, rect,
             group = json.optText("group", "$path.group"),
             shape = shape,
@@ -474,6 +474,24 @@ object SkinFormat {
             image = json.optImage("image", "$path.image"),
             radius = radius, rotation = rotation, depth = depth, labelSize = labelSize, labelOffset = labelOffset, art = art,
         )
+        return outline(json, element)
+    }
+
+    /**
+     * [e] in the outline the player gave it (issue 891), its `outline` object: `shape` (`circle`, `pill`, `rect` or
+     * `triangle` with a `corner`) and the `width` and `height` the control had in the skin's own outline. One this app
+     * does not read (missing, of another type, an unknown shape, a triangle with no corner) leaves the skin's own, so
+     * a newer app's outline still opens.
+     */
+    private fun outline(json: JSONObject, e: SkinElement): SkinElement {
+        if (!ComboOutline.shapeable(e)) return e
+        val o = json.optJSONObject("outline") ?: return e
+        val shape = SkinShape.byId(o.optString("shape")) ?: return e
+        val corner = SkinCorner.byId(o.optString("corner").takeIf { it.isNotEmpty() })
+        if (shape == SkinShape.TRIANGLE && corner == null) return e
+        fun dimension(key: String, fallback: Float) = o.optDouble(key).toFloat().takeIf { it.isFinite() && it > 0f } ?: fallback
+        val own = SkinOwnOutline(e.shape, e.rotation, dimension("width", e.rect.width), dimension("height", e.rect.height))
+        return ComboOutline.drawn(e.copy(own = own), ComboOutline(shape, corner.takeIf { shape == SkinShape.TRIANGLE }))
     }
 
     private fun rect(json: JSONObject, path: String, size: SkinSize): SkinRect {
@@ -570,6 +588,14 @@ object SkinFormat {
         if (e.colors.isNotEmpty()) put("colors", e.colors.mapValues { colorJson(it.value) })
     }
 
+    /** An element's `outline` object (issue 891): the player's [outline] and the skin's own [width] x [height]. */
+    fun outlineJson(outline: ComboOutline, width: Float, height: Float): Map<String, Any> = buildMap {
+        put("shape", outline.shape.id)
+        outline.corner?.let { put("corner", it.id) }
+        put("width", width)
+        put("height", height)
+    }
+
     private fun layoutJson(layout: SkinLayout): Map<String, Any> = buildMap {
         put("size", mapOf("width" to layout.size.width, "height" to layout.size.height))
         put("screens", layout.screens.map { rectJson(it) })
@@ -621,9 +647,13 @@ object SkinFormat {
         if (e.type != SkinElementType.DPAD || e.bind != DPAD_BIND) put("bind", e.bind)
         e.group?.let { put("group", it) }
         putAll(rectJson(e.rect))
-        e.shape?.let { put("shape", it.id) }
+        // A control the player drew in another outline (issue 891) keeps the skin's own, with the player's beside it.
+        val own = e.own
+        (if (own != null) own.shape else e.shape)?.let { put("shape", it.id) }
         e.radius?.let { put("radius", it) }
-        if (e.rotation != 0f) put("rotation", e.rotation)
+        val rotation = own?.rotation ?: e.rotation
+        if (rotation != 0f) put("rotation", rotation)
+        if (own != null) put("outline", outlineJson(ComboOutline.of(e), own.width, own.height))
         if (e.depth != 0f) put("depth", e.depth)
         e.label?.let { put("label", it) }
         e.labelSize?.let { put("labelSize", it) }

@@ -16,13 +16,14 @@ import java.util.Locale
  * which is touched at least [reach] times its half-size on each side of its centre (left, top, right, bottom). [image] is
  * drawn over its rect all the time (an app control drawn apart from the page's image, which its collapsed twin shares).
  * [corner] makes it a right triangle in its rect pointing at that corner (`bottom-left`…, a skin's combo key, issue 842):
- * the engine takes a touch on the rest of the rect as on nothing.
+ * the engine takes a touch on the rest of the rect as on nothing. A [press] desc is a button's pressed look (issue 891):
+ * its [image] shows while the overlay presses its binds ([name]), and it takes no touch.
  */
 internal class OverlayDesc(
     val name: String, val rect: RectF, val radial: Boolean = false, val next: String? = null, val lit: OverlayLit? = null,
     val well: RectF? = null, val knob: Bitmap? = null, val saturate: Float = 1f,
     val dpad: List<String>? = null, val reach: FloatArray = floatArrayOf(1f, 1f, 1f, 1f),
-    val image: Bitmap? = null, val corner: String? = null,
+    val image: Bitmap? = null, val corner: String? = null, val press: Boolean = false,
 )
 
 /** The image of a desc lit by an engine state (overlayN_descM_lit_by: fast_forward, turbo, slow_motion or anchor). */
@@ -136,6 +137,7 @@ internal object OverlayWriter {
             }
             if (d.image != null) cfg.append("${p}_desc${i}_overlay = \"${ownImage(prefix, i)}\"\n")
             d.corner?.let { cfg.append("${p}_desc${i}_triangle = \"$it\"\n") }
+            if (d.press) cfg.append("${p}_desc${i}_lit_by = \"press\"\n")
             d.next?.let { cfg.append("${p}_desc${i}_next_target = \"$it\"\n") }
             if (d.name == ANCHOR_ACTION) cfg.append("${p}_desc${i}_anchor_toggle = true\n")
             d.lit?.let {
@@ -205,13 +207,14 @@ internal object OverlayWriter {
     /**
      * Where a touch can start the movement control at [i] of [descs], as its reach (left, top, right, bottom): see
      * [TouchZones]. Its neighbours are the other controls as touched and the [clear] areas. A "nul" desc is an image
-     * (an app control's, a panel), no control: the zone may reach over it.
+     * (an app control's, a panel), no control: the zone may reach over it, and so may a button's pressed look, which
+     * takes no touch (issue 891).
      */
     private fun startReach(
         descs: List<OverlayDesc>, i: Int, grow: Float, clear: List<RectF>, gap: Float, w: Int, h: Int,
     ): FloatArray {
         val d = descs[i]
-        val others = descs.filterIndexed { j, o -> j != i && o.name != "nul" }
+        val others = descs.filterIndexed { j, o -> j != i && o.name != "nul" && !o.press }
         val (peers, neighbours) = others.partition { it.dpad != null || it.radial }
         val zone = TouchZones.startZone(
             drawn(d).box(), startFloor(d, grow).box(),

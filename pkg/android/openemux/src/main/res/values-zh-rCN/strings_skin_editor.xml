@@ -70,6 +70,8 @@
     <string name="editor_combo_shape">形状</string>
     <string name="editor_shape_circle">圆形</string>
     <string name="editor_shape_pill">胶囊形</string>
+    <string name="editor_shape_square">圆角方形</string>
+    <string name="editor_shape_original">原始形状</string>
     <string name="editor_shape_bottom_left">三角形，左下</string>
     <string name="editor_shape_bottom_right">三角形，右下</string>
     <string name="editor_shape_top_left">三角形，左上</string>

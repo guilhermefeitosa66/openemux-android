@@ -1,9 +1,13 @@
 package com.openemux.mobile.data
 
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.acos
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 /*
  * Where a control's label is and how large, and the shape a turned control is drawn as: pure geometry in a layout's
@@ -127,6 +131,45 @@ object SkinLabels {
 object SkinShapes {
     /** The steepest a control may be turned: past it the box around the turned shape no longer tells its size. */
     const val MAX_TURN = 40f
+
+    /**
+     * How round a rounded square's corners are, as a share of its short side, when the skin does not say; a triangle's
+     * three corners are as round (issue 891), so the two read as one family.
+     */
+    const val ROUND = 0.16f
+
+    /**
+     * The corners of the polygon [points] (x, y pairs, in order) rounded to [radius] (issue 891): six numbers per
+     * corner, where the rounding leaves the edge coming in, the corner, and where it meets the edge going out, which
+     * a path draws as a line to the first and a curve past the corner to the last. A sharp corner takes more of its
+     * edges than a square one for the same radius; a corner whose edges are too short for it takes half of the
+     * shorter one, and a corner with no angle is left as it is.
+     */
+    fun roundedCorners(points: FloatArray, radius: Float): FloatArray {
+        val n = points.size / 2
+        val out = FloatArray(n * 6)
+        for (i in 0 until n) {
+            val px = points[i * 2]
+            val py = points[i * 2 + 1]
+            val ax = points[((i + n - 1) % n) * 2] - px
+            val ay = points[((i + n - 1) % n) * 2 + 1] - py
+            val bx = points[((i + 1) % n) * 2] - px
+            val by = points[((i + 1) % n) * 2 + 1] - py
+            val la = sqrt(ax * ax + ay * ay)
+            val lb = sqrt(bx * bx + by * by)
+            val angle = if (la == 0f || lb == 0f) 0f else acos(((ax * bx + ay * by) / (la * lb)).coerceIn(-1f, 1f))
+            val d = if (angle <= 0f || angle >= PI.toFloat()) 0f else min(radius / tan(angle / 2f), min(la, lb) / 2f)
+            val ka = if (la == 0f) 0f else d / la
+            val kb = if (lb == 0f) 0f else d / lb
+            out[i * 6] = px + ax * ka
+            out[i * 6 + 1] = py + ay * ka
+            out[i * 6 + 2] = px
+            out[i * 6 + 3] = py
+            out[i * 6 + 4] = px + bx * kb
+            out[i * 6 + 5] = py + by * kb
+        }
+        return out
+    }
 
     /**
      * The size of the shape that, turned [degrees], fills a [w] x [h] box (the box an element's rect is): the engine's

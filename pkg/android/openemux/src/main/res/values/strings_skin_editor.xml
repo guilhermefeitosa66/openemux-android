@@ -70,6 +70,8 @@
     <string name="editor_combo_shape">Shape</string>
     <string name="editor_shape_circle">Circle</string>
     <string name="editor_shape_pill">Pill</string>
+    <string name="editor_shape_square">Rounded square</string>
+    <string name="editor_shape_original">Original</string>
     <string name="editor_shape_bottom_left">Triangle, bottom left</string>
     <string name="editor_shape_bottom_right">Triangle, bottom right</string>
     <string name="editor_shape_top_left">Triangle, top left</string>

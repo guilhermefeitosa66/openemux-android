@@ -125,6 +125,18 @@ object SkinPaintDefaults {
     /** The colour [e]'s label is drawn in: the one set, else white on a button, the ball's on a D-pad (its arrows). */
     fun letter(e: SkinElement): Int =
         e.colors["letter"] ?: if (e.type == SkinElementType.DPAD) e.colors["ball"] ?: BALL else LETTER
+
+    /** Laid over a pressed button whose face is light (issue 891): 30 % black. */
+    const val PRESS_DARK = 0x4D000000
+
+    /** Laid over a pressed button whose face is dark: 35 % white. */
+    const val PRESS_LIGHT = 0x59FFFFFF
+
+    /**
+     * The tint a pressed button is drawn with (issue 891), from its drawing's [pixels] (ARGB): darker over a light face,
+     * lighter over a dark one, so it reads on both. The face is what [SkinColorMath.meanLuminance] makes of them.
+     */
+    fun pressTint(pixels: IntArray): Int = if (SkinColorMath.meanLuminance(pixels) > 0.5) PRESS_DARK else PRESS_LIGHT
 }
 
 /** Colour maths: `#RRGGBB`, HSV, and WCAG 2 contrast. Colours are ARGB ints. */
@@ -195,6 +207,22 @@ object SkinColorMath {
     fun darken(argb: Int, t: Float): Int = mix(argb, 0x000000, t)
 
     /** WCAG 2's relative luminance of [argb] (its alpha ignored), 0 for black to 1 for white. */
+    /**
+     * The relative luminance of [pixels] (ARGB) as seen: each pixel's [luminance] weighed by how opaque it is; 0 for
+     * nothing opaque.
+     */
+    fun meanLuminance(pixels: IntArray): Double {
+        var sum = 0.0
+        var weight = 0.0
+        for (p in pixels) {
+            val a = (p ushr 24) / 255.0
+            if (a == 0.0) continue
+            sum += luminance(p) * a
+            weight += a
+        }
+        return if (weight == 0.0) 0.0 else sum / weight
+    }
+
     fun luminance(argb: Int): Double {
         fun channel(c: Int): Double {
             val s = c / 255.0
@@ -323,8 +351,9 @@ object SkinTextureFit {
 
 /**
  * A layout's colours as the editor edits them: the background's, the frame's and each control's parts; and, with
- * them, what each control's image holds ([art]), which a texture changes, and each combo button's outline there
- * ([shapes], issue 842).
+ * them, what each control's image holds ([art]), which a texture changes, and the outline the player gave a control
+ * there ([shapes]): every combo button's (issue 842), and any other button drawn in an outline of the player's (issue
+ * 891; one it does not name is drawn as the skin draws it).
  */
 data class SkinLook(
     val background: Int? = null,
@@ -337,16 +366,19 @@ data class SkinLook(
 /** [this] layout's colours. */
 fun SkinLayout.look(): SkinLook = SkinLook(
     background.color, frame?.colors, elements.associate { it.id to it.colors }, elements.associate { it.id to it.art },
-    elements.filter { it.isCombo }.associate { it.id to ComboOutline.of(it) },
+    elements.mapNotNull { e -> ComboOutline.chosen(e)?.let { e.id to it } }.toMap(),
 )
 
-/** [this] layout painted in [look]: a control [look] does not name keeps its colours (and a combo its outline). */
+/**
+ * [this] layout painted in [look]: a control [look] does not name keeps its colours (and a combo its outline); a button
+ * [look] gives no outline of the player's is drawn in the skin's own (issue 891).
+ */
 fun SkinLayout.withLook(look: SkinLook): SkinLayout = copy(
     background = background.copy(color = look.background),
     frame = frame?.let { f -> f.copy(colors = look.frame ?: f.colors) },
     elements = elements.map { e ->
         val painted = e.copy(colors = look.colors[e.id] ?: e.colors, art = look.art[e.id] ?: e.art)
-        look.shapes[e.id]?.takeIf { e.isCombo }?.let { painted.copy(shape = it.shape, corner = it.corner) } ?: painted
+        if (ComboOutline.shapeable(painted)) ComboOutline.drawn(painted, look.shapes[e.id]) else painted
     },
 )
 
