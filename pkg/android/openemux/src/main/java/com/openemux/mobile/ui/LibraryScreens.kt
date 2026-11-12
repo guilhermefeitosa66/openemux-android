@@ -1224,10 +1224,13 @@ internal fun zebraStriped(indexInGroup: Int): Boolean = indexInGroup % 2 == 1
 
 /** A list row's card: the accent when it is chosen, else the zebra tint on a striped row, else nothing. */
 private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean): Modifier = when {
-    chosen -> background(Oe.AccentSoft, RoundedCornerShape(12.dp))
-    striped -> background(Oe.RowAlt, RoundedCornerShape(12.dp))
+    chosen -> background(Oe.AccentSoft, ListRowShape)
+    striped -> background(Oe.RowAlt, ListRowShape)
     else -> this
 }
+
+/** The rounded card behind a list row, shared by the selection and the zebra stripe. */
+private val ListRowShape = RoundedCornerShape(12.dp)
 
 /** What a tap and a long press on a game do: open it and start selecting, or toggle it while selecting. */
 private class TilePick(

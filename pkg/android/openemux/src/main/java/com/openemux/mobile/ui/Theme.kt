@@ -53,7 +53,7 @@ object Oe {
     val AccentSoft: Color get() = pick(0xFF3B2A6B, 0xFFE4D9FD)
     val AccentOnSoft: Color get() = pick(0xFFD4C4FF, 0xFF5B21B6)
     /** The list view's zebra stripe (issue 874): a few percent of white over the dark page, of black over the light one. */
-    val RowAlt: Color get() = Color(if (dark) 0x0BFFFFFF else 0x0A000000)
+    val RowAlt: Color get() = pick(0x0BFFFFFF, 0x0A000000)
     val Control: Color get() = pick(0xFF1E1E25, 0xFFEBEAF1)
     val Raised: Color get() = pick(0xFF2A2A33, 0xFFE9E7EF)
     val Star: Color get() = pick(0xFFF5C543, 0xFFB07A00)
