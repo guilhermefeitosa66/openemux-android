@@ -1149,7 +1149,8 @@ private fun Modifier.sheetPlace(sheet: SheetDrag, gameBottom: Float?, cutout: Wi
 
 @Composable
 private fun ActionTile(label: String, icon: String, on: Boolean, filled: Boolean = false, enabled: Boolean = true, detail: String? = null, warn: Boolean = false, onClick: () -> Unit) {
-    // [warn]: a state to notice rather than a feature that is on (the muted game, issue 861), in the danger tone.
+    // [warn]: the danger tone, for a state to notice rather than a feature that is on (the muted game, issue 861) and
+    // for the action that ends the game (Quit, issue 875).
     val ring = when { warn -> Oe.Danger; on -> Oe.AccentBright; else -> null }
     Column(
         Modifier.let { if (enabled) it.gamepadFocus(corner = 12.dp) else it.alpha(DISABLED_ALPHA) }
