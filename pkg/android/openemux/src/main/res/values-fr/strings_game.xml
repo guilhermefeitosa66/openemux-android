@@ -42,9 +42,8 @@
     <string name="game_restart">Redémarrer le jeu</string>
     <string name="game_restart_confirm_title">Redémarrer le jeu ?</string>
     <string name="game_restart_confirm_body">Votre progression depuis la dernière sauvegarde sera perdue.</string>
-    <string name="game_retroarch_menu">Menu RetroArch</string>
+    <string name="game_retroarch_menu">RetroArch</string>
     <string name="game_touch_controls">Commandes tactiles</string>
-    <string name="game_retroarch_menu_detail">Cette session uniquement</string>
     <string name="game_quit">Quitter</string>
     <string name="game_no_states">Aucun état sauvegardé pour l’instant.</string>
     <string name="game_state_auto">AUTO</string>

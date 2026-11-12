@@ -42,9 +42,8 @@
     <string name="game_restart">Reiniciar juego</string>
     <string name="game_restart_confirm_title">¿Reiniciar juego?</string>
     <string name="game_restart_confirm_body">Se perderá el progreso desde la última partida guardada.</string>
-    <string name="game_retroarch_menu">Menú de RetroArch</string>
+    <string name="game_retroarch_menu">RetroArch</string>
     <string name="game_touch_controls">Controles táctiles</string>
-    <string name="game_retroarch_menu_detail">Solo esta sesión</string>
     <string name="game_quit">Salir</string>
     <string name="game_no_states">Aún no hay estados guardados.</string>
     <string name="game_state_auto">AUTO</string>
