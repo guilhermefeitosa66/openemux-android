@@ -3,6 +3,7 @@ package com.openemux.mobile
 import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
+import com.openemux.mobile.ui.trimSkinThumbnails
 import com.retroarch.BuildConfig
 import com.openemux.mobile.data.AchievementsStore
 import com.openemux.mobile.data.AccountStore
@@ -176,6 +177,12 @@ class OpenEmuxApp : Application() {
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = retryArtwork()
         })
+    }
+
+    /** Memory asked back: the skin miniatures in memory go first (issue 919). */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_BACKGROUND || level == TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_RUNNING_CRITICAL) trimSkinThumbnails()
     }
 
     private val artworkRetry = MutableStateFlow(0)

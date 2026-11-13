@@ -148,6 +148,7 @@ import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.coverAspect
 import com.openemux.mobile.data.Meta
 import com.openemux.mobile.data.Rom
+import com.openemux.mobile.data.RomMeta
 import com.openemux.mobile.data.ShelfContent
 import com.openemux.mobile.data.shelfContent
 import com.retroarch.R
@@ -163,7 +164,11 @@ fun ShelfScreen() {
     val content = shelfContent(loaded, roms)
     val focusedShelf = rememberSaveable { mutableStateOf<String?>(null) }
     val lib = a.app.library
-    val present = lib.orderedConsoles(meta.consoleOrder).filter { c -> roms.any { it.console == c } }
+    val present = remember(roms, meta.consoleOrder) {
+        val found = roms.mapTo(HashSet()) { it.console }
+        lib.orderedConsoles(meta.consoleOrder).filter { it in found }
+    }
+    val favorites = remember(roms, meta) { roms.filter { meta.roms[it.key]?.favorite == true } }
     // While a shelf is dragged: the order on screen, the dragged console and how far it is from its slot.
     var live by remember { mutableStateOf<List<Console>?>(null) }
     var dragged by remember { mutableStateOf<Console?>(null) }
@@ -276,7 +281,6 @@ fun ShelfScreen() {
                         }
                     }
                 }
-                val favorites = roms.filter { meta.roms[it.key]?.favorite == true }
                 val shown = live ?: present
                 // All and Favorites come first; they are no consoles, so they never move nor take a dragged card.
                 val pinned = pinnedShelves(roms.size, favorites.size)
@@ -303,7 +307,7 @@ fun ShelfScreen() {
                     }
                     shown.forEach { c -> add(Triple(c.short, c.displayName, roms.filter { it.console == c }) to c.id) }
                 }
-                gridItems(shelves, key = { it.second }) { (shelf, filter) ->
+                gridItems(shelves, key = { it.second }, contentType = { "shelf" }) { (shelf, filter) ->
                     val (short, name, list) = shelf
                     val console = Console.byId(filter)
                     val (background, ink) = if (console == null) pinnedLook(filter, Oe.dark) else console.shelf(Oe.dark).let { (back, text) -> SolidColor(back) to text }
@@ -772,28 +776,38 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     var current by rememberSaveable { mutableStateOf(if (searchRequested) "ALL" else filter) }
 
     val console = Console.byId(current)
-    val list = roms
-        .filter {
-            when (current) {
-                "FAV" -> meta.roms[it.key]?.favorite == true
-                "ALL" -> true
-                else -> it.console.id == current
+    // Filtered, sorted and grouped once per change of what they read (issue 919), not on every pass over the page.
+    val list = remember(roms, meta, current, query, sort) {
+        roms
+            .filter {
+                when (current) {
+                    "FAV" -> meta.roms[it.key]?.favorite == true
+                    "ALL" -> true
+                    else -> it.console.id == current
+                }
             }
-        }
-        .filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
-        .let { l -> if (sort == SortMode.Recent) l.sortedByDescending { meta.roms[it.key]?.lastPlayed ?: 0 } else l }
+            .filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
+            .let { l -> if (sort == SortMode.Recent) l.sortedByDescending { meta.roms[it.key]?.lastPlayed ?: 0 } else l }
+    }
     // "All", favorites and search come grouped by console, in the user's order (desktop issue #384);
     // a single console needs no header. The page's sort holds inside each group.
-    val groups: List<Pair<Console?, List<Rom>>> =
+    val groups: List<Pair<Console?, List<Rom>>> = remember(list, console, meta.consoleOrder) {
         if (console != null) listOf(null to list)
-        else lib.orderedConsoles(meta.consoleOrder).mapNotNull { c -> list.filter { it.console == c }.takeIf { it.isNotEmpty() }?.let { c to it } }
+        else {
+            val byConsole = list.groupBy { it.console }
+            lib.orderedConsoles(meta.consoleOrder).mapNotNull { c -> byConsole[c]?.let { c to it } }
+        }
+    }
     val firstKey = groups.firstOrNull()?.second?.firstOrNull()?.key
     val focusedRom = rememberSaveable { mutableStateOf<String?>(null) }
     // A focused game that left the library (a bulk remove, a remove from its page, a rescan) is
     // forgotten once it is gone, so the first tile that stayed takes the gamepad's focus. Not on
     // an empty list: that is also the library before its first scan, with the saved focus still good.
     LaunchedEffect(roms) { if (roms.isNotEmpty()) focusedRom.value = focusAfterRemoval(focusedRom.value, roms.map { it.key }) }
-    val chipIds = listOf("ALL", "FAV") + lib.orderedConsoles(meta.consoleOrder).filter { c -> roms.any { it.console == c } }.map { it.id }
+    val chipIds = remember(roms, meta.consoleOrder) {
+        val present = roms.mapTo(HashSet()) { it.console }
+        listOf("ALL", "FAV") + lib.orderedConsoles(meta.consoleOrder).filter { it in present }.map { it.id }
+    }
     fun chip(step: Int) {
         current = stepFilter(chipIds, current, step)
         focusedRom.value = null
@@ -839,13 +853,18 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // Nothing left to remove (the filter changed under the dialog): close it rather than ask about 0 games.
     LaunchedEffect(selection.active) { if (!selection.active) confirmRemove = false }
     val haptic = LocalHapticFeedback.current
-    val pick = TilePick(
-        selection = selection,
-        select = stringResource(R.string.library_select_tile),
-        deselect = stringResource(R.string.library_deselect_tile),
-        onStart = { key -> haptic.performHapticFeedback(HapticFeedbackType.LongPress); selection = selection.start(key) },
-        onToggle = { key -> selection = selection.toggle(key) },
-    )
+    val select = stringResource(R.string.library_select_tile)
+    val deselect = stringResource(R.string.library_deselect_tile)
+    // One instance per selection state, so the tiles see the same one until it changes.
+    val pick = remember(selection, select, deselect) {
+        TilePick(
+            selection = selection,
+            select = select,
+            deselect = deselect,
+            onStart = { key -> haptic.performHapticFeedback(HapticFeedbackType.LongPress); selection = selection.start(key) },
+            onToggle = { key -> selection = selection.toggle(key) },
+        )
+    }
     val scope = rememberCoroutineScope()
     // The game whose options Y opened, and the one waiting for its removal to be confirmed.
     var optionsFor by remember { mutableStateOf<String?>(null) }
@@ -1015,66 +1034,16 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     // Zoomed, the caption follows its view's step (none at five columns; the art still names the game to TalkBack).
     val cartCaption = zoomGrid(LibraryZoomPref.carts, carts = true).captionSp
     val coverCaption = zoomGrid(LibraryZoomPref.covers, carts = false).captionSp
+    // Opens a game from its tile: on its own screen, or, beside the pane, picks it first and opens it on the second tap.
+    val onOpen: (String) -> Unit = remember(pane) { { key -> if (!pane || picked == key) openFull(key) else picked = key } }
     // One game in the grid, in view mode m; a striped list row carries the zebra tint (issue 874).
     val tile: @Composable (Rom, ViewMode, Boolean) -> Unit = { rom, m, striped ->
-            val romMeta = meta.roms[rom.key]
-            val isPicked = pane && picked == rom.key
-            val open = {
-                if (!pane || isPicked) openFull(rom.key)
-                else picked = rom.key
-            }
-            val focus = Modifier.holdsGame(rom.key, heldGame).restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey).pickedRing(isPicked, outset = m != ViewMode.List).paneOpener(isPicked)
-            val chosen = rom.key in selection
-            var lit by remember { mutableStateOf(false) }
-            when (m) {
-                ViewMode.Carts -> CappedCell(GridSpec.Carts.takeUnless { zoom }) {
-                    val caption = if (zoom) cartCaption else 13
-                    Column(
-                        it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(Modifier.selectionLook(selection.active, chosen)) {
-                            Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom), cropped = true)
-                            TileBadges(selection.active, chosen, romMeta?.favorite == true)
-                        }
-                        if (caption != null) GameName(
-                            rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp),
-                            textAlign = TextAlign.Center, focused = lit,
-                            modifier = Modifier.padding(top = 6.dp).fillMaxWidth(),
-                        )
-                    }
-                }
-                ViewMode.Covers -> CappedCell(GridSpec.Covers.takeUnless { zoom }) {
-                    val caption = if (zoom) coverCaption else 12
-                    Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
-                        Box(Modifier.selectionLook(selection.active, chosen)) {
-                            BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)), cropped = true)
-                            TileBadges(selection.active, chosen, romMeta?.favorite == true)
-                        }
-                        if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selection.active, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
-                    }
-                }
-                ViewMode.List -> if (table) TableRow(rom, playtimes[rom.key] ?: 0L, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped && !isPicked)
-                else Row(
-                    Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
-                        .listRowBackground(chosen, striped && !isPicked, selection.active)
-                        .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selection.active) 8.dp else 0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (selection.active) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
-                    Box(Modifier.size(listSize.artDp.dp), contentAlignment = Alignment.Center) {
-                        BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = listSize.artDp.dp)
-                    }
-                    Column(Modifier.weight(1f).padding(start = listSize.textGapDp.dp)) {
-                        val titleStyle = if (listSize == ListSize.ExtraLarge) Type.BodyMedium.copy(fontSize = listSize.titleSp.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp) else Type.BodyMedium
-                        // One line scrolls when it does not fit (issue 869); the large rows wrap to two lines instead.
-                        if (listSize.titleLines == 1) GameName(rom.title, style = titleStyle, focused = lit)
-                        else Text(rom.title, style = titleStyle, maxLines = listSize.titleLines, overflow = TextOverflow.Ellipsis)
-                        Text(rom.console.displayName, style = Type.Small.copy(fontSize = listSize.subtitleSp.sp))
-                    }
-                    if (romMeta?.favorite == true) Icon(Icons.Star, Oe.Star, 16.dp, filled = true)
-                }
-            }
+        GameTile(
+            rom, meta.roms[rom.key], m, striped,
+            pane, pane && picked == rom.key, rom.key in selection, selection.active,
+            zoom, cartCaption, coverCaption, table, playtimes[rom.key] ?: 0L, listSize,
+            firstKey, heldGame, focusedRom, pick, onOpen,
+        )
     }
     // On a mixed page each console's group decides for itself, so each lays out its own columns and keeps its view's step.
     val perGroup = console == null && mode == ViewMode.Carts && groups.any { it.first?.frame == null }
@@ -1168,7 +1137,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         }
         if (table && shown == ViewMode.List && list.isNotEmpty()) item(key = "table-header", span = StaggeredGridItemSpan.FullLine) { TableHeader() }
         groups.forEach { (group, groupRoms) ->
-            if (group != null) item(key = "group-${group.id}", span = StaggeredGridItemSpan.FullLine) { GroupHeader(group, groupRoms.size) }
+            if (group != null) item(key = "group-${group.id}", contentType = "group-header", span = StaggeredGridItemSpan.FullLine) { GroupHeader(group, groupRoms.size) }
             if (perGroup && group != null) {
                 val groupMode = groupView(group)
                 item(key = "grid-${group.id}", span = StaggeredGridItemSpan.FullLine) {
@@ -1178,7 +1147,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 }
             } else {
                 // The zebra restarts under each group's header: its first row is plain.
-                itemsIndexed(groupRoms, key = { _, rom -> rom.key }) { index, rom ->
+                itemsIndexed(groupRoms, key = { _, rom -> rom.key }, contentType = { _, _ -> shown }) { index, rom ->
                     // The tiles glide to their new places after a zoom step, and only then: filtering and sorting stay instant.
                     Box(Modifier.animateItem(fadeInSpec = null, placementSpec = if (zoomMoving) tween(ZOOM_MOVE_MS) else null, fadeOutSpec = null)) { tile(rom, shown, zebraStriped(index)) }
                 }
@@ -1296,6 +1265,74 @@ private const val LIST_STRIPE_OUTSET_DP = 8
 private val ListRowShape = RoundedCornerShape(12.dp)
 
 /** What a tap and a long press on a game do: open it and start selecting, or toggle it while selecting. */
+/**
+ * One game in the grid, in view mode [m]; a striped list row carries the zebra tint (issue 874). A function with
+ * stable parameters rather than a lambda over the page's state (issue 919): a change elsewhere on the page recomposes
+ * only the tiles whose inputs changed.
+ */
+@Composable
+private fun GameTile(
+    rom: Rom, romMeta: RomMeta?, m: ViewMode, striped: Boolean,
+    pane: Boolean, isPicked: Boolean, chosen: Boolean, selecting: Boolean,
+    zoom: Boolean, cartCaption: Int?, coverCaption: Int?, table: Boolean, playtime: Long, listSize: ListSize,
+    firstKey: String?, heldGame: MutableState<String?>, focusedRom: MutableState<String?>, pick: TilePick,
+    onOpen: (String) -> Unit,
+) {
+    val lib = LocalActions.current.app.library
+    val open = { onOpen(rom.key) }
+    val focus = Modifier.holdsGame(rom.key, heldGame).restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey).pickedRing(isPicked, outset = m != ViewMode.List).paneOpener(isPicked)
+    var lit by remember { mutableStateOf(false) }
+    when (m) {
+        ViewMode.Carts -> CappedCell(GridSpec.Carts.takeUnless { zoom }) {
+            val caption = if (zoom) cartCaption else 13
+            Column(
+                it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.selectionLook(selecting, chosen)) {
+                    Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.fillMaxWidth(), pending = labelPending(rom), cover = coverFor(rom), cropped = true)
+                    TileBadges(selecting, chosen, romMeta?.favorite == true)
+                }
+                if (caption != null) GameName(
+                    rom.title, style = Type.Caption.copy(color = captionColor(selecting, chosen), fontSize = caption.sp),
+                    textAlign = TextAlign.Center, focused = lit,
+                    modifier = Modifier.padding(top = 6.dp).fillMaxWidth(),
+                )
+            }
+        }
+        ViewMode.Covers -> CappedCell(GridSpec.Covers.takeUnless { zoom }) {
+            val caption = if (zoom) coverCaption else 12
+            Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
+                Box(Modifier.selectionLook(selecting, chosen)) {
+                    BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)), cropped = true)
+                    TileBadges(selecting, chosen, romMeta?.favorite == true)
+                }
+                if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selecting, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
+            }
+        }
+        ViewMode.List -> if (table) TableRow(rom, playtime, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped && !isPicked)
+        else Row(
+            Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
+                .listRowBackground(chosen, striped && !isPicked, selecting)
+                .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selecting) 8.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selecting) CheckCircle(chosen, outline = Oe.Chevron, modifier = Modifier.padding(end = 12.dp))
+            Box(Modifier.size(listSize.artDp.dp), contentAlignment = Alignment.Center) {
+                BoxArt(rom, Modifier.clip(RoundedCornerShape(6.dp)), maxHeight = listSize.artDp.dp)
+            }
+            Column(Modifier.weight(1f).padding(start = listSize.textGapDp.dp)) {
+                val titleStyle = if (listSize == ListSize.ExtraLarge) Type.BodyMedium.copy(fontSize = listSize.titleSp.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp) else Type.BodyMedium
+                // One line scrolls when it does not fit (issue 869); the large rows wrap to two lines instead.
+                if (listSize.titleLines == 1) GameName(rom.title, style = titleStyle, focused = lit)
+                else Text(rom.title, style = titleStyle, maxLines = listSize.titleLines, overflow = TextOverflow.Ellipsis)
+                Text(rom.console.displayName, style = Type.Small.copy(fontSize = listSize.subtitleSp.sp))
+            }
+            if (romMeta?.favorite == true) Icon(Icons.Star, Oe.Star, 16.dp, filled = true)
+        }
+    }
+}
+
 private class TilePick(
     val selection: RomSelection,
     val select: String,
@@ -2016,7 +2053,7 @@ fun RecentScreen() {
     val roms by lib.roms.collectAsState()
     val meta by lib.meta.collectAsState()
     val loaded by lib.loaded.collectAsState()
-    val recent = roms.filter { (meta.roms[it.key]?.lastPlayed ?: 0) > 0 }.sortedByDescending { meta.roms[it.key]!!.lastPlayed }
+    val recent = remember(roms, meta) { roms.filter { (meta.roms[it.key]?.lastPlayed ?: 0) > 0 }.sortedByDescending { meta.roms[it.key]!!.lastPlayed } }
     GamepadButtons(hints = listOf("A" to stringResource(R.string.library_hint_detail), "L1 R1" to stringResource(R.string.library_hint_tabs)))
 
     MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { LazyColumn(Modifier.fillMaxSize().statusBarsPadding().holdFocusAtEnd(FocusDirection.Down)) {
@@ -2026,7 +2063,7 @@ fun RecentScreen() {
         if (recent.isEmpty() && shelfContent(loaded, roms) != ShelfContent.Loading) {
             item { EmptyState(stringResource(R.string.library_recent_empty_title), stringResource(R.string.library_recent_empty_body), null, {}) }
         }
-        items(recent, key = { it.key }) { rom ->
+        items(recent, key = { it.key }, contentType = { "recent" }) { rom ->
             var lit by remember { mutableStateOf(false) }
             Row(
                 Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true) { lit = it }.clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),

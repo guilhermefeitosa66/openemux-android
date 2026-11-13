@@ -75,7 +75,10 @@ class Covers(
         )
     }
 
-    private class Index(val names: List<String>, val exact: Map<String, List<String>>, val tokens: List<Pair<Set<String>, String>>)
+    /** [tokens] serve the fuzzy match only, so they are built when a name misses the exact map, not for every console shown (issue 919). */
+    private class Index(val names: List<String>, val exact: Map<String, List<String>>) {
+        val tokens: List<Pair<Set<String>, String>> by lazy { names.map { tokens(it) to it } }
+    }
 
     /**
      * What to draw for [rom]. A cover kept on the device carries its mtime, so one replaced in place
@@ -160,11 +163,7 @@ class Covers(
     private fun index(console: Console): Index = indexes.getOrPut(console) {
         val names = context.assets.open("covers/covers_${console.id.lowercase()}.txt")
             .bufferedReader().readLines().filter { it.isNotBlank() }
-        Index(
-            names = names,
-            exact = names.groupBy { normalize(it) },
-            tokens = names.map { tokens(it) to it },
-        )
+        Index(names = names, exact = names.groupBy { normalize(it) })
     }
 
     private fun match(console: Console, fileName: String): String? {

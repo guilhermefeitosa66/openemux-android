@@ -117,6 +117,16 @@ android {
     }
 }
 
+// Rom holds a java.io.File, which the compiler would call unstable: the tiles could never skip (issue 919).
+// `-PcomposeReports=true` writes the compiler's reports and metrics under build/compose_compiler.
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_compiler_config.conf"))
+    if (providers.gradleProperty("composeReports").orNull == "true") {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.05.00")
     implementation(composeBom)
