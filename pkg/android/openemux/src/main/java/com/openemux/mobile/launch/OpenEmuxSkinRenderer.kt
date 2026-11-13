@@ -69,6 +69,9 @@ class OpenEmuxSkinRenderer(context: Context) {
     /** The labels' typeface: the one the bundled art is lettered in (tools/skins: Space Grotesk, bold). */
     private val lettering: Typeface = ResourcesCompat.getFont(context, R.font.grotesk_bold) ?: Typeface.DEFAULT_BOLD
 
+    /** The screen's pixels per dp, for the floppy glyphs' line (issue 945): their pages are drawn at the window's size. */
+    private val density: Float = context.resources.displayMetrics.density
+
     /**
      * Writes [pkg]'s [layouts] (the form's portrait and landscape, LayoutChoice.Use) for [console], played on [coreId],
      * into [outDir], the window [width] x [height] less the [cutout]. [first] is the page that opens (ownPages), with
@@ -860,7 +863,8 @@ class OpenEmuxSkinRenderer(context: Context) {
         c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             if (icon !in FILLED) {
-                style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
+                val line = if (icon != null && stripActionFloppy(icon)) Icons.floppyStroke(size / density) else 1.8f
+                style = Paint.Style.STROKE; strokeWidth = line * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
             }
         })
     }
@@ -917,13 +921,13 @@ class OpenEmuxSkinRenderer(context: Context) {
 
         /** The quick actions' glyphs, by the app action that draws them (OpenEmuxBinds), in 24-unit paths. */
         private val GLYPHS = mapOf(
-            "save_state" to Icons.SaveState, "load_state" to Icons.LoadState, "turbo_fire_toggle" to "M13 2L4 14h7l-1 8 9-12h-7z",
+            "save_state" to Icons.SaveState, "load_state" to Icons.LoadState, "turbo_fire_toggle" to Icons.Turbo,
             "toggle_slowmotion" to Icons.SlowMotion, "toggle_fast_forward" to Icons.FastForward, "screens" to Icons.Screens,
             "menu_toggle" to Icons.Menu, "screenshot" to Icons.Camera, "reset" to Icons.Reset,
             ANCHOR_ACTION to Icons.Anchor,
         )
 
-        /** The filled glyphs; the rest are stroked, like the strip's turbo bolt. */
-        private val FILLED = setOf("save_state", "load_state", "toggle_fast_forward")
+        /** The filled glyphs; the rest are stroked, like the strip's turbo bolt and save and load's floppies (issue 945). */
+        private val FILLED = setOf("toggle_fast_forward")
     }
 }

@@ -39,8 +39,10 @@ const OE = (() => {
   const r1 = (v) => Math.round(v * 10) / 10;
 
   const ICON = {
-    save: 'M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14',
-    load: 'M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19.5h14',
+    // Save and load: the desktop's floppy with a down / up arrow (issue 945), stroked; floppyWidth keeps the arrow's
+    // gap open at small sizes, as the app's floppyStroke (ui/Components.kt) does.
+    save: 'M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 15v6.5M15.5 18.5l3 3 3-3',
+    load: 'M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 21.5V15M15.5 18l3-3 3 3',
     turbo: 'M13 2.5L5 13.5h6l-1 8 8-11h-6z',
     ff: 'M3.5 6.5v11l8-5.5zM12.5 6.5v11l8-5.5z',
     // Slow motion: a play triangle in a dashed ring, the app's own glyph (ui/Components.kt, Icons.SlowMotion).
@@ -56,6 +58,9 @@ const OE = (() => {
     // Two screens, one over the other: the NDS layout key.
     screens: 'M6 3h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM6 13h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z',
   };
+  // The floppy glyphs' line, in 24 units, by their size in dp: 1.8 from 20, 2.0 from 16, 2.2 below (issue 945).
+  const FLOPPY = ['save', 'load'];
+  const floppyWidth = (size) => (size >= 20 ? 1.8 : size >= 16 ? 2 : 2.2);
   // Issue 806: the eleven single-screen consoles that were Delta/Manic packages, whose chin has slow motion.
   const SLOW_MOTION = ['FC', 'SFC', 'GB', 'GBC', 'GBA', 'MD', 'SMS', 'N64', 'GC', 'PS', 'PSP'];
   const LEFT_STICK = { up: 'analogStickUp', down: 'analogStickDown', left: 'analogStickLeft', right: 'analogStickRight' };
@@ -604,7 +609,8 @@ const OE = (() => {
       // Edges rounded once, so neighbouring slots meet without overlapping.
       const x = r1(bx + slot * i), x1 = r1(bx + slot * (i + 1));
       own(); act = true;
-      add(box(x, barY, x1 - x, barH) + center, icon(ICON[ic], S.chinIcon || alpha('#ffffff', 0.7), tab ? 22 : 17));
+      const size = tab ? 22 : 17;
+      add(box(x, barY, x1 - x, barH) + center, icon(ICON[ic], S.chinIcon || alpha('#ffffff', 0.7), size, 'none', FLOPPY.includes(ic) ? floppyWidth(size) : undefined));
       item([input], x, barY, x1 - x, barH);
       owner = null; act = false;
       look({ group: 'actions' });

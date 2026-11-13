@@ -41,7 +41,16 @@ class StripActionsTest {
         assertTrue(stripActionStroked("turbo_fire_toggle"))
         assertTrue(stripActionStroked("screens"))
         assertFalse(stripActionStroked("toggle_fast_forward"))
-        assertFalse(stripActionStroked("save_state"))
+    }
+
+    @Test fun saveAndLoadAreTheStrokedFloppies() {
+        assertTrue(stripActionStroked("save_state"))
+        assertTrue(stripActionStroked("load_state"))
+        assertTrue(stripActionFloppy("save_state"))
+        assertTrue(stripActionFloppy("load_state"))
+        stripActions(layoutKey = true, anchor = true).filter { it != "save_state" && it != "load_state" }.forEach {
+            assertFalse(it, stripActionFloppy(it))
+        }
     }
 
     @Test fun hardcoreUnbindsTheSlowMotionKeysBesideFastForward() {
