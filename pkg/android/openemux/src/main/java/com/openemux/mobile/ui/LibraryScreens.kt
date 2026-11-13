@@ -741,7 +741,6 @@ private fun CompactShelfCard(
 }
 
 private enum class ViewMode { Carts, Covers, List }
-private enum class SortMode(@StringRes val label: Int) { Az(R.string.library_sort_az), Recent(R.string.library_sort_recent) }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -772,14 +771,36 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val known = shelfContent(loaded, roms) != ShelfContent.Loading
     val searchRequested = filter == "SEARCH"
     var mode by rememberSaveable { mutableStateOf(ViewMode.Carts) }
-    var sort by rememberSaveable { mutableStateOf(SortMode.Az) }
+    // The order is a setting (issue 927); the facets are the page's own, kept while it lives.
+    val sortContext = LocalContext.current
+    val sort = LibrarySortPref.value
+    fun setSort(s: SortMode) = LibrarySortPref.set(sortContext, s)
+    var flags by rememberSaveable { mutableStateOf("") }
+    val flagSet = remember(flags) { LibraryFlag.parse(flags) }
     var searching by rememberSaveable { mutableStateOf(searchRequested) }
     var query by rememberSaveable { mutableStateOf("") }
     var current by rememberSaveable { mutableStateOf(if (searchRequested) "ALL" else filter) }
 
     val console = Console.byId(current)
-    // Filtered, sorted and grouped once per change of what they read (issue 919), not on every pass over the page.
-    val list = remember(roms, meta, current, query, sort) {
+    // The facets' and the orders' inputs, off the main thread (issue 927): the save states one folder listing per
+    // console, the play times and the files' dates only while an order needs them.
+    val revisionNow by lib.revision.collectAsState()
+    val savedKeys by produceState(emptySet<String>(), roms, revisionNow) { value = withContext(Dispatchers.IO) { savedGameKeys(roms, lib.paths) } }
+    val playedSeconds by produceState(emptyMap<String, Long>(), roms, revisionNow, sort) {
+        if (sort == SortMode.Played) value = withContext(Dispatchers.IO) { roms.associate { it.key to lib.playtimeSeconds(it) } }
+    }
+    val addedAt by produceState(emptyMap<String, Long>(), roms, sort) {
+        if (sort == SortMode.Added) value = withContext(Dispatchers.IO) { roms.associate { it.key to it.file.lastModified() } }
+    }
+    val coverUrls by a.app.covers.urls.collectAsState()
+    val labelsFound by a.app.labels.found.collectAsState()
+    val favorite = { rom: Rom -> meta.roms[rom.key]?.favorite == true }
+    val saved = { rom: Rom -> rom.key in savedKeys }
+    val missingArt = { rom: Rom -> artMissing(rom.console, labelsFound[rom.key], coverUrls[rom.key]) }
+    val lastPlayed = { rom: Rom -> meta.roms[rom.key]?.lastPlayed ?: 0L }
+    // The page's scope (the console or the search) before the facets, which count within it; then the facets and
+    // the order. Once per change of what they read (issue 919), not on every pass over the page.
+    val scoped = remember(roms, meta, current, query) {
         roms
             .filter {
                 when (current) {
@@ -789,8 +810,13 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 }
             }
             .filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
-            .let { l -> if (sort == SortMode.Recent) l.sortedByDescending { meta.roms[it.key]?.lastPlayed ?: 0 } else l }
     }
+    val facetCounts = remember(scoped, meta, savedKeys, coverUrls, labelsFound) { flagCounts(scoped, favorite, saved, missingArt, lastPlayed) }
+    val list = remember(scoped, meta, flagSet, savedKeys, coverUrls, labelsFound, sort, playedSeconds, addedAt) {
+        sortGames(flaggedGames(scoped, flagSet, favorite, saved, missingArt, lastPlayed), sort, lastPlayed, { addedAt[it.key] ?: 0L }, { playedSeconds[it.key] ?: 0L })
+    }
+    val toggleFlag = { f: LibraryFlag -> flags = LibraryFlag.join(if (f in flagSet) flagSet - f else flagSet + f) }
+    val clearFlags = { flags = "" }
     // "All", favorites and search come grouped by console, in the user's order (desktop issue #384);
     // a single console needs no header. The page's sort holds inside each group.
     val groups: List<Pair<Console?, List<Rom>>> = remember(list, console, meta.consoleOrder) {
@@ -995,7 +1021,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             mode = mode, onMode = { mode = it },
             searching = searching, query = query, onQuery = { query = it },
             onSearch = { searching = !searching; if (!searching) query = "" },
-            sort = sort, onSort = { sort = if (sort == SortMode.Az) SortMode.Recent else SortMode.Az },
+            sort = sort, onSort = ::setSort, flagged = flagSet.isNotEmpty(), onClearFlags = clearFlags,
             focusedRom = focusedRom, known = known, pick = pick, heldGame = heldGame,
         )
         bar()
@@ -1008,9 +1034,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), {
                 searching = !searching; if (!searching) query = ""
             }, padFocus = false)
-            RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), {
-                sort = if (sort == SortMode.Az) SortMode.Recent else SortMode.Az
-            })
+            SortButton(sort, ::setSort)
         }
     }
     // In tabletop the page's controls sit on the bottom half and the grid has the top one.
@@ -1022,6 +1046,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             }
             if (searching) SearchField(query, autoFocus = searchRequested) { query = it }
             ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
+            FlagChips(flagSet, facetCounts, Modifier.padding(top = 10.dp), toggleFlag, clearFlags)
         }
     }
 
@@ -1128,18 +1153,16 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                     Text(countString(R.plurals.library_games_count, list.size, list.size), style = Type.Small.copy(fontSize = 14.sp), modifier = Modifier.padding(bottom = 4.dp))
                 }
                 ArtworkSyncPill(Modifier.padding(top = 16.dp))
-                if (!tabletop) ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
+                if (!tabletop) {
+                    ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
+                    FlagChips(flagSet, facetCounts, Modifier.padding(top = 10.dp), toggleFlag, clearFlags)
+                }
                 Row(Modifier.padding(top = 22.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(if (sort == SortMode.Az) R.string.library_section_carts else R.string.library_section_recent), style = Type.Section.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+                    Text(stringResource(sort.section), style = Type.Section.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
                     if (zoom) SizeButton(shown, zoomStep(shown), { setZoom(shown, it) }, Modifier.padding(end = 6.dp))
                     if (!tabletop) ViewToggle(mode) { mode = it }
                 }
-                if (list.isEmpty() && known) {
-                    Text(
-                        if (query.isNotBlank()) stringResource(R.string.library_no_results, query) else stringResource(R.string.library_empty_list),
-                        style = Type.Small, modifier = Modifier.padding(vertical = 24.dp),
-                    )
-                }
+                if (list.isEmpty() && known) EmptyList(query, flagSet.isNotEmpty(), clearFlags, Modifier.padding(vertical = 24.dp))
             }
         }
         if (table && shown == ViewMode.List && list.isNotEmpty()) item(key = "table-header", span = StaggeredGridItemSpan.FullLine) { TableHeader() }
@@ -1698,7 +1721,9 @@ private fun LandscapeLibrary(
     onQuery: (String) -> Unit,
     onSearch: () -> Unit,
     sort: SortMode,
-    onSort: () -> Unit,
+    onSort: (SortMode) -> Unit,
+    flagged: Boolean,
+    onClearFlags: () -> Unit,
     focusedRom: MutableState<String?>,
     known: Boolean,
     pick: TilePick,
@@ -1725,7 +1750,7 @@ private fun LandscapeLibrary(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIconButton(if (searching) Icons.Close else Icons.Search, stringResource(if (searching) R.string.library_close_search else R.string.library_search), onSearch, padFocus = false)
-                    RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), onSort)
+                    SortButton(sort, onSort)
                     Box(Modifier.padding(start = 4.dp)) { ViewToggle(mode, onMode) }
                 }
             }
@@ -1737,12 +1762,7 @@ private fun LandscapeLibrary(
             val caption = 28.dp
             // Room above and below, so nothing touches the edges.
             val itemH = maxHeight - caption - 56.dp
-            if (list.isEmpty() && known) {
-                Text(
-                    if (query.isNotBlank()) stringResource(R.string.library_no_results, query) else stringResource(R.string.library_empty_list),
-                    style = Type.Small, modifier = Modifier.align(Alignment.Center),
-                )
-            }
+            if (list.isEmpty() && known) EmptyList(query, flagged, onClearFlags, Modifier.align(Alignment.Center))
             // The focused game stays in the middle; the first and last rest at the row's edges.
             // The last game sits at the row's end, which is the left in a right-to-left layout.
             val rowEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) FocusDirection.Left else FocusDirection.Right
@@ -1967,6 +1987,82 @@ private fun rememberCountFormat(): NumberFormat {
 }
 
 /** Every filter, for a direct pick: a popup the pad drives on its own, as the detail screen's menu. */
+/** The sort button and its menu (issue 927): the current order ticked, the choice kept as a setting. */
+@Composable
+private fun SortButton(sort: SortMode, onPick: (SortMode) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val opener = LocalPadScope.current
+    // Not keyed on [open]: a new scope while the menu animates out would land focus in the closing popup.
+    val menuScope = remember { PadScope() }
+    Box {
+        RoundIconButton(Icons.Sort, stringResource(R.string.library_sort_by, stringResource(sort.label)), { open = true })
+        CompositionLocalProvider(LocalPadScope provides menuScope) { androidx.compose.material3.DropdownMenu(
+            open, { open = false }, Modifier.padPopup(menuScope, opener) { open = false }, containerColor = Oe.Surface2,
+        ) {
+            Text(stringResource(R.string.library_sort_heading), style = Type.SectionCaps, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp).semantics { heading() })
+            SortMode.entries.forEach { s ->
+                val on = s == sort
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(s.label), style = Type.Body.copy(color = if (on) Oe.AccentOnSoft else Oe.Text)) },
+                    trailingIcon = { if (on) Icon(Icons.Check, Oe.AccentOnSoft, 18.dp) },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent).semantics { selected = on },
+                    onClick = { open = false; onPick(s) },
+                )
+            }
+        } }
+    }
+}
+
+/** The facets (issue 927): a chip per flag with its count, lit while on, any of them together, and Clear when any is. */
+@Composable
+private fun FlagChips(flags: Set<LibraryFlag>, counts: Map<LibraryFlag, Int>, modifier: Modifier, onToggle: (LibraryFlag) -> Unit, onClear: () -> Unit) {
+    val numbers = rememberCountFormat()
+    FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        LibraryFlag.entries.forEach { flag ->
+            val on = flag in flags
+            val label = "${stringResource(flag.label)} · ${numbers.format(counts[flag] ?: 0)}"
+            // The hit area is 48 dp tall (issue 928); the chip drawn in it keeps its height.
+            Box(
+                Modifier.height(ChipHit).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).clickable(role = Role.Checkbox) { onToggle(flag) }
+                    .semantics { selected = on },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.height(padSize(ChipHeight, ChipHeightPad)).clip(RoundedCornerShape(18.dp))
+                        .background(if (on) Oe.AccentSoft else Oe.Surface)
+                        .let { if (on) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (on) Oe.AccentOnSoft else Oe.Text))
+                }
+            }
+        }
+        if (flags.isNotEmpty()) {
+            Text(
+                stringResource(R.string.library_flags_clear), style = Type.BodyMedium.copy(color = Oe.AccentText, fontSize = 14.sp),
+                modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onClear).padding(horizontal = 8.dp, vertical = 12.dp),
+            )
+        }
+    }
+}
+
+/** Nothing to show: why, and, with facets on, the way out of them (issue 927). */
+@Composable
+private fun EmptyList(query: String, flagged: Boolean, onClearFlags: () -> Unit, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            when {
+                flagged -> stringResource(R.string.library_no_match)
+                query.isNotBlank() -> stringResource(R.string.library_no_results, query)
+                else -> stringResource(R.string.library_empty_list)
+            },
+            style = Type.Small,
+        )
+        if (flagged) SecondaryButton(stringResource(R.string.library_flags_clear), onClearFlags, Modifier.padding(top = 12.dp).gamepadFocus(corner = 26.dp))
+    }
+}
+
 @Composable
 private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<String>, current: String, counts: Map<String, Int>, onPick: (String) -> Unit) {
     val opener = LocalPadScope.current

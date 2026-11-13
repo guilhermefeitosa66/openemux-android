@@ -37,6 +37,7 @@ import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.LibraryZoomPref
 import com.openemux.mobile.ui.ButtonLabelsPref
 import com.openemux.mobile.ui.PauseComboPref
+import com.openemux.mobile.ui.LibrarySortPref
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.LaunchGate
 import com.openemux.mobile.ui.LocalPadScope
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
         LibraryZoomPref.load(this)
         ButtonLabelsPref.load(this)
         PauseComboPref.load(this)
+        LibrarySortPref.load(this)
         Oe.syncSystem(this)
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
