@@ -5,6 +5,7 @@
     <string name="about_comments">An Android emulator frontend inspired by OpenEmu.</string>
     <string name="about_section_project">Project</string>
     <string name="about_site">OpenEmux website</string>
+    <string name="about_foundation">Libre Apps foundation</string>
     <string name="about_releases">Releases</string>
     <string name="about_report_issue">Report a problem</string>
     <string name="about_section_license">License</string>

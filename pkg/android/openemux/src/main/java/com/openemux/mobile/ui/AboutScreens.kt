@@ -50,6 +50,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val SITE = "https://openemux.libre-apps.org/"
+/** The foundation that hosts the project's site. */
+private const val FOUNDATION = "https://libre-apps.org/"
 private const val GITHUB = "https://github.com/guilhermefeitosa66/OpenEmux"
 private const val REDDIT = "https://www.reddit.com/r/OpenEmux/"
 
@@ -91,6 +93,7 @@ fun AboutScreen(embedded: Boolean = false, onOpenLicense: ((String) -> Unit)? = 
         SectionHeader(stringResource(R.string.about_section_project))
         Card(Modifier.padding(horizontal = 20.dp)) {
             ListRow(stringResource(R.string.about_site), subtitle = "openemux.libre-apps.org", onClick = { open(SITE) })
+            ListRow(stringResource(R.string.about_foundation), subtitle = "libre-apps.org", divider = true, onClick = { open(FOUNDATION) })
             ListRow("GitHub", subtitle = "guilhermefeitosa66/OpenEmux", divider = true, onClick = { open(GITHUB) })
             ListRow("Reddit", subtitle = "r/OpenEmux", divider = true, onClick = { open(REDDIT) })
             ListRow(stringResource(R.string.about_releases), divider = true, onClick = { open("$GITHUB/releases") })

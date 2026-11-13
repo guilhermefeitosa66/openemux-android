@@ -5,6 +5,7 @@
     <string name="about_comments">Une interface Android pour émulateurs, inspirée d’OpenEmu.</string>
     <string name="about_section_project">Projet</string>
     <string name="about_site">Site d’OpenEmux</string>
+    <string name="about_foundation">Fondation Libre Apps</string>
     <string name="about_releases">Versions publiées</string>
     <string name="about_report_issue">Signaler un problème</string>
     <string name="about_section_license">Licence</string>
