@@ -502,6 +502,9 @@ object NdsLayouts {
     /** The layout the tabletop posture opens in. */
     fun loadTabletop(filesDir: java.io.File): ScreenLayout = pick(saved(filesDir), "portrait-tabletop")
 
+    /** The saved file as it is, "" for none: a skin cache key carries it (issue 917). */
+    fun savedText(filesDir: java.io.File): String = runCatching { file(filesDir).readText() }.getOrDefault("")
+
     fun save(filesDir: java.io.File, orientation: String, layout: ScreenLayout) {
         val saved = saved(filesDir)
         val text = NDS_LAYOUTS.keys.joinToString("") { o -> "$o=${if (o == orientation) layout.id else pick(saved, o).id}\n" }

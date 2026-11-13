@@ -13,6 +13,9 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
+import android.os.SystemClock
+import android.os.Trace
+import android.util.Log
 import android.view.WindowManager
 import androidx.core.content.res.ResourcesCompat
 import coil.imageLoader
@@ -23,23 +26,25 @@ import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Labels
 import com.openemux.mobile.data.Library
+import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SaveSlots
+import com.openemux.mobile.data.SkinStore
+import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.configKeys
 import com.openemux.mobile.game.GameActivity
 import com.openemux.mobile.game.GameExtras
 import com.openemux.mobile.game.Gamepads
 import com.openemux.mobile.game.TouchControls
 import com.openemux.mobile.game.TouchControlsStore
+import com.openemux.mobile.ui.AppWindow
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.Fold
 import com.openemux.mobile.ui.PauseComboPref
 import com.openemux.mobile.ui.gamepadSkin
-import com.openemux.mobile.ui.folds
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 /** Composes the cartridge art the way the desktop does: label under the frame. */
@@ -122,6 +127,9 @@ class GameLauncher(
     private val achievements: AchievementsStore,
 ) {
     private val paths = library.paths
+    /** The skins and the cartridge pictures drawn for launches before, so a launch like one before draws nothing (issue 917). */
+    private val skinCache = SkinCache(File(paths.launch, "skins"))
+    private val cartCache = CartCache(File(paths.launch, "carts"))
 
     /** Shaders, copied out of the APK once per install; cores and core info come from the setup. */
     private fun prepareEngine() {
@@ -143,6 +151,33 @@ class GameLauncher(
         children.forEach { copyAssetTree("$asset/$it", File(target, it)) }
     }
 
+    /** What the cartridge picture is composed from: a change in any of it is a new picture. */
+    private fun cartKey(rom: Rom): String {
+        val label = labels.found.value[rom.key]
+        val art = if (rom.console.frame == null) "cover=${covers.urlFor(rom)}" else "label=${label?.path}:${label?.length()}:${label?.lastModified()}"
+        return "rom=${rom.key}\ntitle=${rom.title}\ncolor=${library.effectiveColor(rom)}\n$art\napp=$appVersion"
+    }
+
+    /** The install time of this build: the bundled skins, the frames and the renderers change with it. */
+    private val appVersion: Long by lazy { context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime }
+
+    /**
+     * Everything the skin drawing reads, one line each: the same text means the same skin (SkinCache). The player's
+     * skin goes in with its files' sizes and times, the NDS layouts with the saved file, the app with its install time.
+     */
+    internal fun skinKey(
+        console: Console, size: SkinSize, density: Float, hardcore: Boolean, coreId: String, first: String?, fold: Fold?,
+        gamepad: Boolean, variant: SkinVariant, custom: String?,
+    ): SkinCache.Key = SkinCache.Key(
+        listOf(
+            "console=${console.id}", "size=$size", "density=$density", "hardcore=$hardcore", "core=$coreId", "first=$first",
+            "fold=$fold", "gamepad=$gamepad", "variant=${variant.id}",
+            "custom=$custom:${SkinCache.signature(custom?.let { SkinStore(paths.base).file(console, it) })}",
+            "nds=${if (console == Console.NDS) NdsLayouts.savedText(context.filesDir) else ""}",
+            "app=$appVersion",
+        ).joinToString("\n"),
+    )
+
     suspend fun cartBitmap(rom: Rom): Bitmap {
         if (rom.console.frame == null) {
             // No cartridge art for this console: the box art stands in, as on the desktop.
@@ -158,19 +193,25 @@ class GameLauncher(
 
     /** Starts the game from [from], in the library's own task, so it opens inside the app. */
     suspend fun launch(from: Activity, rom: Rom, resume: Boolean, slot: Int? = null) {
-        val cart = cartBitmap(rom)
+        val started = SystemClock.uptimeMillis()
+        // The picture kept from a launch of this game before, else composed and kept now.
+        val cartKey = cartKey(rom)
+        var cartKept = cartCache.lookup(cartKey)
+        val cart = if (cartKept == null) {
+            Trace.beginSection("OpenEmux cart")
+            try { cartBitmap(rom) } finally { Trace.endSection() }
+        } else null
         val cheevos = achievements.state.value
         // Hardcore refuses loading a state: start fresh rather than have the engine refuse it.
         val hardcore = cheevos.hardcoreActive
-        // The fold as the library's window sees it now: the skin draws the tabletop shape for it.
-        // folds() already turns a tracker failure into null; a runCatching here would swallow the launch's cancellation.
-        val fold = withTimeoutOrNull(500) { from.folds().first() }
+        // The fold as the library's window saw it last: the skin draws the tabletop shape for it. Read, never waited
+        // for (issue 917); a fold the window reports later redraws the skin in game.
+        val fold = AppWindow.fold
         val intent = withContext(Dispatchers.IO) {
             prepareEngine()
             val dir = File(paths.launch, "current").apply { deleteRecursively(); mkdirs() }
 
-            val cartFile = File(dir, "cart.png")
-            cartFile.outputStream().use { cart.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            val cartFile = cartKept ?: cartCache.keep(cartKey) { f -> f.outputStream().use { cart!!.compress(Bitmap.CompressFormat.PNG, 100, it) } }
 
             // The largest window: right full screen; the game redraws it for split screen or free form.
             val metrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).maximumWindowMetrics
@@ -196,11 +237,21 @@ class GameLauncher(
                 rom.console.id in TouchControlsStore.consoles(context.filesDir),
             )
             // A package skin opens on its page for the orientation the game starts in (the NDS's saved layout there).
-            val drawn = GameSkin.render(
-                context, paths.base, rom.console, size, File(dir, "skin"), density, hardcore, core.id,
-                first = "landscape".takeIf { landscape }, fold = upright, gamepad = gamepad,
-                variant = skinVariant, custom = customSkin,
-            )
+            val first = "landscape".takeIf { landscape }
+            val key = skinKey(rom.console, size, density, hardcore, core.id, first, upright, gamepad, skinVariant, customSkin)
+            val kept = skinCache.lookup(key) { orientation, id -> NdsLayouts.find(orientation, id) }
+            val drawn = kept ?: skinCache.render(key) { outDir ->
+                Trace.beginSection("OpenEmux skin")
+                try {
+                    GameSkin.render(
+                        context, paths.base, rom.console, size, outDir, density, hardcore, core.id,
+                        first = first, fold = upright, gamepad = gamepad, variant = skinVariant, custom = customSkin,
+                    )
+                } finally {
+                    Trace.endSection()
+                }
+            }
+            Log.i(TAG, "launch: skin ${if (kept != null) "kept" else "drawn"}, cartridge ${if (cartKept != null) "kept" else "composed"}, ${SystemClock.uptimeMillis() - started} ms so far")
             val skin = drawn.file
             val ndsLayouts = drawn.ndsLayouts
 
@@ -253,6 +304,7 @@ class GameLauncher(
                 putExtra(GameExtras.ANCHOR, anchor)
                 putExtra(GameExtras.ANCHOR_PICKS, paths.anchorPicks.absolutePath)
                 putExtra(GameExtras.PAUSE_COMBO, pauseCombo)
+                putExtra(GameExtras.SKIN_DIR, skin.parentFile!!.absolutePath)
                 putExtra(GameExtras.CORE_NAME, core.name)
                 putExtra(GameExtras.HARDCORE, hardcore)
                 putExtra(GameExtras.LAUNCH_DIR, dir.absolutePath)
@@ -388,5 +440,9 @@ class GameLauncher(
         // atari800 only switches to its 5200 joystick when the frontend asks for that port device; the default joypad moves Fire 2 to B.
         if (rom.console == Console.A5200) settings["input_libretro_device_p1"] = "769"
         return settings.entries.joinToString("\n") { (k, v) -> "$k = \"$v\"" } + "\n"
+    }
+
+    private companion object {
+        const val TAG = "OpenEmuxLaunch"
     }
 }

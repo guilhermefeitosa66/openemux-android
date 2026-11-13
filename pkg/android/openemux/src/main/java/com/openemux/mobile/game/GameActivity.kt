@@ -76,6 +76,8 @@ import java.util.concurrent.atomic.AtomicReference
 class GameActivity : RetroActivityFuture() {
     private var resumedAt = 0L
     var sessionStart = 0L
+    /** How long after [sessionStart] the engine showed its first overlay; 0 until it did. */
+    @Volatile private var firstOverlayMs = 0L
         private set
     private var dialog: ComponentDialog? = null
     private var sheetView: ComposeView? = null
@@ -207,7 +209,9 @@ class GameActivity : RetroActivityFuture() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Before the engine starts: it reports the overlays from its own thread.
-        val skinDir = intent.getStringExtra("CONFIGFILE")?.let { File(File(it).parentFile, "skin") }
+        // The skin's folder: a kept one (issue 917), or the launch folder's for a config written without the extra.
+        val skinDir = intent.getStringExtra(GameExtras.SKIN_DIR)?.let(::File)
+            ?: intent.getStringExtra("CONFIGFILE")?.let { File(File(it).parentFile, "skin") }
         skinVariantId.value = intent.getStringExtra(GameExtras.SKIN_VARIANT) ?: SkinVariant.CONSOLE.id
         skinCustom.value = intent.getStringExtra(GameExtras.SKIN_CUSTOM)
         tabletopSkin = skinDir?.let(::readTabletopSkin)
@@ -439,7 +443,7 @@ class GameActivity : RetroActivityFuture() {
         val deadline = System.currentTimeMillis() + 30_000
         while (!engineReady && System.currentTimeMillis() < deadline) {
             engineReady = RaCommand.isRunning(300)
-            if (!engineReady) Thread.sleep(250)
+            if (!engineReady) Thread.sleep(ENGINE_POLL_MS)
         }
         return engineReady
     }
@@ -456,7 +460,7 @@ class GameActivity : RetroActivityFuture() {
                     }
                     return@Thread
                 }
-                Thread.sleep(250)
+                Thread.sleep(ENGINE_POLL_MS)
             }
         }.start()
     }
@@ -872,6 +876,11 @@ class GameActivity : RetroActivityFuture() {
      * screen layout, which is kept for the orientation.
      */
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
+        if (firstOverlayMs == 0L) {
+            // The first overlay is the first frame the player can act on: the launch's own measure (issue 917).
+            firstOverlayMs = System.currentTimeMillis() - sessionStart
+            Log.i(TAG, "first overlay $firstOverlayMs ms after start")
+        }
         val previous = overlay
         overlay = name
         val byApp = name == appSelected
@@ -1314,6 +1323,8 @@ class GameActivity : RetroActivityFuture() {
         /** AINPUT_EVENT_TYPE_KEY, as the engine passes it. */
         const val INPUT_KEY = 1
         const val SKIN_DEBOUNCE_MS = 300L
+        /** Between two looks at the engine while the content comes up (issue 917): a loaded slot lands within it. */
+        const val ENGINE_POLL_MS = 50L
         const val REQUEST_EDIT_SKIN = 8270
         const val TAG = "OpenEmuxGame"
         const val SKIN_TAG = "OpenEmuxSkin"

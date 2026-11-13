@@ -37,6 +37,8 @@ object GameExtras {
     const val ANCHOR_PICKS = "OE_ANCHOR_PICKS"
     /** The controller combination that pauses (PauseComboPref), for the one-time hint in game (issue 924). */
     const val PAUSE_COMBO = "OE_PAUSE_COMBO"
+    /** The folder of the skin the game opens with: a kept one (SkinCache, issue 917), no longer under the launch folder. */
+    const val SKIN_DIR = "OE_SKIN_DIR"
 }
 
 /**

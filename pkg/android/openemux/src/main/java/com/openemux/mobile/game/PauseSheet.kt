@@ -332,7 +332,10 @@ fun PauseSheet(
         val skinList = skins?.let { rememberGameSkinList(it) }
         // Whether the game has a skin in use, which brings the skin tiles; its name is not shown on the sheet (issue 875).
         val hasSkin = skinValue(skinList) != null
-        val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
+        // Decoded off the main thread (issue 918): the sheet opens, the picture follows a frame later.
+        val cart by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, session.cartPath) {
+            value = withContext(Dispatchers.IO) { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
+        }
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
         val band = forbiddenBand(window)?.takeIf { window.tabletop }
@@ -509,9 +512,9 @@ fun PauseSheet(
                 if (!tabletop || page != Page.Main) Row(grip, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (page != Page.Main) {
                         SheetIconButton(Icons.Back, stringResource(R.string.game_back)) { backPage()?.let { page = it } }
-                    } else if (cart != null) {
+                    } else cart?.let { picture ->
                         // Any short window keeps the small cart, a wide fold half open included (its half is short too).
-                        Image(cart, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
+                        Image(picture, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(

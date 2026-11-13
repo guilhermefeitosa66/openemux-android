@@ -29,8 +29,11 @@ class LaunchGate(fresh: Boolean, private val capMs: Long = CAP_MS) {
     }
 
     companion object {
-        /** The longest the content waits for the bars to leave. */
-        const val CAP_MS = 700L
+        /**
+         * The longest the content waits for the bars to leave. The pipeline emulator (API 35) hides them 250 to 310 ms
+         * after the activity is created (issue 920, five cold starts); a device that keeps them waits this long.
+         */
+        const val CAP_MS = 400L
 
         /**
          * Whether an activity being created comes with the system's starting window: a new launch, or the first one
@@ -51,6 +54,9 @@ object AppWindow {
 
     /** No MainActivity has been created in this process yet. */
     var firstLaunch = true
+
+    /** The fold the library's window reported last (ProvideWindowLayout), null without one: a launch reads it at once (issue 917). */
+    @Volatile var fold: Fold? = null
 }
 
 /** Full screen, as the game is: a swipe shows the bars over the window and they leave on their own. */
