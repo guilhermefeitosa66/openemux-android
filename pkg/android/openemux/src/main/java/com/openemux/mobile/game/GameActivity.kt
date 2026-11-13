@@ -235,6 +235,34 @@ class GameActivity : RetroActivityFuture() {
         window.decorView.post { scheduleSkinCheck() }
         // Over the game, not the black before it.
         handler.postDelayed({ maybeShowPauseHint() }, PAUSE_HINT_DELAY_MS)
+        watchContentUp()
+    }
+
+    /**
+     * The engine answers GET_STATUS with PLAYING once the content runs: that is the first frame the player can act
+     * on (issue 923; the engine reports no overlay until the first switch, so that callback cannot be the signal).
+     * Leaves the session's mark for the library, takes the splash down and logs the time.
+     */
+    private fun watchContentUp() {
+        Thread {
+            val deadline = System.currentTimeMillis() + CONTENT_UP_MAX_MS
+            while (!isFinishing && !isDestroyed && System.currentTimeMillis() < deadline) {
+                if (RaCommand.ask("GET_STATUS", 300)?.contains("PLAYING") == true) {
+                    contentUp()
+                    return@Thread
+                }
+                Thread.sleep(ENGINE_POLL_MS)
+            }
+        }.start()
+    }
+
+    /** The content is up (any thread): once. */
+    private fun contentUp() {
+        if (firstOverlayMs != 0L) return
+        firstOverlayMs = System.currentTimeMillis() - sessionStart
+        Log.i(TAG, "content up $firstOverlayMs ms after start")
+        markSession(SessionMarks.STARTED)
+        runOnUiThread { hideSplash() }
     }
 
     /**
@@ -935,14 +963,8 @@ class GameActivity : RetroActivityFuture() {
      * screen layout, which is kept for the orientation.
      */
     override fun onOverlayChanged(name: String): Unit = synchronized(ndsLayouts) {
-        if (firstOverlayMs == 0L) {
-            // The first overlay is the first frame the player can act on: the launch's own measure (issue 917).
-            firstOverlayMs = System.currentTimeMillis() - sessionStart
-            Log.i(TAG, "first overlay $firstOverlayMs ms after start")
-            // The library learns the engine drew (issue 923); off this thread, which is the engine's.
-            Thread { markSession(SessionMarks.STARTED) }.start()
-            runOnUiThread { hideSplash() }
-        }
+        // An overlay switch before GET_STATUS answered: the content is up all the same (off this thread, the engine's).
+        if (firstOverlayMs == 0L) Thread { contentUp() }.start()
         val previous = overlay
         overlay = name
         val byApp = name == appSelected
@@ -1388,8 +1410,10 @@ class GameActivity : RetroActivityFuture() {
         const val SKIN_DEBOUNCE_MS = 300L
         /** Between two looks at the engine while the content comes up (issue 917): a loaded slot lands within it. */
         const val ENGINE_POLL_MS = 50L
-        /** The splash never outlives this, even if the engine reports no overlay. */
+        /** The splash never outlives this, even if the engine never answers. */
         const val SPLASH_MAX_MS = 30_000L
+        /** How long the content is waited for (a PSP or GameCube core takes seconds; a refused game exits sooner). */
+        const val CONTENT_UP_MAX_MS = 60_000L
         /** The game window's black (Theme.OpenEmux.Game) and the text over it. */
         const val SPLASH_BG = 0xFF0B0B0E.toInt()
         const val SPLASH_TEXT = 0xFFA3A3B2.toInt()

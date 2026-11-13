@@ -162,8 +162,15 @@ class GameLauncher(
             started = File(dir, SessionMarks.STARTED).exists(), quit = File(dir, SessionMarks.QUIT).exists(),
             elapsedMs = System.currentTimeMillis() - startedAt,
         ) ?: return null
-        return outcome to logTail(File(dir, SessionMarks.LOG))
+        // The engine's file, else what it said to logcat (the app may read its own lines).
+        val tail = logTail(File(dir, SessionMarks.LOG)).ifBlank { logcatTail() }
+        return outcome to tail
     }
+
+    private fun logcatTail(): String = runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-t", "400", "RetroArch:*", "OpenEmuxGame:*", "*:S").redirectErrorStream(true).start()
+        p.inputStream.bufferedReader().readLines().takeLast(40).joinToString("\n").also { p.waitFor() }
+    }.getOrDefault("")
 
     /** Shaders, copied out of the APK once per install; cores and core info come from the setup. */
     private fun prepareEngine() {
@@ -430,7 +437,8 @@ class GameLauncher(
             "content_runtime_log_aggregate" to "false",
             "global_core_options" to "true",
             "core_options_path" to File(dir, "core-options.cfg").absolutePath,
-            // The engine's log next to the config, for a session that ends on its own (issue 923).
+            // The engine's log next to the config, for a session that ends on its own (issue 923); the file needs verbosity on.
+            "log_verbosity" to "true",
             "log_to_file" to "true",
             "log_to_file_timestamp" to "false",
             "log_dir" to dir.absolutePath,
