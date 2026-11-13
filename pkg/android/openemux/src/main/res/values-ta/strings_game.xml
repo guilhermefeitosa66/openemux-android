@@ -139,4 +139,8 @@
     <string name="game_edit_skin">ஸ்கினைத் திருத்து</string>
     <string name="game_skin_every_game">இந்த கன்சோலின் எல்லா விளையாட்டுகளுக்கும்</string>
     <string name="game_toast_skin">ஸ்கின்: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">இடைநிறுத்த Start ஐ இரண்டு வினாடிகள் பிடித்திருங்கள்</string>
+    <string name="game_toast_pause_start_select">இடைநிறுத்த Start + Select ஐ அழுத்துங்கள்</string>
+    <string name="game_toast_pause_l3_r3">இடைநிறுத்த L3 + R3 ஐ அழுத்துங்கள்</string>
 </resources>

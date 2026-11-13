@@ -339,4 +339,15 @@
     <string name="skins_import_too_large">ファイルが大きすぎて読み込めません。</string>
     <string name="skins_import_unsafe">この zip にはフォルダ外のファイルが含まれているため、読み込みませんでした。</string>
     <string name="skins_close">閉じる</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">コントローラーでポーズ</string>
+    <string name="settings_pause_combo_lead">ゲーム中にポーズメニューを開くコントローラーのボタンの組み合わせ。画面に手を伸ばさなくてもポーズできます。画面上のメニューキーと戻るボタンはそのまま使えます。</string>
+    <string name="settings_pause_combo_hold_start">Start長押し</string>
+    <string name="settings_pause_combo_hold_start_desc">Startを2秒間長押しします。短く押した場合はゲームに伝わります。</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">StartとSelectを同時に押します。この組み合わせを使うゲームもあります。</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">両方のスティックを同時に押し込みます。StartとSelectが押しにくいコントローラー向けです。</string>
+    <string name="settings_pause_combo_off">オフ</string>
+    <string name="settings_pause_combo_off_desc">画面上のメニューキーと戻るボタンだけでポーズメニューを開きます。</string>
 </resources>

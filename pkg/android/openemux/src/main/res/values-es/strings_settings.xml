@@ -363,4 +363,15 @@
     <string name="skins_import_too_large">Este archivo es demasiado grande para importarlo.</string>
     <string name="skins_import_unsafe">Este zip tiene archivos fuera de su carpeta, así que no se importó.</string>
     <string name="skins_close">Cerrar</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">Pausar con el mando</string>
+    <string name="settings_pause_combo_lead">La combinación del mando que abre el menú de pausa durante el juego, para que no tengas que tocar la pantalla. La tecla de menú en pantalla y el botón Atrás siguen funcionando.</string>
+    <string name="settings_pause_combo_hold_start">Mantener Start</string>
+    <string name="settings_pause_combo_hold_start_desc">Mantén Start dos segundos. Una pulsación corta sigue llegando al juego.</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">Pulsa Start y Select a la vez. Algunos juegos usan esta combinación.</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">Pulsa los dos sticks a la vez. Para mandos con Start y Select difíciles de alcanzar.</string>
+    <string name="settings_pause_combo_off">Desactivado</string>
+    <string name="settings_pause_combo_off_desc">Solo la tecla de menú en pantalla y el botón Atrás abren el menú de pausa.</string>
 </resources>

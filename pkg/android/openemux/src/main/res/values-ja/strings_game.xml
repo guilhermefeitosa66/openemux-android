@@ -138,4 +138,8 @@
     <string name="game_edit_skin">スキンを編集</string>
     <string name="game_skin_every_game">このゲーム機のすべてのゲームに適用</string>
     <string name="game_toast_skin">スキン: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Startを2秒間長押しでポーズ</string>
+    <string name="game_toast_pause_start_select">Start + Selectでポーズ</string>
+    <string name="game_toast_pause_l3_r3">L3 + R3でポーズ</string>
 </resources>

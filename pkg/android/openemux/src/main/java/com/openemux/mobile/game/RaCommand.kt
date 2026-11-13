@@ -35,6 +35,8 @@ object GameExtras {
     const val ANCHOR = "OE_ANCHOR"
     /** The folder anchor mode turned on or off in game is dropped into for the library (AnchorPicks). */
     const val ANCHOR_PICKS = "OE_ANCHOR_PICKS"
+    /** The controller combination that pauses (PauseComboPref), for the one-time hint in game (issue 924). */
+    const val PAUSE_COMBO = "OE_PAUSE_COMBO"
 }
 
 /**

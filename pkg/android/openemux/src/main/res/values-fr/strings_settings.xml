@@ -363,4 +363,15 @@
     <string name="skins_import_too_large">Ce fichier est trop volumineux pour être importé.</string>
     <string name="skins_import_unsafe">Ce zip contient des fichiers hors de son dossier : il n\'a pas été importé.</string>
     <string name="skins_close">Fermer</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">Mettre en pause avec la manette</string>
+    <string name="settings_pause_combo_lead">La combinaison de la manette qui ouvre le menu de pause pendant le jeu, pour ne pas avoir à toucher l\'écran. La touche de menu à l\'écran et le bouton Retour continuent de fonctionner.</string>
+    <string name="settings_pause_combo_hold_start">Maintenir Start</string>
+    <string name="settings_pause_combo_hold_start_desc">Maintenez Start deux secondes. Un appui court atteint toujours le jeu.</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">Appuyez sur Start et Select en même temps. Certains jeux utilisent eux-mêmes cette combinaison.</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">Appuyez sur les deux sticks en même temps. Pour les manettes dont Start et Select sont difficiles à atteindre.</string>
+    <string name="settings_pause_combo_off">Désactivé</string>
+    <string name="settings_pause_combo_off_desc">Seules la touche de menu à l\'écran et le bouton Retour ouvrent le menu de pause.</string>
 </resources>

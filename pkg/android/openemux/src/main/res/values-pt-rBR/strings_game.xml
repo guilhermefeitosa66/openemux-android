@@ -140,4 +140,8 @@
     <string name="game_edit_skin">Editar skin</string>
     <string name="game_skin_every_game">Para todos os jogos deste console</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Segure Start por dois segundos para pausar</string>
+    <string name="game_toast_pause_start_select">Pressione Start + Select para pausar</string>
+    <string name="game_toast_pause_l3_r3">Pressione L3 + R3 para pausar</string>
 </resources>

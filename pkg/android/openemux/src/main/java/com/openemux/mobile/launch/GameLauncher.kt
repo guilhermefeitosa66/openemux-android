@@ -32,6 +32,7 @@ import com.openemux.mobile.game.Gamepads
 import com.openemux.mobile.game.TouchControls
 import com.openemux.mobile.game.TouchControlsStore
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.PauseComboPref
 import com.openemux.mobile.ui.gamepadSkin
 import com.openemux.mobile.ui.folds
 import com.retroarch.R
@@ -226,8 +227,10 @@ class GameLauncher(
             // A numbered state opened from the game's screen is its current slot from now on; the auto state leaves it (issue 857).
             // Not in hardcore, where the engine is not asked to load it (LOAD_SLOT below).
             if (slot != null && !hardcore) SaveSlots.setCurrent(paths.states(rom.console), rom.baseName, slot)
+            // The controller combination that opens the pause sheet (issue 924).
+            val pauseCombo = PauseComboPref.read(context)
             val config = File(dir, "retroarch.cfg")
-            config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore, anchor))
+            config.writeText(buildConfig(rom, core.id, resume && !hardcore, dir, skin, cheevos.configKeys(), hardcore, anchor, pauseCombo))
 
             library.updateRom(rom.key) { it.copy(lastPlayed = System.currentTimeMillis()) }
 
@@ -249,6 +252,7 @@ class GameLauncher(
                 putExtra(GameExtras.SKIN_PICKS, paths.skinPicks.absolutePath)
                 putExtra(GameExtras.ANCHOR, anchor)
                 putExtra(GameExtras.ANCHOR_PICKS, paths.anchorPicks.absolutePath)
+                putExtra(GameExtras.PAUSE_COMBO, pauseCombo)
                 putExtra(GameExtras.CORE_NAME, core.name)
                 putExtra(GameExtras.HARDCORE, hardcore)
                 putExtra(GameExtras.LAUNCH_DIR, dir.absolutePath)
@@ -265,6 +269,7 @@ class GameLauncher(
 
     private fun buildConfig(
         rom: Rom, coreId: String, resume: Boolean, dir: File, skin: File, cheevos: Map<String, String>, hardcore: Boolean, anchor: Boolean,
+        pauseCombo: String,
     ): String {
         val settings = linkedMapOf(
             "video_driver" to "gl",
@@ -294,7 +299,8 @@ class GameLauncher(
             // The skin switches to its gamepad layout instead (GameActivity): the app controls stay on screen.
             "input_overlay_hide_when_gamepad_connected" to "false",
             "input_overlay_show_inputs" to "0",
-            "input_menu_toggle_gamepad_combo" to "0",
+            // A controller pauses without a touch (issue 924): the engine's menu toggle opens the pause sheet.
+            "input_menu_toggle_gamepad_combo" to PauseComboPref.engineCombo(pauseCombo),
             "libretro_directory" to paths.cores.absolutePath,
             "libretro_info_path" to paths.info.absolutePath,
             "system_directory" to paths.system.absolutePath,

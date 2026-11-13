@@ -45,6 +45,8 @@ import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.ProvideWindowLayout
 import com.openemux.mobile.ui.ControllerLayoutPref
+import com.openemux.mobile.ui.PauseComboPref
+import com.openemux.mobile.ui.pauseComboHint
 import com.openemux.mobile.ui.gamepadSkin
 import com.openemux.mobile.ui.padsCount
 import com.openemux.mobile.ui.ThemePref
@@ -223,6 +225,21 @@ class GameActivity : RetroActivityFuture() {
         skinSize = SkinSize.parse(intent.getStringExtra(GameExtras.SKIN_SIZE))
         // The launcher drew for the largest window: a game opened in split screen or free form needs its own.
         window.decorView.post { scheduleSkinCheck() }
+        // Over the game, not the black before it.
+        handler.postDelayed({ maybeShowPauseHint() }, PAUSE_HINT_DELAY_MS)
+    }
+
+    /**
+     * Names the controller combination that pauses (issue 924), once ever, the first time a pad is seen in a game:
+     * a player holding a controller has no other way to learn it than the Settings.
+     */
+    private fun maybeShowPauseHint() {
+        if (!padDetected || isFinishing || sheetOpen) return
+        val text = pauseComboHint(intent.getStringExtra(GameExtras.PAUSE_COMBO)) ?: return
+        val prefs = getSharedPreferences(HINTS_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(PAUSE_HINT_SHOWN, false)) return
+        prefs.edit().putBoolean(PAUSE_HINT_SHOWN, true).apply()
+        android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_LONG).show()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -484,6 +501,7 @@ class GameActivity : RetroActivityFuture() {
             wantGamepad = manualGamepad ?: rule
             switchGamepad()
         }
+        if (changed) maybeShowPauseHint()
     }
 
     /**
@@ -1289,6 +1307,10 @@ class GameActivity : RetroActivityFuture() {
     }
 
     private companion object {
+        /** The pause hint waits for the game to be on screen (issue 924). */
+        private const val PAUSE_HINT_DELAY_MS = 2500L
+        private const val HINTS_PREFS = "game_hints"
+        private const val PAUSE_HINT_SHOWN = "pause_combo_hint"
         /** AINPUT_EVENT_TYPE_KEY, as the engine passes it. */
         const val INPUT_KEY = 1
         const val SKIN_DEBOUNCE_MS = 300L

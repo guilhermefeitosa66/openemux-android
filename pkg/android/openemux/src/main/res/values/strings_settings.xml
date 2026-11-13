@@ -352,4 +352,15 @@
     <string name="skins_import_too_large">This file is too large to import.</string>
     <string name="skins_import_unsafe">This zip has files outside its folder, so it was not imported.</string>
     <string name="skins_close">Close</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">Pause with the controller</string>
+    <string name="settings_pause_combo_lead">The controller combination that opens the pause menu while a game plays, so you never have to reach for the screen. The on-screen menu key and the Back button keep working.</string>
+    <string name="settings_pause_combo_hold_start">Hold Start</string>
+    <string name="settings_pause_combo_hold_start_desc">Hold Start for two seconds. A short press still reaches the game.</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">Press Start and Select together. Some games use this combination themselves.</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">Press both sticks in together. For controllers whose Start and Select are hard to reach.</string>
+    <string name="settings_pause_combo_off">Off</string>
+    <string name="settings_pause_combo_off_desc">Only the on-screen menu key and the Back button open the pause menu.</string>
 </resources>

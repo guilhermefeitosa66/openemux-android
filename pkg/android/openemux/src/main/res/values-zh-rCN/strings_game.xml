@@ -138,4 +138,8 @@
     <string name="game_edit_skin">编辑皮肤</string>
     <string name="game_skin_every_game">适用于此主机的所有游戏</string>
     <string name="game_toast_skin">皮肤：%1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">长按 Start 两秒即可暂停</string>
+    <string name="game_toast_pause_start_select">按 Start + Select 暂停</string>
+    <string name="game_toast_pause_l3_r3">按 L3 + R3 暂停</string>
 </resources>

@@ -339,4 +339,15 @@
     <string name="skins_import_too_large">文件太大,无法导入。</string>
     <string name="skins_import_unsafe">这个 zip 含有其文件夹之外的文件,因此没有导入。</string>
     <string name="skins_close">关闭</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">用手柄暂停</string>
+    <string name="settings_pause_combo_lead">游戏中打开暂停菜单的手柄组合键，不必伸手去碰屏幕。屏幕上的菜单键和返回键照常可用。</string>
+    <string name="settings_pause_combo_hold_start">长按 Start</string>
+    <string name="settings_pause_combo_hold_start_desc">长按 Start 两秒。短按仍会传给游戏。</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">同时按下 Start 和 Select。有些游戏本身也用这个组合。</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">同时按下两个摇杆。适合 Start 和 Select 不好按的手柄。</string>
+    <string name="settings_pause_combo_off">关闭</string>
+    <string name="settings_pause_combo_off_desc">只有屏幕上的菜单键和返回键会打开暂停菜单。</string>
 </resources>

@@ -139,4 +139,8 @@
     <string name="game_edit_skin">Skin bearbeiten</string>
     <string name="game_skin_every_game">Für alle Spiele dieser Konsole</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Start zwei Sekunden halten, um zu pausieren</string>
+    <string name="game_toast_pause_start_select">Start + Select drücken, um zu pausieren</string>
+    <string name="game_toast_pause_l3_r3">L3 + R3 drücken, um zu pausieren</string>
 </resources>
