@@ -2,6 +2,8 @@ package com.openemux.mobile.game
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import com.openemux.mobile.launch.SessionMarks
+import android.view.View
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
@@ -100,6 +102,8 @@ class GameActivity : RetroActivityFuture() {
     private var anchorToast: android.widget.Toast? = null
     /** Draws what anchor mode holds over the game (main thread): added on the first report with something held. */
     private var anchorLayer: AnchorLayer? = null
+    /** The cartridge over the black until the engine's first overlay (issue 923); main thread. */
+    private var splash: View? = null
     /** The card explaining anchor mode, shown when the player turns it on, until swiped down (main thread). */
     private var anchorCard: ComponentDialog? = null
     /** Between onStart and onStop: the anchor windows are added only then, and removed at onStop (main thread). */
@@ -469,6 +473,7 @@ class GameActivity : RetroActivityFuture() {
     override fun onStart() {
         super.onStart()
         started = true
+        showSplash()
         // Followed without tabletop overlays too: a skin redrawn for a fold gets them.
         postureJob?.cancel()
         // Postures flicker while the device is being folded: act once it settles.
@@ -619,6 +624,7 @@ class GameActivity : RetroActivityFuture() {
         closeAnchorCard()
         anchorLayer?.let { windowManager.removeViewImmediate(it) }
         anchorLayer = null
+        hideSplash()
         super.onStop()
     }
 
@@ -773,6 +779,59 @@ class GameActivity : RetroActivityFuture() {
         return layer
     }
 
+    /** Leaves [mark] next to the config, for the library to read when the session is over (issue 923). */
+    private fun markSession(mark: String) {
+        val dir = intent.getStringExtra(GameExtras.LAUNCH_DIR) ?: return
+        runCatching { File(dir, mark).createNewFile() }.onFailure { Log.w(TAG, "session mark $mark not written", it) }
+    }
+
+    /**
+     * The cartridge and the core's name over the black while the engine loads (issue 923), in a window of its own
+     * like the anchor layer's: gone at the first overlay, or after [SPLASH_MAX_MS] whatever happens.
+     */
+    private fun showSplash() {
+        if (splash != null || firstOverlayMs != 0L || isFinishing) return
+        val dp = resources.displayMetrics.density
+        val frame = android.widget.FrameLayout(this).apply { setBackgroundColor(SPLASH_BG) }
+        val column = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+        }
+        val picture = android.widget.ImageView(this).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
+        val side = (resources.displayMetrics.widthPixels.coerceAtMost(resources.displayMetrics.heightPixels) * 0.4f).toInt()
+        column.addView(picture, android.widget.LinearLayout.LayoutParams(side, side))
+        val core = intent.getStringExtra(GameExtras.CORE_NAME).orEmpty()
+        val text = android.widget.TextView(this).apply {
+            text = getString(R.string.game_starting, core)
+            setTextColor(SPLASH_TEXT)
+            textSize = 15f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, (20 * dp).toInt(), 0, 0)
+        }
+        column.addView(text, android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT))
+        frame.addView(column, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT))
+        windowManager.addView(frame, overGameParams(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE).apply {
+            width = WindowManager.LayoutParams.MATCH_PARENT
+            height = WindowManager.LayoutParams.MATCH_PARENT
+            title = "OpenEmux splash"
+        })
+        splash = frame
+        // The picture is decoded off the main thread; the frame is up meanwhile.
+        intent.getStringExtra(GameExtras.CART)?.let { path ->
+            Thread {
+                val bitmap = android.graphics.BitmapFactory.decodeFile(path) ?: return@Thread
+                runOnUiThread { if (splash === frame) picture.setImageBitmap(bitmap) }
+            }.start()
+        }
+        handler.postDelayed(::hideSplash, SPLASH_MAX_MS)
+    }
+
+    private fun hideSplash() {
+        handler.removeCallbacks(::hideSplash)
+        splash?.let { runCatching { windowManager.removeViewImmediate(it) } }
+        splash = null
+    }
+
     /**
      * A window over the game's that never takes its focus (unfocused, the engine stops polling) and lays out across
      * the whole screen as the game's does, cutout included, with [flags] on top.
@@ -880,6 +939,9 @@ class GameActivity : RetroActivityFuture() {
             // The first overlay is the first frame the player can act on: the launch's own measure (issue 917).
             firstOverlayMs = System.currentTimeMillis() - sessionStart
             Log.i(TAG, "first overlay $firstOverlayMs ms after start")
+            // The library learns the engine drew (issue 923); off this thread, which is the engine's.
+            Thread { markSession(SessionMarks.STARTED) }.start()
+            runOnUiThread { hideSplash() }
         }
         val previous = overlay
         overlay = name
@@ -1262,7 +1324,8 @@ class GameActivity : RetroActivityFuture() {
                             flushPlaytime()
                             d.setOnDismissListener(null)
                             d.dismiss()
-                            Thread { RaCommand.send("QUIT") }.start()
+                            // A quit the player asked for: the library has nothing to explain (issue 923).
+                            Thread { markSession(SessionMarks.QUIT); RaCommand.send("QUIT") }.start()
                         },
                         screens = if (ndsScreens) NdsScreens(
                             shown = ndsShown,
@@ -1325,6 +1388,11 @@ class GameActivity : RetroActivityFuture() {
         const val SKIN_DEBOUNCE_MS = 300L
         /** Between two looks at the engine while the content comes up (issue 917): a loaded slot lands within it. */
         const val ENGINE_POLL_MS = 50L
+        /** The splash never outlives this, even if the engine reports no overlay. */
+        const val SPLASH_MAX_MS = 30_000L
+        /** The game window's black (Theme.OpenEmux.Game) and the text over it. */
+        const val SPLASH_BG = 0xFF0B0B0E.toInt()
+        const val SPLASH_TEXT = 0xFFA3A3B2.toInt()
         const val REQUEST_EDIT_SKIN = 8270
         const val TAG = "OpenEmuxGame"
         const val SKIN_TAG = "OpenEmuxSkin"

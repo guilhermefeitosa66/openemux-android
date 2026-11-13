@@ -22,6 +22,7 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.openemux.mobile.data.AchievementsStore
+import com.openemux.mobile.data.BiosDef
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.Covers
 import com.openemux.mobile.data.Labels
@@ -44,6 +45,11 @@ import com.openemux.mobile.ui.PauseComboPref
 import com.openemux.mobile.ui.gamepadSkin
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -136,6 +142,27 @@ class GameLauncher(
     private val skinCache = SkinCache(File(paths.launch, "skins"))
     private val cartCache = CartCache(File(paths.launch, "carts"))
 
+    private val _stage = MutableStateFlow<LaunchStage?>(null)
+    /** What the launch under way is doing, for the overlay (issue 923); null between launches. */
+    val stage: StateFlow<LaunchStage?> = _stage.asStateFlow()
+
+    /** The first required BIOS [console] lacks, if any: asked before a launch (issue 923). Reads the disk. */
+    fun missingBios(console: Console): BiosDef? = missingBios(console, paths.system)
+
+    /**
+     * How the session launched at [startedAt] ended, with the tail of the engine's log, or null when nothing needs
+     * saying (issue 923): the markers the game activity leaves next to its config say whether the engine ever drew
+     * and whether the player quit through the sheet. Reads the disk.
+     */
+    fun sessionOutcome(startedAt: Long): Pair<LaunchOutcome, String>? {
+        val dir = File(paths.launch, "current")
+        val outcome = launchOutcome(
+            started = File(dir, SessionMarks.STARTED).exists(), quit = File(dir, SessionMarks.QUIT).exists(),
+            elapsedMs = System.currentTimeMillis() - startedAt,
+        ) ?: return null
+        return outcome to logTail(File(dir, SessionMarks.LOG))
+    }
+
     /** Shaders, copied out of the APK once per install; cores and core info come from the setup. */
     private fun prepareEngine() {
         val stamp = File(paths.internal, "engine.stamp")
@@ -198,7 +225,17 @@ class GameLauncher(
 
     /** Starts the game from [from], in the library's own task, so it opens inside the app. */
     suspend fun launch(from: Activity, rom: Rom, resume: Boolean, slot: Int? = null) {
+        _stage.value = LaunchStage.Controls
+        try {
+            launchStaged(from, rom, resume, slot)
+        } finally {
+            _stage.value = null
+        }
+    }
+
+    private suspend fun launchStaged(from: Activity, rom: Rom, resume: Boolean, slot: Int?) {
         val started = SystemClock.uptimeMillis()
+        val core = library.effectiveCore(rom)
         // The picture kept from a launch of this game before, else composed and kept now.
         val cartKey = cartKey(rom)
         var cartKept = cartCache.lookup(cartKey)
@@ -221,7 +258,6 @@ class GameLauncher(
             // The largest window: right full screen; the game redraws it for split screen or free form.
             val metrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).maximumWindowMetrics
             val size = SkinSize.of(metrics)
-            val core = library.effectiveCore(rom)
             // A skin picked in game since the library last resumed is this console's now.
             runCatching { library.absorbSkinPicks() }
             // So is anchor mode turned on or off in game.
@@ -321,6 +357,9 @@ class GameLauncher(
                 if (slot != null && !hardcore) putExtra(GameExtras.LOAD_SLOT, slot)
             }
         }
+        // A launch cancelled from the overlay stops here: the engine is never started.
+        currentCoroutineContext().ensureActive()
+        _stage.value = LaunchStage.Core(core.name)
         from.startActivity(intent, ActivityOptions.makeCustomAnimation(from, R.anim.game_enter, R.anim.hold).toBundle())
     }
 
@@ -383,6 +422,12 @@ class GameLauncher(
             "content_runtime_log_aggregate" to "false",
             "global_core_options" to "true",
             "core_options_path" to File(dir, "core-options.cfg").absolutePath,
+            // The engine's log next to the config, for a session that ends on its own (issue 923).
+            "log_to_file" to "true",
+            "log_to_file_timestamp" to "false",
+            "log_dir" to dir.absolutePath,
+            "frontend_log_level" to "1",
+            "libretro_log_level" to "1",
             "network_cmd_enable" to "true",
             "network_cmd_port" to "55355",
             "config_save_on_exit" to "false",

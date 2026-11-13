@@ -39,6 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.navigation.NavBackStackEntry
 import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -586,11 +589,16 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
 }
 
 @Composable
-fun BiosScreen(embedded: Boolean = false) {
+fun BiosScreen(embedded: Boolean = false, console: String? = null) {
     if (!embedded) {
         GamepadButtons(hints = listOf("A" to stringResource(R.string.settings_hint_import), "B" to stringResource(R.string.settings_hint_back)))
         ReturnToSplit(LocalWindowLayout.current.splitSettings, Routes.SETTINGS, SettingsItem.Bios.key)
     }
+    // Opened for [console] from a launch that found its BIOS missing (issue 923): scrolled to its card once.
+    val scroll = rememberScrollState()
+    var columnTop by remember { mutableStateOf(0f) }
+    var landed by remember(console) { mutableStateOf(console == null) }
+    val density = LocalDensity.current.density
     val a = LocalActions.current
     val importer = a.app.importer
     val scope = rememberCoroutineScope()
@@ -625,7 +633,7 @@ fun BiosScreen(embedded: Boolean = false) {
         }
     }
 
-    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
+    MarginFocusScroll(trailing = FocusMargin + hintBarInset) { Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(scroll).navigationBarsPadding().onGloballyPositioned { columnTop = it.positionInRoot().y }) {
         Column(Modifier.padding(horizontal = 20.dp).padding(top = 6.dp)) {
             if (!embedded) BackLink(stringResource(R.string.settings_title)) { a.nav.popBackStack() }
             Text("BIOS", style = Type.Display, modifier = Modifier.padding(top = 4.dp))
@@ -650,7 +658,12 @@ fun BiosScreen(embedded: Boolean = false) {
         SectionHeader(stringResource(R.string.settings_bios_consoles), stringResource(R.string.settings_bios_ready_count, ready, consoles.size))
         Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             consoles.forEach { (c, defs) ->
-                Card {
+                val target = if (c.id == console && !landed) Modifier.onGloballyPositioned { coords ->
+                    landed = true
+                    val top = (coords.positionInRoot().y - columnTop + scroll.value - 80 * density).toInt().coerceAtLeast(0)
+                    scope.launch { scroll.animateScrollTo(top); refocus(c) }
+                } else Modifier
+                Card(target) {
                     ListRow(
                         c.fullName, minHeight = 60.dp, leading = { ConsoleIcon(c) },
                         subtitle = stringResource(R.string.settings_count_of, defs.count { it.second }, defs.size),

@@ -142,4 +142,23 @@
     <string name="game_toast_pause_hold_start">长按 Start 两秒即可暂停</string>
     <string name="game_toast_pause_start_select">按 Start + Select 暂停</string>
     <string name="game_toast_pause_l3_r3">按 L3 + R3 暂停</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">正在准备控制…</string>
+    <string name="launch_stage_core">正在启动 %1$s…</string>
+    <string name="launch_stage_download">正在下载 %1$s…</string>
+    <string name="launch_cancel">取消</string>
+    <string name="launch_bios_title">%1$s 需要 BIOS 文件</string>
+    <string name="launch_bios_body">把 %1$s 放进 BIOS 文件夹，或现在导入。没有它游戏可能无法启动。</string>
+    <string name="launch_bios_import">导入 BIOS</string>
+    <string name="launch_bios_anyway">仍然开始</string>
+    <string name="launch_failed_title">游戏无法启动</string>
+    <string name="launch_died_title">游戏没有启动</string>
+    <string name="launch_stopped_title">游戏停止了</string>
+    <string name="launch_died_body">RetroArch 在启动后 %1$d 秒关闭，且未通过暂停菜单退出。模拟器可能拒绝了这个游戏，或者缺少所需文件。</string>
+    <string name="launch_details">显示详情</string>
+    <string name="launch_hide_details">隐藏详情</string>
+    <string name="launch_retry">重试</string>
+    <string name="launch_close">关闭</string>
+    <string name="launch_no_log">没有写入日志。</string>
+    <string name="game_starting">正在启动 %1$s</string>
 </resources>

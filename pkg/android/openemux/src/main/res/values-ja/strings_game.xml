@@ -142,4 +142,23 @@
     <string name="game_toast_pause_hold_start">Startを2秒間長押しでポーズ</string>
     <string name="game_toast_pause_start_select">Start + Selectでポーズ</string>
     <string name="game_toast_pause_l3_r3">L3 + R3でポーズ</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">コントロールを準備中…</string>
+    <string name="launch_stage_core">%1$sを起動中…</string>
+    <string name="launch_stage_download">%1$sをダウンロード中…</string>
+    <string name="launch_cancel">キャンセル</string>
+    <string name="launch_bios_title">%1$sにはBIOSファイルが必要です</string>
+    <string name="launch_bios_body">%1$sをBIOSフォルダーに入れるか、今すぐインポートしてください。ないとゲームが起動しないことがあります。</string>
+    <string name="launch_bios_import">BIOSをインポート</string>
+    <string name="launch_bios_anyway">そのまま遊ぶ</string>
+    <string name="launch_failed_title">ゲームを起動できませんでした</string>
+    <string name="launch_died_title">ゲームが起動しませんでした</string>
+    <string name="launch_stopped_title">ゲームが停止しました</string>
+    <string name="launch_died_body">RetroArchは起動から%1$d秒後に、ポーズメニューの終了なしで閉じました。エミュレーターがゲームを拒否したか、必要なファイルが見つからない可能性があります。</string>
+    <string name="launch_details">詳細を表示</string>
+    <string name="launch_hide_details">詳細を隠す</string>
+    <string name="launch_retry">もう一度</string>
+    <string name="launch_close">閉じる</string>
+    <string name="launch_no_log">ログは書かれていません。</string>
+    <string name="game_starting">%1$sを起動中</string>
 </resources>
