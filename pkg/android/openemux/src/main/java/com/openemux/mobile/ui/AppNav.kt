@@ -264,14 +264,11 @@ fun OpenEmuxRoot() {
             drawContent()
             if (cover > 0f) drawRect(starting, alpha = cover)
         }) {
-            val setup by app.setup.state.collectAsState()
-            // "Fully drawn" (the start-up metric, issue 920): the gate open and the first screen with its content,
-            // the shelf once the library is known, or the setup.
+            // "Fully drawn" (the start-up metric, issue 920): the gate open and the shelf with its content, once the
+            // library is known. Nothing waits for the emulators any more (issue 922): they come down on demand.
             val loaded by app.library.loaded.collectAsState()
-            ReportDrawnWhen { AppWindow.gate.open && (setup !is Setup.State.Done || loaded) }
-            // Nothing opens until the cores are on the device.
-            if (setup !is Setup.State.Done) SetupScreen(setup) { scope.launch { app.setup.run() } }
-            else CompositionLocalProvider(LocalActions provides actions) {
+            ReportDrawnWhen { AppWindow.gate.open && loaded }
+            CompositionLocalProvider(LocalActions provides actions) {
                 val entry by nav.currentBackStackEntryAsState()
                 val route = entry?.destination?.route
                 // App-wide buttons: Start opens Ajustes, L1/R1 walk the main tabs where a screen does not use them.
@@ -617,7 +614,7 @@ private fun LaunchProblemSheet(
                 }
                 is LaunchProblem.Failed -> {
                     Text(stringResource(R.string.launch_failed_title), style = Type.Title.copy(fontSize = 22.sp))
-                    Text(problem.error.message ?: problem.error.javaClass.simpleName, style = Type.Small)
+                    Text(problemMessage(problem.error), style = Type.Small)
                     ProblemDetails(details, problem.error.stackTraceToString()) { details = it }
                     SecondaryButton(stringResource(R.string.launch_close), onClose, Modifier.fillMaxWidth().gamepadFocus(corner = 26.dp))
                 }
@@ -632,6 +629,11 @@ private fun LaunchProblemSheet(
         }
     }
 }
+
+/** What went wrong, in the user's language when the download of a core did (issue 922). */
+@Composable
+private fun problemMessage(error: Throwable): String =
+    if (error is Setup.SetupException) stringResource(error.reason, error.item, error.detail) else error.message ?: error.javaClass.simpleName
 
 /** "Show details" and, open, the text in a scrolling box: a stack trace or the engine's log. */
 @Composable

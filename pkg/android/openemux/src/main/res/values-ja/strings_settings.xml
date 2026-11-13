@@ -141,10 +141,9 @@
     <string name="settings_setup_start">開始</string>
     <string name="settings_setup_retry">再試行</string>
     <string name="settings_setup_title">OpenEmux を準備しています</string>
-    <string name="settings_setup_intro">初回はエミュレーターとそれが使うファイルをダウンロードします（デバイス上で約 160 MB）。実行中はインターネット接続が必要で、Wi-Fi がおすすめです。その後はすべてオフラインで動きます。</string>
+    <string name="settings_setup_intro">各機種のエミュレーターは、その機種のゲームを初めて遊ぶときに取得されます。あとでオフラインで遊ぶなら今すべてダウンロードしてください。約160 MB、Wi-Fiがおすすめです。</string>
     <string name="settings_setup_percent">%1$d%%</string>
     <string name="settings_setup_downloading">%1$s をダウンロード中</string>
-    <string name="settings_setup_dont_close">完了するまでアプリを閉じないでください。</string>
     <string name="settings_setup_resume_note">ダウンロード済みの分は残ります。再試行すると中断したところから続きます。</string>
     <string name="settings_setup_source">ファイルは libretro 公式の buildbot から取得します。</string>
 
@@ -350,4 +349,14 @@
     <string name="settings_pause_combo_l3_r3_desc">両方のスティックを同時に押し込みます。StartとSelectが押しにくいコントローラー向けです。</string>
     <string name="settings_pause_combo_off">オフ</string>
     <string name="settings_pause_combo_off_desc">画面上のメニューキーと戻るボタンだけでポーズメニューを開きます。</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">エミュレーターは初めて遊ぶときにダウンロードされます</string>
+    <string name="settings_setup_pill_running">エミュレーターをダウンロード中 · %2$d 中 %1$d</string>
+    <string name="settings_setup_pill_failed">エミュレーターのダウンロードが止まりました。タップして詳細を表示。</string>
+    <string name="settings_setup_all">すべてのエミュレーターをダウンロード</string>
+    <string name="settings_setup_all_desc">約160 MB。すべての機種をオフラインで使えるようにします</string>
+    <string name="settings_setup_all_done">すべてのエミュレーターが端末にあります</string>
+    <string name="settings_setup_later">あとで</string>
+    <string name="settings_setup_background_note">その間もアプリを使えます。ダウンロードはバックグラウンドで続きます。</string>
+    <string name="settings_setup_missing">あと%1$d個のエミュレーターが未ダウンロードです。</string>
 </resources>

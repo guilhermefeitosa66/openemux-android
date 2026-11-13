@@ -150,10 +150,9 @@
     <string name="settings_setup_start">தொடங்கு</string>
     <string name="settings_setup_retry">மீண்டும் முயல்</string>
     <string name="settings_setup_title">OpenEmux தயாராகிறது</string>
-    <string name="settings_setup_intro">முதல் முறை, ஆப் எமுலேட்டர்களையும் அவை பயன்படுத்தும் கோப்புகளையும் பதிவிறக்கும், சாதனத்தில் சுமார் 160 MB. இது இயங்கும்போது இணையம் தேவை; Wi-Fi சிறந்தது. அதன் பிறகு, அனைத்தும் இணையமின்றி இயங்கும்.</string>
+    <string name="settings_setup_intro">ஒரு கன்சோலின் எமுலேட்டர் அதன் விளையாட்டை முதல் முறை விளையாடும்போது பெறப்படும். பிறகு ஆஃப்லைனில் விளையாட இப்போதே எல்லாவற்றையும் பதிவிறக்கவும்: சுமார் 160 MB, Wi-Fi சிறந்தது.</string>
     <string name="settings_setup_percent">%1$d%%</string>
     <string name="settings_setup_downloading">%1$s பதிவிறக்கப்படுகிறது</string>
-    <string name="settings_setup_dont_close">முடியும் வரை ஆப்பை மூட வேண்டாம்.</string>
     <string name="settings_setup_resume_note">ஏற்கனவே பதிவிறக்கியவை வைக்கப்படும்; மீண்டும் முயன்றால் நின்ற இடத்திலிருந்து தொடரும்.</string>
     <string name="settings_setup_source">கோப்புகள் அதிகாரப்பூர்வ libretro buildbot இலிருந்து வருகின்றன.</string>
 
@@ -362,4 +361,14 @@
     <string name="settings_pause_combo_l3_r3_desc">இரு ஸ்டிக்குகளையும் ஒன்றாக அழுத்துங்கள். Start மற்றும் Select அடைய கடினமான கன்ட்ரோலர்களுக்கு.</string>
     <string name="settings_pause_combo_off">அணை</string>
     <string name="settings_pause_combo_off_desc">திரையில் உள்ள மெனு விசையும் பின் பொத்தானும் மட்டுமே இடைநிறுத்த மெனுவைத் திறக்கும்.</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">முதல் முறை விளையாடும்போது எமுலேட்டர்கள் பதிவிறக்கமாகும்</string>
+    <string name="settings_setup_pill_running">எமுலேட்டர்கள் பதிவிறக்கம் · %2$d இல் %1$d</string>
+    <string name="settings_setup_pill_failed">எமுலேட்டர் பதிவிறக்கம் நின்றது. விவரங்களுக்குத் தட்டவும்.</string>
+    <string name="settings_setup_all">எல்லா எமுலேட்டர்களையும் பதிவிறக்கு</string>
+    <string name="settings_setup_all_desc">சுமார் 160 MB; ஒவ்வொரு கன்சோலும் ஆஃப்லைனில் தயாராக இருக்கும்</string>
+    <string name="settings_setup_all_done">எல்லா எமுலேட்டர்களும் சாதனத்தில் உள்ளன</string>
+    <string name="settings_setup_later">பிறகு</string>
+    <string name="settings_setup_background_note">இதற்கிடையே செயலியைத் தொடர்ந்து பயன்படுத்தலாம்: பதிவிறக்கம் பின்னணியில் தொடரும்.</string>
+    <string name="settings_setup_missing">இன்னும் %1$d எமுலேட்டர்கள் பதிவிறக்க வேண்டும்.</string>
 </resources>

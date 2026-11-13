@@ -250,6 +250,7 @@ fun ShelfScreen() {
                     }
                     UpdateBanner(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp))
                     ArtworkSyncPill(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp))
+                    SetupPill(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp))
                 }
             }
             if (content == ShelfContent.Empty) {
@@ -543,6 +544,7 @@ private fun TabletShelfHeader(spec: ShelfSpec, roms: List<Rom>, known: Boolean) 
         }
         UpdateBanner(Modifier.padding(top = 16.dp))
         ArtworkSyncPill(Modifier.padding(top = 16.dp))
+        SetupPill(Modifier.padding(top = 16.dp))
     }
 }
 

@@ -159,10 +159,9 @@
     <string name="settings_setup_start">Empezar</string>
     <string name="settings_setup_retry">Reintentar</string>
     <string name="settings_setup_title">Preparando OpenEmux</string>
-    <string name="settings_setup_intro">La primera vez, la app descarga los emuladores y los archivos que usan, unos 160 MB en el dispositivo. Necesita internet mientras tanto; mejor con Wi-Fi. Después, todo funciona sin conexión.</string>
+    <string name="settings_setup_intro">El emulador de cada consola se descarga la primera vez que juegas a uno de sus juegos. Descárgalos todos ahora para jugar sin conexión más tarde: unos 160 MB, mejor por Wi-Fi.</string>
     <string name="settings_setup_percent">%1$d%%</string>
     <string name="settings_setup_downloading">Descargando %1$s</string>
-    <string name="settings_setup_dont_close">No cierres la app hasta que termine.</string>
     <string name="settings_setup_resume_note">Lo ya descargado se conserva; al reintentar, sigue donde se quedó.</string>
     <string name="settings_setup_source">Los archivos vienen del buildbot oficial de libretro.</string>
 
@@ -374,4 +373,14 @@
     <string name="settings_pause_combo_l3_r3_desc">Pulsa los dos sticks a la vez. Para mandos con Start y Select difíciles de alcanzar.</string>
     <string name="settings_pause_combo_off">Desactivado</string>
     <string name="settings_pause_combo_off_desc">Solo la tecla de menú en pantalla y el botón Atrás abren el menú de pausa.</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">Los emuladores se descargan la primera vez que juegas</string>
+    <string name="settings_setup_pill_running">Descargando emuladores · %1$d de %2$d</string>
+    <string name="settings_setup_pill_failed">La descarga de emuladores se detuvo. Toca para ver los detalles.</string>
+    <string name="settings_setup_all">Descargar todos los emuladores</string>
+    <string name="settings_setup_all_desc">Unos 160 MB, para que todas las consolas funcionen sin conexión</string>
+    <string name="settings_setup_all_done">Todos los emuladores están en el dispositivo</string>
+    <string name="settings_setup_later">Más tarde</string>
+    <string name="settings_setup_background_note">Puedes seguir usando la app: la descarga continúa en segundo plano.</string>
+    <string name="settings_setup_missing">Faltan %1$d emuladores por descargar.</string>
 </resources>

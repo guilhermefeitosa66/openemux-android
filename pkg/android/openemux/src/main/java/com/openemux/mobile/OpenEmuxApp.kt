@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -152,9 +153,11 @@ class OpenEmuxApp : Application() {
         // Working copies the editor left behind when the process died with it open.
         appScope.launch(Dispatchers.IO) { ArtImages.clearScratch(this@OpenEmuxApp) }
         achievements = AchievementsStore(this, File(library.paths.launch, "current/retroarch.cfg"))
-        launcher = GameLauncher(this, library, covers, labels, achievements)
-        importer = Importer(this, library)
         setup = Setup(library.paths)
+        launcher = GameLauncher(this, library, covers, labels, achievements, setup)
+        importer = Importer(this, library)
+        // The core info files come down on their own at first run; the cores wait for their first launch (issue 922).
+        appScope.launch { setup.ensureInfo(); setup.refresh() }
         backup = BackupManager(this, library)
         shareNotifications = ShareNotifications(this).also { it.createChannels() }
         updates = UpdateStore.create(this)
@@ -183,6 +186,14 @@ class OpenEmuxApp : Application() {
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = retryArtwork()
         })
+    }
+
+    private var setupJob: Job? = null
+
+    /** "Download all emulators" (issue 922): one run at a time, in the app's scope, so it outlives the screen that asked. */
+    fun startSetup() {
+        if (setupJob?.isActive == true) return
+        setupJob = appScope.launch { setup.run() }
     }
 
     /** Memory asked back: the skin miniatures in memory go first (issue 919). */

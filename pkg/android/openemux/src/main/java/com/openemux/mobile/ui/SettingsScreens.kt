@@ -78,6 +78,7 @@ import com.openemux.mobile.data.CART_COLORS
 import com.openemux.mobile.data.Console
 import com.openemux.mobile.data.BiosImportReport
 import com.openemux.mobile.data.KNOWN_BIOS
+import com.openemux.mobile.data.Setup
 import com.openemux.mobile.data.LoginResult
 import com.openemux.mobile.data.RaLogin
 import com.openemux.mobile.data.SHADERS
@@ -298,6 +299,12 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
             ListRow(
                 stringResource(R.string.settings_controllers), subtitle = controllersSummary(), divider = true, minHeight = 60.dp,
                 selected = picked == SettingsItem.Controllers, onClick = { onPick(SettingsItem.Controllers) },
+            )
+            // Every emulator at once (issue 922), for whoever wants the device ready offline.
+            val setupState by a.app.setup.state.collectAsState()
+            ListRow(
+                stringResource(R.string.settings_setup_all), subtitle = setupSummary(setupState), divider = true, minHeight = 60.dp,
+                onClick = { a.app.startSetup() }, enabled = setupState !is Setup.State.Running && setupState !is Setup.State.Done,
             )
             ListRow(
                 stringResource(R.string.settings_backup), subtitle = stringResource(R.string.settings_backup_desc), divider = true, minHeight = 60.dp,

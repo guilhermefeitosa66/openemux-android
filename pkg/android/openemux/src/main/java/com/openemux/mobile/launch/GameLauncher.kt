@@ -30,6 +30,7 @@ import com.openemux.mobile.data.Library
 import com.openemux.mobile.data.NdsLayouts
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.SaveSlots
+import com.openemux.mobile.data.Setup
 import com.openemux.mobile.data.SkinStore
 import com.openemux.mobile.data.SkinVariant
 import com.openemux.mobile.data.configKeys
@@ -136,6 +137,7 @@ class GameLauncher(
     private val covers: Covers,
     private val labels: Labels,
     private val achievements: AchievementsStore,
+    private val setup: Setup,
 ) {
     private val paths = library.paths
     /** The skins and the cartridge pictures drawn for launches before, so a launch like one before draws nothing (issue 917). */
@@ -236,6 +238,12 @@ class GameLauncher(
     private suspend fun launchStaged(from: Activity, rom: Rom, resume: Boolean, slot: Int?) {
         val started = SystemClock.uptimeMillis()
         val core = library.effectiveCore(rom)
+        // The console's core comes down the first time one of its games is launched (issue 922), cancellable like the rest.
+        if (!setup.coreInstalled(core)) {
+            _stage.value = LaunchStage.Download(core.name, 0, 0)
+            setup.ensureCore(core) { bytes, total -> _stage.value = LaunchStage.Download(core.name, bytes, total) }
+            _stage.value = LaunchStage.Controls
+        }
         // The picture kept from a launch of this game before, else composed and kept now.
         val cartKey = cartKey(rom)
         var cartKept = cartCache.lookup(cartKey)

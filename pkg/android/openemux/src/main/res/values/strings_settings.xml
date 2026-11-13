@@ -150,10 +150,9 @@
     <string name="settings_setup_start">Start</string>
     <string name="settings_setup_retry">Try again</string>
     <string name="settings_setup_title">Getting OpenEmux ready</string>
-    <string name="settings_setup_intro">The first time, the app downloads the emulators and the files they use, about 160 MB on the device. It needs internet while it runs; Wi-Fi is best. After that, everything works offline.</string>
+    <string name="settings_setup_intro">Each console\'s emulator is fetched the first time you play one of its games. Download them all now to play offline later: about 160 MB, Wi-Fi is best.</string>
     <string name="settings_setup_percent">%1$d%%</string>
     <string name="settings_setup_downloading">Downloading %1$s</string>
-    <string name="settings_setup_dont_close">Don\'t close the app until it finishes.</string>
     <string name="settings_setup_resume_note">What was already downloaded is kept; trying again picks up where it stopped.</string>
     <string name="settings_setup_source">The files come from the official libretro buildbot.</string>
 
@@ -363,4 +362,14 @@
     <string name="settings_pause_combo_l3_r3_desc">Press both sticks in together. For controllers whose Start and Select are hard to reach.</string>
     <string name="settings_pause_combo_off">Off</string>
     <string name="settings_pause_combo_off_desc">Only the on-screen menu key and the Back button open the pause menu.</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">Emulators download when you first play a game</string>
+    <string name="settings_setup_pill_running">Downloading emulators · %1$d of %2$d</string>
+    <string name="settings_setup_pill_failed">The emulator download stopped. Tap for details.</string>
+    <string name="settings_setup_all">Download all emulators</string>
+    <string name="settings_setup_all_desc">About 160 MB, so every console is ready offline</string>
+    <string name="settings_setup_all_done">Every emulator is on the device</string>
+    <string name="settings_setup_later">Later</string>
+    <string name="settings_setup_background_note">Keep using the app meanwhile: the download goes on in the background.</string>
+    <string name="settings_setup_missing">%1$d emulators still to download.</string>
 </resources>
