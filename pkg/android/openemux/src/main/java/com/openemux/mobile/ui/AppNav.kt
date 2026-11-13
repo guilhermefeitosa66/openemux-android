@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.union
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.drawWithContent
@@ -197,6 +198,10 @@ fun OpenEmuxRoot() {
             if (cover > 0f) drawRect(starting, alpha = cover)
         }) {
             val setup by app.setup.state.collectAsState()
+            // "Fully drawn" (the start-up metric, issue 920): the gate open and the first screen with its content,
+            // the shelf once the library is known, or the setup.
+            val loaded by app.library.loaded.collectAsState()
+            ReportDrawnWhen { AppWindow.gate.open && (setup !is Setup.State.Done || loaded) }
             // Nothing opens until the cores are on the device.
             if (setup !is Setup.State.Done) SetupScreen(setup) { scope.launch { app.setup.run() } }
             else CompositionLocalProvider(LocalActions provides actions) {

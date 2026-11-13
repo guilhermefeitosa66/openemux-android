@@ -3,6 +3,7 @@ package com.openemux.mobile
 import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
+import com.retroarch.BuildConfig
 import com.openemux.mobile.data.AchievementsStore
 import com.openemux.mobile.data.AccountStore
 import com.openemux.mobile.data.ArtImages
@@ -26,6 +27,7 @@ import com.openemux.mobile.data.Setup
 import com.openemux.mobile.data.UpdateStore
 import com.openemux.mobile.launch.GameLauncher
 import android.content.Intent
+import android.os.StrictMode
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.share.HandlerScheduler
 import com.openemux.mobile.share.LibraryShareAdapter
@@ -123,9 +125,21 @@ class OpenEmuxApp : Application() {
         super.onCreate()
         // The :game process only needs the RetroArch side.
         if (getProcessName().endsWith(":game")) return
-        // A restore the process died in is finished or undone before anything reads the data.
-        Paths(this).let { BackupRoots(it.base, it.internal).recover() }
-        library = Library(this)
+        // Debug builds log every disk read, write or network call on the main thread (issue 920).
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder().detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build(),
+            )
+        }
+        // What the first frame draws from is read here on purpose: the index and the metadata (issue 574), after a
+        // restore the process died in is finished or undone. A start that waited for them would flash an empty shelf.
+        val policy = StrictMode.allowThreadDiskWrites()
+        try {
+            Paths(this).let { BackupRoots(it.base, it.internal).recover() }
+            library = Library(this)
+        } finally {
+            StrictMode.setThreadPolicy(policy)
+        }
         providers = ProviderSettingsStore(this)
         accounts = PrefsAccountStore(this)
         screenScraper = ScreenScraper(UrlHttp("OpenEmuxScreenScraper"), { accounts.account.value })
@@ -135,7 +149,7 @@ class OpenEmuxApp : Application() {
         renamer = RomRenamer(library.paths, library, covers, labels)
         artSearch = ArtSearch(UrlHttp("OpenEmuxArtSearch", 12_000), screenScraper, covers, { providers.settings.value }, ArtImages::decodable)
         // Working copies the editor left behind when the process died with it open.
-        ArtImages.clearScratch(this)
+        appScope.launch(Dispatchers.IO) { ArtImages.clearScratch(this@OpenEmuxApp) }
         achievements = AchievementsStore(this, File(library.paths.launch, "current/retroarch.cfg"))
         launcher = GameLauncher(this, library, covers, labels, achievements)
         importer = Importer(this, library)

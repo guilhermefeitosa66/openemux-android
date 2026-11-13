@@ -201,7 +201,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun followGate() {
-        if (!gate.update(barsVisible, AppWindow.multiWindow, SystemClock.uptimeMillis() - created)) return
+        val elapsed = SystemClock.uptimeMillis() - created
+        if (!gate.update(barsVisible, AppWindow.multiWindow, elapsed)) return
+        if (BuildConfig.DEBUG) Log.i(TAG, "launch gate open after $elapsed ms (bars ${if (barsVisible) "still visible: cap" else "hidden"})")
         // Open for good: later insets changes (a swipe, the keyboard) have nothing to tell it.
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView, null)
         val splash = heldSplash ?: return
@@ -232,6 +234,8 @@ class MainActivity : ComponentActivity() {
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(devices)
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(PadLabels.listener)
         (application as OpenEmuxApp).setForeground(false)
+        // A metadata change still waiting for its write lands before the process can be reclaimed (issue 920).
+        (application as OpenEmuxApp).library.flushMeta(wait = false)
         super.onStop()
     }
 

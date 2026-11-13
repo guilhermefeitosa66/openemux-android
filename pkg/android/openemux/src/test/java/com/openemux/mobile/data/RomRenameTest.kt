@@ -44,7 +44,7 @@ class RomRenameTest {
 
     private fun put(dir: File, name: String, bytes: Int = 3) = File(dir, name).apply { parentFile!!.mkdirs(); writeBytes(ByteArray(bytes) { 7 }) }
 
-    private fun library(): Library = Library(paths, { true }).also { runBlocking { it.scan() } }
+    private fun library(): Library = Library(paths, { true }, metaDebounceMs = 0).also { runBlocking { it.scan() } }
 
     private fun game(lib: Library, name: String, console: Console = Console.SFC) = lib.roms.value.first { it.key == "${console.id}/$name" }
 
@@ -98,7 +98,7 @@ class RomRenameTest {
         assertEquals(listOf("Super Mario World.png"), names(paths.labels(Console.SFC)))
         // The list keeps its order under the new title, and the index on disk follows.
         assertEquals(listOf("SFC/Super Mario World.sfc", "SFC/Zelda.sfc"), lib.roms.value.map { it.key })
-        assertEquals(listOf("SFC/Super Mario World.sfc", "SFC/Zelda.sfc"), Library(paths, { true }).roms.value.map { it.key })
+        assertEquals(listOf("SFC/Super Mario World.sfc", "SFC/Zelda.sfc"), Library(paths, { true }, metaDebounceMs = 0).roms.value.map { it.key })
         val meta = lib.romMeta(renamed.key)
         assertTrue(meta.favorite)
         assertEquals("crt", meta.shader)
@@ -118,7 +118,7 @@ class RomRenameTest {
         assertEquals(listOf(mario.key), covers.forgotten)
         assertEquals(listOf(mario.key to null, renamed.key to File(paths.labels(Console.SFC), "Super Mario World.png")), labels.changes)
         // The metadata on disk moved too.
-        assertTrue(Library(paths, { true }).romMeta(renamed.key).favorite)
+        assertTrue(Library(paths, { true }, metaDebounceMs = 0).romMeta(renamed.key).favorite)
     }
 
     @Test

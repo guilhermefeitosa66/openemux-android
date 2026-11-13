@@ -30,7 +30,7 @@ class LibraryStartupTest {
     }
 
     /** A new process: the library as Application.onCreate builds it. */
-    private fun start() = Library(paths, { asked++; ready }, storageRetryMs = 0)
+    private fun start() = Library(paths, { asked++; ready }, storageRetryMs = 0, metaDebounceMs = 0)
 
     private fun put(console: Console, name: String) =
         File(paths.roms(console), name).apply { parentFile!!.mkdirs(); writeText("") }
@@ -87,7 +87,7 @@ class LibraryStartupTest {
     fun storageThatBecomesReadyWhileWaitingIsScanned() = runBlocking {
         put(Console.GBA, "Zelda (USA).gba")
         var calls = 0
-        val library = Library(paths, { ++calls >= 3 }, storageRetryMs = 0)
+        val library = Library(paths, { ++calls >= 3 }, storageRetryMs = 0, metaDebounceMs = 0)
         library.scan()
         assertEquals(3, calls)
         assertEquals(listOf("GBA/Zelda (USA).gba"), keys(library))

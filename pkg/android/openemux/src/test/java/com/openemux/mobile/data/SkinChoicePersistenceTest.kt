@@ -21,7 +21,7 @@ class SkinChoicePersistenceTest {
         root.deleteRecursively()
     }
 
-    private fun library() = Library(paths, { true }, storageRetryMs = 0)
+    private fun library() = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
 
     @Test fun aConsoleNeverTouchedPlaysInItsOwnColors() {
         assertEquals(SkinVariant.CONSOLE, library().skinVariant(Console.SFC))

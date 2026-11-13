@@ -28,7 +28,7 @@ class SkinPicksTest {
         root.deleteRecursively()
     }
 
-    private fun library() = Library(paths, { true }, storageRetryMs = 0)
+    private fun library() = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
 
     @Test fun aBundledPickComesBackAsWritten() {
         assertTrue(SkinPicks.record(dir, "SFC", "dark", null, at = 5))
@@ -131,7 +131,7 @@ class SkinPicksTest {
     @Test fun picksWaitForTheMigration() {
         // Shared storage that cannot be listed: the skins are not migrated, and a pick folded in now would not count.
         val blocked = File(root, "blocked").apply { writeText("not a folder") }
-        val lib = Library(Paths(blocked, File(root, "internal")), { true }, storageRetryMs = 0)
+        val lib = Library(Paths(blocked, File(root, "internal")), { true }, storageRetryMs = 0, metaDebounceMs = 0)
         SkinPicks.record(dir, "SFC", SkinVariant.DARK.id, null)
         lib.absorbSkinPicks()
         assertEquals(1, dir.listFiles()!!.size)

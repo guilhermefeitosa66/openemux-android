@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Every directory the frontend and the RetroArch engine share. [base] is the
@@ -150,6 +153,8 @@ class Library(
     val paths: Paths,
     private val romsReady: (File) -> Boolean,
     private val storageRetryMs: Long = STORAGE_RETRY_MS,
+    /** How long metadata changes are coalesced before meta.json is written (issue 920); 0 writes on the caller's thread. */
+    private val metaDebounceMs: Long = META_DEBOUNCE_MS,
 ) {
     // Shared storage that is not mounted yet (right after a boot) or the internal fallback holds none of the user's ROMs.
     constructor(context: Context) : this(Paths(context), { base ->
@@ -172,6 +177,15 @@ class Library(
     /** Bumped when files change under the frontend (states, playtime). */
     private val _revision = MutableStateFlow(0)
     val revision: StateFlow<Int> = _revision.asStateFlow()
+
+    /** The track files each cue sheet names, by path, with the length and time it was read at: a resume re-reads only changed sheets. */
+    private class CueTracks(val length: Long, val modified: Long, val tracks: List<String>)
+    private val cueTracks = HashMap<String, CueTracks>()
+
+    /** meta.json is written here, one write at a time, after [metaDebounceMs] of quiet. */
+    private val metaWriter = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "meta-writer").apply { isDaemon = true } }
+    private var metaPending: ScheduledFuture<*>? = null
+    private val metaFile = Any()
 
     init {
         _meta.value = loadMeta()
@@ -222,9 +236,7 @@ class Library(
             dir.mkdirs()
             val files = (dir.listFiles() ?: return false).filter { it.isFile }
             // A disc's track files belong to its .cue, as in the desktop scanner.
-            val tracks = files.filter { it.extension.equals("cue", ignoreCase = true) }.flatMap { cue ->
-                CUE_FILE.findAll(cue.readText()).map { it.groupValues[1].ifEmpty { it.groupValues[2] }.trim() }.toList()
-            }.toSet()
+            val tracks = files.filter { it.extension.equals("cue", ignoreCase = true) }.flatMap(::cueTracksOf).toSet()
             files
                 .filter { it.extension.lowercase() in console.extensions && it.name !in tracks }
                 .map { Rom("${console.id}/${it.name}", console, it, titleFromFileName(it.name)) }
@@ -233,6 +245,18 @@ class Library(
         saveIndex(found)
         _revision.value++
         return true
+    }
+
+    /** The files [cue] names, read once per version of the sheet: a resume scan reads no unchanged sheet again. */
+    private fun cueTracksOf(cue: File): List<String> {
+        val length = cue.length()
+        val modified = cue.lastModified()
+        synchronized(cueTracks) {
+            cueTracks[cue.path]?.takeIf { it.length == length && it.modified == modified }?.let { return it.tracks }
+        }
+        val tracks = CUE_FILE.findAll(cue.readText()).map { it.groupValues[1].ifEmpty { it.groupValues[2] }.trim() }.toList()
+        synchronized(cueTracks) { cueTracks[cue.path] = CueTracks(length, modified, tracks) }
+        return tracks
     }
 
     fun touch() {
@@ -475,7 +499,7 @@ class Library(
         _roms.update { list -> list.filterNot { it.key in gone } }
         saveIndex(_roms.value)
         _meta.update { it.withoutRoms(gone) }
-        saveMeta()
+        writeMeta()
         return gone.size
     }
 
@@ -490,7 +514,7 @@ class Library(
         _meta.update { it.renamedRom(old.key, new.key) }
         _revision.value++
         saveIndex(_roms.value)
-        saveMeta()
+        writeMeta()
     }
 
     private fun loadIndex() {
@@ -527,6 +551,8 @@ class Library(
         /** About ten seconds of waiting for the shared storage after a boot. */
         internal const val STORAGE_TRIES = 20
         private const val STORAGE_RETRY_MS = 500L
+        /** Ten favorite toggles in a row, or a drag that drops on every slot, write meta.json once. */
+        const val META_DEBOUNCE_MS = 250L
     }
 
     private fun loadMeta(): Meta {
@@ -556,9 +582,37 @@ class Library(
         }.getOrDefault(Meta())
     }
 
-    // Synchronized: the bulk delete saves from an IO thread while the UI saves from the main one, both through one .tmp file.
+    /**
+     * Persists the metadata soon, off the caller's thread: changes made within [metaDebounceMs] of each other are
+     * written once (issue 920). [flushMeta] writes what is pending at once; a process killed before then loses at
+     * most the last [metaDebounceMs] of changes.
+     */
     @Synchronized
     private fun saveMeta() {
+        if (metaDebounceMs <= 0) {
+            writeMeta()
+            return
+        }
+        metaPending?.cancel(false)
+        metaPending = metaWriter.schedule(::writeMeta, metaDebounceMs, TimeUnit.MILLISECONDS)
+    }
+
+    /**
+     * Writes a pending change now: before a backup, when the activity stops, and whenever a test reads the file. On
+     * the caller's thread when [wait], else on the writer's (the main thread asks that way).
+     */
+    fun flushMeta(wait: Boolean = true) {
+        val pending = synchronized(this) { metaPending.also { metaPending = null } } ?: return
+        // Not cancelled: already running, so waiting for it is the flush.
+        if (!pending.cancel(false)) {
+            if (wait) runCatching { pending.get() }
+            return
+        }
+        if (wait) writeMeta() else metaWriter.execute(::writeMeta)
+    }
+
+    // The bulk delete writes from an IO thread while the writer thread and a flush may be writing too, all through one .tmp file.
+    private fun writeMeta() = synchronized(metaFile) {
         val m = _meta.value
         val json = JSONObject()
         json.put("roms", JSONObject().apply {
