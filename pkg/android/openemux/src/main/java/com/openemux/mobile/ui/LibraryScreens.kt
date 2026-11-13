@@ -258,6 +258,11 @@ fun ShelfScreen() {
                     )
                 }
             } else if (content == ShelfContent.Shelves) {
+                // The phone's games to continue (issue 925): right under the header, before the consoles, like the tablet's.
+                val phoneContinue = !spec.tablet && playing.isNotEmpty() && !tabletop
+                if (phoneContinue) item(key = "continue", span = { GridItemSpan(maxLineSpan) }) {
+                    PhoneContinueRow(playing, meta, focusedShelf, continueCardWidth(maxWidth.value, playing.size, spec.sidePadding).dp, Modifier.bleed(spec.sidePadding.dp).padding(bottom = 18.dp))
+                }
                 if (spec.tablet) {
                     // No more continue cards than the grid below has columns, so the two line up.
                     if (playing.isNotEmpty() && !tabletop) item(span = { GridItemSpan(maxLineSpan) }) {
@@ -276,7 +281,8 @@ fun ShelfScreen() {
                 // All and Favorites come first; they are no consoles, so they never move nor take a dragged card.
                 val pinned = pinnedShelves(roms.size, favorites.size)
                 val pair = pinnedAsPair(columns, pinned)
-                val first = pinned.firstOrNull() ?: shown.firstOrNull()?.id
+                // The pad lands on the last game played when the row shows: the shortest path to playing.
+                val first = if (phoneContinue) continueKey(playing.first()) else pinned.firstOrNull() ?: shown.firstOrNull()?.id
                 if (pair) item(key = "pinned", span = { GridItemSpan(maxLineSpan) }) {
                     // One column: the two share the row, so the pair is no taller than one card.
                     Row(Modifier.padding(vertical = (spec.gap / 2).dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(spec.gap.dp)) {
@@ -547,11 +553,40 @@ private fun ContinueRow(playing: List<Rom>, slots: Int, spec: ShelfSpec, meta: M
             shown.forEach { rom ->
                 ContinueCard(
                     rom, meta.roms[rom.key]?.lastPlayed ?: 0L, if (spec.maxColumns > 2) 104.dp else 100.dp,
-                    Modifier.weight(1f), Modifier.restorableFocus("continue-${rom.key}", focusedShelf),
+                    Modifier.weight(1f), Modifier.restorableFocus(continueKey(rom), focusedShelf),
                 )
             }
             // Fewer games than slots: the cards keep their width.
             repeat(slots - shown.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+}
+
+/** The focus key of a game's continue card, on the phone's row and the tablet's. */
+private fun continueKey(rom: Rom) = "continue-${rom.key}"
+
+/**
+ * The phone shelf's "Continue playing" (issue 925): a heading and the last games played in a row that scrolls
+ * sideways, each card [cardWidth] wide. A lazy row, so TalkBack reads it as a list and the pad walks it.
+ */
+@Composable
+private fun PhoneContinueRow(playing: List<Rom>, meta: Meta, focusedShelf: MutableState<String?>, cardWidth: Dp, modifier: Modifier) {
+    val a = LocalActions.current
+    Column(modifier) {
+        Box(Modifier.padding(horizontal = 20.dp)) {
+            SectionHeading(stringResource(R.string.library_continue_playing), stringResource(R.string.library_see_recent)) { a.nav.navigateTab(Routes.RECENT) }
+        }
+        LazyRow(
+            Modifier.padding(top = 12.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(playing, key = { it.key }, contentType = { "continue" }) { rom ->
+                ContinueCard(
+                    rom, meta.roms[rom.key]?.lastPlayed ?: 0L, 96.dp,
+                    Modifier.width(cardWidth), Modifier.restorableFocus(continueKey(rom), focusedShelf, initial = rom == playing.first()),
+                )
+            }
         }
     }
 }
@@ -568,7 +603,8 @@ private fun SectionHeading(title: String, link: String, onLink: () -> Unit) {
     }
 }
 
-/** A game to pick up again: the whole card resumes it, as the play button does on Recent. */
+/** A game to pick up again: the whole card resumes it, as the play button does on Recent; a long press opens its page. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modifier, focus: Modifier) {
     val a = LocalActions.current
@@ -576,7 +612,11 @@ private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modif
     var lit by remember { mutableStateOf(false) }
     Row(
         modifier.height(height).gamepadFocus(corner = 20.dp, scale = 1.02f) { lit = it }.then(focus).clip(RoundedCornerShape(20.dp)).background(Oe.Surface)
-            .clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) }
+            .combinedClickable(
+                onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button,
+                onLongClickLabel = stringResource(R.string.library_game_details),
+                onClick = { a.play(rom, true, null) }, onLongClick = { a.nav.navigate(Routes.rom(rom.key)) },
+            )
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

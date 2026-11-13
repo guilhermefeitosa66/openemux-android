@@ -60,3 +60,19 @@ fun <T> recentlyAdded(items: List<T>, modified: (T) -> Long, n: Int): List<T> =
 
 /** How many games the tablet's recently added row shows. */
 const val RECENTLY_ADDED_COUNT = 4
+
+/** How many games the phone's Continue row holds (issue 925): the last played, sideways. */
+const val PHONE_CONTINUE_COUNT = 3
+
+/** A phone's continue card, when there is more than one: the next one peeks in at the edge. */
+const val PHONE_CONTINUE_CARD_DP = 280f
+
+/**
+ * The width of each card in the phone's Continue row, for a shelf [widthDp] wide with [side] padding:
+ * one game takes the whole width; more than one are [PHONE_CONTINUE_CARD_DP] wide, or narrower on
+ * a small screen, so the next card always shows at the edge.
+ */
+fun continueCardWidth(widthDp: Float, count: Int, side: Float = SHELF_SIDE_DP): Float {
+    val room = maxOf(0f, widthDp - 2 * side)
+    return if (count <= 1) room else minOf(PHONE_CONTINUE_CARD_DP, room * 0.86f)
+}

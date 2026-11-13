@@ -142,4 +142,6 @@
     <string name="library_hint_remove">Retirer</string>
     <string name="library_hint_done">Terminé</string>
     <string name="library_hint_console">Console</string>
+    <!-- A long press on a Continue card (issue 925). -->
+    <string name="library_game_details">Détails du jeu</string>
 </resources>

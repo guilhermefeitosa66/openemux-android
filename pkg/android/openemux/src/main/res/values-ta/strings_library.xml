@@ -140,4 +140,6 @@
     <string name="library_hint_remove">நீக்கு</string>
     <string name="library_hint_done">முடிந்தது</string>
     <string name="library_hint_console">கன்சோல்</string>
+    <!-- A long press on a Continue card (issue 925). -->
+    <string name="library_game_details">விளையாட்டு விவரங்கள்</string>
 </resources>

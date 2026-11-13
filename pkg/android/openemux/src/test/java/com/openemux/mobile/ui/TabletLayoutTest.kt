@@ -53,7 +53,8 @@ class TabletLayoutTest {
     fun phonesKeepTheirShelf() {
         val portrait = shelfSpecOf(w(411f, 914f))
         assertFalse(portrait.tablet)
-        assertEquals(0, portrait.continueCount)
+        // The phone keeps its own Continue row, sideways (issue 925).
+        assertEquals(PHONE_CONTINUE_COUNT, portrait.continueCount)
         assertEquals(SHELF_SIDE_DP, portrait.sidePadding)
         assertEquals(SHELF_GAP_DP, portrait.gap)
         assertEquals(104f, portrait.cardHeight)
