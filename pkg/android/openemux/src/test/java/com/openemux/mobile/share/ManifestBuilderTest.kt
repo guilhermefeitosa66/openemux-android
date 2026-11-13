@@ -170,4 +170,48 @@ class ManifestBuilderTest {
         assertEquals("unit_incomplete", build(rom).excluded.single().reason)
         assertNull(build(rom).sources["g1i1"])
     }
+
+    @Test
+    fun `a second offer of the same games hashes nothing, and a changed file is hashed again`() {
+        val rom = lib.rom(Console.SFC, "Game (USA).sfc", "rom".toByteArray(), mtime = 1_700_000_001)
+        val other = lib.rom(Console.GB, "Other.gb", "other".toByteArray(), mtime = 1_700_000_002)
+        val store = File(paths.internal, "share/hashes.json")
+        val first = HashCache(store)
+        ManifestBuilder(lib, hashes = first).build(listOf(rom, other))
+        assertEquals(0, first.hits)
+        assertEquals(2, first.misses)
+        assertTrue(store.isFile)
+
+        val second = HashCache(store)
+        val built = ManifestBuilder(lib, hashes = second).build(listOf(rom, other))
+        assertEquals(2, second.hits)
+        assertEquals(0, second.misses)
+        assertEquals(sha256("rom".toByteArray()), items(built)[0].getString("sha256"))
+        assertEquals(sha256("other".toByteArray()), items(built, 1)[0].getString("sha256"))
+
+        // The ROM rewritten with another size: read again; the other game is still remembered.
+        rom.file.put("rom v2", mtime = 1_700_000_001)
+        val third = HashCache(store)
+        val changed = ManifestBuilder(lib, hashes = third).build(listOf(rom, other))
+        assertEquals(1, third.hits)
+        assertEquals(1, third.misses)
+        assertEquals(sha256("rom v2".toByteArray()), items(changed)[0].getString("sha256"))
+
+        // The same size with a newer modification time: read again too.
+        rom.file.put("rom v3", mtime = 1_700_000_009)
+        val fourth = HashCache(store)
+        ManifestBuilder(lib, hashes = fourth).build(listOf(rom))
+        assertEquals(1, fourth.misses)
+        assertEquals(sha256("rom v3".toByteArray()), items(ManifestBuilder(lib, hashes = HashCache(store)).build(listOf(rom)))[0].getString("sha256"))
+    }
+
+    @Test
+    fun `remembered files count as done for the progress`() {
+        val rom = lib.rom(Console.SFC, "Game (USA).sfc", "rom".toByteArray())
+        val store = File(paths.internal, "share/hashes.json")
+        ManifestBuilder(lib, hashes = HashCache(store)).build(listOf(rom))
+        val progress = mutableListOf<Pair<Long, Long>>()
+        ManifestBuilder(lib, hashes = HashCache(store), onProgress = { d, t -> progress += d to t }).build(listOf(rom))
+        assertEquals(listOf(3L to 3L), progress)
+    }
 }
