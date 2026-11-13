@@ -1040,7 +1040,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
     val tile: @Composable (Rom, ViewMode, Boolean) -> Unit = { rom, m, striped ->
         GameTile(
             rom, meta.roms[rom.key], m, striped,
-            pane, pane && picked == rom.key, rom.key in selection, selection.active,
+            pane && picked == rom.key, rom.key in selection, selection.active,
             zoom, cartCaption, coverCaption, table, playtimes[rom.key] ?: 0L, listSize,
             firstKey, heldGame, focusedRom, pick, onOpen,
         )
@@ -1273,7 +1273,7 @@ private val ListRowShape = RoundedCornerShape(12.dp)
 @Composable
 private fun GameTile(
     rom: Rom, romMeta: RomMeta?, m: ViewMode, striped: Boolean,
-    pane: Boolean, isPicked: Boolean, chosen: Boolean, selecting: Boolean,
+    isPicked: Boolean, chosen: Boolean, selecting: Boolean,
     zoom: Boolean, cartCaption: Int?, coverCaption: Int?, table: Boolean, playtime: Long, listSize: ListSize,
     firstKey: String?, heldGame: MutableState<String?>, focusedRom: MutableState<String?>, pick: TilePick,
     onOpen: (String) -> Unit,

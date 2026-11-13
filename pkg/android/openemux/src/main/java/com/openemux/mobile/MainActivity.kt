@@ -202,8 +202,9 @@ class MainActivity : ComponentActivity() {
 
     private fun followGate() {
         val elapsed = SystemClock.uptimeMillis() - created
+        val wasOpen = gate.open
         if (!gate.update(barsVisible, AppWindow.multiWindow, elapsed)) return
-        if (BuildConfig.DEBUG) Log.i(TAG, "launch gate open after $elapsed ms (bars ${if (barsVisible) "still visible: cap" else "hidden"})")
+        if (BuildConfig.DEBUG && !wasOpen) Log.i(TAG, "launch gate open after $elapsed ms (bars ${if (barsVisible) "still visible: cap" else "hidden"})")
         // Open for good: later insets changes (a swipe, the keyboard) have nothing to tell it.
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView, null)
         val splash = heldSplash ?: return
