@@ -119,7 +119,9 @@ fun RomDetail(
     val revision by lib.revision.collectAsState()
     val rom = roms.firstOrNull { it.key == key } ?: return
     val romMeta = meta.roms[key]
-    val states = remember(rom, revision) { lib.states(rom) }
+    // Listed off the main thread (issue 918); null until known, so the page never offers "Play" and then "Continue".
+    val known by produceState<List<SaveState>?>(null, rom, revision) { value = withContext(Dispatchers.IO) { lib.states(rom) } }
+    val states = known.orEmpty()
     val cheevos by a.app.achievements.state.collectAsState()
     // Hardcore refuses loading a state: no "Continue", and the states stay for when it is off.
     val hardcore = cheevos.hardcoreActive
@@ -129,7 +131,7 @@ fun RomDetail(
         if (hardcore) Toast.makeText(context, R.string.detail_hardcore_no_load, Toast.LENGTH_SHORT).show()
         else a.play(rom, st.isAuto, st.slot.takeIf { !st.isAuto })
     }
-    val playtime = remember(rom, revision) { lib.playtimeSeconds(rom) }
+    val playtime by produceState(0L, rom, revision) { value = withContext(Dispatchers.IO) { lib.playtimeSeconds(rom) } }
     val core = lib.effectiveCore(rom)
     val shader = lib.effectiveShader(rom)
     val color = lib.effectiveColor(rom)
@@ -220,7 +222,8 @@ fun RomDetail(
         }
     }
     val playButtons: @Composable (Dp, Dp) -> Unit = { height, restart ->
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // The states are still being listed: the row keeps its room and shows the right button once they are known.
+        if (known == null) Spacer(Modifier.height(height)) else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (auto != null) {
                 PrimaryButton(stringResource(R.string.detail_continue), { a.play(rom, true, null) }, Modifier.weight(1f).then(playFocusModifier), icon = Icons.Play, height = height)
                 SecondaryButton(stringResource(R.string.detail_restart), { a.play(rom, false, null) }, Modifier.width(restart), height = height)

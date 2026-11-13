@@ -1065,7 +1065,10 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         // The view whose step moves is the one under the fingers: on a mixed page, the console group's own,
         // whether the fingers are on its games or on its header.
         val key = anchor?.let { a -> info.visibleItemsInfo.firstOrNull { it.index == a.index }?.key } as? String
-        val groupId = key?.let { k -> listOf("grid-", "group-").firstOrNull { k.startsWith(it) }?.let { k.removePrefix(it) } }
+        val groupId = key?.let { k ->
+            if (k.startsWith("row-")) k.removePrefix("row-").substringBeforeLast('-')
+            else listOf("group-").firstOrNull { k.startsWith(it) }?.let { k.removePrefix(it) }
+        }
         val view = groupId?.takeIf { perGroup }?.let(Console::byId)?.let(::groupView) ?: shown
         val value = if (view == ViewMode.List) LibraryZoomPref.list.step(bigger).ordinal else stepColumns(zoomStep(view), bigger)
         if (!setZoom(view, value)) return
@@ -1083,7 +1086,11 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         delay(ZOOM_MOVE_MS + 50L)
         zoomMoving = false
     }
-    val grid: @Composable () -> Unit = { MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { LazyVerticalStaggeredGrid(
+    val side = contentSideDp(layout)
+    val grid: @Composable () -> Unit = { MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { BoxWithConstraints(Modifier.fillMaxSize()) {
+    // The width the groups' rows lay out in: the grid's, less its side padding.
+    val gridWidthDp = maxWidth.value - 2 * side
+    LazyVerticalStaggeredGrid(
         AdaptiveCells(spec, fixedColumns),
         // While selecting, the D-pad stays on the games: not off the side onto the tabs or the rail,
         // nor down onto the tabletop deck.
@@ -1091,9 +1098,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             .then(if (zoom) Modifier.pinchSteps { bigger, x, y -> pinch(bigger, x, y) } else Modifier),
         state = gridState,
         // A tablet's wider margins line the grid up with the shelf.
-        contentPadding = contentSideDp(LocalWindowLayout.current).dp.let { side ->
-            androidx.compose.foundation.layout.PaddingValues(start = side, end = side, top = FocusOutset, bottom = TabBarHeight + hintBarInset + 24.dp)
-        },
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = side.dp, end = side.dp, top = FocusOutset, bottom = TabBarHeight + hintBarInset + 24.dp),
         horizontalArrangement = Arrangement.spacedBy((zoomed?.gapDp ?: spec.gap).dp),
         verticalItemSpacing = if (shown == ViewMode.List) 0.dp else (zoomed?.rowGapDp ?: 18f).dp,
     ) {
@@ -1140,10 +1145,17 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             if (group != null) item(key = "group-${group.id}", contentType = "group-header", span = StaggeredGridItemSpan.FullLine) { GroupHeader(group, groupRoms.size) }
             if (perGroup && group != null) {
                 val groupMode = groupView(group)
-                item(key = "grid-${group.id}", span = StaggeredGridItemSpan.FullLine) {
-                    val groupSpec = if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts
-                    val groupColumns = zoomStep(groupMode)
-                    GroupGrid(groupRoms, groupSpec, if (zoom) zoomGrid(groupColumns, carts = groupMode == ViewMode.Carts) else null, groupColumns) { tile(it, groupMode, false) }
+                val groupSpec = if (groupMode == ViewMode.Covers) GridSpec.Covers else GridSpec.Carts
+                val groupStep = zoomStep(groupMode)
+                val groupZoomed = if (zoom) zoomGrid(groupStep, carts = groupMode == ViewMode.Carts) else null
+                val columns = if (groupZoomed != null) groupStep else gridColumns(gridWidthDp, groupSpec.min, groupSpec.gap, groupSpec.floor)
+                val gap = (groupZoomed?.gapDp ?: groupSpec.gap).dp
+                // One lazy item per row of the group (issue 918): the page composes the rows on screen, not every
+                // tile of every console; each group still lays out its own columns and keeps its view's step.
+                groupRoms.chunked(columns).forEachIndexed { r, row ->
+                    item(key = "row-${group.id}-$r", contentType = "row-$groupMode-$columns", span = StaggeredGridItemSpan.FullLine) {
+                        GroupRow(row, columns, gap) { tile(it, groupMode, false) }
+                    }
                 }
             } else {
                 // The zebra restarts under each group's header: its first row is plain.
@@ -1153,7 +1165,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 }
             }
         }
-    } } }
+    } } } }
 
     // The selection bar sits over the games, beside the pane rather than over it.
     val games: @Composable () -> Unit = { Box(Modifier.fillMaxSize()) { grid(); bar(); ZoomPillView(pill) { pill = null } } }
@@ -1425,20 +1437,16 @@ private fun SelectionBar(count: Int, allSelected: Boolean, onClose: () -> Unit, 
     }
 }
 
-/** A group's games in as many staggered columns as [spec] fits, filled in turn like the grid's lanes. */
+/**
+ * One row of a console's group on a mixed page: [columns] lanes of one width in whole pixels (the grid's own), so
+ * equal-shaped tiles are equally tall and the rows stay level; a short last row keeps its cells' width.
+ */
 @Composable
-private fun GroupGrid(roms: List<Rom>, spec: GridSpec, zoomed: ZoomGrid?, zoomColumns: Int, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val columns = if (zoomed != null) zoomColumns else gridColumns(maxWidth.value, spec.min, spec.gap, spec.floor)
-    val gap = (zoomed?.gapDp ?: spec.gap).dp
-    // Columns of one width in whole pixels (the grid's own lanes), so equal-shaped tiles are equally tall
-    // in each and the rows stay level: widths in dp round per column and can overrun the row by a pixel.
+private fun GroupRow(roms: List<Rom>, columns: Int, gap: Dp, tile: @Composable (Rom) -> Unit) = BoxWithConstraints(Modifier.fillMaxWidth()) {
     val cell = with(LocalDensity.current) { evenCellSizes(constraints.maxWidth, gap.roundToPx(), columns)[0].toDp() }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-        repeat(columns) { c ->
-            Column(Modifier.width(cell), verticalArrangement = Arrangement.spacedBy((zoomed?.rowGapDp ?: 18f).dp)) {
-                roms.filterIndexed { i, _ -> i % columns == c }.forEach { tile(it) }
-            }
-        }
+        roms.forEach { Box(Modifier.width(cell)) { tile(it) } }
+        repeat(columns - roms.size) { Spacer(Modifier.width(cell)) }
     }
 }
 

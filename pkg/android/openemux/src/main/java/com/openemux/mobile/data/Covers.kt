@@ -39,6 +39,15 @@ class Covers(
     private val _progress = MutableStateFlow(SyncProgress())
     val progress: StateFlow<SyncProgress> = _progress.asStateFlow()
 
+    private val _urls = MutableStateFlow<Map<String, String?>>(emptyMap())
+    /** What to draw for every ROM, by key, as [urlFor] answers: computed off the main thread (issue 918), so a tile reads a map. */
+    val urls: StateFlow<Map<String, String?>> = _urls.asStateFlow()
+
+    /** Computes [urls] for [roms] now: on every change of the library, the artwork or the providers. */
+    suspend fun refreshUrls(roms: List<Rom>) = withContext(Dispatchers.IO) {
+        _urls.value = roms.associate { it.key to urlFor(it) }
+    }
+
     override val syncing: Boolean get() = _progress.value.running
 
     /** Warms the image cache with every ROM's box art, so the library fills in without waiting. */

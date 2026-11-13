@@ -317,7 +317,8 @@ fun PauseSheet(
         var touchOn by remember { mutableStateOf(touchControls?.on == true) }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
-        val states = remember(refresh) { session.states() }
+        // Listed off the main thread (issue 918): the sheet opens at once, the tiles follow a frame later.
+        val states by produceState(emptyList<PauseSession.State>(), refresh) { value = withContext(Dispatchers.IO) { session.states() } }
         // The numbered slots holding a state: the slider fills them, Save and Load read the current one's (issue 867).
         val usedSlots = remember(states) { states.filterNot { it.isAutoSlot() }.mapTo(HashSet()) { it.slot } }
         // The ROM's current slot, which only the player changes (issue 857).

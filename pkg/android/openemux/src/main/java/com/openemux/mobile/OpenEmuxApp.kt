@@ -174,6 +174,12 @@ class OpenEmuxApp : Application() {
                 }
             }
         }
+        appScope.launch {
+            // The covers the tiles draw, looked up off the main thread (issue 918): again after a scan, an artwork
+            // change or a provider change.
+            combine(library.roms, library.revision, artwork.changes, providers.settings) { roms, _, _, _ -> roms }
+                .collectLatest { roms -> covers.refreshUrls(roms) }
+        }
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = retryArtwork()
         })

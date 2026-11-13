@@ -212,13 +212,11 @@ fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, fille
     Image(vector, contentDescription = null, modifier = modifier.size(size))
 }
 
-/** What to draw as the ROM's box art; follows the artwork manager's changes (issue 746). */
+/** What to draw as the ROM's box art, from the map the app computes off the main thread (issues 746 and 918). */
 @Composable
 fun coverFor(rom: Rom): String? {
-    val app = LocalActions.current.app
-    // Read to recompose on a change; the lookup itself runs every time, so a cover that arrives later shows.
-    app.artwork.changes.collectAsState().value
-    return app.covers.urlFor(rom)
+    val urls by LocalActions.current.app.covers.urls.collectAsState()
+    return urls[rom.key]
 }
 
 /** The ROM's cartridge label, once [com.openemux.mobile.data.Labels] has it. */

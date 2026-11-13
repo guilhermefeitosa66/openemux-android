@@ -49,14 +49,19 @@ import java.io.File
 
 /** Composes the cartridge art the way the desktop does: label under the frame. */
 object CartArt {
+    /** The frame drawable per console and colour, looked up by name once (issue 918): a tile never asks the resources again. */
+    private val frames = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     fun frameRes(context: Context, console: Console, color: String): Int {
         val name = console.frame?.name ?: return 0
-        val res = context.resources
-        if (color != "default") {
-            val id = res.getIdentifier("${name}_$color", "drawable", context.packageName)
-            if (id != 0) return id
+        return frames.getOrPut("$name/$color") {
+            val res = context.resources
+            if (color != "default") {
+                val id = res.getIdentifier("${name}_$color", "drawable", context.packageName)
+                if (id != 0) return@getOrPut id
+            }
+            res.getIdentifier(name, "drawable", context.packageName)
         }
-        return res.getIdentifier(name, "drawable", context.packageName)
     }
 
     fun loadLabel(file: File?): Bitmap? = file?.let { BitmapFactory.decodeFile(it.path) }
