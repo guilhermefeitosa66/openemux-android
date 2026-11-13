@@ -1506,13 +1506,18 @@ private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modi
     var open by remember { mutableStateOf(false) }
     val label = stringResource(R.string.library_size)
     Box(modifier) {
+        // The hit area is 48 dp (issue 928); the drawn button inside keeps its size.
         Box(
-            Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
-                .background(if (open) Oe.Raised else Oe.Surface)
+            Modifier.size(MinTouchTarget).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
                 .semantics { contentDescription = label }
                 .clickable(role = Role.Button) { open = true },
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Size, if (open) Oe.Text else Oe.Muted, 18.dp) }
+        ) {
+            Box(
+                Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).clip(RoundedCornerShape(10.dp)).background(if (open) Oe.Raised else Oe.Surface),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Size, if (open) Oe.Text else Oe.Muted, 18.dp) }
+        }
         val opener = LocalPadScope.current
         // Not keyed on [open]: a new scope while the menu animates out would land focus in the closing popup.
         val menuScope = remember { PadScope() }
@@ -1535,9 +1540,9 @@ private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modi
     }
 }
 
-/** The Size button: as tall as the view toggle beside it, a little larger in the gamepad layout. */
-private val SizeButtonSize = DpSize(38.dp, 38.dp)
-private val SizeButtonSizePad = DpSize(46.dp, 46.dp)
+/** The Size button as drawn, inside its 48 dp hit area: a little larger in the gamepad layout. */
+internal val SizeButtonSize = DpSize(38.dp, 38.dp)
+internal val SizeButtonSizePad = DpSize(46.dp, 46.dp)
 
 /** A console's header over its games on a mixed page. */
 @Composable
@@ -1765,16 +1770,21 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
         if (shoulders) ShoulderPill("L1")
         chips.forEach { (id, label) ->
             val active = id == current
+            // The hit area is 48 dp tall (issue 928); the chip drawn in it keeps its height.
             Box(
                 // L1/R1 step through these: for the pad they are not a stop (issue 701).
-                Modifier.height(padSize(ChipHeight, ChipHeightPad)).touchOnly().clip(RoundedCornerShape(18.dp))
-                    .background(if (active) Oe.Text else Oe.Surface)
-                    .let { if (active) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
-                    .clickable(role = Role.Tab) { onPick(id) }
-                    .padding(horizontal = 14.dp),
+                Modifier.height(ChipHit).touchOnly().clip(RoundedCornerShape(18.dp)).clickable(role = Role.Tab) { onPick(id) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
+                Box(
+                    Modifier.height(padSize(ChipHeight, ChipHeightPad)).clip(RoundedCornerShape(18.dp))
+                        .background(if (active) Oe.Text else Oe.Surface)
+                        .let { if (active) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
+                }
             }
         }
         if (shoulders) ShoulderPill("R1")
@@ -1840,7 +1850,7 @@ private fun FilterStep(step: Int, filters: List<String>, current: String, onStep
         filterName(stepFilter(filters, current, step)),
     )
     Box(
-        Modifier.size(padSize(StepSize, StepSizePad)).touchOnly().clip(CircleShape)
+        Modifier.size(StepSize).touchOnly().clip(CircleShape)
             .clickable(onClickLabel = label, role = Role.Button) { if (enabled) onStep(step) }
             .semantics { contentDescription = label; if (!enabled) disabled() }
             .alpha(if (enabled) 1f else 0.38f),
@@ -1860,7 +1870,7 @@ private fun FilterLabel(band: HeaderBand, filters: List<String>, current: String
     val description = stringResource(R.string.library_filter_label, name, countString(R.plurals.library_games_count, shown, shown))
     Box {
         Row(
-            Modifier.height(padSize(StepSize, StepSizePad)).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
+            Modifier.height(StepSize).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
                 .clickable(role = Role.Button) { menu = true }
                 .semantics { contentDescription = description }
                 .padding(horizontal = 10.dp),
@@ -1935,9 +1945,8 @@ private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<Strin
     } }
 }
 
-/** The pager's steps and label: as tall as the chips they replace, a little taller in the gamepad layout. */
-private val StepSize = 40.dp
-private val StepSizePad = 44.dp
+/** The pager's steps and label: a full touch target, in both layouts (issue 928). */
+internal val StepSize = MinTouchTarget
 
 /**
  * A shoulder button's name beside the chips it switches, as the hint bar draws its badges (LB, L or L1
@@ -1988,7 +1997,7 @@ private fun FavBadge(modifier: Modifier = Modifier) {
 @Composable
 private fun ViewToggle(mode: ViewMode, onChange: (ViewMode) -> Unit) {
     // A shaped background, not a clip: a clip would cut the focused button's ring.
-    Row(Modifier.background(Oe.Surface, RoundedCornerShape(12.dp)).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(Modifier.background(Oe.Surface, RoundedCornerShape(12.dp)).padding(TogglePillInset), horizontalArrangement = Arrangement.spacedBy(ToggleSpacing)) {
         listOf(ViewMode.Carts to Icons.Cart, ViewMode.Covers to Icons.Grid, ViewMode.List to Icons.List).forEach { (m, icon) ->
             val on = m == mode
             Box(
@@ -2029,7 +2038,7 @@ fun RecentScreen() {
                     Text("${rom.console.short} · ${formatAgo(meta.roms[rom.key]!!.lastPlayed)}", style = Type.Small, modifier = Modifier.padding(top = 2.dp))
                 }
                 Box(
-                    Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape).background(Oe.Accent).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
+                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape).background(Oe.Accent).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Play, Color.White, 18.dp, filled = true) }
             }

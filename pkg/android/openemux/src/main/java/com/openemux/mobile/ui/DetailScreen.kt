@@ -586,7 +586,7 @@ private fun RenamableTitle(
         Text(title, style = style, textAlign = align, modifier = Modifier.weight(1f, fill = false))
         val label = stringResource(R.string.detail_rename)
         Box(
-            Modifier.padding(start = 6.dp).size(36.dp).gamepadFocus(corner = 18.dp).clip(CircleShape)
+            Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape)
                 .clickable(onClickLabel = label, role = Role.Button, onClick = onRename).semantics { contentDescription = label },
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Pencil, Oe.Muted, 18.dp) }

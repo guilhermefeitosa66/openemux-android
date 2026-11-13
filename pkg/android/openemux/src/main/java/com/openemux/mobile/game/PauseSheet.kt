@@ -123,6 +123,7 @@ import com.openemux.mobile.ui.FocusOutset
 import com.openemux.mobile.ui.HintBar
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.MarginFocusScroll
+import com.openemux.mobile.ui.MinTouchTarget
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
 import com.openemux.mobile.ui.LocalWindowLayout
@@ -713,10 +714,10 @@ private fun RestartDialog(top: Dp, onCancel: () -> Unit, onConfirm: () -> Unit) 
             Text(stringResource(R.string.game_restart_confirm_title), style = Type.Title.copy(fontSize = 20.sp))
             Text(stringResource(R.string.game_restart_confirm_body), style = Type.Small)
             Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onCancel, Modifier.heightIn(min = 44.dp).focusRequester(cancel).gamepadFocus(corner = 20.dp)) {
+                TextButton(onCancel, Modifier.heightIn(min = MinTouchTarget).focusRequester(cancel).gamepadFocus(corner = 20.dp)) {
                     Text(stringResource(R.string.detail_cancel), style = Type.Section)
                 }
-                TextButton(onConfirm, Modifier.heightIn(min = 44.dp).gamepadFocus(corner = 20.dp)) {
+                TextButton(onConfirm, Modifier.heightIn(min = MinTouchTarget).gamepadFocus(corner = 20.dp)) {
                     Text(stringResource(R.string.detail_restart), style = Type.Section.copy(color = Oe.Danger))
                 }
             }
@@ -729,7 +730,7 @@ private fun PauseSession.State.isAutoSlot() = slot < 0
 @Composable
 private fun SheetIconButton(path: String, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape).background(Oe.Raised).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
+        Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape).background(Oe.Raised).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(path, Oe.Text, 18.dp, stroke = 2.4f) }
 }

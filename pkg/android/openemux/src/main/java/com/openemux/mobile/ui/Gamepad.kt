@@ -294,10 +294,17 @@ val FocusOutset = 12.dp
  * least [PadTarget] tall so the ring has a real target. The touch layout keeps its sizes.
  */
 val PadTarget = 44.dp
+/** The least a tappable control measures, spacing included (Material; issue 928). */
+val MinTouchTarget = 48.dp
 val ChipHeight = 36.dp
 val ChipHeightPad = 40.dp
-val ToggleSize = DpSize(40.dp, 32.dp)
-val ToggleSizePad = DpSize(44.dp, 40.dp)
+/** A filter chip's hit area, taller than the chip drawn in it (issue 928). */
+val ChipHit = MinTouchTarget
+/** The view toggle's buttons: [ToggleSpacing] apart inside a pill inset by [TogglePillInset], so each is 48 dp with its spacing. */
+val ToggleSize = DpSize(44.dp, 42.dp)
+val ToggleSizePad = DpSize(44.dp, 42.dp)
+val ToggleSpacing = 4.dp
+val TogglePillInset = 3.dp
 val SwatchSize = 38.dp
 val SwatchSizePad = PadTarget
 val PillHeight = 36.dp

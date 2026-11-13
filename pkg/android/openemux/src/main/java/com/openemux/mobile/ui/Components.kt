@@ -323,8 +323,8 @@ fun RoundIconButton(
 ) {
     Box(
         Modifier
-            .size(44.dp)
-            .then(if (padFocus) Modifier.gamepadFocus(corner = 22.dp) else Modifier.touchOnly())
+            .size(MinTouchTarget)
+            .then(if (padFocus) Modifier.gamepadFocus(corner = 24.dp) else Modifier.touchOnly())
             .clip(CircleShape)
             .background(background)
             .clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
@@ -533,7 +533,7 @@ fun OeTextField(
     OeFieldFrame(label, isError, interaction, modifier, trailing = {
         if (onReveal != null) {
             Box(
-                Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
+                Modifier.size(MinTouchTarget).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
                     .semantics { contentDescription = revealLabel },
                 contentAlignment = Alignment.Center,
             ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
