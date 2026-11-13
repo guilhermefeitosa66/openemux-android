@@ -139,4 +139,27 @@
     <string name="game_edit_skin">Edit skin</string>
     <string name="game_skin_every_game">For every game of this console</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Hold Start for two seconds to pause</string>
+    <string name="game_toast_pause_start_select">Press Start + Select to pause</string>
+    <string name="game_toast_pause_l3_r3">Press L3 + R3 to pause</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">Preparing the controls…</string>
+    <string name="launch_stage_core">Starting %1$s…</string>
+    <string name="launch_stage_download">Downloading %1$s…</string>
+    <string name="launch_cancel">Cancel</string>
+    <string name="launch_bios_title">%1$s needs a BIOS file</string>
+    <string name="launch_bios_body">Put %1$s in the BIOS folder, or import it now. Without it the game may not start.</string>
+    <string name="launch_bios_import">Import BIOS</string>
+    <string name="launch_bios_anyway">Play anyway</string>
+    <string name="launch_failed_title">The game could not start</string>
+    <string name="launch_died_title">The game did not start</string>
+    <string name="launch_stopped_title">The game stopped</string>
+    <string name="launch_died_body">RetroArch closed %1$d seconds after the launch without a quit from the pause menu. The emulator may have refused the game, or a file it needs is missing.</string>
+    <string name="launch_details">Show details</string>
+    <string name="launch_hide_details">Hide details</string>
+    <string name="launch_retry">Try again</string>
+    <string name="launch_close">Close</string>
+    <string name="launch_no_log">No log was written.</string>
+    <string name="game_starting">Starting %1$s</string>
 </resources>

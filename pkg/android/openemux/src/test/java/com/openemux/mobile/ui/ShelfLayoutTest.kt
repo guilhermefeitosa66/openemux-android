@@ -79,4 +79,20 @@ class ShelfLayoutTest {
         assertFalse(pinnedAsPair(2, listOf("ALL", "FAV")))
         assertFalse(pinnedAsPair(3, listOf("ALL", "FAV")))
     }
+
+    @Test
+    fun aLoneContinueCardTakesTheWidthAndMoreThanOneLeaveAPeek() {
+        // One game: the whole shelf width, like the console cards under it.
+        assertEquals(320f, continueCardWidth(360f, 1))
+        assertEquals(320f, continueCardWidth(360f, 0))
+        // Two or more: a fixed card on a wide phone, the next card peeking at the edge.
+        assertEquals(PHONE_CONTINUE_CARD_DP, continueCardWidth(411f, 2))
+        assertEquals(PHONE_CONTINUE_CARD_DP, continueCardWidth(800f, 3))
+        // A narrow phone: narrower than the fixed card, so the peek survives.
+        assertEquals(320f * 0.86f, continueCardWidth(360f, 2), 0.01f)
+        assertTrue(continueCardWidth(360f, 2) < continueCardWidth(360f, 1))
+        // Nothing to lay out in no room.
+        assertEquals(0f, continueCardWidth(10f, 1))
+        assertEquals(0f, continueCardWidth(10f, 2))
+    }
 }

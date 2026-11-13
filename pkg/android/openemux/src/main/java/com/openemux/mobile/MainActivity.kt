@@ -36,6 +36,8 @@ import com.openemux.mobile.ui.AppWindow
 import com.openemux.mobile.ui.ControllerLayoutPref
 import com.openemux.mobile.ui.LibraryZoomPref
 import com.openemux.mobile.ui.ButtonLabelsPref
+import com.openemux.mobile.ui.PauseComboPref
+import com.openemux.mobile.ui.LibrarySortPref
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.LaunchGate
 import com.openemux.mobile.ui.LocalPadScope
@@ -67,6 +69,8 @@ class MainActivity : ComponentActivity() {
         ControllerLayoutPref.load(this)
         LibraryZoomPref.load(this)
         ButtonLabelsPref.load(this)
+        PauseComboPref.load(this)
+        LibrarySortPref.load(this)
         Oe.syncSystem(this)
         super.onCreate(savedInstanceState)
         registerDebugGamepad()
@@ -199,7 +203,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun followGate() {
-        if (!gate.update(barsVisible, AppWindow.multiWindow, SystemClock.uptimeMillis() - created)) return
+        val elapsed = SystemClock.uptimeMillis() - created
+        val wasOpen = gate.open
+        if (!gate.update(barsVisible, AppWindow.multiWindow, elapsed)) return
+        if (BuildConfig.DEBUG && !wasOpen) Log.i(TAG, "launch gate open after $elapsed ms (bars ${if (barsVisible) "still visible: cap" else "hidden"})")
         // Open for good: later insets changes (a swipe, the keyboard) have nothing to tell it.
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView, null)
         val splash = heldSplash ?: return
@@ -230,6 +237,8 @@ class MainActivity : ComponentActivity() {
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(devices)
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(PadLabels.listener)
         (application as OpenEmuxApp).setForeground(false)
+        // A metadata change still waiting for its write lands before the process can be reclaimed (issue 920).
+        (application as OpenEmuxApp).library.flushMeta(wait = false)
         super.onStop()
     }
 

@@ -3,6 +3,8 @@ package com.openemux.mobile
 import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
+import com.openemux.mobile.ui.trimSkinThumbnails
+import com.retroarch.BuildConfig
 import com.openemux.mobile.data.AchievementsStore
 import com.openemux.mobile.data.AccountStore
 import com.openemux.mobile.data.ArtImages
@@ -26,6 +28,7 @@ import com.openemux.mobile.data.Setup
 import com.openemux.mobile.data.UpdateStore
 import com.openemux.mobile.launch.GameLauncher
 import android.content.Intent
+import android.os.StrictMode
 import androidx.core.content.ContextCompat
 import com.openemux.mobile.share.HandlerScheduler
 import com.openemux.mobile.share.LibraryShareAdapter
@@ -43,6 +46,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -123,9 +127,21 @@ class OpenEmuxApp : Application() {
         super.onCreate()
         // The :game process only needs the RetroArch side.
         if (getProcessName().endsWith(":game")) return
-        // A restore the process died in is finished or undone before anything reads the data.
-        Paths(this).let { BackupRoots(it.base, it.internal).recover() }
-        library = Library(this)
+        // Debug builds log every disk read, write or network call on the main thread (issue 920).
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder().detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build(),
+            )
+        }
+        // What the first frame draws from is read here on purpose: the index and the metadata (issue 574), after a
+        // restore the process died in is finished or undone. A start that waited for them would flash an empty shelf.
+        val policy = StrictMode.allowThreadDiskWrites()
+        try {
+            Paths(this).let { BackupRoots(it.base, it.internal).recover() }
+            library = Library(this)
+        } finally {
+            StrictMode.setThreadPolicy(policy)
+        }
         providers = ProviderSettingsStore(this)
         accounts = PrefsAccountStore(this)
         screenScraper = ScreenScraper(UrlHttp("OpenEmuxScreenScraper"), { accounts.account.value })
@@ -135,11 +151,13 @@ class OpenEmuxApp : Application() {
         renamer = RomRenamer(library.paths, library, covers, labels)
         artSearch = ArtSearch(UrlHttp("OpenEmuxArtSearch", 12_000), screenScraper, covers, { providers.settings.value }, ArtImages::decodable)
         // Working copies the editor left behind when the process died with it open.
-        ArtImages.clearScratch(this)
+        appScope.launch(Dispatchers.IO) { ArtImages.clearScratch(this@OpenEmuxApp) }
         achievements = AchievementsStore(this, File(library.paths.launch, "current/retroarch.cfg"))
-        launcher = GameLauncher(this, library, covers, labels, achievements)
-        importer = Importer(this, library)
         setup = Setup(library.paths)
+        launcher = GameLauncher(this, library, covers, labels, achievements, setup)
+        importer = Importer(this, library)
+        // The core info files come down on their own at first run; the cores wait for their first launch (issue 922).
+        appScope.launch { setup.ensureInfo(); setup.refresh() }
         backup = BackupManager(this, library)
         shareNotifications = ShareNotifications(this).also { it.createChannels() }
         updates = UpdateStore.create(this)
@@ -159,9 +177,29 @@ class OpenEmuxApp : Application() {
                 }
             }
         }
+        appScope.launch {
+            // The covers the tiles draw, looked up off the main thread (issue 918): again after a scan, an artwork
+            // change or a provider change.
+            combine(library.roms, library.revision, artwork.changes, providers.settings) { roms, _, _, _ -> roms }
+                .collectLatest { roms -> covers.refreshUrls(roms) }
+        }
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = retryArtwork()
         })
+    }
+
+    private var setupJob: Job? = null
+
+    /** "Download all emulators" (issue 922): one run at a time, in the app's scope, so it outlives the screen that asked. */
+    fun startSetup() {
+        if (setupJob?.isActive == true) return
+        setupJob = appScope.launch { setup.run() }
+    }
+
+    /** Memory asked back: the skin miniatures in memory go first (issue 919). */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_BACKGROUND || level == TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_RUNNING_CRITICAL) trimSkinThumbnails()
     }
 
     private val artworkRetry = MutableStateFlow(0)

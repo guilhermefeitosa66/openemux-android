@@ -123,6 +123,7 @@ import com.openemux.mobile.ui.FocusOutset
 import com.openemux.mobile.ui.HintBar
 import com.openemux.mobile.ui.InputMode
 import com.openemux.mobile.ui.MarginFocusScroll
+import com.openemux.mobile.ui.MinTouchTarget
 import com.openemux.mobile.ui.Icon
 import com.openemux.mobile.ui.Icons
 import com.openemux.mobile.ui.LocalWindowLayout
@@ -316,7 +317,8 @@ fun PauseSheet(
         var touchOn by remember { mutableStateOf(touchControls?.on == true) }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
-        val states = remember(refresh) { session.states() }
+        // Listed off the main thread (issue 918): the sheet opens at once, the tiles follow a frame later.
+        val states by produceState(emptyList<PauseSession.State>(), refresh) { value = withContext(Dispatchers.IO) { session.states() } }
         // The numbered slots holding a state: the slider fills them, Save and Load read the current one's (issue 867).
         val usedSlots = remember(states) { states.filterNot { it.isAutoSlot() }.mapTo(HashSet()) { it.slot } }
         // The ROM's current slot, which only the player changes (issue 857).
@@ -331,7 +333,10 @@ fun PauseSheet(
         val skinList = skins?.let { rememberGameSkinList(it) }
         // Whether the game has a skin in use, which brings the skin tiles; its name is not shown on the sheet (issue 875).
         val hasSkin = skinValue(skinList) != null
-        val cart = remember { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
+        // Decoded off the main thread (issue 918): the sheet opens, the picture follows a frame later.
+        val cart by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, session.cartPath) {
+            value = withContext(Dispatchers.IO) { session.cartPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() } }
+        }
         val window = LocalWindowLayout.current
         // Half open with the fold across, the menu takes the bottom half and the game shows on the top one (DobFoldPausa).
         val band = forbiddenBand(window)?.takeIf { window.tabletop }
@@ -508,9 +513,9 @@ fun PauseSheet(
                 if (!tabletop || page != Page.Main) Row(grip, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (page != Page.Main) {
                         SheetIconButton(Icons.Back, stringResource(R.string.game_back)) { backPage()?.let { page = it } }
-                    } else if (cart != null) {
+                    } else cart?.let { picture ->
                         // Any short window keeps the small cart, a wide fold half open included (its half is short too).
-                        Image(cart, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
+                        Image(picture, null, Modifier.width(if (window.wide && !panel) 56.dp else 92.dp), contentScale = ContentScale.FillWidth)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -713,10 +718,10 @@ private fun RestartDialog(top: Dp, onCancel: () -> Unit, onConfirm: () -> Unit) 
             Text(stringResource(R.string.game_restart_confirm_title), style = Type.Title.copy(fontSize = 20.sp))
             Text(stringResource(R.string.game_restart_confirm_body), style = Type.Small)
             Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onCancel, Modifier.heightIn(min = 44.dp).focusRequester(cancel).gamepadFocus(corner = 20.dp)) {
+                TextButton(onCancel, Modifier.heightIn(min = MinTouchTarget).focusRequester(cancel).gamepadFocus(corner = 20.dp)) {
                     Text(stringResource(R.string.detail_cancel), style = Type.Section)
                 }
-                TextButton(onConfirm, Modifier.heightIn(min = 44.dp).gamepadFocus(corner = 20.dp)) {
+                TextButton(onConfirm, Modifier.heightIn(min = MinTouchTarget).gamepadFocus(corner = 20.dp)) {
                     Text(stringResource(R.string.detail_restart), style = Type.Section.copy(color = Oe.Danger))
                 }
             }
@@ -729,7 +734,7 @@ private fun PauseSession.State.isAutoSlot() = slot < 0
 @Composable
 private fun SheetIconButton(path: String, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(44.dp).gamepadFocus(corner = 22.dp).clip(CircleShape).background(Oe.Raised).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
+        Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape).background(Oe.Raised).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(path, Oe.Text, 18.dp, stroke = 2.4f) }
 }

@@ -142,4 +142,20 @@
     <string name="library_hint_remove">Retirer</string>
     <string name="library_hint_done">Terminé</string>
     <string name="library_hint_console">Console</string>
+    <!-- A long press on a Continue card (issue 925). -->
+    <string name="library_game_details">Détails du jeu</string>
+    <!-- The sort menu and the facet chips (issue 927). -->
+    <string name="library_sort_heading">TRIER PAR</string>
+    <string name="library_sort_added">Ajoutés récemment</string>
+    <string name="library_sort_most_played">Les plus joués</string>
+    <string name="library_sort_unplayed">Jamais joués d\'abord</string>
+    <string name="library_section_added">Ajoutés récemment</string>
+    <string name="library_section_played">Les plus joués</string>
+    <string name="library_section_unplayed">Jamais joués d\'abord</string>
+    <string name="library_flag_favorites">Favoris</string>
+    <string name="library_flag_saved">Avec sauvegarde</string>
+    <string name="library_flag_missing_art">Sans illustration</string>
+    <string name="library_flag_unplayed">Jamais joués</string>
+    <string name="library_flags_clear">Effacer les filtres</string>
+    <string name="library_no_match">Aucun jeu ne correspond à ces filtres.</string>
 </resources>

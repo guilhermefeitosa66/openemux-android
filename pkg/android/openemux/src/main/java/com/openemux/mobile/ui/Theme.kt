@@ -80,18 +80,42 @@ val Grotesk = FontFamily(
     Font(R.font.grotesk_bold, FontWeight.Bold),
 )
 
+/**
+ * The text styles, built once per theme (issue 919): each getter still reads [Oe.dark], so a composable that uses
+ * one recomposes when the theme flips, and gets the same instance until then.
+ */
 object Type {
-    val Display: TextStyle get() = TextStyle(fontFamily = Grotesk, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 34.sp, color = Oe.Text)
-    val Title: TextStyle get() = TextStyle(fontFamily = Grotesk, fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 28.sp, color = Oe.Text)
-    val Eyebrow: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, letterSpacing = 1.sp, color = Oe.AccentText)
-    val Section: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Oe.Text)
-    val SectionCaps: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, letterSpacing = 1.sp, color = Oe.Muted)
-    val Body: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 15.sp, color = Oe.Text)
-    val BodyMedium: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Oe.Text)
-    val Small: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp, color = Oe.Muted)
-    val Caption: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Oe.Muted)
-    val Button: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
-    val Tag: TextStyle get() = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.4.sp)
+    private class Styles {
+        val display = TextStyle(fontFamily = Grotesk, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 34.sp, color = Oe.Text)
+        val title = TextStyle(fontFamily = Grotesk, fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 28.sp, color = Oe.Text)
+        val eyebrow = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, letterSpacing = 1.sp, color = Oe.AccentText)
+        val section = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Oe.Text)
+        val sectionCaps = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, letterSpacing = 1.sp, color = Oe.Muted)
+        val body = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 15.sp, color = Oe.Text)
+        val bodyMedium = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Oe.Text)
+        val small = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp, color = Oe.Muted)
+        val caption = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Oe.Muted)
+        val button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+        val tag = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.4.sp)
+    }
+
+    private var darkStyles: Styles? = null
+    private var lightStyles: Styles? = null
+
+    private fun styles(): Styles =
+        if (Oe.dark) darkStyles ?: Styles().also { darkStyles = it } else lightStyles ?: Styles().also { lightStyles = it }
+
+    val Display: TextStyle get() = styles().display
+    val Title: TextStyle get() = styles().title
+    val Eyebrow: TextStyle get() = styles().eyebrow
+    val Section: TextStyle get() = styles().section
+    val SectionCaps: TextStyle get() = styles().sectionCaps
+    val Body: TextStyle get() = styles().body
+    val BodyMedium: TextStyle get() = styles().bodyMedium
+    val Small: TextStyle get() = styles().small
+    val Caption: TextStyle get() = styles().caption
+    val Button: TextStyle get() = styles().button
+    val Tag: TextStyle get() = styles().tag
 }
 
 /** The theme the user picked: "system", "light" or "dark". */

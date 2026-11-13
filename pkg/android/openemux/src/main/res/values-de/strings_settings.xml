@@ -150,10 +150,9 @@
     <string name="settings_setup_start">Starten</string>
     <string name="settings_setup_retry">Erneut versuchen</string>
     <string name="settings_setup_title">OpenEmux wird vorbereitet</string>
-    <string name="settings_setup_intro">Beim ersten Start lädt die App die Emulatoren und ihre Dateien herunter, etwa 160 MB auf dem Gerät. Dafür braucht sie Internet, am besten WLAN. Danach funktioniert alles offline.</string>
+    <string name="settings_setup_intro">Der Emulator einer Konsole wird beim ersten Spielen eines ihrer Spiele geholt. Lade jetzt alle, um später offline zu spielen: etwa 160 MB, am besten über WLAN.</string>
     <string name="settings_setup_percent">%1$d %%</string>
     <string name="settings_setup_downloading">%1$s wird heruntergeladen</string>
-    <string name="settings_setup_dont_close">Schließ die App nicht, bevor alles fertig ist.</string>
     <string name="settings_setup_resume_note">Bereits Heruntergeladenes bleibt erhalten. Ein neuer Versuch macht dort weiter, wo es aufgehört hat.</string>
     <string name="settings_setup_source">Die Dateien stammen vom offiziellen libretro-Buildbot.</string>
 
@@ -351,4 +350,25 @@
     <string name="skins_import_too_large">Diese Datei ist zu groß für den Import.</string>
     <string name="skins_import_unsafe">Diese .zip enthält Dateien außerhalb ihres Ordners und wurde nicht importiert.</string>
     <string name="skins_close">Schließen</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">Mit dem Controller pausieren</string>
+    <string name="settings_pause_combo_lead">Die Tastenkombination am Controller, die im Spiel das Pausenmenü öffnet, damit du nicht zum Bildschirm greifen musst. Die Menütaste auf dem Bildschirm und die Zurück-Taste funktionieren weiterhin.</string>
+    <string name="settings_pause_combo_hold_start">Start halten</string>
+    <string name="settings_pause_combo_hold_start_desc">Start zwei Sekunden lang halten. Ein kurzer Druck erreicht weiterhin das Spiel.</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">Start und Select zusammen drücken. Manche Spiele nutzen diese Kombination selbst.</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">Beide Sticks zusammen eindrücken. Für Controller, deren Start und Select schwer zu erreichen sind.</string>
+    <string name="settings_pause_combo_off">Aus</string>
+    <string name="settings_pause_combo_off_desc">Nur die Menütaste auf dem Bildschirm und die Zurück-Taste öffnen das Pausenmenü.</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">Emulatoren werden beim ersten Spielen heruntergeladen</string>
+    <string name="settings_setup_pill_running">Emulatoren werden geladen · %1$d von %2$d</string>
+    <string name="settings_setup_pill_failed">Der Emulator-Download ist gestoppt. Zum Anzeigen tippen.</string>
+    <string name="settings_setup_all">Alle Emulatoren herunterladen</string>
+    <string name="settings_setup_all_desc">Etwa 160 MB, damit jede Konsole offline bereit ist</string>
+    <string name="settings_setup_all_done">Alle Emulatoren sind auf dem Gerät</string>
+    <string name="settings_setup_later">Später</string>
+    <string name="settings_setup_background_note">Die App kann weiter benutzt werden: der Download läuft im Hintergrund weiter.</string>
+    <string name="settings_setup_missing">Noch %1$d Emulatoren herunterzuladen.</string>
 </resources>

@@ -37,9 +37,6 @@ android {
         targetSdk = 36
         versionCode = openemuxVersion.split('.').map(String::toInt).let { (major, minor, patch) -> major * 10000 + minor * 100 + patch }
         versionName = openemuxVersion
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
         buildConfigField("boolean", "PLAY_STORE_BUILD", "false")
         buildConfigField("boolean", "META_QUEST_BUILD", "false")
         buildConfigField("String", "SS_DEVID", localProp("screenscraper.devid"))
@@ -109,11 +106,31 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Phones and the pipeline's emulator.
+            ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        }
         getByName("release") {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug").also {
                 logger.warn("openemux.signing is not set: the release APK is signed with the debug key.")
             }
+            // Shrunk and optimised (issue 916); the JNI surface the engine calls by name is kept by proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Phones only: the x86_64 engine is for the emulator. `-PopenemuxAbis=all` adds it, to test a release build there.
+            ndk { abiFilters += if (providers.gradleProperty("openemuxAbis").orNull == "all") listOf("arm64-v8a", "x86_64") else listOf("arm64-v8a") }
         }
+    }
+}
+
+// Rom holds a java.io.File, which the compiler would call unstable: the tiles could never skip (issue 919).
+// `-PcomposeReports=true` writes the compiler's reports and metrics under build/compose_compiler.
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_compiler_config.conf"))
+    if (providers.gradleProperty("composeReports").orNull == "true") {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
     }
 }
 
@@ -131,6 +148,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.window:window:1.4.0")
+    // Installs the baseline profile (src/main/baseline-prof.txt) on first run (issue 916).
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     // Share nearby: the QR code of this device's address (encoding only; Apache-2.0, pure Java).
     implementation("com.google.zxing:core:3.5.3")
 

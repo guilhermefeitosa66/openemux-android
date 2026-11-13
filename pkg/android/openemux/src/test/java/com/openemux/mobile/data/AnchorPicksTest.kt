@@ -27,7 +27,7 @@ class AnchorPicksTest {
         root.deleteRecursively()
     }
 
-    private fun library() = Library(paths, { true }, storageRetryMs = 0)
+    private fun library() = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
 
     @Test fun aPickComesBackAsWritten() {
         assertTrue(AnchorPicks.record(dir, "SFC", true, at = 5))

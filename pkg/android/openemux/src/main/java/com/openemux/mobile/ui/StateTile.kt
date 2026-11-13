@@ -81,7 +81,7 @@ fun StateTile(
             }
             Box(Modifier.align(Alignment.TopEnd)) {
                 Box(
-                    Modifier.size(40.dp).gamepadFocus(corner = 20.dp).clip(CircleShape)
+                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape)
                         .focusRequester(optionsFocus).focusProperties { left = tileFocus }
                         .clickable(onClickLabel = label, role = Role.Button, onClick = onOptions).semantics { contentDescription = label },
                     contentAlignment = Alignment.Center,

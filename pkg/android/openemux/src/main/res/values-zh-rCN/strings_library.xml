@@ -134,4 +134,20 @@
     <string name="library_hint_remove">移除</string>
     <string name="library_hint_done">完成</string>
     <string name="library_hint_console">主机</string>
+    <!-- A long press on a Continue card (issue 925). -->
+    <string name="library_game_details">游戏详情</string>
+    <!-- The sort menu and the facet chips (issue 927). -->
+    <string name="library_sort_heading">排序方式</string>
+    <string name="library_sort_added">最近添加</string>
+    <string name="library_sort_most_played">最常玩</string>
+    <string name="library_sort_unplayed">未玩过的在前</string>
+    <string name="library_section_added">最近添加</string>
+    <string name="library_section_played">最常玩</string>
+    <string name="library_section_unplayed">未玩过的在前</string>
+    <string name="library_flag_favorites">收藏</string>
+    <string name="library_flag_saved">有存档</string>
+    <string name="library_flag_missing_art">缺少封面</string>
+    <string name="library_flag_unplayed">从未玩过</string>
+    <string name="library_flags_clear">清除筛选</string>
+    <string name="library_no_match">没有符合这些筛选条件的游戏。</string>
 </resources>

@@ -140,4 +140,27 @@
     <string name="game_edit_skin">Editar skin</string>
     <string name="game_skin_every_game">Para todos los juegos de esta consola</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Mantén Start dos segundos para pausar</string>
+    <string name="game_toast_pause_start_select">Pulsa Start + Select para pausar</string>
+    <string name="game_toast_pause_l3_r3">Pulsa L3 + R3 para pausar</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">Preparando los controles…</string>
+    <string name="launch_stage_core">Iniciando %1$s…</string>
+    <string name="launch_stage_download">Descargando %1$s…</string>
+    <string name="launch_cancel">Cancelar</string>
+    <string name="launch_bios_title">%1$s necesita un archivo BIOS</string>
+    <string name="launch_bios_body">Pon %1$s en la carpeta BIOS o impórtalo ahora. Sin él, puede que el juego no arranque.</string>
+    <string name="launch_bios_import">Importar BIOS</string>
+    <string name="launch_bios_anyway">Jugar igualmente</string>
+    <string name="launch_failed_title">El juego no pudo iniciarse</string>
+    <string name="launch_died_title">El juego no arrancó</string>
+    <string name="launch_stopped_title">El juego se detuvo</string>
+    <string name="launch_died_body">RetroArch se cerró %1$d segundos después del inicio sin salir por el menú de pausa. Puede que el emulador haya rechazado el juego o que falte un archivo.</string>
+    <string name="launch_details">Ver detalles</string>
+    <string name="launch_hide_details">Ocultar detalles</string>
+    <string name="launch_retry">Reintentar</string>
+    <string name="launch_close">Cerrar</string>
+    <string name="launch_no_log">No se escribió ningún registro.</string>
+    <string name="game_starting">Iniciando %1$s</string>
 </resources>

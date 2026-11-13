@@ -45,7 +45,8 @@ fun ProvideWindowLayout(content: @Composable () -> Unit) {
             ?.let { it.width() / density to it.height() / density }
             ?: (configuration.screenWidthDp.toFloat() to configuration.screenHeightDp.toFloat())
     }
-    val folds = remember(activity) { activity?.folds() ?: emptyFlow() }
+    // Kept for the launcher too, which draws the skin for the fold without waiting for the tracker (issue 917).
+    val folds = remember(activity) { (activity?.folds() ?: emptyFlow()).onEach { AppWindow.fold = it } }
     val fold by folds.collectAsStateWithLifecycle(initialValue = null)
     val posture = fold?.let { postureOf(it.halfOpened, it.vertical, it.leftPx, it.topPx, it.rightPx, it.bottomPx) } ?: Posture.Flat
     CompositionLocalProvider(LocalWindowLayout provides WindowLayout.of(size.first, size.second, posture, fold, density), content = content)

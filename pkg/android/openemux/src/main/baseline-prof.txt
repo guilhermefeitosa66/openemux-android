@@ -1,0 +1,24 @@
+# Baseline profile (issue 916): what a cold start to the shelf, the library and
+# the pause sheet run, compiled ahead of time at install. Written by hand as
+# ART profile rules (H = hot, S = startup, P = post-startup); the Compose and
+# AndroidX libraries ship their own, which the build merges in.
+HSPLcom/openemux/mobile/OpenEmuxApp;->**(**)**
+HSPLcom/openemux/mobile/MainActivity;->**(**)**
+HSPLcom/openemux/mobile/AppLocale;->**(**)**
+HSPLcom/openemux/mobile/data/Library;->**(**)**
+HSPLcom/openemux/mobile/data/LibraryIndexKt;->**(**)**
+HSPLcom/openemux/mobile/data/Console;->**(**)**
+HSPLcom/openemux/mobile/data/Covers;->**(**)**
+HSPLcom/openemux/mobile/data/Labels;->**(**)**
+HSPLcom/openemux/mobile/data/Setup;->**(**)**
+HSPLcom/openemux/mobile/data/Meta;->**(**)**
+HSPLcom/openemux/mobile/data/RomMeta;->**(**)**
+HSPLcom/openemux/mobile/data/Rom;->**(**)**
+HSPLcom/openemux/mobile/ui/**->**(**)**
+HSPLcom/openemux/mobile/launch/GameLauncher;->**(**)**
+HSPLcom/openemux/mobile/launch/SkinCache;->**(**)**
+HSPLcom/openemux/mobile/launch/CartCache;->**(**)**
+HSPLcom/openemux/mobile/game/GameActivity;->**(**)**
+HSPLcom/openemux/mobile/game/PauseSheetKt;->**(**)**
+HSPLcom/openemux/mobile/game/RaCommand;->**(**)**
+Lcom/openemux/mobile/**

@@ -81,6 +81,8 @@ class BackupManager(private val context: Context, private val library: Library) 
         cancelled = false
         _state.value = BackupState.Running(true, "", 0, 0)
         try {
+            // A change still waiting for its write goes into the backup too.
+            library.flushMeta()
             val out = resolver.openOutputStream(uri, "wt") ?: throw IOException("no output stream")
             val manifest = out.use {
                 BackupWriter(roots).write(

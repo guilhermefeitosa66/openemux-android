@@ -139,4 +139,27 @@
     <string name="game_edit_skin">Skin bearbeiten</string>
     <string name="game_skin_every_game">Für alle Spiele dieser Konsole</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Start zwei Sekunden halten, um zu pausieren</string>
+    <string name="game_toast_pause_start_select">Start + Select drücken, um zu pausieren</string>
+    <string name="game_toast_pause_l3_r3">L3 + R3 drücken, um zu pausieren</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">Steuerung wird vorbereitet…</string>
+    <string name="launch_stage_core">%1$s wird gestartet…</string>
+    <string name="launch_stage_download">%1$s wird heruntergeladen…</string>
+    <string name="launch_cancel">Abbrechen</string>
+    <string name="launch_bios_title">%1$s braucht eine BIOS-Datei</string>
+    <string name="launch_bios_body">Lege %1$s in den BIOS-Ordner oder importiere sie jetzt. Ohne sie startet das Spiel vielleicht nicht.</string>
+    <string name="launch_bios_import">BIOS importieren</string>
+    <string name="launch_bios_anyway">Trotzdem spielen</string>
+    <string name="launch_failed_title">Das Spiel konnte nicht starten</string>
+    <string name="launch_died_title">Das Spiel ist nicht gestartet</string>
+    <string name="launch_stopped_title">Das Spiel wurde beendet</string>
+    <string name="launch_died_body">RetroArch hat sich %1$d Sekunden nach dem Start geschlossen, ohne Beenden im Pausenmenü. Der Emulator hat das Spiel vielleicht abgelehnt, oder eine Datei fehlt.</string>
+    <string name="launch_details">Details anzeigen</string>
+    <string name="launch_hide_details">Details ausblenden</string>
+    <string name="launch_retry">Erneut versuchen</string>
+    <string name="launch_close">Schließen</string>
+    <string name="launch_no_log">Es wurde kein Protokoll geschrieben.</string>
+    <string name="game_starting">%1$s wird gestartet</string>
 </resources>

@@ -24,8 +24,9 @@ class BuiltManifest(val json: JSONObject, val sources: Map<String, File>, val ex
  * that made them, its local cover and label, and its own settings; the first
  * game of each console also carries that console's catalog BIOS from the
  * system folder (#678), once. Hashing
- * reads every file up to [hashLimit], so this runs off the main thread;
- * [cancelled] is checked between files and between chunks.
+ * reads every file up to [hashLimit] that [hashes] does not remember, so this
+ * runs off the main thread; [cancelled] is checked between files and between
+ * chunks.
  */
 class ManifestBuilder(
     private val library: ShareLibrary,
@@ -33,6 +34,7 @@ class ManifestBuilder(
     private val hashLimit: Long = HASH_LIMIT,
     private val onProgress: (done: Long, total: Long) -> Unit = { _, _ -> },
     private val cancelled: () -> Boolean = { false },
+    private val hashes: HashCache = HashCache.of(library.paths),
 ) {
     private class GameFile(
         val kind: String,
@@ -139,9 +141,20 @@ class ManifestBuilder(
         val buffer = ByteArray(HASH_CHUNK)
         for (item in items) {
             checkCancelled()
+            val source = sources.getValue(item.getString("id"))
+            // As the file is now, before it is read: a file that changes while it is read is not remembered.
+            val size = item.getLong("size")
+            val mtime = source.lastModified()
+            val remembered = hashes.lookup(source.path, size, mtime)
+            if (remembered != null) {
+                item.put("sha256", remembered)
+                done += size
+                onProgress(done, total)
+                continue
+            }
             val digest = MessageDigest.getInstance("SHA-256")
             try {
-                sources.getValue(item.getString("id")).inputStream().use { input ->
+                source.inputStream().use { input ->
                     while (true) {
                         checkCancelled()
                         val n = input.read(buffer)
@@ -155,8 +168,12 @@ class ManifestBuilder(
                 Log.w(TAG, "share manifest: ${item.getString("name")} could not be read", e)
                 throw ShareError(ErrorCode.SOURCE_CHANGED, "${item.getString("name")} could not be read")
             }
-            item.put("sha256", digest.digest().toHex())
+            val sha256 = digest.digest().toHex()
+            item.put("sha256", sha256)
+            if (source.length() == size && source.lastModified() == mtime) hashes.put(source.path, size, mtime, sha256)
         }
+        hashes.save()
+        Log.i(TAG, "share manifest: ${hashes.misses} files hashed, ${hashes.hits} remembered")
     }
 
     private fun checkCancelled() {

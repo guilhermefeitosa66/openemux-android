@@ -259,8 +259,9 @@ fun contentSideDp(layout: WindowLayout): Float = when {
 }
 
 /**
- * The shelf's arrangement. [tablet] false keeps the phone's shelf as it is; a
- * tablet adds a row of [continueCount] games to continue, [maxColumns] columns of
+ * The shelf's arrangement. [tablet] false keeps the phone's shelf as it is, with its
+ * [continueCount] games to continue in a row that scrolls sideways (issue 925); a
+ * tablet adds a row of [continueCount] cards side by side, [maxColumns] columns of
  * [cardHeight] cards [gap] apart, and the recently added row when [recentlyAdded].
  */
 data class ShelfSpec(
@@ -275,7 +276,7 @@ data class ShelfSpec(
 )
 
 fun shelfSpecOf(layout: WindowLayout): ShelfSpec = when {
-    layout.nav != NavKind.TabletRail -> ShelfSpec(false, 2, 0, 104f, SHELF_GAP_DP, SHELF_SIDE_DP, 0f, false)
+    layout.nav != NavKind.TabletRail -> ShelfSpec(false, 2, PHONE_CONTINUE_COUNT, 104f, SHELF_GAP_DP, SHELF_SIDE_DP, 0f, false)
     layout.width == SizeClass.Expanded -> ShelfSpec(true, 3, 3, 148f, 16f, 40f, 32f, false)
     // A tall portrait tablet has room under the grid for what came in last.
     else -> ShelfSpec(true, 2, 2, 148f, 14f, 32f, 40f, layout.height == SizeClass.Expanded)

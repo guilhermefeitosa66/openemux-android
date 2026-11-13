@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.union
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.drawWithContent
@@ -99,6 +100,21 @@ import com.openemux.mobile.findActivity
 import com.openemux.mobile.data.Rom
 import com.openemux.mobile.data.Setup
 import com.retroarch.R
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.openemux.mobile.data.BiosDef
+import com.openemux.mobile.data.Console
+import com.openemux.mobile.launch.LaunchOutcome
+import com.openemux.mobile.launch.LaunchStage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -127,6 +143,8 @@ object Routes {
     fun rom(key: String) = "rom/${Uri.encode(key)}"
     fun artwork(key: String, tab: String? = null) = "artwork/${Uri.encode(key)}" + (tab?.let { "?tab=$it" } ?: "")
     fun console(id: String) = "settings/$id"
+    /** The BIOS screen scrolled to [console], from a launch that found its BIOS missing (issue 923). */
+    fun bios(console: String) = "bios?console=$console"
     fun license(id: String) = "about/license/$id"
     fun shareAddress(address: String) = "share/address?addr=${Uri.encode(address)}"
 }
@@ -150,6 +168,19 @@ fun OpenEmuxRoot() {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     var launching by remember { mutableStateOf<Rom?>(null) }
+    // The launch under way (issue 923): its job, so Back can cancel it; when it started; what it was, so a session
+    // that ends on its own can be explained and tried again.
+    var launchJob by remember { mutableStateOf<Job?>(null) }
+    var launchedAt by remember { mutableStateOf(0L) }
+    var lastLaunch by remember { mutableStateOf<Triple<Rom, Boolean, Int?>?>(null) }
+    var problem by remember { mutableStateOf<LaunchProblem?>(null) }
+    // Cancelling is offered a second in: a tap is never cancelled by the Back that was meant for the screen before.
+    var cancellable by remember { mutableStateOf(false) }
+    LaunchedEffect(launching) {
+        cancellable = false
+        if (launching != null) { delay(CANCEL_AFTER_MS); cancellable = true }
+    }
+    val stage by app.launcher.stage.collectAsState()
 
     // The gamepad layout turning on (a controller connected, no press yet) leaves touch mode, where nothing takes
     // focus, so the screen's item gets the ring at once.
@@ -165,20 +196,57 @@ fun OpenEmuxRoot() {
 
     LifecycleResumeEffect(Unit) {
         scope.launch { app.library.scan() }
+        val back = launching
+        val since = launchedAt
         launching = null
+        launchedAt = 0L
+        // Back from a game that ended on its own (issue 923): say so, with the engine's log, instead of the shelf alone.
+        val last = lastLaunch
+        if (back != null && since > 0 && last != null && stage == null) scope.launch {
+            val ended = withContext(Dispatchers.IO) { app.launcher.sessionOutcome(since) }
+            if (ended != null) {
+                problem = LaunchProblem.Ended(last.first, last.second, last.third, ended.first, ((System.currentTimeMillis() - since) / 1000).toInt(), ended.second)
+            }
+        }
         onPauseOrDispose { }
     }
 
-    val actions = remember(nav) {
-        AppActions(app, nav) { rom, resume, slot ->
-            if (launching == null) {
-                launching = rom
-                scope.launch {
-                    runCatching { app.launcher.launch(context.findActivity(), rom, resume, slot) }
-                        .onFailure { launching = null }
-                }
+    // Starts [rom]; with [checkBios], a console whose required BIOS is missing asks first (issue 923).
+    fun start(rom: Rom, resume: Boolean, slot: Int?, checkBios: Boolean) {
+        if (launching != null) return
+        launching = rom
+        launchedAt = System.currentTimeMillis()
+        lastLaunch = Triple(rom, resume, slot)
+        launchJob = scope.launch {
+            val missing = if (checkBios) withContext(Dispatchers.IO) { app.launcher.missingBios(rom.console) } else null
+            if (missing != null) {
+                launching = null
+                launchedAt = 0L
+                problem = LaunchProblem.MissingBios(rom, resume, slot, missing)
+                return@launch
+            }
+            try {
+                app.launcher.launch(context.findActivity(), rom, resume, slot)
+            } catch (e: CancellationException) {
+                launching = null
+                launchedAt = 0L
+                throw e
+            } catch (e: Exception) {
+                launching = null
+                launchedAt = 0L
+                problem = LaunchProblem.Failed(rom, e)
             }
         }
+    }
+    fun cancelLaunch() {
+        launchJob?.cancel()
+        launchJob = null
+        launching = null
+        launchedAt = 0L
+    }
+
+    val actions = remember(nav) {
+        AppActions(app, nav) { rom, resume, slot -> start(rom, resume, slot, checkBios = true) }
     }
 
     OpenEmuxTheme {
@@ -196,10 +264,11 @@ fun OpenEmuxRoot() {
             drawContent()
             if (cover > 0f) drawRect(starting, alpha = cover)
         }) {
-            val setup by app.setup.state.collectAsState()
-            // Nothing opens until the cores are on the device.
-            if (setup !is Setup.State.Done) SetupScreen(setup) { scope.launch { app.setup.run() } }
-            else CompositionLocalProvider(LocalActions provides actions) {
+            // "Fully drawn" (the start-up metric, issue 920): the gate open and the shelf with its content, once the
+            // library is known. Nothing waits for the emulators any more (issue 922): they come down on demand.
+            val loaded by app.library.loaded.collectAsState()
+            ReportDrawnWhen { AppWindow.gate.open && loaded }
+            CompositionLocalProvider(LocalActions provides actions) {
                 val entry by nav.currentBackStackEntryAsState()
                 val route = entry?.destination?.route
                 // App-wide buttons: Start opens Ajustes, L1/R1 walk the main tabs where a screen does not use them.
@@ -274,7 +343,9 @@ fun OpenEmuxRoot() {
                         composable(Routes.IMPORT) { RememberRowFocus { ImportScreen() } }
                         composable(Routes.SETTINGS) { RememberRowFocus { SettingsScreen(it) } }
                         composable(Routes.CONSOLE) { RememberRowFocus { ConsoleSettingsScreen(it.arguments?.getString("console") ?: "GBA") } }
-                        composable(Routes.BIOS) { RememberRowFocus { BiosScreen() } }
+                        composable("${Routes.BIOS}?console={console}", listOf(navArgument("console") { defaultValue = "" })) {
+                            RememberRowFocus { BiosScreen(console = it.arguments?.getString("console")?.takeIf(String::isNotEmpty)) }
+                        }
                         composable(Routes.ACHIEVEMENTS) { RememberRowFocus { AchievementsScreen() } }
                         composable(Routes.BACKUP) { RememberRowFocus { BackupScreen() } }
                         composable(Routes.CONTROLLERS) { RememberRowFocus { ControllersScreen() } }
@@ -314,7 +385,17 @@ fun OpenEmuxRoot() {
                     }
                 }
                 }
-                launching?.let { LaunchingOverlay(it) }
+                launching?.let { LaunchingOverlay(it, stage, cancellable, ::cancelLaunch) }
+                BackHandler(enabled = launching != null && cancellable) { cancelLaunch() }
+                problem?.let { p ->
+                    LaunchProblemSheet(
+                        p,
+                        onClose = { problem = null },
+                        onPlayAnyway = { rom, resume, slot -> problem = null; start(rom, resume, slot, checkBios = false) },
+                        onImportBios = { console -> problem = null; nav.navigate(Routes.bios(console.id)) },
+                        onRetry = { rom, resume, slot -> problem = null; start(rom, resume, slot, checkBios = true) },
+                    )
+                }
                 // Share nearby: an incoming offer over whatever is open, a link to an address, an expired offer's toast.
                 IncomingOfferSheet()
                 ShareLinks()
@@ -473,25 +554,104 @@ fun NavHostController.navigateTab(target: String) {
     }
 }
 
+/** The cartridge, the stage the launch is at and, a second in, a way out (issue 923). */
 @Composable
-private fun LaunchingOverlay(rom: Rom) {
+private fun LaunchingOverlay(rom: Rom, stage: LaunchStage?, cancellable: Boolean, onCancel: () -> Unit) {
     val app = LocalActions.current.app
     Box(
         Modifier.fillMaxSize().background(Oe.Bg.copy(alpha = 0.9f)).clickable(enabled = true, onClick = {}),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 32.dp)) {
             Cartridge(
                 rom.console, labelFor(rom), rom.title, app.library.effectiveColor(rom),
                 Modifier.size(width = 220.dp, height = 140.dp), cover = coverFor(rom),
             )
+            val text = when (stage) {
+                is LaunchStage.Core -> stringResource(R.string.launch_stage_core, stage.core)
+                is LaunchStage.Download -> stringResource(R.string.launch_stage_download, stage.core)
+                LaunchStage.Controls, null -> stringResource(R.string.launch_stage_controls)
+            }
             Row(Modifier.padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), color = Oe.AccentText, strokeWidth = 2.dp)
-                Text("  " + stringResource(R.string.settings_launching), style = Type.Small)
+                Text("  $text", style = Type.Small)
+            }
+            if (stage is LaunchStage.Download) {
+                if (stage.total > 0) LinearProgressIndicator({ stage.bytes.toFloat() / stage.total }, Modifier.padding(top = 12.dp).width(220.dp), color = Oe.AccentBright, trackColor = Oe.Divider)
+                else LinearProgressIndicator(Modifier.padding(top = 12.dp).width(220.dp), color = Oe.AccentBright, trackColor = Oe.Divider)
+            }
+            if (cancellable) SecondaryButton(stringResource(R.string.launch_cancel), onCancel, Modifier.padding(top = 20.dp).gamepadFocus(corner = 26.dp))
+        }
+    }
+}
+
+/** Why a launch stopped short, or how a session ended, each with a way on (issue 923). */
+sealed interface LaunchProblem {
+    data class MissingBios(val rom: Rom, val resume: Boolean, val slot: Int?, val bios: BiosDef) : LaunchProblem
+    data class Failed(val rom: Rom, val error: Throwable) : LaunchProblem
+    data class Ended(val rom: Rom, val resume: Boolean, val slot: Int?, val outcome: LaunchOutcome, val seconds: Int, val log: String) : LaunchProblem
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun LaunchProblemSheet(
+    problem: LaunchProblem,
+    onClose: () -> Unit,
+    onPlayAnyway: (Rom, Boolean, Int?) -> Unit,
+    onImportBios: (Console) -> Unit,
+    onRetry: (Rom, Boolean, Int?) -> Unit,
+) {
+    var details by rememberSaveable { mutableStateOf(false) }
+    OeSheet(onClose) {
+        SheetBarIcons()
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            when (problem) {
+                is LaunchProblem.MissingBios -> {
+                    Text(stringResource(R.string.launch_bios_title, problem.rom.console.displayName), style = Type.Title.copy(fontSize = 22.sp))
+                    Text(stringResource(R.string.launch_bios_body, problem.bios.files.joinToString(" / ")), style = Type.Small)
+                    PrimaryButton(stringResource(R.string.launch_bios_import), { onImportBios(problem.rom.console) }, Modifier.fillMaxWidth().padding(top = 8.dp).gamepadFocus(corner = 26.dp), icon = Icons.Download)
+                    SecondaryButton(stringResource(R.string.launch_bios_anyway), { onPlayAnyway(problem.rom, problem.resume, problem.slot) }, Modifier.fillMaxWidth().gamepadFocus(corner = 26.dp))
+                }
+                is LaunchProblem.Failed -> {
+                    Text(stringResource(R.string.launch_failed_title), style = Type.Title.copy(fontSize = 22.sp))
+                    Text(problemMessage(problem.error), style = Type.Small)
+                    ProblemDetails(details, problem.error.stackTraceToString()) { details = it }
+                    SecondaryButton(stringResource(R.string.launch_close), onClose, Modifier.fillMaxWidth().gamepadFocus(corner = 26.dp))
+                }
+                is LaunchProblem.Ended -> {
+                    Text(stringResource(if (problem.outcome == LaunchOutcome.NOT_STARTED) R.string.launch_died_title else R.string.launch_stopped_title), style = Type.Title.copy(fontSize = 22.sp))
+                    Text(stringResource(R.string.launch_died_body, problem.seconds), style = Type.Small)
+                    ProblemDetails(details, problem.log.ifBlank { stringResource(R.string.launch_no_log) }) { details = it }
+                    PrimaryButton(stringResource(R.string.launch_retry), { onRetry(problem.rom, problem.resume, problem.slot) }, Modifier.fillMaxWidth().padding(top = 8.dp).gamepadFocus(corner = 26.dp), icon = Icons.Play)
+                    SecondaryButton(stringResource(R.string.launch_close), onClose, Modifier.fillMaxWidth().gamepadFocus(corner = 26.dp))
+                }
             }
         }
     }
 }
+
+/** What went wrong, in the user's language when the download of a core did (issue 922). */
+@Composable
+private fun problemMessage(error: Throwable): String =
+    if (error is Setup.SetupException) stringResource(error.reason, error.item, error.detail) else error.message ?: error.javaClass.simpleName
+
+/** "Show details" and, open, the text in a scrolling box: a stack trace or the engine's log. */
+@Composable
+private fun ProblemDetails(open: Boolean, text: String, onToggle: (Boolean) -> Unit) {
+    Text(
+        stringResource(if (open) R.string.launch_hide_details else R.string.launch_details),
+        style = Type.BodyMedium.copy(color = Oe.AccentText),
+        modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { onToggle(!open) }.padding(4.dp),
+    )
+    if (open) {
+        Box(Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(RoundedCornerShape(12.dp)).background(Oe.Surface2).verticalScroll(rememberScrollState()).padding(12.dp)) {
+            Text(text, style = Type.Caption.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp, color = Oe.Text))
+        }
+    }
+}
+
+/** How long a launch runs before Back and the overlay's button can cancel it. */
+private const val CANCEL_AFTER_MS = 1000L
 
 /** Shared tile used by both the shelf and the settings to show a console. */
 @Composable

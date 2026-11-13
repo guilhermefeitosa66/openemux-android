@@ -34,7 +34,7 @@ class ShaderPicksTest {
         root.deleteRecursively()
     }
 
-    private fun library() = Library(paths, { true }, storageRetryMs = 0)
+    private fun library() = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
 
     // --- ShaderPicks ---
 
@@ -157,7 +157,7 @@ class ShaderPicksTest {
     @Test
     fun aScanAbsorbsThePicksEvenWhileTheRomStorageIsNotReady() = runBlocking {
         ShaderPicks.record(dir, gba, others[0])
-        val lib = Library(paths, { false }, storageRetryMs = 0)
+        val lib = Library(paths, { false }, storageRetryMs = 0, metaDebounceMs = 0)
         lib.scan()
         assertEquals(others[0], lib.romMeta(gba).shader)
     }

@@ -275,7 +275,7 @@ class ShareSkinTest {
 
     @Test
     fun `a console goes on playing with the skin it had`() {
-        val library = Library(paths, { true }, storageRetryMs = 0)
+        val library = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
         // The app's own wiring (LibraryShareAdapter): its store, and the pick saved before a skin comes in.
         val real = object : ShareLibrary by lib {
             override val skins: SkinStore get() = library.skins
@@ -288,7 +288,7 @@ class ShareSkinTest {
         assertEquals(listOf("Night"), library.skins.list(Console.SFC).map { it.name })
         // Never in use by arriving: the bundled skin stays, here and after a restart.
         assertNull(library.customSkin(Console.SFC))
-        assertNull(Library(paths, { true }, storageRetryMs = 0).customSkin(Console.SFC))
+        assertNull(Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0).customSkin(Console.SFC))
         // And a console that played with one of the player's skins keeps that one.
         library.useCustomSkin(Console.SFC, "own:night")
         val again = IncomingTransfer("offer2", plan(offer(bytes)), real, onDone = { results += it })

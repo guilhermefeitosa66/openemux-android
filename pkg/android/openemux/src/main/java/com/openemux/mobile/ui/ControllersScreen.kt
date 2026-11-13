@@ -27,6 +27,14 @@ internal val INTERFACE_MODES = listOf(
     Triple(ControllerLayoutPref.ALWAYS, R.string.settings_interface_mode_controller, R.string.settings_interface_mode_controller_desc),
 )
 
+/** The pause combinations in the order the screen lists them (issue 924). */
+internal val PAUSE_COMBOS = listOf(
+    Triple(PauseComboPref.HOLD_START, R.string.settings_pause_combo_hold_start, R.string.settings_pause_combo_hold_start_desc),
+    Triple(PauseComboPref.START_SELECT, R.string.settings_pause_combo_start_select, R.string.settings_pause_combo_start_select_desc),
+    Triple(PauseComboPref.L3_R3, R.string.settings_pause_combo_l3_r3, R.string.settings_pause_combo_l3_r3_desc),
+    Triple(PauseComboPref.OFF, R.string.settings_pause_combo_off, R.string.settings_pause_combo_off_desc),
+)
+
 internal val BUTTON_LABELS = listOf(
     Triple(ButtonLabelsKeys.AUTO, R.string.settings_button_labels_auto, R.string.settings_button_labels_auto_desc),
     Triple(ButtonLabelsKeys.XBOX, R.string.settings_button_labels_xbox, R.string.settings_button_labels_xbox_desc),
@@ -79,6 +87,13 @@ fun ControllersScreen(embedded: Boolean = false) {
                         onClick = { ButtonLabelsPref.set(context, id) },
                         leading = { FaceDiamond(effectiveFamily(id, PadLabels.detected)) },
                     )
+                }
+            }
+            SectionHeader(stringResource(R.string.settings_pause_combo))
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.settings_pause_combo_lead), style = Type.Small, modifier = Modifier.padding(bottom = 4.dp))
+                PAUSE_COMBOS.forEach { (id, name, blurb) ->
+                    RadioCard(PauseComboPref.value == id, stringResource(name), stringResource(blurb), onClick = { PauseComboPref.set(context, id) })
                 }
             }
             Spacer(Modifier.height(28.dp + hintBarInset))

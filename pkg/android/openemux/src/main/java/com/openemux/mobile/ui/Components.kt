@@ -1,5 +1,6 @@
 package com.openemux.mobile.ui
 
+import android.util.LruCache
 import androidx.annotation.PluralsRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -189,28 +190,33 @@ object Icons {
     const val Skin = "M7.5 7h9a4.5 4.5 0 0 1 0 9c-1.4 0-2.2-.6-3-1.6h-3c-.8 1-1.6 1.6-3 1.6a4.5 4.5 0 0 1 0-9zM7.5 9.8v3.4M5.8 11.5h3.4M15.6 10.6h.01M17.4 12.4h.01"
 }
 
+private data class IconKey(val path: String, val color: Color, val size: Dp, val stroke: Float, val filled: Boolean)
+
+/** The vectors drawn so far, parsed once each (issue 919): a scrolling grid of badges and tabs allocates nothing. Main thread only. */
+private val vectors = HashMap<IconKey, ImageVector>()
+
 @Composable
 fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, filled: Boolean = false, modifier: Modifier = Modifier) {
-    val vector = ImageVector.Builder(defaultWidth = size, defaultHeight = size, viewportWidth = 24f, viewportHeight = 24f).apply {
-        addPath(
-            pathData = PathParser().parsePathString(path).toNodes(),
-            fill = if (filled) SolidColor(color) else null,
-            stroke = if (filled) null else SolidColor(color),
-            strokeLineWidth = stroke,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        )
-    }.build()
+    val vector = vectors.getOrPut(IconKey(path, color, size, stroke, filled)) {
+        ImageVector.Builder(defaultWidth = size, defaultHeight = size, viewportWidth = 24f, viewportHeight = 24f).apply {
+            addPath(
+                pathData = PathParser().parsePathString(path).toNodes(),
+                fill = if (filled) SolidColor(color) else null,
+                stroke = if (filled) null else SolidColor(color),
+                strokeLineWidth = stroke,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            )
+        }.build()
+    }
     Image(vector, contentDescription = null, modifier = modifier.size(size))
 }
 
-/** What to draw as the ROM's box art; follows the artwork manager's changes (issue 746). */
+/** What to draw as the ROM's box art, from the map the app computes off the main thread (issues 746 and 918). */
 @Composable
 fun coverFor(rom: Rom): String? {
-    val app = LocalActions.current.app
-    // Read to recompose on a change; the lookup itself runs every time, so a cover that arrives later shows.
-    app.artwork.changes.collectAsState().value
-    return app.covers.urlFor(rom)
+    val urls by LocalActions.current.app.covers.urls.collectAsState()
+    return urls[rom.key]
 }
 
 /** The ROM's cartridge label, once [com.openemux.mobile.data.Labels] has it. */
@@ -323,8 +329,8 @@ fun RoundIconButton(
 ) {
     Box(
         Modifier
-            .size(44.dp)
-            .then(if (padFocus) Modifier.gamepadFocus(corner = 22.dp) else Modifier.touchOnly())
+            .size(MinTouchTarget)
+            .then(if (padFocus) Modifier.gamepadFocus(corner = 24.dp) else Modifier.touchOnly())
             .clip(CircleShape)
             .background(background)
             .clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
@@ -533,7 +539,7 @@ fun OeTextField(
     OeFieldFrame(label, isError, interaction, modifier, trailing = {
         if (onReveal != null) {
             Box(
-                Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
+                Modifier.size(MinTouchTarget).clip(CircleShape).clickable(onClickLabel = revealLabel, role = Role.Button, onClick = onReveal)
                     .semantics { contentDescription = revealLabel },
                 contentAlignment = Alignment.Center,
             ) { Icon(if (revealed) Icons.EyeOff else Icons.Eye, Oe.Muted, 20.dp) }
@@ -803,7 +809,7 @@ fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = n
                     val size = state.painter.intrinsicSize
                     if (size.width > 0f && size.height > 0f) {
                         measured = size.width / size.height
-                        boxAspects[url] = measured!!
+                        boxAspects.put(url, measured!!)
                     }
                 },
             )
@@ -819,4 +825,5 @@ fun CoverArt(url: String?, title: String, modifier: Modifier, maxHeight: Dp? = n
 }
 
 /** Loaded box art proportions, so scrolling back does not reflow the grid. */
-private val boxAspects = HashMap<String, Float>()
+/** The aspect of each cover measured so far, bounded (issue 919): a library of thousands keeps the last two thousand. */
+private val boxAspects = object : LruCache<String, Float>(2000) {}

@@ -159,10 +159,9 @@
     <string name="settings_setup_start">Démarrer</string>
     <string name="settings_setup_retry">Réessayer</string>
     <string name="settings_setup_title">Préparation d’OpenEmux</string>
-    <string name="settings_setup_intro">La première fois, l’app télécharge les émulateurs et leurs fichiers, environ 160 Mo sur l’appareil. Il faut Internet pendant ce temps, idéalement en Wi-Fi. Ensuite, tout fonctionne hors ligne.</string>
+    <string name="settings_setup_intro">L\'émulateur d\'une console est récupéré la première fois que vous jouez à l\'un de ses jeux. Téléchargez-les tous maintenant pour jouer hors ligne plus tard : environ 160 Mo, de préférence en Wi-Fi.</string>
     <string name="settings_setup_percent">%1$d %%</string>
     <string name="settings_setup_downloading">Téléchargement de %1$s</string>
-    <string name="settings_setup_dont_close">Ne fermez pas l’app avant la fin.</string>
     <string name="settings_setup_resume_note">Ce qui a déjà été téléchargé est conservé. Réessayer reprend là où ça s’est arrêté.</string>
     <string name="settings_setup_source">Les fichiers proviennent du buildbot officiel de libretro.</string>
 
@@ -363,4 +362,25 @@
     <string name="skins_import_too_large">Ce fichier est trop volumineux pour être importé.</string>
     <string name="skins_import_unsafe">Ce zip contient des fichiers hors de son dossier : il n\'a pas été importé.</string>
     <string name="skins_close">Fermer</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">Mettre en pause avec la manette</string>
+    <string name="settings_pause_combo_lead">La combinaison de la manette qui ouvre le menu de pause pendant le jeu, pour ne pas avoir à toucher l\'écran. La touche de menu à l\'écran et le bouton Retour continuent de fonctionner.</string>
+    <string name="settings_pause_combo_hold_start">Maintenir Start</string>
+    <string name="settings_pause_combo_hold_start_desc">Maintenez Start deux secondes. Un appui court atteint toujours le jeu.</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">Appuyez sur Start et Select en même temps. Certains jeux utilisent eux-mêmes cette combinaison.</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">Appuyez sur les deux sticks en même temps. Pour les manettes dont Start et Select sont difficiles à atteindre.</string>
+    <string name="settings_pause_combo_off">Désactivé</string>
+    <string name="settings_pause_combo_off_desc">Seules la touche de menu à l\'écran et le bouton Retour ouvrent le menu de pause.</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">Les émulateurs se téléchargent à la première partie</string>
+    <string name="settings_setup_pill_running">Téléchargement des émulateurs · %1$d sur %2$d</string>
+    <string name="settings_setup_pill_failed">Le téléchargement des émulateurs s\'est arrêté. Touchez pour les détails.</string>
+    <string name="settings_setup_all">Télécharger tous les émulateurs</string>
+    <string name="settings_setup_all_desc">Environ 160 Mo, pour que chaque console soit prête hors ligne</string>
+    <string name="settings_setup_all_done">Tous les émulateurs sont sur l\'appareil</string>
+    <string name="settings_setup_later">Plus tard</string>
+    <string name="settings_setup_background_note">Continuez à utiliser l\'application : le téléchargement se poursuit en arrière-plan.</string>
+    <string name="settings_setup_missing">%1$d émulateurs restent à télécharger.</string>
 </resources>

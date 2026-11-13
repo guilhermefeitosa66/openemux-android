@@ -139,4 +139,27 @@
     <string name="game_edit_skin">ஸ்கினைத் திருத்து</string>
     <string name="game_skin_every_game">இந்த கன்சோலின் எல்லா விளையாட்டுகளுக்கும்</string>
     <string name="game_toast_skin">ஸ்கின்: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">இடைநிறுத்த Start ஐ இரண்டு வினாடிகள் பிடித்திருங்கள்</string>
+    <string name="game_toast_pause_start_select">இடைநிறுத்த Start + Select ஐ அழுத்துங்கள்</string>
+    <string name="game_toast_pause_l3_r3">இடைநிறுத்த L3 + R3 ஐ அழுத்துங்கள்</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">கட்டுப்பாடுகளைத் தயார் செய்கிறது…</string>
+    <string name="launch_stage_core">%1$s ஐத் தொடங்குகிறது…</string>
+    <string name="launch_stage_download">%1$s ஐப் பதிவிறக்குகிறது…</string>
+    <string name="launch_cancel">ரத்து</string>
+    <string name="launch_bios_title">%1$s க்கு ஒரு BIOS கோப்பு தேவை</string>
+    <string name="launch_bios_body">%1$s ஐ BIOS கோப்புறையில் வைக்கவும் அல்லது இப்போது இறக்குமதி செய்யவும். அது இல்லாமல் விளையாட்டு தொடங்காமல் போகலாம்.</string>
+    <string name="launch_bios_import">BIOS இறக்குமதி</string>
+    <string name="launch_bios_anyway">எப்படியும் விளையாடு</string>
+    <string name="launch_failed_title">விளையாட்டைத் தொடங்க முடியவில்லை</string>
+    <string name="launch_died_title">விளையாட்டு தொடங்கவில்லை</string>
+    <string name="launch_stopped_title">விளையாட்டு நின்றது</string>
+    <string name="launch_died_body">இடைநிறுத்த மெனுவில் வெளியேறாமல், தொடங்கிய %1$d வினாடிகளுக்குப் பிறகு RetroArch மூடப்பட்டது. எமுலேட்டர் விளையாட்டை நிராகரித்திருக்கலாம், அல்லது தேவையான கோப்பு இல்லாமல் இருக்கலாம்.</string>
+    <string name="launch_details">விவரங்களைக் காட்டு</string>
+    <string name="launch_hide_details">விவரங்களை மறை</string>
+    <string name="launch_retry">மீண்டும் முயற்சி</string>
+    <string name="launch_close">மூடு</string>
+    <string name="launch_no_log">பதிவு எதுவும் எழுதப்படவில்லை.</string>
+    <string name="game_starting">%1$s ஐத் தொடங்குகிறது</string>
 </resources>

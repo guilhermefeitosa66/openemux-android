@@ -59,8 +59,18 @@ sealed interface SkinThumbSource {
 /** A miniature kept: [stamp] says what it was drawn from (the skin's file and when it last changed). */
 private class Thumb(val stamp: String, val image: ImageBitmap)
 
-/** The miniatures drawn this run of the app, by skin, form and orientation: a list opened again shows them at once. */
-private val thumbs = LruCache<String, Thumb>(48)
+/** The miniatures drawn this run of the app, by skin, form and orientation, up to [THUMB_CACHE_BYTES]: a list opened again shows them at once. */
+private val thumbs = object : LruCache<String, Thumb>(THUMB_CACHE_BYTES) {
+    override fun sizeOf(key: String, value: Thumb): Int = value.image.width * value.image.height * 4
+}
+
+/** About a list's worth of miniatures (issue 919); the disk cache keeps the rest. */
+private const val THUMB_CACHE_BYTES = 16 * 1024 * 1024
+
+/** The app was asked for memory (onTrimMemory): the miniatures in memory go, the ones on disk stay. */
+fun trimSkinThumbnails() {
+    thumbs.evictAll()
+}
 
 /** The cache folder's miniatures: `<skin, form and orientation>-<what it was drawn from>.png`, one per skin kept. */
 private const val THUMB_DIR = "skin-thumbs"

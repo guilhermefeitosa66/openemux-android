@@ -140,4 +140,27 @@
     <string name="game_edit_skin">Editar skin</string>
     <string name="game_skin_every_game">Para todos os jogos deste console</string>
     <string name="game_toast_skin">Skin: %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Segure Start por dois segundos para pausar</string>
+    <string name="game_toast_pause_start_select">Pressione Start + Select para pausar</string>
+    <string name="game_toast_pause_l3_r3">Pressione L3 + R3 para pausar</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">Preparando os controles…</string>
+    <string name="launch_stage_core">Iniciando %1$s…</string>
+    <string name="launch_stage_download">Baixando %1$s…</string>
+    <string name="launch_cancel">Cancelar</string>
+    <string name="launch_bios_title">%1$s precisa de um arquivo de BIOS</string>
+    <string name="launch_bios_body">Coloque %1$s na pasta de BIOS ou importe agora. Sem ele o jogo pode não abrir.</string>
+    <string name="launch_bios_import">Importar BIOS</string>
+    <string name="launch_bios_anyway">Jogar mesmo assim</string>
+    <string name="launch_failed_title">O jogo não pôde iniciar</string>
+    <string name="launch_died_title">O jogo não iniciou</string>
+    <string name="launch_stopped_title">O jogo parou</string>
+    <string name="launch_died_body">O RetroArch fechou %1$d segundos depois do início sem sair pelo menu de pausa. O emulador pode ter recusado o jogo, ou falta um arquivo.</string>
+    <string name="launch_details">Mostrar detalhes</string>
+    <string name="launch_hide_details">Ocultar detalhes</string>
+    <string name="launch_retry">Tentar de novo</string>
+    <string name="launch_close">Fechar</string>
+    <string name="launch_no_log">Nenhum log foi gravado.</string>
+    <string name="game_starting">Iniciando %1$s</string>
 </resources>

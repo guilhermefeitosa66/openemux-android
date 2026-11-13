@@ -25,7 +25,7 @@ class SkinSelectionTest {
         root.deleteRecursively()
     }
 
-    private fun library() = Library(paths, { true }, storageRetryMs = 0)
+    private fun library() = Library(paths, { true }, storageRetryMs = 0, metaDebounceMs = 0)
 
     private fun ownSkin(id: String, console: Console = Console.SFC) = File(paths.base, "skins/${console.id}/$id").apply {
         mkdirs()

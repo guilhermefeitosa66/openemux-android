@@ -140,4 +140,20 @@
     <string name="library_hint_remove">நீக்கு</string>
     <string name="library_hint_done">முடிந்தது</string>
     <string name="library_hint_console">கன்சோல்</string>
+    <!-- A long press on a Continue card (issue 925). -->
+    <string name="library_game_details">விளையாட்டு விவரங்கள்</string>
+    <!-- The sort menu and the facet chips (issue 927). -->
+    <string name="library_sort_heading">வரிசைப்படுத்து</string>
+    <string name="library_sort_added">சமீபத்தில் சேர்த்தவை</string>
+    <string name="library_sort_most_played">அதிகம் விளையாடியவை</string>
+    <string name="library_sort_unplayed">விளையாடாதவை முதலில்</string>
+    <string name="library_section_added">சமீபத்தில் சேர்த்தவை</string>
+    <string name="library_section_played">அதிகம் விளையாடியவை</string>
+    <string name="library_section_unplayed">விளையாடாதவை முதலில்</string>
+    <string name="library_flag_favorites">பிடித்தவை</string>
+    <string name="library_flag_saved">சேமிப்பு உள்ளவை</string>
+    <string name="library_flag_missing_art">கலை இல்லாதவை</string>
+    <string name="library_flag_unplayed">விளையாடாதவை</string>
+    <string name="library_flags_clear">வடிகட்டிகளை நீக்கு</string>
+    <string name="library_no_match">இந்த வடிகட்டிகளுக்குப் பொருந்தும் விளையாட்டு இல்லை.</string>
 </resources>

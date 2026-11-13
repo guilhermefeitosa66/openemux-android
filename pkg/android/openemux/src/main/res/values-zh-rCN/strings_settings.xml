@@ -141,10 +141,9 @@
     <string name="settings_setup_start">开始</string>
     <string name="settings_setup_retry">重试</string>
     <string name="settings_setup_title">正在准备 OpenEmux</string>
-    <string name="settings_setup_intro">首次使用时，应用会下载模拟器及其所需文件，在设备上约占 160 MB。下载期间需要联网，最好使用 Wi-Fi。之后一切都可离线使用。</string>
+    <string name="settings_setup_intro">每个主机的模拟器会在你第一次玩它的游戏时获取。现在全部下载，以后就能离线游玩：约 160 MB，建议使用 Wi-Fi。</string>
     <string name="settings_setup_percent">%1$d%%</string>
     <string name="settings_setup_downloading">正在下载 %1$s</string>
-    <string name="settings_setup_dont_close">完成前请不要关闭应用。</string>
     <string name="settings_setup_resume_note">已下载的内容会保留，重试时会从中断处继续。</string>
     <string name="settings_setup_source">文件来自 libretro 官方 buildbot。</string>
 
@@ -339,4 +338,25 @@
     <string name="skins_import_too_large">文件太大,无法导入。</string>
     <string name="skins_import_unsafe">这个 zip 含有其文件夹之外的文件,因此没有导入。</string>
     <string name="skins_close">关闭</string>
+    <!-- Settings › Controllers › Pause with the controller (issue 924). -->
+    <string name="settings_pause_combo">用手柄暂停</string>
+    <string name="settings_pause_combo_lead">游戏中打开暂停菜单的手柄组合键，不必伸手去碰屏幕。屏幕上的菜单键和返回键照常可用。</string>
+    <string name="settings_pause_combo_hold_start">长按 Start</string>
+    <string name="settings_pause_combo_hold_start_desc">长按 Start 两秒。短按仍会传给游戏。</string>
+    <string name="settings_pause_combo_start_select">Start + Select</string>
+    <string name="settings_pause_combo_start_select_desc">同时按下 Start 和 Select。有些游戏本身也用这个组合。</string>
+    <string name="settings_pause_combo_l3_r3">L3 + R3</string>
+    <string name="settings_pause_combo_l3_r3_desc">同时按下两个摇杆。适合 Start 和 Select 不好按的手柄。</string>
+    <string name="settings_pause_combo_off">关闭</string>
+    <string name="settings_pause_combo_off_desc">只有屏幕上的菜单键和返回键会打开暂停菜单。</string>
+    <!-- The emulator downloads without a gate (issue 922): the shelf's pill, the sheet and the settings row. -->
+    <string name="settings_setup_pill_idle">模拟器会在你第一次游玩时下载</string>
+    <string name="settings_setup_pill_running">正在下载模拟器 · %1$d / %2$d</string>
+    <string name="settings_setup_pill_failed">模拟器下载已停止。点按查看详情。</string>
+    <string name="settings_setup_all">下载全部模拟器</string>
+    <string name="settings_setup_all_desc">约 160 MB，让每个主机都能离线使用</string>
+    <string name="settings_setup_all_done">所有模拟器都已在设备上</string>
+    <string name="settings_setup_later">稍后</string>
+    <string name="settings_setup_background_note">期间可以继续使用应用：下载会在后台进行。</string>
+    <string name="settings_setup_missing">还有 %1$d 个模拟器待下载。</string>
 </resources>

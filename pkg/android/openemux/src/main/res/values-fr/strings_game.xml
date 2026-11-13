@@ -140,4 +140,27 @@
     <string name="game_edit_skin">Modifier le skin</string>
     <string name="game_skin_every_game">Pour tous les jeux de cette console</string>
     <string name="game_toast_skin">Skin : %1$s</string>
+    <!-- The one-time hint naming the controller combination that pauses (issue 924). -->
+    <string name="game_toast_pause_hold_start">Maintenez Start deux secondes pour mettre en pause</string>
+    <string name="game_toast_pause_start_select">Appuyez sur Start + Select pour mettre en pause</string>
+    <string name="game_toast_pause_l3_r3">Appuyez sur L3 + R3 pour mettre en pause</string>
+    <!-- The launch overlay's stages, the BIOS pre-flight and a session that ended on its own (issue 923). -->
+    <string name="launch_stage_controls">Préparation des commandes…</string>
+    <string name="launch_stage_core">Démarrage de %1$s…</string>
+    <string name="launch_stage_download">Téléchargement de %1$s…</string>
+    <string name="launch_cancel">Annuler</string>
+    <string name="launch_bios_title">%1$s a besoin d\'un fichier BIOS</string>
+    <string name="launch_bios_body">Placez %1$s dans le dossier BIOS ou importez-le maintenant. Sans lui, le jeu risque de ne pas démarrer.</string>
+    <string name="launch_bios_import">Importer le BIOS</string>
+    <string name="launch_bios_anyway">Jouer quand même</string>
+    <string name="launch_failed_title">Le jeu n\'a pas pu démarrer</string>
+    <string name="launch_died_title">Le jeu n\'a pas démarré</string>
+    <string name="launch_stopped_title">Le jeu s\'est arrêté</string>
+    <string name="launch_died_body">RetroArch s\'est fermé %1$d secondes après le lancement sans quitter par le menu de pause. L\'émulateur a peut-être refusé le jeu, ou un fichier manque.</string>
+    <string name="launch_details">Afficher les détails</string>
+    <string name="launch_hide_details">Masquer les détails</string>
+    <string name="launch_retry">Réessayer</string>
+    <string name="launch_close">Fermer</string>
+    <string name="launch_no_log">Aucun journal n\'a été écrit.</string>
+    <string name="game_starting">Démarrage de %1$s</string>
 </resources>
