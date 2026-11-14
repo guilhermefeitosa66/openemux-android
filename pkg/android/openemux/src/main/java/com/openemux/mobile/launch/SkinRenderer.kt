@@ -157,7 +157,7 @@ class SkinRenderer(private val context: Context) {
             val touch = if (spec.gamepad) OverlayName.parse(spec.name)?.let { available(it.touch, names) } else null
             val layout = Layout(
                 Canvas(bitmap), skin, unit, spec.aspect, spec.keypadOpen, toggle, spec.layoutNext, hardcore, spec.layout,
-                spec.collapsed, hide, show, touch,
+                spec.collapsed, hide, show, touch, density,
             )
             val descs = when {
                 !art -> layout.pad(w, h, band.takeIf { spec.tabletop }, spec.portrait, keypad = keypad)
@@ -233,6 +233,8 @@ class SkinRenderer(private val context: Context) {
         private val showNext: String,
         /** A gamepad page's touch twin, where its touch controls key goes; null: no such key. */
         private val touchNext: String? = null,
+        /** The screen's pixels per dp: the floppy glyphs' line follows their size in dp (issue 945). */
+        private val density: Float,
     ) {
         private val colors: SkinColors = skin.colors
         private val descs = mutableListOf<OverlayDesc>()
@@ -838,7 +840,7 @@ class SkinRenderer(private val context: Context) {
                 when (action) {
                     "save_state" -> Icons.SaveState
                     "load_state" -> Icons.LoadState
-                    "turbo_fire_toggle" -> "M13 2L4 14h7l-1 8 9-12h-7z"
+                    "turbo_fire_toggle" -> Icons.Turbo
                     "toggle_slowmotion" -> Icons.SlowMotion
                     ANCHOR_ACTION -> Icons.Anchor
                     // Two screens, one over the other.
@@ -853,9 +855,11 @@ class SkinRenderer(private val context: Context) {
         private fun stripPaint(action: String, size: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             if (stripActionStroked(action)) {
-                style = Paint.Style.STROKE; strokeWidth = 1.8f * size / 24f; strokeJoin = Paint.Join.ROUND
-                // The slow-motion ring is dashes and the anchor's arms curve: round caps, as the designs draw them.
-                if (action == "toggle_slowmotion" || action == ANCHOR_ACTION) strokeCap = Paint.Cap.ROUND
+                val line = if (stripActionFloppy(action)) Icons.floppyStroke(size / density) else 1.8f
+                style = Paint.Style.STROKE; strokeWidth = line * size / 24f; strokeJoin = Paint.Join.ROUND
+                // The slow-motion ring is dashes, the anchor's arms curve and the floppies' arrows end in points: round
+                // caps, as the designs draw them.
+                if (action == "toggle_slowmotion" || action == ANCHOR_ACTION || stripActionFloppy(action)) strokeCap = Paint.Cap.ROUND
             }
         }
 

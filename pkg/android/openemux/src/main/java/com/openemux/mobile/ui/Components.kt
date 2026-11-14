@@ -135,10 +135,12 @@ object Icons {
     const val File = "M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14l3 3 3-3"
     const val Chip = "M5 5h14v14H5zM9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"
     const val Save = "M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"
-    // RetroArch's savestate/loadstate icons (libretro/retroarch-assets, src/xmb/monochrome,
-    // CC-BY 4.0), scaled from 64 to 24 units. Filled.
-    const val SaveState = "M5.766 18C5.273 18 4.875 18.335 4.875 18.75C4.875 19.165 5.273 19.5 5.766 19.5L18.234 19.5C18.727 19.5 19.125 19.165 19.125 18.75C19.125 18.335 18.727 18 18.234 18L5.766 18zM11.11 4.5C10.618 4.5 10.125 4.835 10.125 5.25v5.25 0.001L6.75 10.5 12 16.5 17.25 10.5 13.922 10.5 13.875 5.25c-0.004-0.415-0.493-0.75-0.985-0.75z"
-    const val LoadState = "M5.766 18C5.273 18 4.875 18.335 4.875 18.75C4.875 19.165 5.273 19.5 5.766 19.5L18.234 19.5C18.727 19.5 19.125 19.165 19.125 18.75C19.125 18.335 18.727 18 18.234 18L5.766 18zM11.11 16.5C10.618 16.5 10.125 16.165 10.125 15.75v-5.25-0.001L6.75 10.5 12 4.5 17.25 10.5 13.922 10.5 13.875 15.75c-0.004 0.415-0.493 0.75-0.985 0.75z"
+    // Save and load: the desktop's floppy with a down / up arrow (issue 945), stroked. [Icon] draws them with
+    // [floppyStroke], so the arrow's gap from the outline stays open at a phone's sizes.
+    const val SaveState = "M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 15v6.5M15.5 18.5l3 3 3-3"
+    const val LoadState = "M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 21.5V15M15.5 18l3-3 3 3"
+    /** Turbo: a lightning bolt. Stroked. */
+    const val Turbo = "M13 2L4 14h7l-1 8 9-12h-7z"
     const val Menu = "M4 7h16M4 12h16M4 17h16"
     const val Load = "M4 12a8 8 0 1 0 2.3-5.6M4 4v5h5"
     const val FastForward = "M3 6v12l9-6zM12 6v12l9-6z"
@@ -188,6 +190,16 @@ object Icons {
     const val TouchControls = "M8.5 2.5h7a2.5 2.5 0 0 1 2.5 2.5v14a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 6 19V5a2.5 2.5 0 0 1 2.5-2.5zM12 8.5v5M9.5 11h5"
     /** A skin: a gamepad's outline, its D-pad and two buttons. */
     const val Skin = "M7.5 7h9a4.5 4.5 0 0 1 0 9c-1.4 0-2.2-.6-3-1.6h-3c-.8 1-1.6 1.6-3 1.6a4.5 4.5 0 0 1 0-9zM7.5 9.8v3.4M5.8 11.5h3.4M15.6 10.6h.01M17.4 12.4h.01"
+
+    /**
+     * The line of [SaveState] and [LoadState], in 24 units, for a glyph [sizeDp] across (issue 945): 1.8 from 20 dp,
+     * 2.0 from 16 dp, 2.2 below, so the arrow never runs into the floppy's outline.
+     */
+    fun floppyStroke(sizeDp: Float): Float = when {
+        sizeDp >= 20f -> 1.8f
+        sizeDp >= 16f -> 2f
+        else -> 2.2f
+    }
 }
 
 private data class IconKey(val path: String, val color: Color, val size: Dp, val stroke: Float, val filled: Boolean)
@@ -197,13 +209,15 @@ private val vectors = HashMap<IconKey, ImageVector>()
 
 @Composable
 fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, filled: Boolean = false, modifier: Modifier = Modifier) {
-    val vector = vectors.getOrPut(IconKey(path, color, size, stroke, filled)) {
+    // The floppies' line follows their size (issue 945), wherever they are drawn.
+    val line = if (path == Icons.SaveState || path == Icons.LoadState) Icons.floppyStroke(size.value) else stroke
+    val vector = vectors.getOrPut(IconKey(path, color, size, line, filled)) {
         ImageVector.Builder(defaultWidth = size, defaultHeight = size, viewportWidth = 24f, viewportHeight = 24f).apply {
             addPath(
                 pathData = PathParser().parsePathString(path).toNodes(),
                 fill = if (filled) SolidColor(color) else null,
                 stroke = if (filled) null else SolidColor(color),
-                strokeLineWidth = stroke,
+                strokeLineWidth = line,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
             )

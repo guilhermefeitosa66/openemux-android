@@ -26,9 +26,16 @@ const val SPEED_OFF_ALPHA = 0x73
 /** Whether [action] is drawn off and does nothing on the strip: a speed toggle in [hardcore]. */
 fun stripActionOff(action: String, hardcore: Boolean) = hardcore && action in STRIP_SPEED_ACTIONS
 
-/** The stroked strip glyphs (the rest are filled): turbo's bolt, slow motion's dashed ring, the anchor, the NDS screens. */
+/**
+ * The stroked strip glyphs (the rest are filled): save and load's floppies (issue 945), turbo's bolt,
+ * slow motion's dashed ring, the anchor, the NDS screens.
+ */
 fun stripActionStroked(action: String) =
-    action == "turbo_fire_toggle" || action == "screens" || action == "toggle_slowmotion" || action == ANCHOR_ACTION
+    stripActionFloppy(action) || action == "turbo_fire_toggle" || action == "screens" || action == "toggle_slowmotion" ||
+        action == ANCHOR_ACTION
+
+/** The strip actions drawn as the floppy (issue 945), whose line [com.openemux.mobile.ui.Icons.floppyStroke] sets. */
+fun stripActionFloppy(action: String) = action == "save_state" || action == "load_state"
 
 /** Phone landscape: the picture's width, in design units, between the two control sides of a [wd]-unit-wide skin. */
 fun phoneLandscapeGameW(wd: Float, aspect: Float) = minOf(wd - 2f * 170f, 354f * aspect)

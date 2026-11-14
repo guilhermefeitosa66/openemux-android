@@ -242,7 +242,7 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(Modifier.clip(RoundedCornerShape(7.dp)).background(Color(view.color)).padding(horizontal = 6.dp, vertical = 3.dp)) {
-                Icon("M13 2L4 14h7l-1 8 9-12h-7z", if (view.tone == SkinIconTone.DARK) Color.Black else Color.White, 18.dp)
+                Icon(Icons.Turbo, if (view.tone == SkinIconTone.DARK) Color.Black else Color.White, 18.dp)
             }
             Text(stringResource(R.string.editor_active_note), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, lineHeight = 16.sp))
         }

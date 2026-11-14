@@ -210,7 +210,6 @@ private fun appNotices() = listOf(
         Notice("Coil", "Apache-2.0", "https://github.com/coil-kt/coil"),
         Notice("ZXing (QR codes)", "Apache-2.0", "https://github.com/zxing/zxing"),
         Notice("OpenEmu (console icons)", "BSD-3-Clause · © 2009-2023 OpenEmu Team", "https://github.com/OpenEmu/OpenEmu", "openemu"),
-        Notice("retroarch-assets (save/load state icons)", "CC-BY-4.0 · © libretro", "https://github.com/libretro/retroarch-assets"),
         Notice("Inter", "SIL OFL 1.1", "https://github.com/rsms/inter"),
         Notice("Space Grotesk", "SIL OFL 1.1", "https://github.com/floriankarsten/space-grotesk"),
         Notice("openemux-artwork (box art)", "Community box art, mirrored from libretro-thumbnails", "https://github.com/guilhermefeitosa66/openemux-artwork"),
