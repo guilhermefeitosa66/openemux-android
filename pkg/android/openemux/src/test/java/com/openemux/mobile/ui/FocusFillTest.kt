@@ -25,6 +25,9 @@ class FocusFillTest {
     fun aSelectedItemGoesAStepDeeperSoTheFocusStillShows() {
         assertEquals(Color(0xFF4E3A8C), focusFill(darkSoft, dark = true))
         assertEquals(Color(0xFFD3C2FB), focusFill(lightSoft, dark = false))
+        // A selection drawn in the lighter tint (a tab, a picked tile) deepens the same way.
+        assertEquals(Color(0xFF4E3A8C), focusFill(Color(0xFF221C33), dark = true))
+        assertEquals(Color(0xFFD3C2FB), focusFill(Color(0xFFEFE8FD), dark = false))
         // The other theme's tone is just a background there.
         assertEquals(darkSoft, focusFill(lightSoft, dark = true))
     }
