@@ -377,8 +377,11 @@ class OpenEmuxSkinRenderer(context: Context) {
                 // A button that presses an action (the menu key) is a key like any other, its face, relief and label
                 // from its own colours; a quick action on the frame is its glyph alone, in the frame's colours.
                 val key = element.type == SkinElementType.BUTTON
-                val art = if (key) null else image(pkg, files[0], box)
-                val icon = if (key) actionKey(pkg, files[0], element, box, plan.icon, labels) else art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
+                // A copy of a bundled skin made before issue 945 carries its old save / load arrows: the floppy glyph
+                // stands in for that stock art, the player's own art stays.
+                val file = files[0]?.takeUnless { f -> OldStockActionArt.isOld(plan.icon) { pkg.source.open(f) } }
+                val art = if (key) null else image(pkg, file, box)
+                val icon = if (key) actionKey(pkg, file, element, box, plan.icon, labels) else art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
                 if (plan.dim) return listOf(OverlayDesc("nul", box, image = faded(icon)))
                 val lit = plan.lit?.let { state ->
                     OverlayDesc("nul", RectF(box), lit = OverlayLit(state, tile(plan.icon, box, frame, art?.copy(Bitmap.Config.ARGB_8888, false))))
