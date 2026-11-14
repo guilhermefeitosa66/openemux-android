@@ -1839,6 +1839,7 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
         if (shoulders) ShoulderPill("L1")
         chips.forEach { (id, label) ->
             val active = id == current
+            val glyph = chipGlyph(id)
             // The hit area is 48 dp tall (issue 928); the chip drawn in it keeps its height.
             Box(
                 // L1/R1 step through these: for the pad they are not a stop (issue 701).
@@ -1849,14 +1850,44 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
                     Modifier.height(padSize(ChipHeight, ChipHeightPad)).clip(RoundedCornerShape(18.dp))
                         .background(if (active) Oe.Text else Oe.Surface)
                         .let { if (active) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
-                        .padding(horizontal = 14.dp),
+                        // The glyph sits closer to the start edge than the text alone did, so the pill looks even.
+                        .padding(start = if (glyph == ChipGlyph.NONE) 14.dp else 10.dp, end = 14.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ChipGlyphIcon(id, glyph)
+                        Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
+                    }
                 }
             }
         }
         if (shoulders) ShoulderPill("R1")
+    }
+}
+
+/** What a console chip shows before its name (issue 963). */
+internal enum class ChipGlyph { NONE, STAR, CONSOLE }
+
+/**
+ * The chip's glyph: the console's pixel art, the star for the favorites, nothing for all games. A console
+ * with no art shows none: its fallback is the abbreviation tile, which would repeat the chip's own text.
+ */
+internal fun chipGlyph(id: String): ChipGlyph = when (id) {
+    "ALL" -> ChipGlyph.NONE
+    "FAV" -> ChipGlyph.STAR
+    else -> if (Console.byId(id)?.icon != null) ChipGlyph.CONSOLE else ChipGlyph.NONE
+}
+
+/**
+ * The glyph drawn. The art is 32 px and scales only by whole factors: a 26 dp box keeps it at 2x on the
+ * usual 2.625-3.5 densities, where 24 dp would drop it to 1x. Either way it fits the chip's height.
+ */
+@Composable
+private fun ChipGlyphIcon(id: String, glyph: ChipGlyph) {
+    when (glyph) {
+        ChipGlyph.NONE -> Unit
+        ChipGlyph.STAR -> Icon(Icons.Star, Oe.Star, 18.dp, filled = true)
+        ChipGlyph.CONSOLE -> Console.byId(id)?.let { ConsoleIcon(it, 26.dp) }
     }
 }
 
