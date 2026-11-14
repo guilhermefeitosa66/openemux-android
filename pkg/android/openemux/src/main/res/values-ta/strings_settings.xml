@@ -241,7 +241,7 @@
     <string name="settings_controllers">கன்ட்ரோலர்கள்</string>
     <string name="settings_controllers_lead">இயற்பியல் கன்ட்ரோலர்களுக்கான அமைப்புகள்: கேம்பேடுகளும் கையடக்கக் கருவிகளின் உள்ளமைந்த பொத்தான்களும்.</string>
     <string name="settings_interface_mode">இடைமுக முறை</string>
-    <string name="settings_interface_mode_lead">ஆப்பைக் கன்ட்ரோலருடன் பயன்படுத்துவதா தொடுதல் மூலம் பயன்படுத்துவதா. கன்ட்ரோலர் முறை ஃபோகஸ் வளையத்தையும் பொத்தான் குறிப்புகளையும் காட்டும்.</string>
+    <string name="settings_interface_mode_lead">ஆப்பைக் கன்ட்ரோலருடன் பயன்படுத்துவதா தொடுதல் மூலம் பயன்படுத்துவதா. கன்ட்ரோலர் முறை தேர்ந்த உருப்படியை முன்னிலைப்படுத்தி பொத்தான் குறிப்புகளையும் காட்டும்.</string>
     <string name="settings_interface_mode_auto">தானியங்கி</string>
     <string name="settings_interface_mode_auto_desc">கன்ட்ரோலர் இணைக்கப்பட்டிருக்கும்போது கன்ட்ரோலர் முறை, இல்லையெனில் தொடு முறை.</string>
     <string name="settings_interface_mode_touch">தொடுதிரை</string>

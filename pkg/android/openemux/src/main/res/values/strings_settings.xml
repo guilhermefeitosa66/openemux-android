@@ -242,7 +242,7 @@
     <string name="settings_controllers">Controllers</string>
     <string name="settings_controllers_lead">Settings for physical controllers: gamepads and the built-in controls of handhelds.</string>
     <string name="settings_interface_mode">Interface mode</string>
-    <string name="settings_interface_mode_lead">Whether the app is used with a controller or by touch. Controller mode shows the focus ring and the button hints.</string>
+    <string name="settings_interface_mode_lead">Whether the app is used with a controller or by touch. Controller mode highlights the focused item and shows the button hints.</string>
     <string name="settings_interface_mode_auto">Automatic</string>
     <string name="settings_interface_mode_auto_desc">Controller mode while a controller is connected, touch mode otherwise.</string>
     <string name="settings_interface_mode_touch">Touch screen</string>

@@ -253,7 +253,7 @@
     <string name="settings_controllers">Manettes</string>
     <string name="settings_controllers_lead">Réglages des manettes physiques : manettes de jeu et commandes intégrées des consoles portables.</string>
     <string name="settings_interface_mode">Mode d’interface</string>
-    <string name="settings_interface_mode_lead">Si l’app s’utilise avec une manette ou au toucher. Le mode manette affiche l’anneau de focus et les aides des boutons.</string>
+    <string name="settings_interface_mode_lead">Si l’app s’utilise avec une manette ou au toucher. Le mode manette met en surbrillance l’élément actif et affiche les aides des boutons.</string>
     <string name="settings_interface_mode_auto">Automatique</string>
     <string name="settings_interface_mode_auto_desc">Mode manette tant qu’une manette est connectée, mode tactile sinon.</string>
     <string name="settings_interface_mode_touch">Écran tactile</string>

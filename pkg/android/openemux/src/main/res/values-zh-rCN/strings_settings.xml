@@ -229,7 +229,7 @@
     <string name="settings_controllers">手柄</string>
     <string name="settings_controllers_lead">实体手柄的设置：游戏手柄和掌机的内置按键。</string>
     <string name="settings_interface_mode">界面模式</string>
-    <string name="settings_interface_mode_lead">应用是用手柄操作还是触屏操作。手柄模式会显示焦点框和按键提示。</string>
+    <string name="settings_interface_mode_lead">应用是用手柄操作还是触屏操作。手柄模式会高亮当前项目并显示按键提示。</string>
     <string name="settings_interface_mode_auto">自动</string>
     <string name="settings_interface_mode_auto_desc">连接手柄时为手柄模式，否则为触屏模式。</string>
     <string name="settings_interface_mode_touch">触屏</string>

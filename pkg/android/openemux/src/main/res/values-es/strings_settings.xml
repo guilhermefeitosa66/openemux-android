@@ -253,7 +253,7 @@
     <string name="settings_controllers">Mandos</string>
     <string name="settings_controllers_lead">Ajustes de mandos físicos: gamepads y los controles integrados de las consolas portátiles.</string>
     <string name="settings_interface_mode">Modo de interfaz</string>
-    <string name="settings_interface_mode_lead">Si la app se usa con un mando o de forma táctil. El modo mando muestra el anillo de foco y las ayudas de botones.</string>
+    <string name="settings_interface_mode_lead">Si la app se usa con un mando o de forma táctil. El modo mando resalta el elemento enfocado y muestra las ayudas de botones.</string>
     <string name="settings_interface_mode_auto">Automático</string>
     <string name="settings_interface_mode_auto_desc">Modo mando mientras haya un mando conectado; modo táctil en los demás casos.</string>
     <string name="settings_interface_mode_touch">Pantalla táctil</string>

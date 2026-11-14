@@ -241,7 +241,7 @@
     <string name="settings_controllers">Controller</string>
     <string name="settings_controllers_lead">Einstellungen für physische Controller: Gamepads und die eingebauten Tasten von Handhelds.</string>
     <string name="settings_interface_mode">Bedienmodus</string>
-    <string name="settings_interface_mode_lead">Ob die App mit einem Controller oder per Touch bedient wird. Der Controller-Modus zeigt den Fokusrahmen und die Tastenhinweise.</string>
+    <string name="settings_interface_mode_lead">Ob die App mit einem Controller oder per Touch bedient wird. Der Controller-Modus hebt das fokussierte Element hervor und zeigt die Tastenhinweise.</string>
     <string name="settings_interface_mode_auto">Automatisch</string>
     <string name="settings_interface_mode_auto_desc">Controller-Modus, solange ein Controller verbunden ist, sonst Touch-Modus.</string>
     <string name="settings_interface_mode_touch">Touchscreen</string>
