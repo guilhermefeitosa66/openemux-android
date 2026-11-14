@@ -339,6 +339,13 @@ val LocalFocusDark = compositionLocalOf<Boolean?> { null }
 val FocusMat = 6.dp
 
 /**
+ * [base], or the focus fill over it while [lit]: for a control drawn inside a larger hit area that holds the
+ * [gamepadFocus] (issue 928), so the drawn control itself changes, not only the edge of the hit area around it.
+ */
+@Composable
+fun focusTone(base: Color, lit: Boolean): Color = if (lit) focusFill(base, LocalFocusDark.current ?: Oe.dark) else base
+
+/**
  * The controller focus (issue 951): the item's background turns the tone of a toggle that is on ([focusFill]),
  * with an optional scale-up and the item drawn over its neighbours. Nothing is drawn around it: no ring, no glow.
  * An item with a plain background of its own passes it as [background] instead of drawing it, so the focus can

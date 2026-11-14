@@ -1575,17 +1575,18 @@ private fun Modifier.pinchSteps(onStep: (bigger: Boolean, x: Float, y: Float) ->
 @Composable
 private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
+    var lit by remember { mutableStateOf(false) }
     val label = stringResource(R.string.library_size)
     Box(modifier) {
         // The hit area is 48 dp (issue 928); the drawn button inside keeps its size.
         Box(
-            Modifier.size(MinTouchTarget).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
+            Modifier.size(MinTouchTarget).gamepadFocus(corner = 12.dp) { lit = it }.clip(RoundedCornerShape(12.dp))
                 .semantics { contentDescription = label }
                 .clickable(role = Role.Button) { open = true },
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).clip(RoundedCornerShape(10.dp)).background(if (open) Oe.Raised else Oe.Surface),
+                Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).clip(RoundedCornerShape(10.dp)).background(focusTone(if (open) Oe.Raised else Oe.Surface, lit)),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Size, if (open) Oe.Text else Oe.Muted, 18.dp) }
         }
@@ -2022,15 +2023,16 @@ private fun FlagChips(flags: Set<LibraryFlag>, counts: Map<LibraryFlag, Int>, mo
         LibraryFlag.entries.forEach { flag ->
             val on = flag in flags
             val label = "${stringResource(flag.label)} · ${numbers.format(counts[flag] ?: 0)}"
+            var lit by remember { mutableStateOf(false) }
             // The hit area is 48 dp tall (issue 928); the chip drawn in it keeps its height.
             Box(
-                Modifier.height(ChipHit).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).clickable(role = Role.Checkbox) { onToggle(flag) }
+                Modifier.height(ChipHit).gamepadFocus(corner = 18.dp) { lit = it }.clip(RoundedCornerShape(18.dp)).clickable(role = Role.Checkbox) { onToggle(flag) }
                     .semantics { selected = on },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier.height(padSize(ChipHeight, ChipHeightPad)).clip(RoundedCornerShape(18.dp))
-                        .background(if (on) Oe.AccentSoft else Oe.Surface)
+                        .background(focusTone(if (on) Oe.AccentSoft else Oe.Surface, lit))
                         .let { if (on) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center,
