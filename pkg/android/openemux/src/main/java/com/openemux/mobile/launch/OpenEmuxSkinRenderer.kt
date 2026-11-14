@@ -130,7 +130,10 @@ class OpenEmuxSkinRenderer(context: Context) {
      * without an image (its colours, shape, label or glyph) when the skin has none or it cannot be read.
      */
     fun templateImage(pkg: SkinPackage, id: SkinLayoutId, image: TemplateImage): ByteArray {
-        val path = pkg.image(id, image.path)
+        val path = pkg.image(id, image.path)?.let { p ->
+            // An action's old stock save / load arrows (issue 945) are exported as the floppy the game draws instead.
+            if (image.kind == TemplateImageKind.ACTION) actionArt(pkg, p, image.element?.let { OpenEmuxBinds.action(pkg.skin.console, it.bind, false) }?.icon) else p
+        }
         val own = path?.let { p -> runCatching { pkg.source.open(p)?.use { it.readBytes() } }.getOrNull() }
         if (own != null && SkinTemplate.pngSize(own) == image.width to image.height) return own
         val box = RectF(0f, 0f, image.width.toFloat(), image.height.toFloat())
@@ -379,7 +382,7 @@ class OpenEmuxSkinRenderer(context: Context) {
                 val key = element.type == SkinElementType.BUTTON
                 // A copy of a bundled skin made before issue 945 carries its old save / load arrows: the floppy glyph
                 // stands in for that stock art, the player's own art stays.
-                val file = files[0]?.takeUnless { f -> OldStockActionArt.isOld(plan.icon) { pkg.source.open(f) } }
+                val file = actionArt(pkg, files[0], plan.icon)
                 val art = if (key) null else image(pkg, file, box)
                 val icon = if (key) actionKey(pkg, file, element, box, plan.icon, labels) else art ?: glyph(plan.icon, box, frame.icons ?: DEFAULT_ICONS)
                 if (plan.dim) return listOf(OverlayDesc("nul", box, image = faded(icon)))
@@ -422,6 +425,15 @@ class OpenEmuxSkinRenderer(context: Context) {
         canvas.drawBitmap(bitmap, null, box, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         bitmap.recycle()
         return true
+    }
+
+    /**
+     * [file], the image of the [icon] action, or null when it is the old stock save / load art (OldStockActionArt) a copy
+     * of a bundled skin kept from before issue 945: the floppy glyph is drawn in its place. A texture the editor is
+     * framing over the file (PreviewSkinSource) is the player's own and stays.
+     */
+    private fun actionArt(pkg: SkinPackage, file: String?, icon: String?): String? = file?.takeUnless { f ->
+        (pkg.source as? PreviewSkinSource)?.bitmap(f) == null && OldStockActionArt.isOld(icon) { pkg.source.open(f) }
     }
 
     /** [file] (null: the skin has none) scaled to [box]'s size, or null when there is none or it cannot be read. */
