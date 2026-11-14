@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -277,15 +278,10 @@ fun GamepadButtons(
 }
 
 
-/** The focus ring's stroke, its gap outside the item and the soft halo around it. */
-private val FocusRing = 3.dp
-private val FocusGap = 3.dp
-private val FocusHalo = 6.dp
-
 /**
- * How far the highlight reaches outside its item (gap, ring and halo). A
- * scroll container leaves at least this, plus its items' scale-up, as
- * padding on its scroll axis, or it cuts the ring.
+ * The room scroll containers leave on their scroll axis around a focused item, plus its items' scale-up.
+ * The focus plate of art items ([gamepadFocus]'s mat, 6 dp) fits in it; it was the old ring's reach and stays,
+ * so no layout moves (issue 951).
  */
 val FocusOutset = 12.dp
 
@@ -336,23 +332,39 @@ val HintBarHeight = 40.dp
 val hintBarInset: Dp
     @Composable get() = if (InputMode.gamepad && !LocalTabletop.current) HintBarHeight else 0.dp
 
+/** The always-dark screens (the skin editor) set this, so the focus fill takes the dark tones in a light theme. */
+val LocalFocusDark = compositionLocalOf<Boolean?> { null }
+
+/** How far the focus plate reaches outside an item whose look is its art (covers, console cards, swatches). */
+val FocusMat = 6.dp
+
 /**
- * The focus highlight from the design: a 3dp ring 3dp outside the item with
- * a soft halo, an optional scale-up, and the item drawn over its neighbours.
- * [inset] draws it inside instead, with a lifted background, for rows in a
- * card. [onFocus] tells the item when it shows the highlight. Only shown in
- * gamepad mode.
+ * [base], or the focus fill over it while [lit]: for a control drawn inside a larger hit area that holds the
+ * [gamepadFocus] (issue 928), so the drawn control itself changes, not only the edge of the hit area around it.
+ */
+@Composable
+fun focusTone(base: Color, lit: Boolean): Color = if (lit) focusFill(base, LocalFocusDark.current ?: Oe.dark) else base
+
+/**
+ * The controller focus (issue 951): the item's background turns the tone of a toggle that is on ([focusFill]),
+ * with an optional scale-up and the item drawn over its neighbours. Nothing is drawn around it: no ring, no glow.
+ * An item with a plain background of its own passes it as [background] instead of drawing it, so the focus can
+ * replace it (the item still clips its content to its shape). An item whose look is its art (a cover, a console
+ * card, a swatch) passes [mat] instead: a plate of the focus tone that far outside it, behind it. [onFocus] tells
+ * the item when it shows the focus. Only shown in gamepad mode.
  */
 fun Modifier.gamepadFocus(
     corner: Dp = 14.dp,
     scale: Float = 1f,
-    inset: Boolean = false,
+    background: Color? = null,
+    mat: Dp = 0.dp,
     onFocus: ((Boolean) -> Unit)? = null,
 ): Modifier = composed {
     var focused by remember { mutableStateOf(false) }
     val shown = focused && InputMode.gamepad
     val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(120), label = "focus")
     val grow by animateFloatAsState(if (shown) scale else 1f, tween(120), label = "grow")
+    val fill = focusFill(background, LocalFocusDark.current ?: Oe.dark)
     if (onFocus != null) {
         val report = rememberUpdatedState<(Boolean) -> Unit>(onFocus)
         LaunchedEffect(shown) { report.value(shown) }
@@ -387,33 +399,25 @@ fun Modifier.gamepadFocus(
         }
         .graphicsLayer { scaleX = grow; scaleY = grow }
         .drawWithContent {
-            if (inset && alpha > 0f) {
-                drawRoundRect(Oe.Raised.copy(alpha = alpha), cornerRadius = CornerRadius(corner.toPx()))
-            }
-            drawContent()
-            if (alpha > 0f) {
-                val ring = (if (inset) 2.5.dp else FocusRing).toPx()
-                val off = if (inset) -ring / 2f else FocusGap.toPx() + ring / 2f
-                val r = corner.toPx() + off
-                if (!inset) {
-                    val halo = FocusHalo.toPx()
-                    val out = off + ring / 2f + halo / 2f
-                    drawRoundRect(
-                        Oe.AccentBright.copy(alpha = 0.28f * alpha),
-                        topLeft = Offset(-out, -out),
-                        size = Size(size.width + out * 2, size.height + out * 2),
-                        cornerRadius = CornerRadius(corner.toPx() + out),
-                        style = Stroke(halo),
-                    )
-                }
+            val r = corner.toPx()
+            if (mat > 0.dp && alpha > 0f) {
+                val out = mat.toPx()
                 drawRoundRect(
-                    Oe.AccentText.copy(alpha = alpha),
-                    topLeft = Offset(-off, -off),
-                    size = Size(size.width + off * 2, size.height + off * 2),
-                    cornerRadius = CornerRadius(r.coerceAtLeast(0f)),
-                    style = Stroke(ring),
+                    fill.copy(alpha = alpha),
+                    topLeft = Offset(-out, -out),
+                    size = Size(size.width + out * 2, size.height + out * 2),
+                    cornerRadius = CornerRadius(r + out),
                 )
             }
+            // A transparent background fades from the fill's own tone: lerp from Color.Transparent (black) dims it.
+            // An art item's plate already covers its bounds, so nothing more is drawn under it.
+            val under = when {
+                background != null -> lerp(background.takeIf { it.alpha > 0f } ?: fill.copy(alpha = 0f), fill, alpha)
+                alpha > 0f && mat == 0.dp -> fill.copy(alpha = alpha)
+                else -> null
+            }
+            if (under != null) drawRoundRect(under, cornerRadius = CornerRadius(r))
+            drawContent()
         }
 }
 

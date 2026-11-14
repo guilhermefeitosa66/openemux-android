@@ -188,7 +188,7 @@ private fun OfferPage(model: OfferModel, share: ShareCoordinator, onConflicts: (
         val conflicts = model.conflicts().size
         if (conflicts > 0) {
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp)).background(Oe.WarnBg)
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).gamepadFocus(corner = 14.dp, background = Oe.WarnBg).clip(RoundedCornerShape(14.dp))
                     .selectable(false, role = Role.Button, onClick = onConflicts).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -318,8 +318,7 @@ private fun DateLine(label: Int, date: String, newer: Boolean) {
 private fun PolicyChip(conflict: Conflict, policy: com.openemux.mobile.share.Policy, modifier: Modifier, onClick: () -> Unit) {
     val selected = conflict.policy == policy
     Box(
-        modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp))
-            .background(if (selected) Oe.AccentSoft else Oe.Surface2)
+        modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp, background = if (selected) Oe.AccentSoft else Oe.Surface2).clip(RoundedCornerShape(18.dp))
             .let { if (selected) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
             .selectable(selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 14.dp),

@@ -76,8 +76,7 @@ fun SetupPill(modifier: Modifier = Modifier) {
             else -> stringResource(R.string.settings_setup_pill_idle)
         }
         Box(
-            modifier.fillMaxWidth().heightIn(min = 44.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp))
-                .background(if (failed != null) Oe.WarnBg else Oe.Surface)
+            modifier.fillMaxWidth().heightIn(min = 44.dp).gamepadFocus(corner = 14.dp, background = if (failed != null) Oe.WarnBg else Oe.Surface).clip(RoundedCornerShape(14.dp))
                 .border(1.dp, if (failed != null) Oe.Warn else Oe.Border, RoundedCornerShape(14.dp))
                 .clickable(role = Role.Button) { sheet = true },
         ) {

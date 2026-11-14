@@ -297,8 +297,7 @@ private fun Tools(editor: EditorState) {
 @Composable
 private fun Tool(icon: String, label: String, on: Boolean = false, onClick: () -> Unit) {
     Box(
-        Modifier.size(52.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp))
-            .background(if (on) Oe.AccentSoft else Oe.Surface2).border(1.dp, if (on) Oe.AccentSoft else Oe.Border, RoundedCornerShape(14.dp))
+        Modifier.size(52.dp).gamepadFocus(corner = 14.dp, background = if (on) Oe.AccentSoft else Oe.Surface2).clip(RoundedCornerShape(14.dp)).border(1.dp, if (on) Oe.AccentSoft else Oe.Border, RoundedCornerShape(14.dp))
             .semantics {
                 contentDescription = label
                 selected = on

@@ -734,7 +734,7 @@ private fun PauseSession.State.isAutoSlot() = slot < 0
 @Composable
 private fun SheetIconButton(path: String, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape).background(Oe.Raised).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
+        Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp, background = Oe.Raised).clip(CircleShape).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(path, Oe.Text, 18.dp, stroke = 2.4f) }
 }
@@ -867,7 +867,7 @@ private fun MainPage(
 @Composable
 private fun SheetButton(text: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit) {
     Box(
-        modifier.fillMaxWidth().height(50.dp).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(bg)
+        modifier.fillMaxWidth().height(50.dp).gamepadFocus(corner = 16.dp, background = bg).clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = Type.Button.copy(color = fg, fontSize = 15.sp)) }
@@ -941,8 +941,8 @@ private fun BigButton(
     // Measured, not guessed from the width: the label's length is the locale's. A new window size asks again.
     var iconFits by remember(text, if (iconYields) LocalConfiguration.current.screenWidthDp else 0) { mutableStateOf(true) }
     Row(
-        modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp) else it.alpha(DISABLED_ALPHA) }
-            .clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        modifier.height(56.dp).let { if (enabled) it.gamepadFocus(corner = 16.dp, background = bg) else it.alpha(DISABLED_ALPHA).background(bg, RoundedCornerShape(16.dp)) }
+            .clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -974,8 +974,7 @@ private fun SaveLoadRow(
     Column(modifier) {
         Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(GRID_GAP), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                Modifier.weight(1f).fillMaxHeight().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
-                    .background(Oe.Raised).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
+                Modifier.weight(1f).fillMaxHeight().gamepadFocus(corner = 16.dp, background = Oe.Raised).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.SaveState, Oe.Text, 20.dp)

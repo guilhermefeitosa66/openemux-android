@@ -46,11 +46,11 @@ object Oe {
     val Muted: Color get() = pick(0xFFA3A3B2, 0xFF5C5C6B)
     val Faint: Color get() = pick(0xFF8C8C9A, 0xFF6B6B7E)
     val Chevron: Color get() = pick(0xFF6E6E7C, 0xFF8A8A9A)
-    val Accent: Color get() = pick(0xFF7C3AED, 0xFF7C3AED)
+    val Accent: Color get() = FocusTones.Accent
     val AccentBright: Color get() = pick(0xFF8B5CF6, 0xFF7C3AED)
     val AccentText: Color get() = pick(0xFFB79CFF, 0xFF6D28D9)
-    val AccentTint: Color get() = pick(0xFF221C33, 0xFFEFE8FD)
-    val AccentSoft: Color get() = pick(0xFF3B2A6B, 0xFFE4D9FD)
+    val AccentTint: Color get() = if (dark) FocusTones.TintDark else FocusTones.TintLight
+    val AccentSoft: Color get() = if (dark) FocusTones.SoftDark else FocusTones.SoftLight
     val AccentOnSoft: Color get() = pick(0xFFD4C4FF, 0xFF5B21B6)
     /** The list view's zebra stripe (issue 874): a few percent of white over the dark page, of black over the light one. */
     val RowAlt: Color get() = pick(0x0BFFFFFF, 0x0A000000)
@@ -65,6 +65,35 @@ object Oe {
     val WarnText: Color get() = pick(0xFFF5C27A, 0xFF9A5B00)
     val Danger: Color get() = pick(0xFFFF8A80, 0xFFC0302A)
     val DangerBg: Color get() = pick(0xFF2A1C1F, 0xFFFBE6E4)
+}
+
+/**
+ * The background of an item the controller has focused (issue 951), replacing the ring the focus used to draw.
+ * Over nothing, or over the item's own plain background, it is the tone of a toggle that is on ([Oe.AccentSoft]).
+ * An item already filled with that tone or with [Oe.AccentTint] (a selected choice) goes a step deeper, so the focus still shows on it;
+ * an accent button goes a deeper violet, so its white label stays readable. [dark] picks the theme's tones.
+ */
+fun focusFill(base: Color?, dark: Boolean): Color {
+    val soft = if (dark) FocusTones.SoftDark else FocusTones.SoftLight
+    val tint = if (dark) FocusTones.TintDark else FocusTones.TintLight
+    return when (base) {
+        FocusTones.Accent -> FocusTones.AccentFocus
+        // Selected, in the soft tone or the lighter tint (a tab, a picked tile): one step deeper.
+        soft, tint -> if (dark) FocusTones.OnDark else FocusTones.OnLight
+        else -> soft
+    }
+}
+
+/** The tones [focusFill] picks from; the soft ones are [Oe.AccentSoft]'s, the accent [Oe.Accent]'s. */
+internal object FocusTones {
+    val Accent = Color(0xFF7C3AED)
+    val AccentFocus = Color(0xFF5B21B6)
+    val SoftDark = Color(0xFF3B2A6B)
+    val SoftLight = Color(0xFFE4D9FD)
+    val OnDark = Color(0xFF4E3A8C)
+    val OnLight = Color(0xFFD3C2FB)
+    val TintDark = Color(0xFF221C33)
+    val TintLight = Color(0xFFEFE8FD)
 }
 
 val Inter = FontFamily(

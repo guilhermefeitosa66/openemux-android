@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,6 +60,7 @@ import com.openemux.mobile.ui.Icons
 import com.openemux.mobile.ui.Oe
 import androidx.compose.material3.Text
 import com.openemux.mobile.ui.Type
+import com.openemux.mobile.ui.focusTone
 import com.openemux.mobile.ui.gamepadFocus
 import com.openemux.mobile.ui.linkTarget
 import com.retroarch.R
@@ -144,7 +147,9 @@ internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (
     val view = LocalView.current
     val label = stringResource(R.string.game_slot_slider)
     val state = stringResource(if (slot in used) R.string.game_slot_used else R.string.game_slot_empty, slot)
-    val colors = SliderColors(track = Oe.Raised, accent = Oe.Accent, outline = Oe.AccentText, background = Oe.Sheet)
+    var lit by remember { mutableStateOf(false) }
+    // A stop knocks the track out with what is behind it: the focus fill while the slider holds the focus (issue 951).
+    val colors = SliderColors(track = Oe.Raised, accent = Oe.Accent, outline = Oe.AccentText, background = focusTone(Oe.Sheet, lit))
     fun pickAt(x: Float, width: Int) = choose(latestCells[SlotStops.at(x, width.toFloat(), latestCells.size)])
     Canvas(
         modifier.height(SliderHeight)
@@ -157,7 +162,7 @@ internal fun SlotSlider(slot: Int, used: Set<Int>, modifier: Modifier, onPick: (
                 progressBarRangeInfo = ProgressBarRangeInfo(cells.indexOf(slot).toFloat(), 0f..last.toFloat(), steps = last - 1)
                 setProgress { value -> choose(cells[value.roundToInt().coerceIn(0, last)]); true }
             }
-            .gamepadFocus(corner = 14.dp)
+            .gamepadFocus(corner = 14.dp) { lit = it }
             .onKeyEvent { e ->
                 val delta = when (e.key) {
                     Key.DirectionLeft -> -1

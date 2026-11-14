@@ -123,9 +123,8 @@ private fun TabletopBar(route: String?) {
                 Row(
                     Modifier
                         .height(44.dp)
-                        .gamepadFocus(corner = 22.dp)
+                        .gamepadFocus(corner = 22.dp, background = if (active) Oe.AccentTint else Oe.Surface)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(if (active) Oe.AccentTint else Oe.Surface)
                         .semantics { selected = active }
                         .clickable(role = Role.Tab) { if (tab.route == Routes.SHELF || tab.route != route) nav.navigateTab(tab.route) }
                         .padding(horizontal = 16.dp),

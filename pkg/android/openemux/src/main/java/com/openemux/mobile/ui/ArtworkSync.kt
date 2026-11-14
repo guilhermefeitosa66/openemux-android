@@ -123,9 +123,8 @@ fun ArtworkSyncPill(modifier: Modifier = Modifier) {
             modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
-                .gamepadFocus(corner = 14.dp)
+                .gamepadFocus(corner = 14.dp, background = if (paused != null) PausedBg else Oe.Surface)
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (paused != null) PausedBg else Oe.Surface)
                 .border(1.dp, if (paused != null) PausedBorder else Oe.Border, RoundedCornerShape(14.dp))
                 .clickable(role = Role.Button) { sheet = true },
         ) {

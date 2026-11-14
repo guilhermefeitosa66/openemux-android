@@ -381,8 +381,7 @@ private fun Palettes(current: SkinPalette, actions: PaintActions) {
     SkinPalettes.ALL.forEach { p ->
         val on = p.id == current.id
         Column(
-            Modifier.fillMaxWidth().gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp))
-                .background(if (on) Color(0x1F7C3AED) else Color(0xFF26262E)).border(2.dp, if (on) Oe.Accent else Color.Transparent, RoundedCornerShape(14.dp))
+            Modifier.fillMaxWidth().gamepadFocus(corner = 14.dp, background = if (on) Color(0x1F7C3AED) else Color(0xFF26262E)).clip(RoundedCornerShape(14.dp)).border(2.dp, if (on) Oe.Accent else Color.Transparent, RoundedCornerShape(14.dp))
                 .clickable { actions.onPalette(p) }.padding(6.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -411,8 +410,9 @@ private fun Picker(color: Int, actions: PaintActions) {
     val hueColor = Color(SkinColorMath.fromHsv(hsv[0], 1f, 1f))
     val squareLabel = stringResource(R.string.editor_saturation)
     Canvas(
-        Modifier.size(196.dp, 96.dp).clip(RoundedCornerShape(12.dp)).semantics { contentDescription = squareLabel }
-            .gamepadFocus(corner = 12.dp)
+        // The gradient covers the whole square, so the focus is a plate around it, drawn before the clip (issue 951).
+        Modifier.size(196.dp, 96.dp).semantics { contentDescription = squareLabel }
+            .gamepadFocus(corner = 12.dp, mat = FocusMat).clip(RoundedCornerShape(12.dp))
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
@@ -443,7 +443,7 @@ private fun Picker(color: Int, actions: PaintActions) {
     }
     val hueLabel = stringResource(R.string.editor_hue)
     Canvas(
-        Modifier.size(196.dp, 24.dp).semantics { contentDescription = hueLabel }.gamepadFocus(corner = 12.dp)
+        Modifier.size(196.dp, 24.dp).semantics { contentDescription = hueLabel }.gamepadFocus(corner = 12.dp, mat = FocusMat)
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
@@ -479,7 +479,7 @@ private fun ZoomSlider(zoom: Float, actions: PaintActions) {
     val latest = rememberUpdatedState(actions)
     val label = stringResource(R.string.editor_zoom)
     Canvas(
-        Modifier.fillMaxWidth().height(28.dp).semantics { contentDescription = label }.gamepadFocus(corner = 12.dp)
+        Modifier.fillMaxWidth().height(28.dp).semantics { contentDescription = label }.gamepadFocus(corner = 12.dp, mat = FocusMat)
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
@@ -533,7 +533,7 @@ private fun HexField(color: Int, onColor: (Int) -> Unit) {
 @Composable
 private fun Swatch(color: Int, sizeDp: Int, selected: Boolean, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size((sizeDp + 6).dp).gamepadFocus(corner = 99.dp).clip(CircleShape)
+        Modifier.size((sizeDp + 6).dp).gamepadFocus(corner = 99.dp, mat = FocusMat).clip(CircleShape)
             .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
             .clickable(role = Role.RadioButton, onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -544,7 +544,7 @@ private fun Swatch(color: Int, sizeDp: Int, selected: Boolean, label: String, on
 @Composable
 private fun PalettesButton(label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(40.dp).gamepadFocus(corner = 99.dp).clip(CircleShape).clickable(onClick = onClick).semantics { contentDescription = label },
+        Modifier.size(40.dp).gamepadFocus(corner = 99.dp, mat = FocusMat).clip(CircleShape).clickable(onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(36.dp)) {
@@ -562,8 +562,7 @@ private fun PalettesButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.height(32.dp).gamepadFocus(corner = 99.dp).clip(RoundedCornerShape(99.dp))
-            .background(if (on) ChipOnBg else Color.Transparent)
+        Modifier.height(32.dp).gamepadFocus(corner = 99.dp, background = if (on) ChipOnBg else Color.Transparent).clip(RoundedCornerShape(99.dp))
             .then(if (on) Modifier else Modifier.border(1.dp, ChipLine, RoundedCornerShape(99.dp)))
             .clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
@@ -576,7 +575,7 @@ private fun <T> Segmented(options: List<Pair<T, String>>, value: T, modifier: Mo
         options.forEach { (option, label) ->
             val on = option == value
             Box(
-                Modifier.weight(1f).height(height.dp).gamepadFocus(corner = 9.dp).clip(RoundedCornerShape(9.dp)).background(if (on) SegOn else Color.Transparent)
+                Modifier.weight(1f).height(height.dp).gamepadFocus(corner = 9.dp, background = if (on) SegOn else Color.Transparent).clip(RoundedCornerShape(9.dp))
                     .clickable(role = Role.Tab) { onPick(option) },
                 contentAlignment = Alignment.Center,
             ) {
@@ -589,8 +588,8 @@ private fun <T> Segmented(options: List<Pair<T, String>>, value: T, modifier: Mo
 @Composable
 private fun OutlineButton(label: String, icon: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).border(1.dp, FieldLine, RoundedCornerShape(12.dp))
-            .background(Color(0xFF26262E)).clickable(onClick = onClick).padding(horizontal = 10.dp),
+        Modifier.fillMaxWidth().height(40.dp).gamepadFocus(corner = 12.dp, background = Color(0xFF26262E)).clip(RoundedCornerShape(12.dp)).border(1.dp, FieldLine, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
     ) {
         Icon(icon, TextOn, 16.dp)
@@ -602,7 +601,7 @@ private fun OutlineButton(label: String, icon: String, onClick: () -> Unit) {
 private fun Done(onDone: () -> Unit) {
     val label = stringResource(R.string.editor_done)
     Box(
-        Modifier.size(44.dp, 38.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).background(Oe.Accent).clickable(onClick = onDone)
+        Modifier.size(44.dp, 38.dp).gamepadFocus(corner = 12.dp, background = Oe.Accent).clip(RoundedCornerShape(12.dp)).clickable(onClick = onDone)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) { Icon(Icons.Check, Color.White, 20.dp) }

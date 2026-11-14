@@ -493,7 +493,7 @@ private fun ShelfCard(
             .fillMaxWidth()
             // At least [height]: a large font scale grows the card instead of clipping the count.
             .heightIn(min = height)
-            .gamepadFocus(corner = corner, scale = 1.02f)
+            .gamepadFocus(corner = corner, scale = 1.02f, mat = FocusMat)
             .then(focus)
             .clip(RoundedCornerShape(corner))
             .background(background)
@@ -527,7 +527,7 @@ private fun TabletShelfHeader(spec: ShelfSpec, roms: List<Rom>, known: Boolean) 
             if (spec.maxColumns > 2) {
                 // Looks like a field, opens the one search page there is.
                 Row(
-                    Modifier.padding(start = 16.dp).width(340.dp).height(48.dp).gamepadFocus(corner = 24.dp).clip(RoundedCornerShape(24.dp)).background(Oe.Control)
+                    Modifier.padding(start = 16.dp).width(340.dp).height(48.dp).gamepadFocus(corner = 24.dp, background = Oe.Control).clip(RoundedCornerShape(24.dp))
                         .clickable(role = Role.Button) { a.nav.navigate(Routes.library("SEARCH")) }.padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -617,7 +617,7 @@ private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modif
     val lib = a.app.library
     var lit by remember { mutableStateOf(false) }
     Row(
-        modifier.height(height).gamepadFocus(corner = 20.dp, scale = 1.02f) { lit = it }.then(focus).clip(RoundedCornerShape(20.dp)).background(Oe.Surface)
+        modifier.height(height).gamepadFocus(corner = 20.dp, scale = 1.02f, background = Oe.Surface) { lit = it }.then(focus).clip(RoundedCornerShape(20.dp))
             .combinedClickable(
                 onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button,
                 onLongClickLabel = stringResource(R.string.library_game_details),
@@ -670,7 +670,7 @@ private fun AddedCartridge(rom: Rom, modifier: Modifier, focus: Modifier) {
     val a = LocalActions.current
     var lit by remember { mutableStateOf(false) }
     Column(
-        modifier.gamepadFocus(corner = 10.dp, scale = 1.04f) { lit = it }.then(focus).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { a.nav.navigate(Routes.rom(rom.key)) },
+        modifier.gamepadFocus(corner = 10.dp, scale = 1.04f, mat = FocusMat) { lit = it }.then(focus).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { a.nav.navigate(Routes.rom(rom.key)) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CappedCell(GridSpec.Carts) {
@@ -718,7 +718,7 @@ private fun CompactShelfCard(
     Column(
         modifier
             .heightIn(min = height)
-            .gamepadFocus(corner = 22.dp, scale = 1.02f)
+            .gamepadFocus(corner = 22.dp, scale = 1.02f, mat = FocusMat)
             .then(focus)
             .clip(RoundedCornerShape(22.dp))
             .background(background)
@@ -1255,7 +1255,7 @@ private fun TableRow(rom: Rom, playtime: Long, lastPlayed: Long, favorite: Boole
     val description = if (last.isEmpty()) "${rom.title}, $time" else stringResource(R.string.library_row_description, rom.title, time, last)
     var lit by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus)
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).gamepadFocus(corner = 12.dp, background = if (chosen) Oe.AccentSoft else null) { lit = it }.then(focus)
             .semantics { contentDescription = description }.pickable(pick, rom.key, open)
             .listRowBackground(chosen, striped, selecting)
             .padding(vertical = 6.dp, horizontal = if (selecting) 8.dp else 0.dp),
@@ -1287,7 +1287,8 @@ internal fun zebraStriped(indexInGroup: Int): Boolean = indexInGroup % 2 == 1
  * each side into the grid's margin: the art and the star keep their place and never touch its edge.
  */
 private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean, selecting: Boolean): Modifier = when {
-    chosen -> background(Oe.AccentSoft, ListRowShape)
+    // A chosen row's fill is drawn by its gamepadFocus, which deepens it when the row is focused (issue 951).
+    chosen -> this
     striped -> drawBehind {
         val off = if (selecting) 0f else LIST_STRIPE_OUTSET_DP.dp.toPx()
         drawRoundRect(Oe.RowAlt, Offset(-off, 0f), Size(size.width + off * 2, size.height), CornerRadius(12.dp.toPx()))
@@ -1323,7 +1324,7 @@ private fun GameTile(
         ViewMode.Carts -> CappedCell(GridSpec.Carts.takeUnless { zoom }) {
             val caption = if (zoom) cartCaption else 13
             Column(
-                it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
+                it.gamepadFocus(corner = 10.dp, scale = 1.05f, mat = FocusMat) { on -> lit = on }.then(focus).pickable(pick, rom.key, open),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(Modifier.selectionLook(selecting, chosen)) {
@@ -1339,7 +1340,7 @@ private fun GameTile(
         }
         ViewMode.Covers -> CappedCell(GridSpec.Covers.takeUnless { zoom }) {
             val caption = if (zoom) coverCaption else 12
-            Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
+            Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f, mat = FocusMat) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
                 Box(Modifier.selectionLook(selecting, chosen)) {
                     BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)), cropped = true)
                     TileBadges(selecting, chosen, romMeta?.favorite == true)
@@ -1349,7 +1350,7 @@ private fun GameTile(
         }
         ViewMode.List -> if (table) TableRow(rom, playtime, romMeta?.lastPlayed ?: 0L, romMeta?.favorite == true, focus, pick, open, striped && !isPicked)
         else Row(
-            Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, inset = true) { lit = it }.then(focus).pickable(pick, rom.key, open)
+            Modifier.fillMaxWidth().gamepadFocus(corner = 12.dp, background = if (chosen) Oe.AccentSoft else null) { lit = it }.then(focus).pickable(pick, rom.key, open)
                 .listRowBackground(chosen, striped && !isPicked, selecting)
                 .padding(vertical = LIST_ROW_PADDING_DP.dp, horizontal = if (selecting) 8.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1574,17 +1575,18 @@ private fun Modifier.pinchSteps(onStep: (bigger: Boolean, x: Float, y: Float) ->
 @Composable
 private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
+    var lit by remember { mutableStateOf(false) }
     val label = stringResource(R.string.library_size)
     Box(modifier) {
         // The hit area is 48 dp (issue 928); the drawn button inside keeps its size.
         Box(
-            Modifier.size(MinTouchTarget).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
+            Modifier.size(MinTouchTarget).gamepadFocus(corner = 12.dp) { lit = it }.clip(RoundedCornerShape(12.dp))
                 .semantics { contentDescription = label }
                 .clickable(role = Role.Button) { open = true },
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).clip(RoundedCornerShape(10.dp)).background(if (open) Oe.Raised else Oe.Surface),
+                Modifier.size(padSize(SizeButtonSize, SizeButtonSizePad)).clip(RoundedCornerShape(10.dp)).background(focusTone(if (open) Oe.Raised else Oe.Surface, lit)),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Size, if (open) Oe.Text else Oe.Muted, 18.dp) }
         }
@@ -1601,7 +1603,7 @@ private fun SizeButton(mode: ViewMode, current: Int, onPick: (Int) -> Unit, modi
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(zoomStepName(mode, value), style = Type.Body.copy(color = if (on) Oe.AccentOnSoft else Oe.Text)) },
                     trailingIcon = { if (on) Icon(Icons.Check, Oe.AccentOnSoft, 18.dp) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, background = if (on) Oe.AccentSoft else null)
                         .semantics { selected = on },
                     onClick = { open = false; onPick(value) },
                 )
@@ -1789,7 +1791,7 @@ private fun LandscapeLibrary(
                         val w = if (itemMode == ViewMode.Carts) minOf((maxWidth - margin * 2) * 0.42f, itemH * rom.console.cartAspect) else null
                         var lit by remember { mutableStateOf(false) }
                         Column(
-                            Modifier.width(maxOf(third, w ?: third)).gamepadFocus(corner = 10.dp, scale = 1.05f) { lit = it }
+                            Modifier.width(maxOf(third, w ?: third)).gamepadFocus(corner = 10.dp, scale = 1.05f, mat = FocusMat) { lit = it }
                                 .holdsGame(rom.key, heldGame)
                                 .restorableFocus(rom.key, focusedRom, initial = rom.key == firstKey)
                                 .pickable(pick, rom.key, open),
@@ -2005,7 +2007,7 @@ private fun SortButton(sort: SortMode, onPick: (SortMode) -> Unit) {
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(stringResource(s.label), style = Type.Body.copy(color = if (on) Oe.AccentOnSoft else Oe.Text)) },
                     trailingIcon = { if (on) Icon(Icons.Check, Oe.AccentOnSoft, 18.dp) },
-                    modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent).semantics { selected = on },
+                    modifier = Modifier.gamepadFocus(corner = 0.dp, background = if (on) Oe.AccentSoft else null).semantics { selected = on },
                     onClick = { open = false; onPick(s) },
                 )
             }
@@ -2021,15 +2023,16 @@ private fun FlagChips(flags: Set<LibraryFlag>, counts: Map<LibraryFlag, Int>, mo
         LibraryFlag.entries.forEach { flag ->
             val on = flag in flags
             val label = "${stringResource(flag.label)} · ${numbers.format(counts[flag] ?: 0)}"
+            var lit by remember { mutableStateOf(false) }
             // The hit area is 48 dp tall (issue 928); the chip drawn in it keeps its height.
             Box(
-                Modifier.height(ChipHit).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).clickable(role = Role.Checkbox) { onToggle(flag) }
+                Modifier.height(ChipHit).gamepadFocus(corner = 18.dp) { lit = it }.clip(RoundedCornerShape(18.dp)).clickable(role = Role.Checkbox) { onToggle(flag) }
                     .semantics { selected = on },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier.height(padSize(ChipHeight, ChipHeightPad)).clip(RoundedCornerShape(18.dp))
-                        .background(if (on) Oe.AccentSoft else Oe.Surface)
+                        .background(focusTone(if (on) Oe.AccentSoft else Oe.Surface, lit))
                         .let { if (on) it else it.border(1.dp, Oe.Border, RoundedCornerShape(18.dp)) }
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center,
@@ -2080,7 +2083,7 @@ private fun FilterMenu(open: Boolean, onDismiss: () -> Unit, filters: List<Strin
                 // "All" has no icon; its room is kept so the names line up.
                 leadingIcon = { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { FilterIcon(id) } },
                 trailingIcon = { Text(numbers.format(counts[id] ?: 0), style = Type.Small.copy(fontSize = 13.sp, color = Oe.Muted)) },
-                modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true).background(if (on) Oe.AccentSoft else Color.Transparent)
+                modifier = Modifier.gamepadFocus(corner = 0.dp, background = if (on) Oe.AccentSoft else null)
                     .semantics { selected = on },
                 onClick = { onPick(id) },
             )
@@ -2144,7 +2147,7 @@ private fun ViewToggle(mode: ViewMode, onChange: (ViewMode) -> Unit) {
         listOf(ViewMode.Carts to Icons.Cart, ViewMode.Covers to Icons.Grid, ViewMode.List to Icons.List).forEach { (m, icon) ->
             val on = m == mode
             Box(
-                Modifier.size(padSize(ToggleSize, ToggleSizePad)).gamepadFocus(corner = 9.dp).clip(RoundedCornerShape(9.dp)).background(if (on) Oe.Raised else Color.Transparent)
+                Modifier.size(padSize(ToggleSize, ToggleSizePad)).gamepadFocus(corner = 9.dp, background = if (on) Oe.Raised else Color.Transparent).clip(RoundedCornerShape(9.dp))
                     .clickable(role = Role.Tab) { onChange(m) },
                 contentAlignment = Alignment.Center,
             ) { Icon(icon, if (on) Oe.Text else Oe.Muted, 18.dp) }
@@ -2172,7 +2175,7 @@ fun RecentScreen() {
         items(recent, key = { it.key }, contentType = { "recent" }) { rom ->
             var lit by remember { mutableStateOf(false) }
             Row(
-                Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true) { lit = it }.clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp) { lit = it }.clickable { a.nav.navigate(Routes.rom(rom.key)) }.padding(horizontal = 20.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Cartridge(rom.console, labelFor(rom), rom.title, lib.effectiveColor(rom), Modifier.width(96.dp), cover = coverFor(rom))
@@ -2181,7 +2184,7 @@ fun RecentScreen() {
                     Text("${rom.console.short} · ${formatAgo(meta.roms[rom.key]!!.lastPlayed)}", style = Type.Small, modifier = Modifier.padding(top = 2.dp))
                 }
                 Box(
-                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp).clip(CircleShape).background(Oe.Accent).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
+                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp, background = Oe.Accent).clip(CircleShape).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Play, Color.White, 18.dp, filled = true) }
             }

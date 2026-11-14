@@ -241,7 +241,7 @@
     <string name="settings_controllers">Controles</string>
     <string name="settings_controllers_lead">Ajustes de controles físicos: gamepads e os controles embutidos de portáteis.</string>
     <string name="settings_interface_mode">Modo da interface</string>
-    <string name="settings_interface_mode_lead">Se o app é usado com um controle ou pelo toque. O modo controle mostra o anel de foco e as dicas de botões.</string>
+    <string name="settings_interface_mode_lead">Se o app é usado com um controle ou pelo toque. O modo controle destaca o item em foco e mostra as dicas de botões.</string>
     <string name="settings_interface_mode_auto">Automático</string>
     <string name="settings_interface_mode_auto_desc">Modo controle enquanto houver um controle conectado; modo toque nos outros casos.</string>
     <string name="settings_interface_mode_touch">Tela de toque</string>

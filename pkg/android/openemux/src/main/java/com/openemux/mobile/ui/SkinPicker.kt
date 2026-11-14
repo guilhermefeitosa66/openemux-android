@@ -638,7 +638,7 @@ private fun SkinCard(
     val cardFocus = remember { FocusRequester() }
     val menuFocus = remember { FocusRequester() }
     Column(
-        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(background)
+        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp, background = background).clip(RoundedCornerShape(16.dp))
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
             .focusRequester(cardFocus).focusProperties { if (onMenu != null) right = menuFocus }
             .clickable(enabled = pickable || onMenu != null, role = Role.RadioButton) { if (pickable) onPick() else onMenu?.invoke() }
@@ -675,7 +675,7 @@ private fun ImportedRow(skin: StoredSkin, inUse: Boolean, pickable: Boolean, rea
     val rowFocus = remember { FocusRequester() }
     val menuFocus = remember { FocusRequester() }
     Row(
-        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(background)
+        Modifier.fillMaxWidth().gamepadFocus(corner = 16.dp, background = background).clip(RoundedCornerShape(16.dp))
             .border(2.dp, if (inUse) Oe.AccentBright else Color.Transparent, RoundedCornerShape(16.dp))
             .focusRequester(rowFocus).focusProperties { if (onMenu != null) right = menuFocus }
             // A package not made for this device opens its sheet: Duplicate still works there.
@@ -729,7 +729,7 @@ private fun SkinActionsSheet(
 @Composable
 private fun ActionRow(icon: String, label: String, danger: Boolean = false, sub: String? = null, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp, inset = true).clickable(role = Role.Button, onClick = onClick)
+        Modifier.fillMaxWidth().gamepadFocus(corner = 0.dp).clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -980,8 +980,7 @@ private fun ImportSkinSheet(picked: PickedSkin, console: Console, own: List<Stor
 @Composable
 private fun SkinChip(name: String, selected: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.gamepadFocus(corner = 999.dp).clip(RoundedCornerShape(999.dp))
-            .background(if (selected) Oe.AccentTint else Color.Transparent)
+        Modifier.gamepadFocus(corner = 999.dp, background = if (selected) Oe.AccentTint else Color.Transparent).clip(RoundedCornerShape(999.dp))
             .border(1.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(999.dp))
             .clickable(role = Role.RadioButton, onClick = onClick)
             .heightIn(min = 40.dp).padding(horizontal = 14.dp, vertical = 9.dp),

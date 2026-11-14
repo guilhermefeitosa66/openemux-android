@@ -161,8 +161,7 @@ private fun MoveButton(icon: String, label: String, enabled: Boolean, onClick: (
 private fun KindChip(label: String, on: Boolean, toggles: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     val shape = RoundedCornerShape(999.dp)
     Box(
-        Modifier.let { if (toggles && enabled) it.gamepadFocus(corner = 999.dp).clip(shape).toggleable(on, role = Role.Checkbox, onValueChange = onChange) else it.clip(shape) }
-            .background(if (on && toggles) Oe.AccentSoft else Oe.Surface2).border(1.dp, Oe.Border, shape)
+        Modifier.let { if (toggles && enabled) it.gamepadFocus(corner = 999.dp, background = if (on) Oe.AccentSoft else Oe.Surface2).clip(shape).toggleable(on, role = Role.Checkbox, onValueChange = onChange) else it.clip(shape).background(if (on && toggles) Oe.AccentSoft else Oe.Surface2) }.border(1.dp, Oe.Border, shape)
             .alpha(if (enabled) 1f else 0.5f)
             .padding(horizontal = 10.dp, vertical = padSize(3.dp, 6.dp)),
     ) {
@@ -250,8 +249,7 @@ private fun AccountSection() {
     }
 
     Row(
-        Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp).fillMaxWidth().height(52.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp))
-            .background(Oe.Surface).border(1.dp, Oe.Border, RoundedCornerShape(14.dp))
+        Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp).fillMaxWidth().height(52.dp).gamepadFocus(corner = 14.dp, background = Oe.Surface).clip(RoundedCornerShape(14.dp)).border(1.dp, Oe.Border, RoundedCornerShape(14.dp))
             .clickable(role = Role.Button) { developerOpen = !developerOpen }.padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

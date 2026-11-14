@@ -229,7 +229,7 @@
     <string name="settings_controllers">コントローラー</string>
     <string name="settings_controllers_lead">物理コントローラーの設定：ゲームパッドと携帯機の内蔵コントロール。</string>
     <string name="settings_interface_mode">操作モード</string>
-    <string name="settings_interface_mode_lead">アプリをコントローラーで使うかタッチで使うか。コントローラーモードではフォーカス枠とボタンガイドが表示されます。</string>
+    <string name="settings_interface_mode_lead">アプリをコントローラーで使うかタッチで使うか。コントローラーモードでは選択中の項目が強調表示され、ボタンガイドが表示されます。</string>
     <string name="settings_interface_mode_auto">自動</string>
     <string name="settings_interface_mode_auto_desc">コントローラーが接続されている間はコントローラーモード、それ以外はタッチモード。</string>
     <string name="settings_interface_mode_touch">タッチスクリーン</string>
