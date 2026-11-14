@@ -1,6 +1,7 @@
 package com.openemux.mobile.ui
 
 import android.util.LruCache
+import androidx.annotation.DrawableRes
 import androidx.annotation.PluralsRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -732,11 +733,18 @@ fun SheetBarIcons() {
 @Composable
 fun ConsoleIcon(console: Console, size: Dp = 40.dp) {
     val res = console.icon ?: run { ConsoleChip(console, size); return }
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) { PixelArt(res, size) }
+}
+
+/**
+ * Pixel art at the largest whole multiple of its size that fits [size] (at least 1x), unsmoothed, and
+ * only as big as it is drawn: a caller that lays it out beside text gets no empty margin around it.
+ */
+@Composable
+fun PixelArt(@DrawableRes res: Int, size: Dp) {
     val bitmap = ImageBitmap.imageResource(res)
     val side = with(LocalDensity.current) { ((size.roundToPx() / bitmap.width).coerceAtLeast(1) * bitmap.width).toDp() }
-    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
-        Image(bitmap, null, Modifier.size(side), filterQuality = FilterQuality.None)
-    }
+    Image(bitmap, null, Modifier.size(side), filterQuality = FilterQuality.None)
 }
 
 @Composable

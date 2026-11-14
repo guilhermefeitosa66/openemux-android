@@ -57,6 +57,8 @@ object Oe {
     val Control: Color get() = pick(0xFF1E1E25, 0xFFEBEAF1)
     val Raised: Color get() = pick(0xFF2A2A33, 0xFFE9E7EF)
     val Star: Color get() = pick(0xFFF5C543, 0xFFB07A00)
+    /** The star on a fill of the text colour (a selected chip): the other theme's gold, which reads on it. */
+    val StarOnText: Color get() = pick(0xFFB07A00, 0xFFF5C543)
     val Ok: Color get() = pick(0xFF7DD3A0, 0xFF1F9D57)
     val OkBg: Color get() = pick(0xFF14291E, 0xFFE3F5EA)
     val OkText: Color get() = pick(0xFF9BE3B8, 0xFF13703F)

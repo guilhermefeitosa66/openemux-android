@@ -1855,7 +1855,7 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ChipGlyphIcon(id, glyph)
+                        ChipGlyphIcon(id, glyph, active)
                         Text(label, style = Type.Section.copy(fontSize = 14.sp, color = if (active) Oe.Bg else Oe.Text))
                     }
                 }
@@ -1879,15 +1879,17 @@ internal fun chipGlyph(id: String): ChipGlyph = when (id) {
 }
 
 /**
- * The glyph drawn. The art is 32 px and scales only by whole factors: a 26 dp box keeps it at 2x on the
- * usual 2.625-3.5 densities, where 24 dp would drop it to 1x. Either way it fits the chip's height.
+ * The glyph drawn. The art is 32 px and scales only by whole factors: up to 26 dp keeps it at 2x on the
+ * usual 2.625-3.5 densities, where 24 dp would drop it to 1x. It takes only the room it is drawn in, so
+ * the padding and the gap stay even on any density, and it always fits the chip's height.
  */
 @Composable
-private fun ChipGlyphIcon(id: String, glyph: ChipGlyph) {
+private fun ChipGlyphIcon(id: String, glyph: ChipGlyph, active: Boolean) {
     when (glyph) {
         ChipGlyph.NONE -> Unit
-        ChipGlyph.STAR -> Icon(Icons.Star, Oe.Star, 18.dp, filled = true)
-        ChipGlyph.CONSOLE -> Console.byId(id)?.let { ConsoleIcon(it, 26.dp) }
+        // The selected chip is filled with the text colour, where the theme's own gold all but vanishes.
+        ChipGlyph.STAR -> Icon(Icons.Star, if (active) Oe.StarOnText else Oe.Star, 18.dp, filled = true)
+        ChipGlyph.CONSOLE -> Console.byId(id)?.icon?.let { PixelArt(it, 26.dp) }
     }
 }
 
