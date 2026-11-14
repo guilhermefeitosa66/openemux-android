@@ -96,9 +96,8 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                     stringResource(R.string.update_download), style = Type.Button.copy(color = Color.White),
                     modifier = Modifier
                         .heightIn(min = 44.dp)
-                        .gamepadFocus(corner = 12.dp)
+                        .gamepadFocus(corner = 12.dp, background = Oe.Accent)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Oe.Accent)
                         .clickable(role = Role.Button) { runCatching { uri.openUri(shown.url) } }
                         .padding(horizontal = 18.dp, vertical = 11.dp),
                 )

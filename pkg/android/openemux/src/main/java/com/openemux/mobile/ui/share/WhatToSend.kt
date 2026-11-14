@@ -131,7 +131,7 @@ fun WhatToSendList(selection: SendSelection, onChange: (SendSelection) -> Unit) 
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 60.dp)
                         .restorableFocus("game-${game.id}", focus, initial = index == 0)
-                        .gamepadFocus(corner = 0.dp, inset = true)
+                        .gamepadFocus(corner = 0.dp)
                         .triStateToggleable(state.toggleable(), role = Role.Checkbox) { onChange(selection.toggleGame(game.id)) }
                         .padding(start = 14.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -157,7 +157,7 @@ fun WhatToSendList(selection: SendSelection, onChange: (SendSelection) -> Unit) 
                     val checked = selection.isChecked(game.id, part.part)
                     Row(
                         Modifier.fillMaxWidth().heightIn(min = 44.dp)
-                            .gamepadFocus(corner = 0.dp, inset = true)
+                            .gamepadFocus(corner = 0.dp)
                             .triStateToggleable(if (checked) ToggleableState.On else ToggleableState.Off, role = Role.Checkbox) {
                                 onChange(selection.toggle(game.id, part.part))
                             }

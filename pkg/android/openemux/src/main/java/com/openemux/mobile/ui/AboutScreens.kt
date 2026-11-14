@@ -145,7 +145,7 @@ private fun UpdateStatus(open: (String) -> Unit) {
         )
         is UpdateState.Available -> Text(
             stringResource(R.string.update_available_title, s.release.version), style = Type.Caption.copy(color = Oe.AccentOnSoft, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(top = 8.dp).gamepadFocus(corner = 50.dp).clip(RoundedCornerShape(50)).background(Oe.AccentSoft)
+            modifier = Modifier.padding(top = 8.dp).gamepadFocus(corner = 50.dp, background = Oe.AccentSoft).clip(RoundedCornerShape(50))
                 .clickable(role = Role.Button) { open(s.release.url) }.padding(horizontal = 12.dp, vertical = 5.dp),
         )
         UpdateState.Unknown -> Unit
@@ -220,7 +220,7 @@ private fun appNotices() = listOf(
 @Composable
 private fun LicenseCard(notice: Notice, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.heightIn(min = 56.dp).gamepadFocus(corner = 14.dp).clip(RoundedCornerShape(14.dp)).background(Oe.Surface)
+        modifier.heightIn(min = 56.dp).gamepadFocus(corner = 14.dp, background = Oe.Surface).clip(RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.Center,
     ) {

@@ -198,8 +198,7 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
 
         val biosPicked = picked == SettingsItem.Bios
         Row(
-            Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp).fillMaxWidth().paneOpener(biosPicked).gamepadFocus(corner = 20.dp).rowFocus("bios-tile").clip(RoundedCornerShape(20.dp))
-                .background(if (biosPicked) Oe.AccentTint else Oe.Surface)
+            Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp).fillMaxWidth().paneOpener(biosPicked).gamepadFocus(corner = 20.dp, background = if (biosPicked) Oe.AccentTint else Oe.Surface).rowFocus("bios-tile").clip(RoundedCornerShape(20.dp))
                 .border(1.dp, Oe.Border, RoundedCornerShape(20.dp)).semantics { selected = biosPicked }
                 .clickable(role = Role.Button) { onPick(SettingsItem.Bios) }.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -409,8 +408,7 @@ private fun ThemePane() {
 @Composable
 private fun ThemeCard(id: String, name: String, blurb: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp))
-            .background(if (selected) Oe.AccentTint else Oe.Surface)
+        modifier.gamepadFocus(corner = 16.dp, background = if (selected) Oe.AccentTint else Oe.Surface).clip(RoundedCornerShape(16.dp))
             .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp))
             .clickable(role = Role.RadioButton, onClick = onClick).semantics { this.selected = selected }
             .padding(12.dp),
@@ -827,7 +825,7 @@ private fun AchievementsAccount(state: AchievementsState) {
                 Text(state.username, style = Type.Section.copy(fontSize = 16.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(
-                Modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp).clip(RoundedCornerShape(18.dp)).background(Oe.Raised)
+                Modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp, background = Oe.Raised).clip(RoundedCornerShape(18.dp))
                     .clickable(role = Role.Button) { store.signOut() }.padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(stringResource(R.string.ra_sign_out), style = Type.Button.copy(color = Oe.Text, fontSize = 14.sp)) }

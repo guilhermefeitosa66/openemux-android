@@ -602,7 +602,7 @@ private fun RemoveCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
     val label = stringResource(R.string.detail_remove_from_library)
     Card(modifier) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 50.dp).gamepadFocus(corner = 0.dp, inset = true).rowFocus(label)
+            Modifier.fillMaxWidth().heightIn(min = 50.dp).gamepadFocus(corner = 0.dp).rowFocus(label)
                 .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -632,7 +632,7 @@ fun ColorSwatches(selected: String, modifier: Modifier = Modifier, fadeEnd: Bool
     FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), fadeEnd = fadeEnd) {
         CART_COLORS.forEach { c ->
             Box(
-                Modifier.size(padSize(SwatchSize, SwatchSizePad)).gamepadFocus(corner = padSize(19.dp, 22.dp)).clip(CircleShape)
+                Modifier.size(padSize(SwatchSize, SwatchSizePad)).gamepadFocus(corner = padSize(19.dp, 22.dp), mat = FocusMat).clip(CircleShape)
                     .border(2.dp, if (c.id == selected) Oe.AccentText else Color.Transparent, CircleShape)
                     .clickable(onClickLabel = stringResource(c.label), role = Role.RadioButton) { onPick(c.id) },
                 contentAlignment = Alignment.Center,
@@ -761,7 +761,7 @@ private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, on
 @Composable
 fun ShaderTile(id: String, name: String, selected: Boolean, onClick: () -> Unit) {
     val crt = id == "zfast" || id == "geom"
-    Column(Modifier.width(108.dp).gamepadFocus(corner = 12.dp).clickable(onClickLabel = name, role = Role.RadioButton, onClick = onClick), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.width(108.dp).gamepadFocus(corner = 12.dp, mat = FocusMat).clickable(onClickLabel = name, role = Role.RadioButton, onClick = onClick), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(
             Modifier.size(108.dp, 76.dp).clip(RoundedCornerShape(if (crt) 16.dp else 10.dp))
                 .border(if (selected) 2.5.dp else 1.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(if (crt) 16.dp else 10.dp))

@@ -65,7 +65,7 @@ fun StateTile(
     val tileFocus = remember { FocusRequester() }
     val optionsFocus = remember { FocusRequester() }
     Column(
-        Modifier.gamepadFocus(corner = 10.dp).then(modifier)
+        Modifier.gamepadFocus(corner = 10.dp, mat = FocusMat).then(modifier)
             .focusRequester(tileFocus).focusProperties { right = optionsFocus }
             .combinedClickable(role = Role.Button, onClick = onClick, onLongClick = onOptions),
     ) {
@@ -108,7 +108,7 @@ fun StateOptionsMenu(open: Boolean, onDismiss: () -> Unit, onDelete: () -> Unit)
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.game_state_delete), style = Type.Body.copy(color = Oe.Danger)) },
                 leadingIcon = { Icon(Icons.Trash, Oe.Danger, 20.dp) },
-                modifier = Modifier.gamepadFocus(corner = 0.dp, inset = true),
+                modifier = Modifier.gamepadFocus(corner = 0.dp),
                 onClick = { onDismiss(); onDelete() },
             )
         }

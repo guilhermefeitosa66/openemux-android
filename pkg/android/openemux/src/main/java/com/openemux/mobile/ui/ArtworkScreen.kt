@@ -437,8 +437,7 @@ private fun ArtTabs(tabs: List<ArtTab>, selected: ArtTab, onSelect: (ArtTab) -> 
         tabs.forEach { t ->
             val on = t == selected
             Box(
-                Modifier.weight(1f).height(padSize(36.dp, 40.dp)).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (on) Oe.AccentSoft else Color.Transparent)
+                Modifier.weight(1f).height(padSize(36.dp, 40.dp)).gamepadFocus(corner = 10.dp, background = if (on) Oe.AccentSoft else Color.Transparent).clip(RoundedCornerShape(10.dp))
                     .semantics { this.selected = on }
                     .clickable(role = Role.Tab) { onSelect(t) },
                 contentAlignment = Alignment.Center,
@@ -467,8 +466,7 @@ private fun KindTabs(kinds: List<ArtKind>, selected: ArtKind, onSelect: (ArtKind
         kinds.forEach { k ->
             val on = k == selected
             Box(
-                Modifier.height(padSize(34.dp, 40.dp)).gamepadFocus(corner = 999.dp).clip(RoundedCornerShape(999.dp))
-                    .background(if (on) Oe.AccentSoft else Oe.Surface)
+                Modifier.height(padSize(34.dp, 40.dp)).gamepadFocus(corner = 999.dp, background = if (on) Oe.AccentSoft else Oe.Surface).clip(RoundedCornerShape(999.dp))
                     .border(1.dp, if (on) Oe.AccentSoft else Oe.Border, RoundedCornerShape(999.dp))
                     .semantics { this.selected = on }
                     .clickable(role = Role.Tab) { onSelect(k) }
@@ -759,8 +757,7 @@ fun SearchArtworkButton(rom: Rom, modifier: Modifier = Modifier) {
     val a = LocalActions.current
     val tab = if (rom.console.frame != null) ArtTab.TAB_LABEL else ArtTab.TAB_COVER
     Row(
-        modifier.height(40.dp).widthIn(min = 44.dp).gamepadFocus(corner = 20.dp).clip(RoundedCornerShape(20.dp))
-            .background(Oe.AccentTint).border(1.dp, Oe.AccentSoft, RoundedCornerShape(20.dp))
+        modifier.height(40.dp).widthIn(min = 44.dp).gamepadFocus(corner = 20.dp, background = Oe.AccentTint).clip(RoundedCornerShape(20.dp)).border(1.dp, Oe.AccentSoft, RoundedCornerShape(20.dp))
             .clickable(role = Role.Button) { a.nav.navigate(Routes.artwork(rom.key, tab)) }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

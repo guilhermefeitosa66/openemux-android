@@ -344,9 +344,8 @@ fun RoundIconButton(
     Box(
         Modifier
             .size(MinTouchTarget)
-            .then(if (padFocus) Modifier.gamepadFocus(corner = 24.dp) else Modifier.touchOnly())
+            .then(if (padFocus) Modifier.gamepadFocus(corner = 24.dp, background = background) else Modifier.touchOnly().background(background, CircleShape))
             .clip(CircleShape)
-            .background(background)
             .clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(path, tint, 20.dp, filled = filled) }
@@ -370,9 +369,8 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     Row(
         modifier
             .height(height)
-            .gamepadFocus(corner = 16.dp)
+            .gamepadFocus(corner = 16.dp, background = if (enabled) Oe.Accent else Oe.Surface2)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (enabled) Oe.Accent else Oe.Surface2)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = sidePadding),
         horizontalArrangement = Arrangement.Center,
@@ -407,9 +405,8 @@ fun SecondaryButton(
     Row(
         modifier
             .height(if (compact) 40.dp else height)
-            .gamepadFocus(corner = corner)
+            .gamepadFocus(corner = corner, background = Oe.Surface2)
             .clip(RoundedCornerShape(corner))
-            .background(Oe.Surface2)
             // Busy, it stays focusable and only ignores the press: a disabled clickable drops the pad's focus,
             // which then lands on another item, and the sheet that follows gives focus back there (issue 668).
             .clickable(role = Role.Button) { if (!inert) onClick() }
@@ -437,9 +434,8 @@ fun SettingTile(label: String, value: String, onClick: (() -> Unit)?, modifier: 
     Column(
         modifier
             .heightIn(min = 58.dp)
-            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp).rowFocus(label) else it }
+            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp, background = Oe.Surface).rowFocus(label) else it.background(Oe.Surface, RoundedCornerShape(14.dp)) }
             .clip(RoundedCornerShape(14.dp))
-            .background(Oe.Surface)
             .let { if (onClick != null) it.clickable(role = Role.Button, onClick = onClick) else it }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.Center,
@@ -474,7 +470,7 @@ fun ListRow(
             .fillMaxWidth()
             .heightIn(min = minHeight)
             .let { if (selected) it.background(Oe.AccentTint).semantics { this.selected = true } else it }
-            .let { if (onClick != null && enabled) it.paneOpener(selected).gamepadFocus(corner = 0.dp, inset = true).rowFocus(label).clickable(role = Role.Button, onClick = onClick) else it }
+            .let { if (onClick != null && enabled) it.paneOpener(selected).gamepadFocus(corner = 0.dp).rowFocus(label).clickable(role = Role.Button, onClick = onClick) else it }
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -509,7 +505,7 @@ fun SwitchRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .let { if (enabled) it.gamepadFocus(corner = 0.dp, inset = true).rowFocus(label) else it }
+            .let { if (enabled) it.gamepadFocus(corner = 0.dp).rowFocus(label) else it }
             .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -624,9 +620,8 @@ private fun OeFieldFrame(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
-                .gamepadFocus(corner = 14.dp)
+                .gamepadFocus(corner = 14.dp, background = Oe.Surface)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Oe.Surface)
                 .border(1.5.dp, if (isError) Oe.Danger else if (focused) Oe.AccentBright else Oe.Border, RoundedCornerShape(14.dp))
                 .padding(start = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -657,9 +652,8 @@ fun RadioCard(
     Row(
         Modifier
             .fillMaxWidth()
-            .gamepadFocus(corner = 16.dp)
+            .gamepadFocus(corner = 16.dp, background = if (selected) Oe.AccentTint else background)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selected) Oe.AccentTint else background)
             .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp))
             .clickable(role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),

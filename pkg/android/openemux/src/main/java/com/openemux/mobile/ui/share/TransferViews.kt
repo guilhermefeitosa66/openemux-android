@@ -136,7 +136,7 @@ fun ProgressView(state: TransferState.Running, onHide: () -> Unit, onCancel: () 
 @Composable
 fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-        modifier.height(52.dp).gamepadFocus(corner = 16.dp).clip(RoundedCornerShape(16.dp)).background(Oe.DangerBg)
+        modifier.height(52.dp).gamepadFocus(corner = 16.dp, background = Oe.DangerBg).clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = Type.Button.copy(color = Oe.Danger, fontSize = 15.sp)) }

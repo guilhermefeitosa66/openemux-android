@@ -375,7 +375,8 @@ fun Library.skinEditorHost() = SkinEditorHost(skins, ::migrateSkins, ::useCustom
 fun SkinEditor(host: SkinEditorHost, console: Console, target: SkinEditTarget, onChanged: () -> Unit, onClose: () -> Unit) {
     val opener = LocalPadScope.current
     val pad = remember { PadScope() }
-    CompositionLocalProvider(LocalPadScope provides pad) {
+    // The stage and its bars are dark in either theme: the focus takes the dark tones there (issue 951).
+    CompositionLocalProvider(LocalPadScope provides pad, LocalFocusDark provides true) {
         Dialog(
             onDismissRequest = onClose,
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false, dismissOnClickOutside = false),
@@ -1440,7 +1441,7 @@ private fun Toolbar(
         BarIcon(Icons.Close, stringResource(R.string.editor_close), onClick = onClose)
         // The layout field opens the Layouts panel; the icon beside it shows the other orientation (issue 785).
         Column(
-            Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).background(Field)
+            Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp, background = Field).clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onLayouts).semantics { contentDescription = "$layouts: $subtitle" }.padding(horizontal = 10.dp),
             verticalArrangement = Arrangement.Center,
         ) {
@@ -1451,7 +1452,7 @@ private fun Toolbar(
         BarIcon(Icons.Undo, stringResource(R.string.editor_undo), enabled = canUndo, onClick = onUndo)
         BarIcon(Icons.Undo, stringResource(R.string.editor_redo), enabled = canRedo, mirrored = true, onClick = onRedo)
         Box(
-            Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).background(if (canSave) Oe.Accent else Field)
+            Modifier.height(40.dp).gamepadFocus(corner = 12.dp, background = if (canSave) Oe.Accent else Field).clip(RoundedCornerShape(12.dp))
                 .clickable(enabled = canSave, onClick = onSave).padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -1472,8 +1473,7 @@ private fun SnapBar(
     var more by remember { mutableStateOf(false) }
     Row(modifier.bar(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
-            Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
-                .background(if (snap) Oe.Accent.copy(alpha = 0.25f) else Color.Transparent)
+            Modifier.height(40.dp).gamepadFocus(corner = 12.dp, background = if (snap) Oe.Accent.copy(alpha = 0.25f) else Color.Transparent).clip(RoundedCornerShape(12.dp))
                 .toggleable(snap, role = Role.Switch, onValueChange = onSnap).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -1676,8 +1676,7 @@ private fun ComboPanel(s: ComboSession, layout: SkinLayout, modifier: Modifier, 
 @Composable
 private fun PanelButton(text: String, enabled: Boolean, strong: Boolean, onClick: () -> Unit) {
     Box(
-        Modifier.height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
-            .background(if (strong && enabled) Oe.Accent else Field).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp),
+        Modifier.height(40.dp).gamepadFocus(corner = 12.dp, background = if (strong && enabled) Oe.Accent else Field).clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = Type.Body.copy(color = if (enabled) Color.White else BarOff, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
@@ -1713,8 +1712,7 @@ private fun ShapeRow(
             val on = !mixed && outline == current
             val label = stringResource(outline?.let { OUTLINE_NAMES[ComboOutline.ALL.indexOf(it)] } ?: R.string.editor_shape_original)
             Box(
-                Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp))
-                    .background(if (on) Lilac.copy(alpha = 0.18f) else Color.Transparent)
+                Modifier.weight(1f).height(40.dp).gamepadFocus(corner = 12.dp, background = if (on) Lilac.copy(alpha = 0.18f) else Color.Transparent).clip(RoundedCornerShape(12.dp))
                     .border(if (on) 1.5.dp else 0.dp, if (on) Lilac else Color.Transparent, RoundedCornerShape(12.dp))
                     .selectable(selected = on, role = Role.RadioButton) { onShape(outline) }
                     .semantics { contentDescription = label },
@@ -1744,7 +1742,7 @@ private fun NudgeRow(modifier: Modifier, onNudge: (Int, Int) -> Unit, onDone: ()
 private fun DoneButton(onDone: () -> Unit) {
     val label = stringResource(R.string.editor_done)
     Box(
-        Modifier.size(44.dp, 40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).background(Oe.Accent).clickable(onClick = onDone)
+        Modifier.size(44.dp, 40.dp).gamepadFocus(corner = 12.dp, background = Oe.Accent).clip(RoundedCornerShape(12.dp)).clickable(onClick = onDone)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) { Icon(Icons.Check, Color.White, 20.dp) }
@@ -1755,7 +1753,8 @@ private fun DoneButton(onDone: () -> Unit) {
 private fun LeaveDialog(name: String, onDismiss: () -> Unit, onSave: () -> Unit, onSaveNew: () -> Unit, onDiscard: () -> Unit) {
     val opener = LocalPadScope.current
     val pad = remember { PadScope() }
-    CompositionLocalProvider(LocalPadScope provides pad) {
+    // A sheet in the app's theme: the focus follows the theme again.
+    CompositionLocalProvider(LocalPadScope provides pad, LocalFocusDark provides null) {
         Dialog(onDismissRequest = onDismiss) {
             Column(
                 Modifier.padRoot(pad).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Oe.Sheet).border(1.dp, BarBorder, RoundedCornerShape(24.dp))
@@ -1845,7 +1844,7 @@ private fun TryOverlay(m: SkinEditorModel, layout: SkinLayout, names: Map<String
             Icon(Icons.Play, Guide, 16.dp, filled = true, modifier = Modifier.padding(start = 10.dp))
             Text(stringResource(R.string.editor_try_title), Modifier.weight(1f), style = Type.Body.copy(color = StageText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
             Box(
-                Modifier.height(36.dp).gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF33333D))
+                Modifier.height(36.dp).gamepadFocus(corner = 10.dp, background = Color(0xFF33333D)).clip(RoundedCornerShape(10.dp))
                     .clickable(onClick = onBack).padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(stringResource(R.string.editor_try_back), style = Type.Body.copy(color = StageText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1) }
@@ -1889,53 +1888,56 @@ private fun LayoutsPanel(
     onShow: (SkinOrientation) -> Unit, onForm: (SkinForm, Boolean) -> Unit, onResetLayout: () -> Unit, onClose: () -> Unit,
 ) {
     val layout = m.layout ?: return
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val w = constraints.maxWidth
-        val h = constraints.maxHeight
-        val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
-        fun stage(r: SkinRect) = fit.box(r).let { SkinRect(it.x, it.y, it.w, it.h) }
-        val screen = stage(SkinSnap.bounds(layout.screens.ifEmpty { listOf(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height / 2f)) }))
-        val selected = m.box()?.takeIf { m.selection?.movable == true }?.let(::stage)
-        val side = SkinPanels.side(w > h, w.toFloat(), screen, selected)
-        Box(Modifier.fillMaxSize().background(Color(0x66050508)).pointerInput(Unit) { detectTapGestures { onClose() } })
-        val wide = minOf(360.dp, maxWidth * 0.5f)
-        val (align, shape, size) = when (side) {
-            PanelSide.TOP -> Triple(Alignment.TopCenter, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
-            PanelSide.BOTTOM -> Triple(Alignment.BottomCenter, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
-            PanelSide.START -> Triple(Alignment.CenterStart, RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp), Modifier.width(wide).fillMaxHeight())
-            PanelSide.END -> Triple(Alignment.CenterEnd, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp), Modifier.width(wide).fillMaxHeight())
-        }
-        Column(
-            Modifier.align(align).then(size).clip(shape).background(Oe.Sheet).border(1.dp, BarBorder, shape)
-                .pointerInput(Unit) { detectTapGestures { } }
-                .verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.editor_layouts), Modifier.weight(1f), style = Type.Title.copy(fontSize = 22.sp))
-                DoneButton(onClose)
+    // A sheet in the app's theme over the dark stage: the focus follows the theme there.
+    CompositionLocalProvider(LocalFocusDark provides null) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val w = constraints.maxWidth
+            val h = constraints.maxHeight
+            val fit = SkinFit.of(layout.size.width, layout.size.height, w, h)
+            fun stage(r: SkinRect) = fit.box(r).let { SkinRect(it.x, it.y, it.w, it.h) }
+            val screen = stage(SkinSnap.bounds(layout.screens.ifEmpty { listOf(SkinRect(0f, 0f, layout.size.width.toFloat(), layout.size.height / 2f)) }))
+            val selected = m.box()?.takeIf { m.selection?.movable == true }?.let(::stage)
+            val side = SkinPanels.side(w > h, w.toFloat(), screen, selected)
+            Box(Modifier.fillMaxSize().background(Color(0x66050508)).pointerInput(Unit) { detectTapGestures { onClose() } })
+            val wide = minOf(360.dp, maxWidth * 0.5f)
+            val (align, shape, size) = when (side) {
+                PanelSide.TOP -> Triple(Alignment.TopCenter, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
+                PanelSide.BOTTOM -> Triple(Alignment.BottomCenter, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.62f))
+                PanelSide.START -> Triple(Alignment.CenterStart, RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp), Modifier.width(wide).fillMaxHeight())
+                PanelSide.END -> Triple(Alignment.CenterEnd, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp), Modifier.width(wide).fillMaxHeight())
             }
-            Text(stringResource(layoutsBody(form)), style = Type.Small.copy(fontSize = 13.sp, lineHeight = 18.sp))
-            SectionTitle(stringResource(layoutsHere(form)))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SkinOrientation.entries.forEach { o ->
-                    val id = SkinForms.id(form, o)
-                    val present = m.layoutOf(id) != null
-                    val editing = o == orientation
-                    LayoutCard(o, layoutState(present, editing, m.changed(id)), editing, present, Modifier.weight(1f)) { onShow(o) }
+            Column(
+                Modifier.align(align).then(size).clip(shape).background(Oe.Sheet).border(1.dp, BarBorder, shape)
+                    .pointerInput(Unit) { detectTapGestures { } }
+                    .verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.editor_layouts), Modifier.weight(1f), style = Type.Title.copy(fontSize = 22.sp))
+                    DoneButton(onClose)
                 }
-            }
-            SectionTitle(stringResource(R.string.editor_layouts_other))
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
-                SkinForm.entries.filter { it != form }.forEachIndexed { i, f ->
-                    val on = m.offered(f)
-                    SwitchRow(stringResource(offerTitle(f)), stringResource(offerLine(f, on)), on, { onForm(f, it) }, divider = i > 0)
+                Text(stringResource(layoutsBody(form)), style = Type.Small.copy(fontSize = 13.sp, lineHeight = 18.sp))
+                SectionTitle(stringResource(layoutsHere(form)))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SkinOrientation.entries.forEach { o ->
+                        val id = SkinForms.id(form, o)
+                        val present = m.layoutOf(id) != null
+                        val editing = o == orientation
+                        LayoutCard(o, layoutState(present, editing, m.changed(id)), editing, present, Modifier.weight(1f)) { onShow(o) }
+                    }
                 }
+                SectionTitle(stringResource(R.string.editor_layouts_other))
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Oe.Raised)) {
+                    SkinForm.entries.filter { it != form }.forEachIndexed { i, f ->
+                        val on = m.offered(f)
+                        SwitchRow(stringResource(offerTitle(f)), stringResource(offerLine(f, on)), on, { onForm(f, it) }, divider = i > 0)
+                    }
+                }
+                FormBadges(SkinForm.entries.filter(m::offered).toSet())
+                Text(stringResource(R.string.editor_layouts_note), style = Type.Small.copy(fontSize = 12.sp, lineHeight = 18.sp))
+                SecondaryButton(stringResource(R.string.editor_reset_layout), onResetLayout, Modifier.fillMaxWidth(), icon = Icons.Reset)
             }
-            FormBadges(SkinForm.entries.filter(m::offered).toSet())
-            Text(stringResource(R.string.editor_layouts_note), style = Type.Small.copy(fontSize = 12.sp, lineHeight = 18.sp))
-            SecondaryButton(stringResource(R.string.editor_reset_layout), onResetLayout, Modifier.fillMaxWidth(), icon = Icons.Reset)
         }
     }
 }
@@ -1950,8 +1952,8 @@ private fun SectionTitle(text: String) {
 private fun LayoutCard(orientation: SkinOrientation, @StringRes state: Int?, editing: Boolean, present: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     Column(
-        modifier.gamepadFocus(corner = 16.dp).clip(shape)
-            .let { if (editing) it.background(Oe.Accent.copy(alpha = 0.12f)).border(2.dp, Oe.Accent, shape) else it.border(1.dp, BarBorder, shape) }
+        modifier.gamepadFocus(corner = 16.dp, background = if (editing) Oe.Accent.copy(alpha = 0.12f) else null).clip(shape)
+            .let { if (editing) it.border(2.dp, Oe.Accent, shape) else it.border(1.dp, BarBorder, shape) }
             .clickable(enabled = present && !editing, onClick = onClick).padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1969,7 +1971,8 @@ private fun LayoutCard(orientation: SkinOrientation, @StringRes state: Int?, edi
 private fun DropFormDialog(form: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
     val opener = LocalPadScope.current
     val pad = remember { PadScope() }
-    CompositionLocalProvider(LocalPadScope provides pad) {
+    // A sheet in the app's theme: the focus follows the theme again.
+    CompositionLocalProvider(LocalPadScope provides pad, LocalFocusDark provides null) {
         Dialog(onDismissRequest = onDismiss) {
             Column(
                 Modifier.padRoot(pad).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Oe.Sheet).border(1.dp, BarBorder, RoundedCornerShape(24.dp))

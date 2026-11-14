@@ -67,6 +67,31 @@ object Oe {
     val DangerBg: Color get() = pick(0xFF2A1C1F, 0xFFFBE6E4)
 }
 
+/**
+ * The background of an item the controller has focused (issue 951), replacing the ring the focus used to draw.
+ * Over nothing, or over the item's own plain background, it is the tone of a toggle that is on ([Oe.AccentSoft]).
+ * An item already filled with that tone (a selected choice) goes a step deeper, so the focus still shows on it;
+ * an accent button goes a deeper violet, so its white label stays readable. [dark] picks the theme's tones.
+ */
+fun focusFill(base: Color?, dark: Boolean): Color {
+    val soft = if (dark) FocusTones.SoftDark else FocusTones.SoftLight
+    return when (base) {
+        FocusTones.Accent -> FocusTones.AccentFocus
+        soft -> if (dark) FocusTones.OnDark else FocusTones.OnLight
+        else -> soft
+    }
+}
+
+/** The tones [focusFill] picks from; the soft ones are [Oe.AccentSoft]'s, the accent [Oe.Accent]'s. */
+internal object FocusTones {
+    val Accent = Color(0xFF7C3AED)
+    val AccentFocus = Color(0xFF5B21B6)
+    val SoftDark = Color(0xFF3B2A6B)
+    val SoftLight = Color(0xFFE4D9FD)
+    val OnDark = Color(0xFF4E3A8C)
+    val OnLight = Color(0xFFD3C2FB)
+}
+
 val Inter = FontFamily(
     Font(R.font.inter_regular, FontWeight.Normal),
     Font(R.font.inter_medium, FontWeight.Medium),

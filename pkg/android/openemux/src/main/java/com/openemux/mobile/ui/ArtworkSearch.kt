@@ -366,7 +366,7 @@ private fun ResultTile(
     onClick: () -> Unit,
 ) {
     Box(
-        modifier.gamepadFocus(corner = 10.dp).clip(RoundedCornerShape(10.dp)).background(Oe.Surface)
+        modifier.gamepadFocus(corner = 10.dp, background = Oe.Surface).clip(RoundedCornerShape(10.dp))
             .border(2.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(10.dp))
             .semantics(mergeDescendants = true) {
                 contentDescription = description
