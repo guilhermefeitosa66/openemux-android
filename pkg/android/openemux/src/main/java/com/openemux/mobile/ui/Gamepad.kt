@@ -409,9 +409,11 @@ fun Modifier.gamepadFocus(
                     cornerRadius = CornerRadius(r + out),
                 )
             }
+            // A transparent background fades from the fill's own tone: lerp from Color.Transparent (black) dims it.
+            // An art item's plate already covers its bounds, so nothing more is drawn under it.
             val under = when {
-                background != null -> lerp(background, fill, alpha)
-                alpha > 0f -> fill.copy(alpha = alpha)
+                background != null -> lerp(background.takeIf { it.alpha > 0f } ?: fill.copy(alpha = 0f), fill, alpha)
+                alpha > 0f && mat == 0.dp -> fill.copy(alpha = alpha)
                 else -> null
             }
             if (under != null) drawRoundRect(under, cornerRadius = CornerRadius(r))

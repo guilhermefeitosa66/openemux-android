@@ -410,8 +410,9 @@ private fun Picker(color: Int, actions: PaintActions) {
     val hueColor = Color(SkinColorMath.fromHsv(hsv[0], 1f, 1f))
     val squareLabel = stringResource(R.string.editor_saturation)
     Canvas(
-        Modifier.size(196.dp, 96.dp).clip(RoundedCornerShape(12.dp)).semantics { contentDescription = squareLabel }
-            .gamepadFocus(corner = 12.dp)
+        // The gradient covers the whole square, so the focus is a plate around it, drawn before the clip (issue 951).
+        Modifier.size(196.dp, 96.dp).semantics { contentDescription = squareLabel }
+            .gamepadFocus(corner = 12.dp, mat = FocusMat).clip(RoundedCornerShape(12.dp))
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
