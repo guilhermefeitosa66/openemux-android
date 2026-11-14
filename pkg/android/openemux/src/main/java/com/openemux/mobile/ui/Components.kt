@@ -135,8 +135,8 @@ object Icons {
     const val File = "M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14l3 3 3-3"
     const val Chip = "M5 5h14v14H5zM9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"
     const val Save = "M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"
-    // Save and load: the desktop's floppy with a down / up arrow (issue 945), stroked. Drawn with [floppyStroke], so
-    // the arrow's gap from the outline stays open at a phone's sizes.
+    // Save and load: the desktop's floppy with a down / up arrow (issue 945), stroked. [Icon] draws them with
+    // [floppyStroke], so the arrow's gap from the outline stays open at a phone's sizes.
     const val SaveState = "M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 15v6.5M15.5 18.5l3 3 3-3"
     const val LoadState = "M16 13V5.5L12.5 2H3.5A1.5 1.5 0 0 0 2 3.5V15a1.5 1.5 0 0 0 1.5 1.5H12.8M6 2v4h6V2M5.5 16.5V12h7v4.5M18.5 21.5V15M15.5 18l3-3 3 3"
     /** Turbo: a lightning bolt. Stroked. */
@@ -209,13 +209,15 @@ private val vectors = HashMap<IconKey, ImageVector>()
 
 @Composable
 fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, filled: Boolean = false, modifier: Modifier = Modifier) {
-    val vector = vectors.getOrPut(IconKey(path, color, size, stroke, filled)) {
+    // The floppies' line follows their size (issue 945), wherever they are drawn.
+    val line = if (path == Icons.SaveState || path == Icons.LoadState) Icons.floppyStroke(size.value) else stroke
+    val vector = vectors.getOrPut(IconKey(path, color, size, line, filled)) {
         ImageVector.Builder(defaultWidth = size, defaultHeight = size, viewportWidth = 24f, viewportHeight = 24f).apply {
             addPath(
                 pathData = PathParser().parsePathString(path).toNodes(),
                 fill = if (filled) SolidColor(color) else null,
                 stroke = if (filled) null else SolidColor(color),
-                strokeLineWidth = stroke,
+                strokeLineWidth = line,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
             )

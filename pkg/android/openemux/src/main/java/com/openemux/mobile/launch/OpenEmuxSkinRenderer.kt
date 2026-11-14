@@ -857,13 +857,13 @@ class OpenEmuxSkinRenderer(context: Context) {
     }
 
     private fun drawGlyph(c: Canvas, icon: String?, cx: Float, cy: Float, size: Float, color: Int) {
-        val data = GLYPHS[icon] ?: return
+        val data = GLYPHS[icon ?: return] ?: return
         val path: Path = PathParser.createPathFromPathData(data)
         path.transform(Matrix().apply { setScale(size / 24f, size / 24f); postTranslate(cx - size / 2f, cy - size / 2f) })
         c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             if (icon !in FILLED) {
-                val line = if (icon != null && stripActionFloppy(icon)) Icons.floppyStroke(size / density) else 1.8f
+                val line = if (stripActionFloppy(icon)) Icons.floppyStroke(size / density) else 1.8f
                 style = Paint.Style.STROKE; strokeWidth = line * size / 24f; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
             }
         })

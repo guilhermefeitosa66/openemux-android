@@ -234,7 +234,7 @@ class SkinRenderer(private val context: Context) {
         /** A gamepad page's touch twin, where its touch controls key goes; null: no such key. */
         private val touchNext: String? = null,
         /** The screen's pixels per dp: the floppy glyphs' line follows their size in dp (issue 945). */
-        private val density: Float = 1f,
+        private val density: Float,
     ) {
         private val colors: SkinColors = skin.colors
         private val descs = mutableListOf<OverlayDesc>()

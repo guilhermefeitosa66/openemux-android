@@ -947,7 +947,7 @@ private fun BigButton(
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
         if (iconFits) {
-            Icon(icon, fg, 22.dp, stroke = if (icon == Icons.SaveState || icon == Icons.LoadState) Icons.floppyStroke(22f) else 2f)
+            Icon(icon, fg, 22.dp)
             Spacer(Modifier.width(8.dp))
         }
         Text(
@@ -978,7 +978,7 @@ private fun SaveLoadRow(
                     .background(Oe.Raised).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.SaveState, Oe.Text, 20.dp, stroke = Icons.floppyStroke(20f))
+                Icon(Icons.SaveState, Oe.Text, 20.dp)
                 Spacer(Modifier.width(6.dp))
                 Column(Modifier.weight(1f, fill = false)) {
                     Text(stringResource(R.string.game_save), style = Type.Button.copy(color = Oe.Text, fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
