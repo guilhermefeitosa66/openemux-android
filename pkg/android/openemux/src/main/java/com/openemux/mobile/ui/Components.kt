@@ -60,6 +60,8 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -739,12 +741,27 @@ fun ConsoleIcon(console: Console, size: Dp = 40.dp) {
 /**
  * Pixel art at the largest whole multiple of its size that fits [size] (at least 1x), unsmoothed, and
  * only as big as it is drawn: a caller that lays it out beside text gets no empty margin around it.
+ * From [SOFT_GRID_FROM] screen pixels per art pixel up it carries the soft pixel grid (issue 967).
  */
 @Composable
 fun PixelArt(@DrawableRes res: Int, size: Dp) {
     val bitmap = ImageBitmap.imageResource(res)
-    val side = with(LocalDensity.current) { ((size.roundToPx() / bitmap.width).coerceAtLeast(1) * bitmap.width).toDp() }
-    Image(bitmap, null, Modifier.size(side), filterQuality = FilterQuality.None)
+    val density = LocalDensity.current
+    val cell = iconCell(with(density) { size.roundToPx() }, bitmap.width)
+    val side = with(density) { (cell * bitmap.width).toDp() }
+    val drawn = if (cell >= SOFT_GRID_FROM) remember(res, cell, bitmap) { griddedArt(res, cell, bitmap) } else bitmap
+    Image(drawn, null, Modifier.size(side), filterQuality = FilterQuality.None)
+}
+
+/** (art resource, cell) -> the art blown up with its soft grid, drawn pixel for pixel; built once each. */
+private val griddedCache = HashMap<Pair<Int, Int>, ImageBitmap>()
+
+private fun griddedArt(@DrawableRes res: Int, cell: Int, art: ImageBitmap): ImageBitmap = griddedCache.getOrPut(res to cell) {
+    val w = art.width
+    val h = art.height
+    val pixels = IntArray(w * h).also { art.asAndroidBitmap().getPixels(it, 0, w, 0, 0, w, h) }
+    android.graphics.Bitmap.createBitmap(softGridPixels(pixels, w, h, cell), w * cell, h * cell, android.graphics.Bitmap.Config.ARGB_8888)
+        .asImageBitmap()
 }
 
 @Composable
