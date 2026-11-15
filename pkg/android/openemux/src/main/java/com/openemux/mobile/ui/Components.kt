@@ -60,10 +60,10 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -749,7 +749,7 @@ fun PixelArt(@DrawableRes res: Int, size: Dp) {
     val density = LocalDensity.current
     val cell = iconCell(with(density) { size.roundToPx() }, bitmap.width)
     val side = with(density) { (cell * bitmap.width).toDp() }
-    val drawn = if (cell >= SOFT_GRID_FROM) remember(res, cell, bitmap) { griddedArt(res, cell, bitmap) } else bitmap
+    val drawn = if (cell >= SOFT_GRID_FROM) griddedArt(res, cell, bitmap) else bitmap
     Image(drawn, null, Modifier.size(side), filterQuality = FilterQuality.None)
 }
 
