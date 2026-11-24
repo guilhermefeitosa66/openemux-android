@@ -2195,7 +2195,7 @@ fun RecentScreen() {
     val roms by lib.roms.collectAsState()
     val meta by lib.meta.collectAsState()
     val loaded by lib.loaded.collectAsState()
-    val recent = remember(roms, meta) { roms.filter { (meta.roms[it.key]?.lastPlayed ?: 0) > 0 }.sortedByDescending { meta.roms[it.key]!!.lastPlayed } }
+    val recent = remember(roms, meta) { recentList(roms) { meta.roms[it.key]?.lastPlayed ?: 0L } }
     GamepadButtons(hints = listOf("A" to stringResource(R.string.library_hint_detail), "L1 R1" to stringResource(R.string.library_hint_tabs)))
 
     MarginFocusScroll(trailing = FocusMargin + TabBarHeight + hintBarInset) { LazyColumn(Modifier.fillMaxSize().statusBarsPadding().holdFocusAtEnd(FocusDirection.Down)) {

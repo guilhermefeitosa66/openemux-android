@@ -95,4 +95,28 @@ class ShelfLayoutTest {
         assertEquals(0f, continueCardWidth(10f, 1))
         assertEquals(0f, continueCardWidth(10f, 2))
     }
+
+    private data class Played(val name: String, val at: Long)
+
+    @Test
+    fun recentKeepsTheTwelveLastPlayedNewestFirst() {
+        assertEquals(12, RECENT_LIMIT)
+        // 15 played (at 1..15, shuffled) and two never played.
+        val games = (1..15).shuffled(java.util.Random(997)).map { Played("g$it", it.toLong()) } +
+            listOf(Played("never1", 0), Played("never2", 0))
+        val recent = recentList(games) { it.at }
+        assertEquals((15 downTo 4).map { "g$it" }, recent.map { it.name })
+        // The shelf's Continue row is the head of the tab, in the same order.
+        assertEquals(recent.take(PHONE_CONTINUE_COUNT), continueList(games, { it.at }, PHONE_CONTINUE_COUNT))
+    }
+
+    @Test
+    fun recentShowsEveryPlayedGameUpToTheLimit() {
+        val few = listOf(Played("a", 5), Played("b", 0), Played("c", 9), Played("d", 1))
+        assertEquals(listOf("c", "a", "d"), recentList(few) { it.at }.map { it.name })
+        val twelve = (1..12).map { Played("g$it", it.toLong()) }
+        assertEquals(12, recentList(twelve) { it.at }.size)
+        assertTrue(recentList(emptyList<Played>()) { it.at }.isEmpty())
+        assertTrue(recentList(listOf(Played("x", 0))) { it.at }.isEmpty())
+    }
 }

@@ -53,6 +53,16 @@ fun <K> reorderTarget(cx: Float, cy: Float, dragged: K, slots: List<Slot<K>>, mo
 fun <T> continueList(items: List<T>, lastPlayed: (T) -> Long, n: Int): List<T> =
     items.filter { lastPlayed(it) > 0 }.sortedByDescending(lastPlayed).take(n.coerceAtLeast(0))
 
+/** How many games the Recent tab lists (issue 997): the same 12 as the desktop's `play_history.RECENT_LIMIT` (issue 942). */
+const val RECENT_LIMIT = 12
+
+/**
+ * The Recent tab: the [RECENT_LIMIT] last played, newest first. Built like [continueList], so the
+ * shelf's Continue row (never more than [RECENT_LIMIT] cards) is always its head. Only the list is
+ * capped: older games keep their history.
+ */
+fun <T> recentList(items: List<T>, lastPlayed: (T) -> Long): List<T> = continueList(items, lastPlayed, RECENT_LIMIT)
+
 /** The [n] games that came in last, by when their file was copied in, newest first. */
 fun <T> recentlyAdded(items: List<T>, modified: (T) -> Long, n: Int): List<T> =
     // [modified] reads the file system: once per item, not once per comparison.
