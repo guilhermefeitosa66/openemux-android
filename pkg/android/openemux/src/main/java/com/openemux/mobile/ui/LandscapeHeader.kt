@@ -26,6 +26,21 @@ fun headerBand(rowWidthDp: Float, padLayout: Boolean): HeaderBand = when {
 }
 
 /**
+ * The band of a pager that has a whole row to itself: in the gamepad layout the chip row's place in
+ * portrait, tabletop and the list view (issue 998). The steps are the shoulders, so they always show;
+ * the header right above already reads the game count, and the gamepad layout never shows the caret.
+ */
+val FULL_ROW_BAND = HeaderBand(steps = true, icon = true, shortName = false, count = false, caret = false)
+
+/**
+ * Whether the header's filter pager shows the shoulders itself, so the hint bar needs no "L1 R1" hint.
+ * In the landscape row the search field takes the pager's place while it is open (issue 669); elsewhere
+ * the pager stands in for the chips whenever the gamepad layout is on (issue 998).
+ */
+fun pagerShowsShoulders(landscapeRow: Boolean, searching: Boolean, padLayout: Boolean): Boolean =
+    if (landscapeRow) !searching else padLayout
+
+/**
  * The filter [step] places from [current] in [ids], clamped at both ends. An unknown [current]
  * counts as the first filter, as the chips did.
  */
