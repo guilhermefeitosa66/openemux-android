@@ -909,8 +909,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
             "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
         )
-        // The pager's steps show the shoulders; while the search field has its place, the hint still does.
-        .filter { !pagerShowsShoulders(landscapeRow, searching, InputMode.padLayout) || it.first != "L1 R1" },
+        // The landscape pager's steps show the shoulders; while the search field has its place, the hint
+        // still does. The portrait pager scrolls away with the header, so there the hint stays (issue 998).
+        .filter { !landscapeRow || searching || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
         // X, Y and START act on the game holding focus now, never on one remembered while focus is on
@@ -1004,8 +1005,9 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         }
     }
 
-    // Games per filter, for the pager's menu; the search does not narrow them.
-    val counts = remember(roms, meta, chipIds) {
+    // Games per filter, for the pager's menu; the search does not narrow them. Only while a pager shows:
+    // the chips never read them.
+    val counts = if (!landscapeRow && !InputMode.padLayout) emptyMap() else remember(roms, meta, chipIds) {
         chipIds.associateWith { id ->
             when (id) {
                 "ALL" -> roms.size

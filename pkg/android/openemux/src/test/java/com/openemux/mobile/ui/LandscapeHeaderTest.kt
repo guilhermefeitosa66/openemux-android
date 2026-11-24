@@ -85,19 +85,4 @@ class LandscapeHeaderTest {
     fun aPagerWithAWholeRowAlwaysShowsItsStepsAndNoCountOrCaret() {
         assertEquals(HeaderBand(steps = true, icon = true, shortName = false, count = false, caret = false), FULL_ROW_BAND)
     }
-
-    @Test
-    fun theLandscapePagerShowsTheShouldersUnlessTheSearchHasItsPlace() {
-        assertTrue(pagerShowsShoulders(landscapeRow = true, searching = false, padLayout = true))
-        assertTrue(pagerShowsShoulders(landscapeRow = true, searching = false, padLayout = false))
-        assertFalse(pagerShowsShoulders(landscapeRow = true, searching = true, padLayout = true))
-    }
-
-    @Test
-    fun elsewhereThePagerShowsTheShouldersOnlyInTheGamepadLayout() {
-        // Portrait, tabletop and the list view: the pager stands in for the chips with a pad (issue 998).
-        assertTrue(pagerShowsShoulders(landscapeRow = false, searching = false, padLayout = true))
-        assertTrue(pagerShowsShoulders(landscapeRow = false, searching = true, padLayout = true))
-        assertFalse(pagerShowsShoulders(landscapeRow = false, searching = false, padLayout = false))
-    }
 }
