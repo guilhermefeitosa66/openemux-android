@@ -80,4 +80,9 @@ class LandscapeHeaderTest {
         // The narrowest band always asks for the short name.
         assertEquals("SNES", nameThatFits("Super Nintendo", "SNES", true, fullWidthPx = 10, maxWidthPx = 260))
     }
+
+    @Test
+    fun aPagerWithAWholeRowAlwaysShowsItsStepsAndNoCountOrCaret() {
+        assertEquals(HeaderBand(steps = true, icon = true, shortName = false, count = false, caret = false), FULL_ROW_BAND)
+    }
 }

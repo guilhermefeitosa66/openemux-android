@@ -909,7 +909,8 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
             "Y" to stringResource(R.string.library_hint_options), "L1 R1" to stringResource(R.string.library_hint_console),
             "START" to stringResource(R.string.library_hint_select), "B" to stringResource(R.string.library_shelf_title),
         )
-        // The pager's steps show the shoulders; while the search field has its place, the hint still does.
+        // The landscape pager's steps show the shoulders; while the search field has its place, the hint
+        // still does. The portrait pager scrolls away with the header, so there the hint stays (issue 998).
         .filter { !landscapeRow || searching || it.first != "L1 R1" },
         l1 = { chip(-1) },
         r1 = { chip(1) },
@@ -1004,17 +1005,28 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
         }
     }
 
-    if (landscapeRow) Box(Modifier.fillMaxSize()) {
-        // Games per filter, for the pager's menu; the search does not narrow them.
-        val counts = remember(roms, meta, chipIds) {
-            chipIds.associateWith { id ->
-                when (id) {
-                    "ALL" -> roms.size
-                    "FAV" -> roms.count { meta.roms[it.key]?.favorite == true }
-                    else -> roms.count { it.console.id == id }
-                }
+    // Games per filter, for the pager's menu; the search does not narrow them. Only while a pager shows:
+    // the chips never read them.
+    val counts = if (!landscapeRow && !InputMode.padLayout) emptyMap() else remember(roms, meta, chipIds) {
+        chipIds.associateWith { id ->
+            when (id) {
+                "ALL" -> roms.size
+                "FAV" -> roms.count { meta.roms[it.key]?.favorite == true }
+                else -> roms.count { it.console.id == id }
             }
         }
+    }
+    // The console filter where the chips row goes: with the gamepad layout on, the landscape pager
+    // instead, one console at a time with the shoulders as its steps, so the pick never walks off
+    // screen (issue 998). Both read and set the same filter, so swapping them keeps the pick.
+    val consoleFilter: @Composable (Modifier) -> Unit = { modifier ->
+        if (InputMode.padLayout) Box(modifier) {
+            FilterPager(FULL_ROW_BAND, chipIds, current, list.size, counts, ::chip, ::pickFilter, spread = true)
+        }
+        else ConsoleChips(roms, current, modifier) { current = it }
+    }
+
+    if (landscapeRow) Box(Modifier.fillMaxSize()) {
         LandscapeLibrary(
             list = list, groups = groups, current = current,
             filters = chipIds, counts = counts, onStep = ::chip, onPick = ::pickFilter,
@@ -1045,7 +1057,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 ViewToggle(mode) { mode = it }
             }
             if (searching) SearchField(query, autoFocus = searchRequested) { query = it }
-            ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
+            consoleFilter(Modifier.padding(top = 14.dp))
             FlagChips(flagSet, facetCounts, Modifier.padding(top = 10.dp), toggleFlag, clearFlags)
         }
     }
@@ -1154,7 +1166,7 @@ fun LibraryScreen(filter: String, entry: NavBackStackEntry? = null) {
                 }
                 ArtworkSyncPill(Modifier.padding(top = 16.dp))
                 if (!tabletop) {
-                    ConsoleChips(roms, current, Modifier.padding(top = 14.dp)) { current = it }
+                    consoleFilter(Modifier.padding(top = 14.dp))
                     FlagChips(flagSet, facetCounts, Modifier.padding(top = 10.dp), toggleFlag, clearFlags)
                 }
                 Row(Modifier.padding(top = 22.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1834,9 +1846,6 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
     FocusRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         val chips = listOf("ALL" to stringResource(R.string.library_chip_all), "FAV" to stringResource(R.string.library_favorites)) +
             library.orderedConsoles(meta.consoleOrder).filter { c -> roms.any { it.console == c } }.map { it.id to it.short }
-        // In the gamepad layout the shoulders that switch the chip sit at the row's ends.
-        val shoulders = InputMode.padLayout && chips.size > 1
-        if (shoulders) ShoulderPill("L1")
         chips.forEach { (id, label) ->
             val active = id == current
             val glyph = chipGlyph(id)
@@ -1861,7 +1870,6 @@ private fun ConsoleChips(roms: List<Rom>, current: String, modifier: Modifier = 
                 }
             }
         }
-        if (shoulders) ShoulderPill("R1")
     }
 }
 
@@ -1921,7 +1929,9 @@ private fun FilterIcon(id: String) {
 
 /**
  * The landscape header's console filter (issue 669): previous, the current filter (which opens a menu
- * of them all) and next, walking the same filters in the same order the chips did.
+ * of them all) and next, walking the same filters in the same order the chips did. [spread] gives it a
+ * whole row (the chips' place, issue 998): the steps at its ends and the label centred between them,
+ * so the shoulders stay put whatever the name's length.
  */
 @Composable
 private fun FilterPager(
@@ -1932,10 +1942,14 @@ private fun FilterPager(
     counts: Map<String, Int>,
     onStep: (Int) -> Unit,
     onPick: (String) -> Unit,
+    spread: Boolean = false,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(
+        if (spread) Modifier.fillMaxWidth() else Modifier,
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         if (band.steps) FilterStep(-1, filters, current, onStep)
-        Box(Modifier.weight(1f, fill = false)) { FilterLabel(band, filters, current, shown, counts, onPick) }
+        Box(Modifier.weight(1f, fill = spread), contentAlignment = Alignment.Center) { FilterLabel(band, filters, current, shown, counts, onPick) }
         if (band.steps) FilterStep(1, filters, current, onStep)
     }
 }

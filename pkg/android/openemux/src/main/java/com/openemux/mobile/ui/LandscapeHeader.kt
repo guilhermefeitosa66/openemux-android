@@ -26,6 +26,13 @@ fun headerBand(rowWidthDp: Float, padLayout: Boolean): HeaderBand = when {
 }
 
 /**
+ * The band of a pager that has a whole row to itself: in the gamepad layout the chip row's place in
+ * portrait, tabletop and the list view (issue 998). The steps are the shoulders, so they always show;
+ * the header right above already reads the game count, and the gamepad layout never shows the caret.
+ */
+val FULL_ROW_BAND = HeaderBand(steps = true, icon = true, shortName = false, count = false, caret = false)
+
+/**
  * The filter [step] places from [current] in [ids], clamped at both ends. An unknown [current]
  * counts as the first filter, as the chips did.
  */
