@@ -105,6 +105,14 @@ class TabletLayoutTest {
     private val games = listOf(Game("a", 0, 30), Game("b", 20, 10), Game("c", 50, 40), Game("d", 10, 20), Game("e", 40, 0))
 
     @Test
+    fun everyContinueRowFitsInTheRecentTab() {
+        // Phone upright and on its side, small and large tablets both ways: the Continue row
+        // never holds more than Recent lists, so it is always the head of the tab (issue 997).
+        val sizes = listOf(360f to 800f, 800f to 360f, 411f to 914f, 914f to 411f, 700f to 1000f, 1000f to 700f, 800f to 1280f, 1280f to 800f)
+        for ((width, height) in sizes) assertTrue(shelfSpecOf(w(width, height)).continueCount in 0..RECENT_LIMIT)
+    }
+
+    @Test
     fun continueListIsTheLastPlayedFirst() {
         assertEquals(listOf("c", "e", "b"), continueList(games, { it.played }, 3).map { it.name })
         assertEquals(listOf("c", "e", "b", "d"), continueList(games, { it.played }, 10).map { it.name })

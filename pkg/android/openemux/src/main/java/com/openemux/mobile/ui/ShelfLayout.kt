@@ -58,7 +58,8 @@ const val RECENT_LIMIT = 12
 
 /**
  * The Recent tab: the [RECENT_LIMIT] last played, newest first. Built like [continueList], so the
- * shelf's Continue row is always its head. Only the list is capped: older games keep their history.
+ * shelf's Continue row (never more than [RECENT_LIMIT] cards) is always its head. Only the list is
+ * capped: older games keep their history.
  */
 fun <T> recentList(items: List<T>, lastPlayed: (T) -> Long): List<T> = continueList(items, lastPlayed, RECENT_LIMIT)
 
