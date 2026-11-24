@@ -128,7 +128,7 @@ class RomRenameTest {
         val renamed = RomRenamer(paths, lib, covers, labels).rename(game(lib, "Mario (USA).sfc"), "Super Mario")
         assertTrue(renamed is RenameResult.Done)
         assertFalse(paths.saveBackup(Console.SFC, "Mario (USA)").exists())
-        assertTrue(File(paths.saveBackup(Console.SFC, "Super Mario"), "Mario (USA).srm").isFile)
+        assertTrue(File(paths.saveBackup(Console.SFC, "Super Mario"), "Super Mario.srm").isFile)
     }
 
     @Test

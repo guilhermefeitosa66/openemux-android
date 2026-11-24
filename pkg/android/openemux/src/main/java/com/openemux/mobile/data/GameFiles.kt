@@ -112,13 +112,14 @@ class GameFiles(
         zip.finish()
     }
 
-    /** The save file [rom] loads with [core]: its own when it has one, else the core's usual name. */
+    /**
+     * The save file [rom] loads with [core]: `<stem>.<suffix>` with the core's suffix (the game's own file when it
+     * has one, whatever its case). Never a save another core left: an import there would never be loaded.
+     */
     fun target(rom: Rom, core: CoreDef): File {
-        val own = saves(rom)
         val suffix = defaultSuffix(core)
-        val main = own.firstOrNull { it.extension.equals(suffix, ignoreCase = true) }
-            ?: own.firstOrNull { it.extension.lowercase() !in COMPANION_SUFFIXES }
-        return main ?: File(paths.saves(rom.console), "${rom.baseName}.$suffix")
+        return saves(rom).firstOrNull { it.extension.equals(suffix, ignoreCase = true) }
+            ?: File(paths.saves(rom.console), "${rom.baseName}.$suffix")
     }
 
     /** What importing a file named [name] of [size] bytes (negative: unknown) as [rom]'s save would do. */
@@ -207,6 +208,9 @@ class GameFiles(
             Log.w(TAG, "restore of the save of ${rom.key} failed, putting the one in use back", e)
             // What was moved in is undone from the copy set aside; the copy stays if even that fails.
             val back = swap.listFiles().orEmpty().all { runCatching { put(it, dir) }.isSuccess }
+            // A file only the kept save had was put in, not put back: it goes, the kept save still has it.
+            val inUse = swap.list().orEmpty().toSet()
+            kept.files.filter { it.name !in inUse }.forEach { File(dir, it.name).delete() }
             if (back) swap.deleteRecursively()
             return SaveChange.FAILED
         }
@@ -224,12 +228,23 @@ class GameFiles(
         }
     }
 
-    /** A rename (issue 790) takes the kept save along; nothing is lost when it cannot. */
+    /**
+     * A rename (issue 790) takes the kept save along, its files renamed like the game's own saves, so a restore
+     * puts them back under the name the core loads; nothing is lost when it cannot.
+     */
     fun renamed(console: Console, oldStem: String, newStem: String) {
         val from = paths.saveBackup(console, oldStem)
         if (!from.isDirectory) return
         val to = paths.saveBackup(console, newStem)
-        if (to.exists() || !move(from, to)) Log.w(TAG, "kept save of $oldStem not carried to $newStem")
+        if (to.exists() || !move(from, to)) {
+            Log.w(TAG, "kept save of $oldStem not carried to $newStem")
+            return
+        }
+        for (file in to.listFiles().orEmpty()) {
+            if (!file.name.startsWith("$oldStem.")) continue
+            val renamed = File(to, newStem + file.name.substring(oldStem.length))
+            if (renamed.exists() || !move(file, renamed)) Log.w(TAG, "kept ${file.name} not renamed for $newStem")
+        }
     }
 
     /** Copies [files] aside as the game's kept save, replacing the one kept before. */
@@ -252,12 +267,20 @@ class GameFiles(
     private fun replaceKept(rom: Rom, staging: File) {
         val dir = paths.saveBackup(rom.console, rom.baseName)
         val stamp = staging.lastModified()
-        dir.deleteRecursively()
         if (staging.list().isNullOrEmpty()) {
             staging.delete()
+            dir.deleteRecursively()
             return
         }
-        if (!move(staging, dir)) throw IOException("could not keep the save aside")
+        // The save kept before goes only once the new one is in: a move that fails leaves it where it was.
+        val old = File(dir.parentFile, ".${rom.baseName}$OLD")
+        old.deleteRecursively()
+        if (dir.exists() && !move(dir, old)) throw IOException("could not set the kept save aside")
+        if (!move(staging, dir)) {
+            if (old.exists() && !move(old, dir)) Log.w(TAG, "the kept save of ${rom.key} stays in ${old.name}")
+            throw IOException("could not keep the save aside")
+        }
+        old.deleteRecursively()
         dir.setLastModified(stamp)
     }
 
@@ -272,9 +295,7 @@ class GameFiles(
         /** The temporary name an imported or restored save is written under; a dotfile, so no scan lists it. */
         internal const val TMP_IMPORT = ".openemux-import"
         private const val STAGING = ".staging"
-
-        /** Files a core writes beside the save that are not the save: the cartridge clock. */
-        private val COMPANION_SUFFIXES = setOf("rtc")
+        private const val OLD = ".old"
 
         /** The extensions emulators give battery saves and memory cards; another one only asks first. */
         val KNOWN_SAVE_SUFFIXES = setOf("srm", "sav", "dsv", "eep", "fla", "sra", "mpk", "mcr", "mcd", "mc", "brm", "bkr", "ram", "sa1")
@@ -327,10 +348,11 @@ class GameFiles(
         /**
          * Whether the engine's `GET_STATUS` [reply] says [stem]'s game is up, playing or paused. The reply is
          * `GET_STATUS <PLAYING|PAUSED> <system>,<content>`; a running reply whose content cannot be read counts as
-         * this game, so a doubt never lets a save be swapped under a running core.
+         * this game, and so does no reply while the game's process is alive ([gameProcess]): a doubt never lets a
+         * save be swapped under a running core.
          */
-        fun runningGame(reply: String?, stem: String): Boolean {
-            val parts = reply?.trim()?.split(' ', limit = 3) ?: return false
+        fun runningGame(reply: String?, stem: String, gameProcess: Boolean = false): Boolean {
+            val parts = reply?.trim()?.split(' ', limit = 3) ?: return gameProcess
             if (parts.size < 2 || parts[0] != "GET_STATUS" || parts[1] !in setOf("PLAYING", "PAUSED")) return false
             val content = parts.getOrNull(2)?.substringAfter(',', "")?.trim().orEmpty()
             if (content.isEmpty() || content == "UNKNOWN") return true

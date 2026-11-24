@@ -121,14 +121,23 @@ class GameFilesTest {
     }
 
     @Test
-    fun theGamesOwnSaveDecidesTheTarget() {
+    fun aSaveAnotherCoreLeftIsNeverTheTarget() {
         val mario = rom("Mario.sfc")
         put(saves(), "Mario.rtc")
         put(saves(), "Mario.sav")
-        // Not the core's usual name, but what this game has: the clock is never the save.
-        assertEquals("Mario.sav", files.target(mario, srm).name)
-        put(saves(), "Mario.srm")
+        // snes9x loads Mario.srm: an import into Mario.sav would never be read.
         assertEquals("Mario.srm", files.target(mario, srm).name)
+        val ds = rom("Pokemon.nds", Console.NDS)
+        put(saves(Console.NDS), "Pokemon.dsv")
+        assertEquals("Pokemon.sav", files.target(ds, core("melonds")).name)
+        assertEquals("Pokemon.dsv", files.target(ds, core("desmume")).name)
+    }
+
+    @Test
+    fun theGamesOwnSaveKeepsItsCase() {
+        val mario = rom("Mario.sfc")
+        put(saves(), "Mario.SRM")
+        assertEquals("Mario.SRM", files.target(mario, srm).name)
     }
 
     @Test
@@ -250,12 +259,45 @@ class GameFilesTest {
     }
 
     @Test
-    fun anImportIntoTheGamesOwnSaveName() {
+    fun anImportBesideAnotherCoresSaveKeepsThatOneAside() {
         val mario = rom("Mario.sfc")
         put(saves(), "Mario.sav", byteArrayOf(1))
         files.import(mario, srm, ByteArrayInputStream(byteArrayOf(4)))
-        assertArrayEquals(byteArrayOf(4), File(saves(), "Mario.sav").readBytes())
-        assertFalse(File(saves(), "Mario.srm").exists())
+        assertArrayEquals(byteArrayOf(4), File(saves(), "Mario.srm").readBytes())
+        assertArrayEquals(byteArrayOf(1), File(saves(), "Mario.sav").readBytes())
+        assertEquals(listOf("Mario.sav"), files.kept(mario)!!.files.map { it.name })
+    }
+
+    @Test
+    fun aKeptSaveThatCannotBeReplacedStaysAndStopsTheImport() {
+        val mario = rom("Mario.sfc")
+        put(saves(), "Mario.srm", byteArrayOf(1))
+        files.import(mario, srm, ByteArrayInputStream(byteArrayOf(2)))
+        // The old kept save moves aside, the new one cannot take its place: the old one comes back.
+        val failing = GameFiles(paths) { from, to -> if (from.name.endsWith(".staging")) false else from.renameTo(to) }
+        assertEquals(SaveChange.FAILED, failing.import(mario, srm, ByteArrayInputStream(byteArrayOf(3))))
+        assertArrayEquals(byteArrayOf(1), files.kept(mario)!!.files.single().readBytes())
+        assertArrayEquals(byteArrayOf(2), File(saves(), "Mario.srm").readBytes())
+    }
+
+    @Test
+    fun aKeptSaveThatCannotEvenBeSetAsideStopsTheImport() {
+        val mario = rom("Mario.sfc")
+        put(saves(), "Mario.srm", byteArrayOf(1))
+        files.import(mario, srm, ByteArrayInputStream(byteArrayOf(2)))
+        val failing = GameFiles(paths) { from, to -> if (from.name == "Mario") false else from.renameTo(to) }
+        assertEquals(SaveChange.FAILED, failing.import(mario, srm, ByteArrayInputStream(byteArrayOf(3))))
+        assertArrayEquals(byteArrayOf(1), files.kept(mario)!!.files.single().readBytes())
+    }
+
+    @Test
+    fun aKeptSaveThatCannotComeBackIsLeftAside() {
+        val mario = rom("Mario.sfc")
+        put(saves(), "Mario.srm", byteArrayOf(1))
+        files.import(mario, srm, ByteArrayInputStream(byteArrayOf(2)))
+        val failing = GameFiles(paths) { from, to -> if (from.name.endsWith(".staging") || from.name.endsWith(".old")) false else from.renameTo(to) }
+        assertEquals(SaveChange.FAILED, failing.import(mario, srm, ByteArrayInputStream(byteArrayOf(3))))
+        assertTrue(File(paths.saveBackup(Console.SFC, "x").parentFile, ".Mario.old/Mario.srm").isFile)
     }
 
     @Test
@@ -410,9 +452,15 @@ class GameFilesTest {
         val mario = rom("Mario.sfc")
         put(saves(), "Mario.srm", byteArrayOf(1))
         files.import(mario, srm, ByteArrayInputStream(byteArrayOf(2)))
+        put(paths.saveBackup(Console.SFC, "Mario"), "notes.txt")
         files.renamed(Console.SFC, "Mario", "Super Mario")
         assertFalse(paths.saveBackup(Console.SFC, "Mario").exists())
-        assertTrue(File(paths.saveBackup(Console.SFC, "Super Mario"), "Mario.srm").isFile)
+        // Renamed like the game's saves, so a restore puts it under the name the core loads.
+        assertEquals(listOf("Super Mario.srm", "notes.txt"), names(paths.saveBackup(Console.SFC, "Super Mario")))
+        val renamed = Rom("SFC/Super Mario.sfc", Console.SFC, File(paths.roms(Console.SFC), "Super Mario.sfc").apply { writeBytes(byteArrayOf(9)) }, "Super Mario")
+        File(saves(), "Mario.srm").renameTo(File(saves(), "Super Mario.srm"))
+        assertEquals(SaveChange.DONE, files.restore(renamed))
+        assertArrayEquals(byteArrayOf(1), File(saves(), "Super Mario.srm").readBytes())
         // Nothing kept, or a folder already there under the new name: nothing moves.
         files.renamed(Console.SFC, "Zelda", "Link")
         assertFalse(paths.saveBackup(Console.SFC, "Link").exists())
@@ -437,5 +485,8 @@ class GameFilesTest {
         assertFalse(GameFiles.runningGame("GET_STATUS", "Mario"))
         assertFalse(GameFiles.runningGame("SOMETHING ELSE", "Mario"))
         assertFalse(GameFiles.runningGame(null, "Mario"))
+        // No answer while the game's process is alive: taken as running.
+        assertTrue(GameFiles.runningGame(null, "Mario", gameProcess = true))
+        assertFalse(GameFiles.runningGame("GET_STATUS PLAYING super_nes,Zelda", "Mario", gameProcess = true))
     }
 }
