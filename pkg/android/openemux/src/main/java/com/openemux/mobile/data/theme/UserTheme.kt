@@ -88,6 +88,8 @@ data class UserTheme(val id: String, val name: String, val base: String, val val
             for ((fg, backgrounds) in ThemeKeys.CONTRAST_PAIRS) {
                 for (bg in backgrounds) {
                     if (!theme.isChanged(fg) && !theme.isChanged(bg)) continue
+                    // Unset, the console list is each console's own color, not this default: nothing to check.
+                    if (bg == "console_list_bg" && !theme.isChanged(bg)) continue
                     val ratio = SkinColorMath.contrast(theme.color(fg), theme.color(bg))
                     if (ratio < ThemeKeys.WCAG_AA) out += ContrastProblem(fg, bg, ratio)
                 }

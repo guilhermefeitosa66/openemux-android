@@ -204,7 +204,12 @@ object ThemePref {
     }
 
     fun load(context: Context) {
-        value = parse(prefs(context).getString("theme", SYSTEM))
+        // A user theme that was saved under a ready-made theme's id (before issue 1018's second part) moves to a
+        // free id; the choice follows it, so the person keeps their own theme.
+        val moved = runCatching { ActiveTheme.store(context).moveReserved() }.getOrDefault(emptyMap())
+        val stored = prefs(context).getString("theme", SYSTEM)
+        value = parse(moved[stored] ?: stored)
+        if (moved.containsKey(stored)) prefs(context).edit().putString("theme", value).apply()
         ActiveTheme.load(context, value)
     }
 

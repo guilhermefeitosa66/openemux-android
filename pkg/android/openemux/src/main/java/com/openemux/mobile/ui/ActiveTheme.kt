@@ -38,24 +38,29 @@ object ActiveTheme {
     /** Where the ready-made themes are copied from the APK, as plain files. */
     fun readyRoot(context: Context) = File(context.filesDir, "ready-themes")
 
-    /** The ready-made themes, copied out of the APK once per installed version. */
+    /** The ready-made themes, copied out of the APK once per installed version and read once per process. */
     fun readyThemes(context: Context): List<UserTheme> {
+        readyCache?.let { return it }
         installReady(context)
-        return ReadyThemes.all(readyRoot(context))
+        return ReadyThemes.all(readyRoot(context)).also { if (it.isNotEmpty()) readyCache = it }
     }
 
+    private var readyCache: List<UserTheme>? = null
+    private var readyInstalled = false
+
     private fun installReady(context: Context) {
+        if (readyInstalled) return
         val stamp = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString() }.getOrDefault("0")
         runCatching {
             ReadyThemes.install(readyRoot(context), stamp, { context.assets.list("themes/$it")?.toList().orEmpty() }) { context.assets.open("themes/$it") }
+            readyInstalled = true
         }.onFailure { Log.w("OpenEmuxTheme", "ready-made themes not installed: $it") }
     }
 
     /** Reads [id] from disk and paints with it; a built-in id, or a theme that is gone, paints the app's own look. */
     fun load(context: Context, id: String) {
         if (ReadyThemes.isReadyId(id)) {
-            installReady(context)
-            val theme = ReadyThemes.load(readyRoot(context), id)
+            val theme = readyThemes(context).firstOrNull { it.id == id }
             apply(theme, theme?.let { File(readyRoot(context), it.id) })
             return
         }

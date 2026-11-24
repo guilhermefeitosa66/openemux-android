@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """The ready-made themes (issue 1018): their colors, their artwork and the files the app ships.
 
+The files it writes under src/main/assets are force-added to git (`git add -f`): RetroArch's .gitignore ignores
+every folder named assets.
+
 Everything here is original: the pictures are drawn by this script from basic shapes (no image is copied
 from anywhere), and the colors of Dracula and Tokyo Night come from those MIT-licensed palettes (credited in
 art/themes/CREDITS.md and in the app's licenses).
@@ -167,7 +170,7 @@ def kitty():
         c = rng.choice(["#f7b9d7", "#d8c4e6", "#bfe3f0", "#f9d9b4"])
         body.append(f'<path transform="translate({x:.0f} {y:.0f}) scale({s:.2f})" fill="{c}" opacity="0.22" '
                     'd="M0 12 C-26 -6 -18 -30 0 -18 C18 -30 26 -6 0 12 Z"/>')
-    # A rug, a ball of yarn and the cat, in the lower right.
+    # A rug, a ball of yarn and the cat (moved to the upper right below).
     body.append('<g transform="translate(420 -450) scale(0.62)"><ellipse cx="640" cy="1700" rx="420" ry="70" fill="#2e2536"/>')
     body.append('<circle cx="330" cy="1630" r="62" fill="#3f5c69"/>'
                 '<path d="M282 1600 C320 1590 360 1610 384 1640 M276 1640 C315 1625 355 1645 378 1675 M300 1580 C335 1600 350 1640 345 1688" '

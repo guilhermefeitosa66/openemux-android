@@ -78,4 +78,22 @@ class ReadyThemesTest {
         assertEquals("dracula-2", store.newId("Dracula"))
         assertEquals("tokyo-night-2", store.create("Tokyo Night", ThemeBase.DARK).id)
     }
+
+    @Test fun aUserThemeUnderAReservedIdMovesToAFreeOne() {
+        val root = File(work, "themes")
+        File(root, "neon").apply { mkdirs() }.resolve("theme.yaml").writeText("version: 1\nname: Neon\nbase: dark\naccent: '#00ff00'\n")
+        File(root, "pastel").mkdirs() // no theme file: left alone
+        val store = ThemeStore(root, { _, _ -> false })
+        assertEquals(mapOf("neon" to "neon-2"), store.moveReserved())
+        assertEquals(listOf("neon-2"), store.list().map { it.id })
+        assertEquals(0xFF00FF00.toInt(), store.get("neon-2")!!.color("accent"))
+        assertTrue(store.moveReserved().isEmpty())
+    }
+
+    @Test fun theConsoleListIsCheckedOnlyWhenTheThemeSetsIt() {
+        val dark = UserTheme("t", "T", ThemeBase.DARK).with("text_primary", "#202020").with("card_bg", "#f0f0f0")
+            .with("library_bg", "#f0f0f0").with("window_bg", "#f0f0f0").with("popover_bg", "#f0f0f0").with("details_bg", "#f0f0f0")
+        assertFalse(UserTheme.contrastProblems(dark).any { it.bg == "console_list_bg" })
+        assertTrue(UserTheme.contrastProblems(dark.with("console_list_bg", "#1c1c23")).any { it.bg == "console_list_bg" })
+    }
 }
