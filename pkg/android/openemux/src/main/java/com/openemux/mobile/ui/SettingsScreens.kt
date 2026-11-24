@@ -200,14 +200,14 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
 
         val biosPicked = picked == SettingsItem.Bios
         Row(
-            Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp).fillMaxWidth().paneOpener(biosPicked).gamepadFocus(corner = 20.dp, background = if (biosPicked) Oe.AccentTint else Oe.Surface).rowFocus("bios-tile").clip(RoundedCornerShape(20.dp))
-                .border(1.dp, Oe.Border, RoundedCornerShape(20.dp)).semantics { selected = biosPicked }
+            Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp).fillMaxWidth().paneOpener(biosPicked).gamepadFocus(corner = 20.dp.themed, background = if (biosPicked) Oe.AccentTint else Oe.Surface).rowFocus("bios-tile").clip(RoundedCornerShape(20.dp.themed))
+                .border(1.dp, Oe.Border, RoundedCornerShape(20.dp.themed)).semantics { selected = biosPicked }
                 .clickable(role = Role.Button) { onPick(SettingsItem.Bios) }.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             val ok = missingOptional == 0
             Box(
-                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(if (ok) Oe.OkBg else Oe.WarnBg),
+                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp.themed)).background(if (ok) Oe.OkBg else Oe.WarnBg),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Chip, if (ok) Oe.Ok else Oe.Warn, 24.dp) }
             Column(Modifier.weight(1f)) {
@@ -221,7 +221,7 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
                     style = Type.Small, modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            Box(Modifier.height(34.dp).clip(RoundedCornerShape(17.dp)).background(Oe.Accent).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.height(34.dp).clip(RoundedCornerShape(17.dp.themed)).background(Oe.Accent).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.settings_import), style = Type.Button.copy(fontSize = 13.sp))
             }
         }
@@ -251,7 +251,7 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
                 },
                 minHeight = 60.dp,
                 leading = {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Oe.AccentTint), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp.themed)).background(Oe.AccentTint), contentAlignment = Alignment.Center) {
                         Icon(Icons.Trophy, Oe.AccentText, 22.dp)
                     }
                 },
@@ -264,7 +264,7 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
             ListRow(
                 stringResource(R.string.providers_title), subtitle = stringResource(R.string.providers_desc), minHeight = 60.dp,
                 leading = {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Oe.AccentTint), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp.themed)).background(Oe.AccentTint), contentAlignment = Alignment.Center) {
                         Icon(Icons.Image, Oe.AccentText, 22.dp)
                     }
                 },
@@ -423,19 +423,19 @@ private fun ThemePane() {
 @Composable
 private fun ThemeCard(id: String, name: String, blurb: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.gamepadFocus(corner = 16.dp, background = if (selected) Oe.AccentTint else Oe.Surface).clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp))
+        modifier.gamepadFocus(corner = 16.dp.themed, background = if (selected) Oe.AccentTint else Oe.Surface).clip(RoundedCornerShape(16.dp.themed))
+            .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp.themed))
             .clickable(role = Role.RadioButton, onClick = onClick).semantics { this.selected = selected }
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         val dark = androidx.compose.ui.graphics.Color(0xFF121216)
         val light = androidx.compose.ui.graphics.Color(0xFFF4F3F8)
-        Row(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, Oe.Border, RoundedCornerShape(10.dp))) {
+        Row(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(10.dp.themed)).border(1.dp, Oe.Border, RoundedCornerShape(10.dp.themed))) {
             val halves = when (id) { ThemePref.LIGHT -> listOf(light); ThemePref.DARK -> listOf(dark); else -> listOf(light, dark) }
             halves.forEach { back ->
                 Box(Modifier.weight(1f).fillMaxHeight().background(back).padding(10.dp)) {
-                    Box(Modifier.size(width = 34.dp, height = 22.dp).clip(RoundedCornerShape(5.dp)).background(Oe.Accent))
+                    Box(Modifier.size(width = 34.dp, height = 22.dp).clip(RoundedCornerShape(5.dp.themed)).background(Oe.Accent))
                 }
             }
         }
@@ -559,7 +559,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
             if (console.frame != null) ListRow(
                 stringResource(R.string.settings_cart_color), value = stringResource(CART_COLORS.first { it.id == settings.color }.label), divider = true,
                 onClick = { colorSheet = true },
-                trailing = { Box(Modifier.size(18.dp).clip(RoundedCornerShape(9.dp)).background(CART_COLORS.first { it.id == settings.color }.swatch)) },
+                trailing = { Box(Modifier.size(18.dp).clip(RoundedCornerShape(9.dp.themed)).background(CART_COLORS.first { it.id == settings.color }.swatch)) },
             )
         }
 
@@ -572,7 +572,7 @@ fun ConsoleSettingsScreen(id: String, embedded: Boolean = false, onOpenBios: (()
                 if (own.isNotEmpty()) {
                     Text(
                         stringResource(R.string.settings_see_which), style = Type.Small.copy(color = Oe.AccentText),
-                        modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button) { ownSheet = true }.linkTarget(),
+                        modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp.themed).clip(RoundedCornerShape(6.dp.themed)).clickable(role = Role.Button) { ownSheet = true }.linkTarget(),
                     )
                 }
             }
@@ -800,7 +800,7 @@ private fun AchievementsSignIn(lastUsername: String) {
         )
         error?.let { message ->
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Oe.DangerBg).padding(horizontal = 14.dp, vertical = 12.dp)
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp.themed)).background(Oe.DangerBg).padding(horizontal = 14.dp, vertical = 12.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -817,7 +817,7 @@ private fun AchievementsSignIn(lastUsername: String) {
         Text(stringResource(R.string.ra_no_account), style = Type.Small)
         Text(
             stringResource(R.string.ra_create_account), style = Type.Small.copy(color = Oe.AccentText),
-            modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp))
+            modifier = Modifier.padding(top = 2.dp).gamepadFocus(corner = 6.dp.themed).clip(RoundedCornerShape(6.dp.themed))
                 .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/createaccount.php") }.linkTarget(),
         )
     }
@@ -840,7 +840,7 @@ private fun AchievementsAccount(state: AchievementsState) {
                 Text(state.username, style = Type.Section.copy(fontSize = 16.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(
-                Modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp, background = Oe.Raised).clip(RoundedCornerShape(18.dp))
+                Modifier.height(padSize(PillHeight, PillHeightPad)).gamepadFocus(corner = 18.dp.themed, background = Oe.Raised).clip(RoundedCornerShape(18.dp.themed))
                     .clickable(role = Role.Button) { store.signOut() }.padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(stringResource(R.string.ra_sign_out), style = Type.Button.copy(color = Oe.Text, fontSize = 14.sp)) }
@@ -862,7 +862,7 @@ private fun AchievementsAccount(state: AchievementsState) {
             Text(stringResource(R.string.ra_apply_note), style = Type.Small)
             Text(
                 stringResource(R.string.ra_see_progress), style = Type.Small.copy(color = Oe.AccentText),
-                modifier = Modifier.padding(top = 6.dp).gamepadFocus(corner = 6.dp).clip(RoundedCornerShape(6.dp))
+                modifier = Modifier.padding(top = 6.dp).gamepadFocus(corner = 6.dp.themed).clip(RoundedCornerShape(6.dp.themed))
                     .clickable(role = Role.Button) { uri.openUri("https://retroachievements.org/user/" + Uri.encode(state.username)) }.linkTarget(),
             )
         }
@@ -909,7 +909,7 @@ fun ImportScreen() {
         result?.let { r ->
             val ok = r.imported > 0 || r.duplicates > 0
             Row(
-                Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp.themed))
                     .background(if (ok) Oe.OkBg else Oe.WarnBg).padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -921,7 +921,7 @@ fun ImportScreen() {
                 )
                 if (ok) Text(
                     stringResource(R.string.settings_import_view), style = Type.Section.copy(color = Oe.OkText),
-                    modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable { a.nav.navigate(Routes.SHELF) { popUpTo(Routes.SHELF) { inclusive = true } } }.linkTarget().padding(6.dp),
+                    modifier = Modifier.gamepadFocus(corner = 8.dp.themed).clip(RoundedCornerShape(8.dp.themed)).clickable { a.nav.navigate(Routes.SHELF) { popUpTo(Routes.SHELF) { inclusive = true } } }.linkTarget().padding(6.dp),
                 )
             }
         }

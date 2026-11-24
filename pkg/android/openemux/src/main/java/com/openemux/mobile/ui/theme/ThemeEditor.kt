@@ -409,7 +409,8 @@ private fun ColorRow(spec: ThemeKey, draft: ThemeDraft, actions: EditorActions) 
 
 /** How a number shows: dp, a percentage or a plain count. */
 private fun numberText(spec: ThemeKey, value: Double): String = when (spec.key) {
-    "corner_radius", "border_width", "grid_gap" -> "${value.roundToInt()} dp"
+    "corner_radius", "grid_gap" -> "${value.roundToInt()} dp"
+    "border_width" -> String.format(java.util.Locale.ROOT, "%.1f dp", value)
     "library_image_blur", "sidebar_image_blur" -> value.roundToInt().toString()
     else -> "${(value * 100).roundToInt()}%"
 }
