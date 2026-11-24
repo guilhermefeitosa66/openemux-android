@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -43,6 +44,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openemux.mobile.data.theme.ReadyThemes
+import com.openemux.mobile.data.theme.ResolvedTheme
 import com.openemux.mobile.data.theme.ThemeBase
 import com.openemux.mobile.data.theme.UserTheme
 import com.openemux.mobile.ui.ActiveTheme
@@ -64,6 +67,7 @@ import com.openemux.mobile.ui.themed
 import com.retroarch.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlinx.coroutines.withContext
 
 /** "Light base" or "Dark base". */
@@ -84,7 +88,8 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
     val store = remember { ActiveTheme.store(context) }
     // Bumped after each change on disk, so the list reads it again.
     var version by remember { mutableIntStateOf(0) }
-    val themes = remember(version) { store.list() }
+    // A duplicate made from a ready-made theme picks itself: the list reads the disk again then too.
+    val themes = remember(version, ThemePref.value) { store.list() }
     var menuFor by rememberSaveable { mutableStateOf<String?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
@@ -192,6 +197,73 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
 
 private fun saveFailed(context: android.content.Context) =
     Toast.makeText(context, R.string.theme_save_failed, Toast.LENGTH_LONG).show()
+
+/**
+ * The ready-made themes (issue 1018): a card each with its picture and colors, picked in one tap, read-only.
+ * Duplicate makes an editable copy, named like the theme, in "MY THEMES".
+ */
+@Composable
+fun ReadyThemeList(background: Color) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val ready = remember { ActiveTheme.readyThemes(context) }
+    if (ready.isEmpty()) return
+    val root = remember { ActiveTheme.readyRoot(context) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(stringResource(R.string.theme_section_ready).uppercase(), style = Type.SectionCaps, modifier = Modifier.padding(top = 10.dp))
+        Text(stringResource(R.string.theme_ready_hint), style = Type.Small)
+        ready.forEach { theme ->
+            ReadyRow(theme, File(root, theme.id), ThemePref.value == theme.id, background, onPick = { ThemePref.set(context, theme.id) }) {
+                scope.launch {
+                    val store = ActiveTheme.store(context)
+                    val copy = withContext(Dispatchers.IO) {
+                        runCatching { store.createFrom(theme, store.freeName(theme.name), ReadyThemes.images(root, theme)) }.getOrNull()
+                    }
+                    if (copy != null) ThemePref.set(context, copy.id) else saveFailed(context)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadyRow(theme: UserTheme, folder: File, selected: Boolean, background: Color, onPick: () -> Unit, onDuplicate: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp.themed)
+    val r = remember(theme) { ResolvedTheme.resolve(theme) }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 96.dp)
+            .gamepadFocus(corner = 16.dp.themed, background = if (selected) Oe.AccentTint else background).clip(shape)
+            .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, shape)
+            .clickable(role = Role.RadioButton, onClick = onPick).semantics { this.selected = selected }
+            .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // The look in small: the library picture under a card of the theme's colors.
+        ThemeBackdrop(
+            r.libraryImage, folder, Color(theme.color("library_bg")),
+            Modifier.size(width = 56.dp, height = 80.dp).clip(RoundedCornerShape(10.dp)).background(Color(theme.color("library_bg"))),
+        ) {
+            Column(
+                Modifier.align(Alignment.BottomCenter).padding(6.dp).fillMaxWidth().clip(RoundedCornerShape(6.dp))
+                    .background(Color(theme.color("card_bg"))).padding(5.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(theme.color("text_primary"))))
+                Box(Modifier.fillMaxWidth(0.6f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(theme.color("text_secondary"))))
+                Box(Modifier.size(width = 22.dp, height = 7.dp).clip(RoundedCornerShape(4.dp)).background(Color(theme.color("accent_button_bg"))))
+            }
+        }
+        Box(Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) Oe.AccentBright else Oe.Chevron, CircleShape), contentAlignment = Alignment.Center) {
+            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(Oe.AccentBright))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(theme.name, style = Type.Section, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(baseName(theme.base), style = Type.Small)
+        }
+        IconAction(Icons.Copy, stringResource(R.string.theme_duplicate_named, theme.name), onDuplicate)
+    }
+}
 
 /** One user theme: the radio dot, three swatches (top bar, card, accent), its name and base, Edit and the menu. */
 @Composable

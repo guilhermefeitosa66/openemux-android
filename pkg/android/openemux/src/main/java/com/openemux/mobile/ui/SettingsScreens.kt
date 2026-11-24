@@ -87,6 +87,7 @@ import com.openemux.mobile.share.ShareProtocol
 import com.retroarch.BuildConfig
 import com.retroarch.R
 import kotlinx.coroutines.launch
+import com.openemux.mobile.ui.theme.ReadyThemeList
 import com.openemux.mobile.ui.theme.UserThemes
 
 @Composable
@@ -159,6 +160,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.settings_theme), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
                 ThemeOptions()
+                ReadyThemeList(Oe.Raised)
                 UserThemes(Oe.Raised, onLeave = { themeSheet = false })
             }
         }
@@ -367,7 +369,10 @@ private fun themeLabel(): String {
     val context = LocalContext.current
     val custom = ThemePref.custom
     if (custom != null && ActiveTheme.resolved?.id == custom) {
-        val name = remember(custom, ActiveTheme.resolved) { ActiveTheme.store(context).get(custom)?.name }
+        val name = remember(custom, ActiveTheme.resolved) {
+            if (com.openemux.mobile.data.theme.ReadyThemes.isReadyId(custom)) ActiveTheme.readyThemes(context).firstOrNull { it.id == custom }?.name
+            else ActiveTheme.store(context).get(custom)?.name
+        }
         if (name != null) return name
     }
     return stringResource((THEMES.firstOrNull { it.first == ThemePref.value } ?: THEMES.first()).second)
@@ -414,7 +419,10 @@ private fun ThemePane() {
                 ThemeCard(id, stringResource(name), stringResource(blurb), ThemePref.value == id, Modifier.weight(1f).fillMaxHeight()) { ThemePref.set(context, id) }
             }
         }
-        Column(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) { UserThemes(Oe.Surface) }
+        Column(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
+            ReadyThemeList(Oe.Surface)
+            UserThemes(Oe.Surface)
+        }
         Spacer(Modifier.height(hintBarInset))
     } }
 }

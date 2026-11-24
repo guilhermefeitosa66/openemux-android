@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.openemux.mobile.data.theme.OeToken
+import com.openemux.mobile.data.theme.ReadyThemes
 import com.openemux.mobile.data.theme.UserTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -196,7 +197,7 @@ object ThemePref {
 
     /** The stored choice, user theme included; anything else stored reads as System. */
     fun parse(stored: String?): String = when {
-        stored == LIGHT || stored == DARK || UserTheme.isCustomId(stored) -> stored!!
+        stored == LIGHT || stored == DARK || UserTheme.isCustomId(stored) || ReadyThemes.isReadyId(stored) -> stored!!
         else -> SYSTEM
     }
 
@@ -211,8 +212,8 @@ object ThemePref {
         ActiveTheme.load(context, value)
     }
 
-    /** The user theme picked, or null for a built-in one. */
-    val custom: String? get() = value.takeIf { UserTheme.isCustomId(it) }
+    /** The user theme or ready-made theme picked, or null for System, Light and Dark. */
+    val custom: String? get() = value.takeIf { UserTheme.isCustomId(it) || ReadyThemes.isReadyId(it) }
 }
 
 /** How the hint bar names the buttons: "auto" (the pad in use), or a family forced. */

@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.openemux.mobile.data.theme.OeToken
+import com.openemux.mobile.data.theme.ReadyThemes
 import com.openemux.mobile.data.theme.ResolvedTheme
 import com.openemux.mobile.data.theme.ThemeStore
 import com.openemux.mobile.data.theme.UserTheme
@@ -34,8 +35,30 @@ object ActiveTheme {
     fun store(context: Context): ThemeStore =
         ThemeStore(File(context.filesDir, "themes"), AndroidThemeCodec) { Log.i("OpenEmuxTheme", it) }
 
+    /** Where the ready-made themes are copied from the APK, as plain files. */
+    fun readyRoot(context: Context) = File(context.filesDir, "ready-themes")
+
+    /** The ready-made themes, copied out of the APK once per installed version. */
+    fun readyThemes(context: Context): List<UserTheme> {
+        installReady(context)
+        return ReadyThemes.all(readyRoot(context))
+    }
+
+    private fun installReady(context: Context) {
+        val stamp = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString() }.getOrDefault("0")
+        runCatching {
+            ReadyThemes.install(readyRoot(context), stamp, { context.assets.list("themes/$it")?.toList().orEmpty() }) { context.assets.open("themes/$it") }
+        }.onFailure { Log.w("OpenEmuxTheme", "ready-made themes not installed: $it") }
+    }
+
     /** Reads [id] from disk and paints with it; a built-in id, or a theme that is gone, paints the app's own look. */
     fun load(context: Context, id: String) {
+        if (ReadyThemes.isReadyId(id)) {
+            installReady(context)
+            val theme = ReadyThemes.load(readyRoot(context), id)
+            apply(theme, theme?.let { File(readyRoot(context), it.id) })
+            return
+        }
         val theme = if (UserTheme.isCustomId(id)) store(context).get(id) else null
         apply(theme, theme?.let { File(File(context.filesDir, "themes"), it.id) })
     }

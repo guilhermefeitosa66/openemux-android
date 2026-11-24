@@ -119,4 +119,7 @@
     <string name="theme_share">Share theme file</string>
     <string name="theme_preview_played">Played 2 h · 3 days ago</string>
     <string name="theme_preview_slot">Slot 1 · today</string>
+    <string name="theme_section_ready">Ready-made</string>
+    <string name="theme_ready_hint">Read-only. Duplicate one to make it your own.</string>
+    <string name="theme_duplicate_named">Duplicate %1$s</string>
 </resources>

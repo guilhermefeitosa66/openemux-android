@@ -119,4 +119,7 @@
     <string name="theme_share">தீம் கோப்பைப் பகிர்</string>
     <string name="theme_preview_played">2 ம.நே. விளையாடியது · 3 நாட்களுக்கு முன்</string>
     <string name="theme_preview_slot">இடம் 1 · இன்று</string>
+    <string name="theme_section_ready">தயார் தீம்கள்</string>
+    <string name="theme_ready_hint">படிக்க மட்டும். உங்களுடையதாக்க ஒன்றை நகலெடுங்கள்.</string>
+    <string name="theme_duplicate_named">%1$s ஐ நகலெடு</string>
 </resources>

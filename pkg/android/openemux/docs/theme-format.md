@@ -114,3 +114,22 @@ is created (`midnight`, `midnight-2`; `^[a-z0-9][a-z0-9-]{0,47}$`, never
 `system`, `light` or `dark`) and never changes. The choice is the `theme`
 preference, which also holds `system`, `light` or `dark`; a theme that is gone
 paints as System. The backup includes the themes folder (format version 3).
+
+## Ready-made themes
+
+Five themes ship with the app, read-only like System, Light and Dark, with **the same ids and colors on
+both apps** (issue 1018):
+
+| Id | Name | Base |
+|---|---|---|
+| `pastel` | Pastel | light |
+| `dracula` | Dracula | dark |
+| `kitty` | Kitty | dark |
+| `neon` | Neon | dark |
+| `tokyo-night` | Tokyo Night | dark |
+
+Their `theme.yaml` files are in `src/main/assets/themes/<id>/` and are the reference: the desktop ships
+the same values. The pictures' sources are `art/themes/<id>/library.svg` (original, MIT); each app
+renders and ships its own copy. All of it comes from `tools/gen-ready-themes.py`, which also checks
+that every text pair reads at WCAG AA, on the surfaces and on the dimmed picture. These ids are never
+given to a user theme. Duplicate makes an editable copy; credits are in `art/themes/CREDITS.md`.
