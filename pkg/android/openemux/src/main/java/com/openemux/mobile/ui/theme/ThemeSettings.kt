@@ -62,7 +62,9 @@ import com.openemux.mobile.ui.Type
 import com.openemux.mobile.ui.gamepadFocus
 import com.openemux.mobile.ui.themed
 import com.retroarch.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** "Light base" or "Dark base". */
 @Composable
@@ -128,9 +130,12 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
                 Text(menuTheme.name, style = Type.Title.copy(fontSize = 20.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 6.dp))
                 MenuItem(Icons.Copy, stringResource(R.string.theme_duplicate)) {
                     menuFor = null
-                    val copy = store.duplicate(menuTheme.id, store.freeName(context.getString(R.string.theme_copy_name, menuTheme.name)))
-                    ThemePref.set(context, copy.id)
-                    version++
+                    val name = context.getString(R.string.theme_copy_name, menuTheme.name)
+                    scope.launch {
+                        val copy = withContext(Dispatchers.IO) { runCatching { store.duplicate(menuTheme.id, store.freeName(name)) }.getOrNull() }
+                        if (copy != null) ThemePref.set(context, copy.id) else saveFailed(context)
+                        version++
+                    }
                 }
                 MenuItem(Icons.Pencil, stringResource(R.string.theme_rename)) { menuFor = null; renaming = menuTheme.id }
                 MenuItem(Icons.Share, stringResource(R.string.theme_share)) {
@@ -149,10 +154,13 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
 
     themes.firstOrNull { it.id == renaming }?.let { theme ->
         NameSheet(stringResource(R.string.theme_rename), theme.name, stringResource(R.string.theme_rename_save), onClose = { renaming = null }) { name ->
-            store.rename(theme.id, store.freeName(name, except = theme.id))
-            if (ThemePref.value == theme.id) ActiveTheme.load(context, theme.id)
             renaming = null
-            version++
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { runCatching { store.rename(theme.id, store.freeName(name, except = theme.id)) }.isSuccess }
+                if (!ok) saveFailed(context)
+                if (ThemePref.value == theme.id) ActiveTheme.load(context, theme.id)
+                version++
+            }
         }
     }
 
@@ -164,7 +172,7 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
             text = stringResource(R.string.theme_delete_body) + if (active) " " + stringResource(R.string.theme_delete_active) else "",
             confirm = stringResource(R.string.theme_delete),
             onConfirm = {
-                store.delete(theme.id)
+                runCatching { store.delete(theme.id) }
                 if (active) ThemePref.set(context, ThemePref.SYSTEM)
                 deleting = null
                 version++
@@ -181,6 +189,9 @@ fun UserThemes(background: Color, onLeave: () -> Unit = {}) {
         }
     }
 }
+
+private fun saveFailed(context: android.content.Context) =
+    Toast.makeText(context, R.string.theme_save_failed, Toast.LENGTH_LONG).show()
 
 /** One user theme: the radio dot, three swatches (top bar, card, accent), its name and base, Edit and the menu. */
 @Composable

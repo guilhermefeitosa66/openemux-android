@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">Tamaños</string>
     <string name="theme_section_text">Texto</string>
     <string name="theme_share">Compartir archivo de tema</string>
+    <string name="theme_preview_played">Jugado 2 h · hace 3 días</string>
+    <string name="theme_preview_slot">Ranura 1 · hoy</string>
 </resources>

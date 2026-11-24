@@ -471,8 +471,9 @@ private fun TabBar(route: String?, modifier: Modifier) {
 private fun TabRail(route: String?, tablet: Boolean, width: Dp, modifier: Modifier) {
     val label = stringResource(R.string.nav_rail_label)
     val activeTab = remember { FocusRequester() }
+    ThemeBackdrop(ActiveTheme.resolved?.navImage, ActiveTheme.folder, Oe.NavBg, modifier.fillMaxHeight()) {
     Row(
-        modifier.fillMaxHeight().background(Oe.NavBg.copy(alpha = 0.94f)).semantics { contentDescription = label }
+        Modifier.fillMaxHeight().background(Oe.NavBg.copy(alpha = 0.94f)).semantics { contentDescription = label }
             // Only Left from the content moves into the rail, onto the current tab; the first press of a gamepad
             // lands on the screen's own item.
             .focusProperties {
@@ -505,6 +506,7 @@ private fun TabRail(route: String?, tablet: Boolean, width: Dp, modifier: Modifi
             }
         }
         VerticalDivider(color = Oe.Surface2, thickness = 1.dp)
+    }
     }
 }
 

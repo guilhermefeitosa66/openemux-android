@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">Größen</string>
     <string name="theme_section_text">Text</string>
     <string name="theme_share">Designdatei teilen</string>
+    <string name="theme_preview_played">2 Std. gespielt · vor 3 Tagen</string>
+    <string name="theme_preview_slot">Platz 1 · heute</string>
 </resources>

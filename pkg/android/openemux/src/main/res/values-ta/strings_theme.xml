@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">அளவுகள்</string>
     <string name="theme_section_text">உரை</string>
     <string name="theme_share">தீம் கோப்பைப் பகிர்</string>
+    <string name="theme_preview_played">2 ம.நே. விளையாடியது · 3 நாட்களுக்கு முன்</string>
+    <string name="theme_preview_slot">இடம் 1 · இன்று</string>
 </resources>

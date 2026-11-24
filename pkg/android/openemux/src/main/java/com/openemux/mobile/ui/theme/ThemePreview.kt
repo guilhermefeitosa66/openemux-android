@@ -37,6 +37,7 @@ import com.openemux.mobile.data.theme.ResolvedTheme
 import com.openemux.mobile.data.theme.ThemeDraft
 import com.openemux.mobile.data.theme.ThemeImage
 import com.openemux.mobile.data.theme.UserTheme
+import com.openemux.mobile.ui.ActiveTheme
 import com.openemux.mobile.ui.Inter
 import com.openemux.mobile.ui.Oe
 import com.openemux.mobile.ui.Type
@@ -75,7 +76,8 @@ fun ThemePreview(draft: ThemeDraft, folder: File?, details: Boolean, onToggle: (
     val r = ResolvedTheme.resolve(draft.theme)
     val s = Swatches(draft.theme, r)
     val corner = { dp: Dp -> dp * r.cornerScale * 0.5f }
-    val font = r.fontScale
+    // The app around the preview is already scaled by the active theme's text size: only the draft's shows here.
+    val font = r.fontScale / (ActiveTheme.resolved?.fontScale ?: 1f)
     fun style(size: Float, color: Color, weight: FontWeight = FontWeight.Normal) =
         TextStyle(fontFamily = Inter, fontSize = (size * font).sp, color = color, fontWeight = weight)
     // Pictures picked but not saved yet are in the staging folder; the preview reads them where they are.
@@ -107,9 +109,9 @@ fun ThemePreview(draft: ThemeDraft, folder: File?, details: Boolean, onToggle: (
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Box(Modifier.clip(RoundedCornerShape(corner(20.dp))).background(s.button).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                                    Text("All", style = style(9f, s.onButton, FontWeight.SemiBold))
+                                    Text(stringResource(R.string.library_chip_all), style = style(9f, s.onButton, FontWeight.SemiBold))
                                 }
-                                listOf("Favorites", "NES").forEach {
+                                listOf(stringResource(R.string.library_favorites), "NES").forEach {
                                     Box(Modifier.clip(RoundedCornerShape(corner(20.dp))).border(1.dp, s.muted.copy(alpha = 0.5f), RoundedCornerShape(corner(20.dp))).padding(horizontal = 8.dp, vertical = 3.dp)) {
                                         Text(it, style = style(9f, s.text))
                                     }
@@ -126,7 +128,7 @@ fun ThemePreview(draft: ThemeDraft, folder: File?, details: Boolean, onToggle: (
                     val (navImg, navDir) = image("sidebar_image", r.navImage)
                     ThemeBackdrop(navImg, navDir, s.nav, Modifier.fillMaxWidth().height(34.dp).background(s.nav)) {
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-                            listOf("Library", "Recent", "Import", "Settings").forEachIndexed { i, label ->
+                            listOf(R.string.settings_tab_library, R.string.settings_tab_recent, R.string.settings_tab_import, R.string.settings_tab_settings).map { stringResource(it) }.forEachIndexed { i, label ->
                                 Text(label, style = style(8.5f, if (i == 0) s.navActive else s.navText, if (i == 0) FontWeight.SemiBold else FontWeight.Normal))
                             }
                         }
@@ -141,16 +143,16 @@ fun ThemePreview(draft: ThemeDraft, folder: File?, details: Boolean, onToggle: (
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("SUPER NINTENDO", style = style(8f, s.accent, FontWeight.SemiBold))
                             Text("Alien Planet Quest", style = style(13f, s.text, FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text("Played 2 h · 3 days ago", style = style(9f, s.muted), maxLines = 1)
+                            Text(stringResource(R.string.theme_preview_played), style = style(9f, s.muted), maxLines = 1)
                             Spacer(Modifier.weight(1f))
                             Box(Modifier.fillMaxWidth().height(26.dp).clip(RoundedCornerShape(corner(16.dp))).background(s.button), contentAlignment = Alignment.Center) {
-                                Text("Play", style = style(10f, s.onButton, FontWeight.SemiBold))
+                                Text(stringResource(R.string.detail_play), style = style(10f, s.onButton, FontWeight.SemiBold))
                             }
                         }
                     }
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(corner(18.dp))).background(s.sheet).padding(8.dp)) {
-                        Text("Save states", style = style(10f, s.text, FontWeight.SemiBold))
-                        Text("Slot 1 · today", style = style(9f, s.muted))
+                        Text(stringResource(R.string.detail_save_states), style = style(10f, s.text, FontWeight.SemiBold))
+                        Text(stringResource(R.string.theme_preview_slot), style = style(9f, s.muted))
                     }
                 }
             }

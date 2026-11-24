@@ -82,6 +82,8 @@ class ThemeYamlTest {
         assertThrows(ThemeYamlError::class.java) { ThemeYaml.parse("a: \"\\u12\"") }
         assertThrows(ThemeYamlError::class.java) { ThemeYaml.parse("a: x".padEnd(ThemeYaml.MAX_BYTES + 1, 'x')) }
         assertEquals("x", ThemeYaml.parse("a: 'x' # fine")["a"])
+        // An unquoted "#" starts a comment, as PyYAML reads it: no value.
+        assertNull(ThemeYaml.parse("accent: #ff0000")["accent"])
     }
 
     @Test fun writesWhatItReadsBack() {

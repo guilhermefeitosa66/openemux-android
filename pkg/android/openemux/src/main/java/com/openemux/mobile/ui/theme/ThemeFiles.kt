@@ -54,6 +54,11 @@ object ThemeFiles {
             Result.failure(e)
         } catch (e: IOException) {
             Result.failure(ThemeImportError(ThemeImportFailure.NOT_THEME, e.message ?: ""))
+        } catch (e: Exception) {
+            // A provider that refuses the read (SecurityException), a zip with names that are not UTF-8
+            // (IllegalArgumentException): never a crash, the file is simply not a theme.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Result.failure(ThemeImportError(ThemeImportFailure.NOT_THEME, e.toString()))
         } finally {
             copy.delete()
         }

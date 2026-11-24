@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">Sizes</string>
     <string name="theme_section_text">Text</string>
     <string name="theme_share">Share theme file</string>
+    <string name="theme_preview_played">Played 2 h · 3 days ago</string>
+    <string name="theme_preview_slot">Slot 1 · today</string>
 </resources>

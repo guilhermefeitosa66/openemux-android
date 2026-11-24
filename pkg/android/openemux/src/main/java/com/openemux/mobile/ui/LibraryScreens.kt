@@ -1313,7 +1313,7 @@ private fun Modifier.listRowBackground(chosen: Boolean, striped: Boolean, select
 private const val LIST_STRIPE_OUTSET_DP = 8
 
 /** The rounded card behind a list row, shared by the selection and the zebra stripe. */
-private val ListRowShape = RoundedCornerShape(12.dp.themed)
+private val ListRowShape get() = RoundedCornerShape(12.dp.themed)
 
 /** What a tap and a long press on a game do: open it and start selecting, or toggle it while selecting. */
 /**
@@ -2232,7 +2232,7 @@ fun RecentScreen() {
                     Text("${rom.console.short} · ${formatAgo(meta.roms[rom.key]!!.lastPlayed)}", style = Type.Small, modifier = Modifier.padding(top = 2.dp))
                 }
                 Box(
-                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp.themed, background = Oe.Accent).clip(CircleShape).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
+                    Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp, background = Oe.Accent).clip(CircleShape).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Play, Color.White, 18.dp, filled = true) }
             }

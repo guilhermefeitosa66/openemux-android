@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">サイズ</string>
     <string name="theme_section_text">テキスト</string>
     <string name="theme_share">テーマファイルを共有</string>
+    <string name="theme_preview_played">2 時間プレイ · 3 日前</string>
+    <string name="theme_preview_slot">スロット 1 · 今日</string>
 </resources>

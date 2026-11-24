@@ -138,14 +138,22 @@ fun ThemeEditorScreen(id: String?, name: String?, base: String?) {
         nav.popBackStack()
     }
 
+    var saving by remember { mutableStateOf(false) }
     fun save() {
+        if (saving) return
+        saving = true
         val d = draft
-        runCatching {
-            val saved = if (d.isNew) store.createFrom(d.theme, store.freeName(d.theme.name), d.staged)
-            else store.save(d.theme, d.staged)
-            ThemePref.set(context, saved.id)
-            close()
-        }.onFailure { Toast.makeText(context, R.string.theme_save_failed, Toast.LENGTH_LONG).show() }
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching { if (d.isNew) store.createFrom(d.theme, store.freeName(d.theme.name), d.staged) else store.save(d.theme, d.staged) }.getOrNull()
+            }
+            saving = false
+            if (saved == null) Toast.makeText(context, R.string.theme_save_failed, Toast.LENGTH_LONG).show()
+            else {
+                ThemePref.set(context, saved.id)
+                close()
+            }
+        }
     }
 
     fun cancel() = if (draft.dirty && !(draft.isNew && draft.theme.values.isEmpty())) leaving = true else close()

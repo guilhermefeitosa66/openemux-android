@@ -33,7 +33,11 @@ import java.io.FileOutputStream
 object AndroidThemeCodec : ThemeImageCodec {
     override fun reencode(input: File, output: File): Boolean {
         if (!input.isFile || input.length() > ArtImages.MAX_IMPORT_BYTES) return false
-        val bitmap = ArtImages.decode(input) ?: return false
+        val decoded = ArtImages.decode(input) ?: return false
+        // JPEG has no alpha: a transparent picture goes onto white first, not onto black.
+        val bitmap = Bitmap.createBitmap(decoded.width, decoded.height, Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bitmap).apply { drawColor(android.graphics.Color.WHITE); drawBitmap(decoded, 0f, 0f, null) }
+        decoded.recycle()
         return try {
             output.parentFile?.mkdirs()
             FileOutputStream(output).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }

@@ -75,7 +75,8 @@ object ThemeYaml {
         if (raw.startsWith("[") || raw.startsWith("{") || raw.startsWith("|") || raw.startsWith(">") ||
             raw.startsWith("&") || raw.startsWith("*") || raw.startsWith("!")
         ) return Nested
-        // A plain scalar ends at " #" (a comment).
+        // A plain scalar ends at " #" (a comment); one that starts with "#" is all comment, as PyYAML reads it.
+        if (raw.startsWith("#")) return null
         val plain = raw.substringBefore(" #").trimEnd()
         return when {
             plain in NULL -> null

@@ -117,4 +117,6 @@
     <string name="theme_section_sizes">大小</string>
     <string name="theme_section_text">文字</string>
     <string name="theme_share">分享主题文件</string>
+    <string name="theme_preview_played">已玩 2 小时 · 3 天前</string>
+    <string name="theme_preview_slot">存档位 1 · 今天</string>
 </resources>
