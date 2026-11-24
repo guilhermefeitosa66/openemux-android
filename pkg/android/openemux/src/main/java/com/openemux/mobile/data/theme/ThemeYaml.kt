@@ -27,7 +27,7 @@ object ThemeYaml {
 
     fun parse(text: String): Map<String, Any?> {
         if (text.length > MAX_BYTES) throw ThemeYamlError("file too large")
-        val lines = text.removePrefix("﻿").replace("\r\n", "\n").replace('\r', '\n').split('\n')
+        val lines = text.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n').split('\n')
         val out = LinkedHashMap<String, Any?>()
         var i = 0
         var lastKey: String? = null

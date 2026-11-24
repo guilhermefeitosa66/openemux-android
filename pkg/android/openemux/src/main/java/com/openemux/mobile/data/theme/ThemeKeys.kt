@@ -118,7 +118,7 @@ object ThemeKeys {
         color("icon_color", ThemeSection.ICONS, ThemeGroup.ICONS, 0xFF5C5C6B, 0xFFA3A3B2),
         number("font_scale", ThemeSection.SIZES, ThemeGroup.TEXT_SIZE, 1.0, 1.0, 0.85, 1.3),
         choice("density", ThemeSection.SIZES, ThemeGroup.SPACING, ThemeDensity.DEFAULT, ThemeDensity.ALL),
-        number("grid_gap", ThemeSection.SIZES, ThemeGroup.SPACING, 12.0, 12.0, 0.0, 32.0),
+        number("grid_gap", ThemeSection.SIZES, ThemeGroup.SPACING, 16.0, 16.0, 0.0, 32.0),
         number("card_scale", ThemeSection.SIZES, ThemeGroup.SPACING, 1.0, 1.0, 0.75, 1.5),
     ) + background("library", ThemeGroup.LIBRARY_IMAGE) + background("sidebar", ThemeGroup.NAVIGATION_IMAGE)
 

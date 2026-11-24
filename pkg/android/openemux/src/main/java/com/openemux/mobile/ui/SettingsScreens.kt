@@ -87,6 +87,7 @@ import com.openemux.mobile.share.ShareProtocol
 import com.retroarch.BuildConfig
 import com.retroarch.R
 import kotlinx.coroutines.launch
+import com.openemux.mobile.ui.theme.UserThemes
 
 @Composable
 internal fun SectionHeader(text: String, trailing: String? = null) {
@@ -158,6 +159,7 @@ fun SettingsScreen(entry: NavBackStackEntry? = null) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.settings_theme), style = Type.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(bottom = 6.dp))
                 ThemeOptions()
+                UserThemes(Oe.Raised, onLeave = { themeSheet = false })
             }
         }
     }
@@ -227,7 +229,7 @@ private fun SettingsList(picked: SettingsItem?, onRename: () -> Unit, onPick: (S
         SectionHeader(stringResource(R.string.settings_section_appearance))
         Card(Modifier.padding(horizontal = 20.dp)) {
             ListRow(
-                stringResource(R.string.settings_theme), value = stringResource(THEMES.first { it.first == ThemePref.value }.second),
+                stringResource(R.string.settings_theme), value = themeLabel(),
                 selected = picked == SettingsItem.Theme, onClick = { onPick(SettingsItem.Theme) },
             )
             val language = AppLocale.current(context)
@@ -359,6 +361,18 @@ private fun PaneTitle(title: String, lead: String) {
     }
 }
 
+/** What the settings list shows for the theme: a built-in's name, or the user theme's (System when it is gone). */
+@Composable
+private fun themeLabel(): String {
+    val context = LocalContext.current
+    val custom = ThemePref.custom
+    if (custom != null && ActiveTheme.resolved?.id == custom) {
+        val name = remember(custom, ActiveTheme.resolved) { ActiveTheme.store(context).get(custom)?.name }
+        if (name != null) return name
+    }
+    return stringResource((THEMES.firstOrNull { it.first == ThemePref.value } ?: THEMES.first()).second)
+}
+
 /** The theme choices as the sheet lists them. */
 @Composable
 private fun ThemeOptions() {
@@ -400,6 +414,7 @@ private fun ThemePane() {
                 ThemeCard(id, stringResource(name), stringResource(blurb), ThemePref.value == id, Modifier.weight(1f).fillMaxHeight()) { ThemePref.set(context, id) }
             }
         }
+        Column(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) { UserThemes(Oe.Surface) }
         Spacer(Modifier.height(hintBarInset))
     } }
 }

@@ -23,7 +23,7 @@ class ResolvedThemeTest {
             assertEquals(1f, r.iconScale)
             assertEquals(1f, r.fontScale)
             assertEquals(1f, r.density)
-            assertEquals(12f, r.gridGap)
+            assertNull(r.gridGap)
             assertEquals(1f, r.cardScale)
             assertNull(r.libraryImage)
             assertNull(r.navImage)

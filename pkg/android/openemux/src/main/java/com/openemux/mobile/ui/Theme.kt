@@ -6,6 +6,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import com.openemux.mobile.data.theme.OeToken
+import com.openemux.mobile.data.theme.UserTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -26,7 +32,8 @@ object Oe {
         get() = when (ThemePref.value) {
             ThemePref.LIGHT -> false
             ThemePref.DARK -> true
-            else -> systemDark
+            // A user theme (issue 1018) is its base; one that is gone paints as System.
+            else -> ActiveTheme.resolved?.dark ?: systemDark
         }
 
     fun syncSystem(context: Context) {
@@ -35,27 +42,43 @@ object Oe {
 
     private fun pick(dark: Long, light: Long) = Color(if (this.dark) dark else light)
 
-    val Bg: Color get() = pick(0xFF121216, 0xFFF6F5F9)
+    /** The user theme's color for [token] (issue 1018), else the app's own. */
+    private fun pick(token: OeToken, dark: Long, light: Long) = ActiveTheme.color(token) ?: pick(dark, light)
+
+    val Bg: Color get() = pick(OeToken.BG, 0xFF121216, 0xFFF6F5F9)
+    /** Under the tabs: the page's own color unless a user theme gives the navigation one. */
+    val NavBg: Color get() = ActiveTheme.color(OeToken.NAV_BG) ?: Bg
+    /** Behind the library's screens (the shelf, a console's games, Recent). */
+    val LibraryBg: Color get() = ActiveTheme.color(OeToken.LIBRARY_BG) ?: Bg
+    /** Behind a game's details. */
+    val DetailsBg: Color get() = ActiveTheme.color(OeToken.DETAILS_BG) ?: Bg
     val GameBg: Color get() = pick(0xFF0B0B0E, 0xFF0B0B0E)
-    val Surface: Color get() = pick(0xFF1C1C23, 0xFFFFFFFF)
-    val Surface2: Color get() = pick(0xFF24242C, 0xFFEFEEF4)
-    val Sheet: Color get() = pick(0xFF1A1A20, 0xFFFFFFFF)
-    val Border: Color get() = pick(0xFF2B2B35, 0xFFE2E0EA)
-    val Divider: Color get() = pick(0xFF2A2A33, 0xFFE7E5ED)
-    val Text: Color get() = pick(0xFFF3F3F6, 0xFF17171C)
-    val Muted: Color get() = pick(0xFFA3A3B2, 0xFF5C5C6B)
-    val Faint: Color get() = pick(0xFF8C8C9A, 0xFF6B6B7E)
-    val Chevron: Color get() = pick(0xFF6E6E7C, 0xFF8A8A9A)
+    val Surface: Color get() = pick(OeToken.SURFACE, 0xFF1C1C23, 0xFFFFFFFF)
+    val Surface2: Color get() = pick(OeToken.SURFACE2, 0xFF24242C, 0xFFEFEEF4)
+    val Sheet: Color get() = pick(OeToken.SHEET, 0xFF1A1A20, 0xFFFFFFFF)
+    val Border: Color get() = pick(OeToken.BORDER, 0xFF2B2B35, 0xFFE2E0EA)
+    val Divider: Color get() = pick(OeToken.DIVIDER, 0xFF2A2A33, 0xFFE7E5ED)
+    val Text: Color get() = pick(OeToken.TEXT, 0xFFF3F3F6, 0xFF17171C)
+    val Muted: Color get() = pick(OeToken.MUTED, 0xFFA3A3B2, 0xFF5C5C6B)
+    /** A tab's label and icon, and the current tab's. */
+    val NavText: Color get() = ActiveTheme.color(OeToken.NAV_TEXT) ?: Muted
+    val NavTextActive: Color get() = ActiveTheme.color(OeToken.NAV_TEXT_ACTIVE) ?: AccentText
+    /** A user theme's color for the plain icons; null keeps each icon's own. */
+    val IconTint: Color? get() = ActiveTheme.color(OeToken.ICON)
+    val Faint: Color get() = pick(OeToken.FAINT, 0xFF8C8C9A, 0xFF6B6B7E)
+    val Chevron: Color get() = pick(OeToken.CHEVRON, 0xFF6E6E7C, 0xFF8A8A9A)
     val Accent: Color get() = FocusTones.Accent
-    val AccentBright: Color get() = pick(0xFF8B5CF6, 0xFF7C3AED)
-    val AccentText: Color get() = pick(0xFFB79CFF, 0xFF6D28D9)
+    /** The label on an [Accent] fill. */
+    val OnAccent: Color get() = ActiveTheme.color(OeToken.ON_ACCENT) ?: Color.White
+    val AccentBright: Color get() = pick(OeToken.ACCENT_BRIGHT, 0xFF8B5CF6, 0xFF7C3AED)
+    val AccentText: Color get() = pick(OeToken.ACCENT_TEXT, 0xFFB79CFF, 0xFF6D28D9)
     val AccentTint: Color get() = if (dark) FocusTones.TintDark else FocusTones.TintLight
     val AccentSoft: Color get() = if (dark) FocusTones.SoftDark else FocusTones.SoftLight
-    val AccentOnSoft: Color get() = pick(0xFFD4C4FF, 0xFF5B21B6)
+    val AccentOnSoft: Color get() = pick(OeToken.ACCENT_ON_SOFT, 0xFFD4C4FF, 0xFF5B21B6)
     /** The list view's zebra stripe (issue 874): a few percent of white over the dark page, of black over the light one. */
     val RowAlt: Color get() = pick(0x0BFFFFFF, 0x0A000000)
-    val Control: Color get() = pick(0xFF1E1E25, 0xFFEBEAF1)
-    val Raised: Color get() = pick(0xFF2A2A33, 0xFFE9E7EF)
+    val Control: Color get() = pick(OeToken.CONTROL, 0xFF1E1E25, 0xFFEBEAF1)
+    val Raised: Color get() = pick(OeToken.RAISED, 0xFF2A2A33, 0xFFE9E7EF)
     val Star: Color get() = pick(0xFFF5C543, 0xFFB07A00)
     /** The star on a fill of the text colour (a selected chip): the other theme's gold, which reads on it. */
     val StarOnText: Color get() = pick(0xFFB07A00, 0xFFF5C543)
@@ -86,16 +109,19 @@ fun focusFill(base: Color?, dark: Boolean): Color {
     }
 }
 
-/** The tones [focusFill] picks from; the soft ones are [Oe.AccentSoft]'s, the accent [Oe.Accent]'s. */
+/**
+ * The tones [focusFill] picks from; the soft ones are [Oe.AccentSoft]'s, the accent [Oe.Accent]'s. A user theme
+ * (issue 1018) gives its own, already kept visible against its surfaces, for both modes at once.
+ */
 internal object FocusTones {
-    val Accent = Color(0xFF7C3AED)
-    val AccentFocus = Color(0xFF5B21B6)
-    val SoftDark = Color(0xFF3B2A6B)
-    val SoftLight = Color(0xFFE4D9FD)
-    val OnDark = Color(0xFF4E3A8C)
-    val OnLight = Color(0xFFD3C2FB)
-    val TintDark = Color(0xFF221C33)
-    val TintLight = Color(0xFFEFE8FD)
+    val Accent: Color get() = ActiveTheme.color(OeToken.ACCENT) ?: Color(0xFF7C3AED)
+    val AccentFocus: Color get() = ActiveTheme.color(OeToken.ACCENT_FOCUS) ?: Color(0xFF5B21B6)
+    val SoftDark: Color get() = ActiveTheme.color(OeToken.SOFT) ?: Color(0xFF3B2A6B)
+    val SoftLight: Color get() = ActiveTheme.color(OeToken.SOFT) ?: Color(0xFFE4D9FD)
+    val OnDark: Color get() = ActiveTheme.color(OeToken.ON_SOFT) ?: Color(0xFF4E3A8C)
+    val OnLight: Color get() = ActiveTheme.color(OeToken.ON_SOFT) ?: Color(0xFFD3C2FB)
+    val TintDark: Color get() = ActiveTheme.color(OeToken.TINT) ?: Color(0xFF221C33)
+    val TintLight: Color get() = ActiveTheme.color(OeToken.TINT) ?: Color(0xFFEFE8FD)
 }
 
 val Inter = FontFamily(
@@ -126,15 +152,23 @@ object Type {
         val bodyMedium = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Oe.Text)
         val small = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp, color = Oe.Muted)
         val caption = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Oe.Muted)
-        val button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+        val button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Oe.OnAccent)
         val tag = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.4.sp)
     }
 
     private var darkStyles: Styles? = null
     private var lightStyles: Styles? = null
+    /** A user theme's styles (issue 1018), with the theme they were built for. */
+    private var themed: Pair<Any, Styles>? = null
 
-    private fun styles(): Styles =
-        if (Oe.dark) darkStyles ?: Styles().also { darkStyles = it } else lightStyles ?: Styles().also { lightStyles = it }
+    private fun styles(): Styles {
+        val theme = ActiveTheme.resolved
+        if (theme != null) {
+            themed?.let { (owner, styles) -> if (owner === theme) return styles }
+            return Styles().also { themed = theme to it }
+        }
+        return if (Oe.dark) darkStyles ?: Styles().also { darkStyles = it } else lightStyles ?: Styles().also { lightStyles = it }
+    }
 
     val Display: TextStyle get() = styles().display
     val Title: TextStyle get() = styles().title
@@ -149,7 +183,7 @@ object Type {
     val Tag: TextStyle get() = styles().tag
 }
 
-/** The theme the user picked: "system", "light" or "dark". */
+/** The theme the user picked: "system", "light", "dark" or a user theme's id (issue 1018). */
 object ThemePref {
     const val SYSTEM = "system"
     const val LIGHT = "light"
@@ -160,14 +194,25 @@ object ThemePref {
 
     private fun prefs(context: Context) = context.getSharedPreferences("openemux", Context.MODE_PRIVATE)
 
+    /** The stored choice, user theme included; anything else stored reads as System. */
+    fun parse(stored: String?): String = when {
+        stored == LIGHT || stored == DARK || UserTheme.isCustomId(stored) -> stored!!
+        else -> SYSTEM
+    }
+
     fun load(context: Context) {
-        value = prefs(context).getString("theme", SYSTEM) ?: SYSTEM
+        value = parse(prefs(context).getString("theme", SYSTEM))
+        ActiveTheme.load(context, value)
     }
 
     fun set(context: Context, theme: String) {
-        value = theme
-        prefs(context).edit().putString("theme", theme).apply()
+        value = parse(theme)
+        prefs(context).edit().putString("theme", value).apply()
+        ActiveTheme.load(context, value)
     }
+
+    /** The user theme picked, or null for a built-in one. */
+    val custom: String? get() = value.takeIf { UserTheme.isCustomId(it) }
 }
 
 /** How the hint bar names the buttons: "auto" (the pad in use), or a family forced. */
@@ -189,6 +234,15 @@ object ButtonLabelsPref {
 
 @Composable
 fun OpenEmuxTheme(content: @Composable () -> Unit) {
+    // A user theme's text size (issue 1018) on top of the system's own.
+    val scale = ActiveTheme.resolved?.fontScale ?: 1f
+    val density = LocalDensity.current
+    val themed = remember(density, scale) { if (scale == 1f) density else Density(density.density, density.fontScale * scale) }
+    CompositionLocalProvider(LocalDensity provides themed) { OpenEmuxMaterial(content) }
+}
+
+@Composable
+private fun OpenEmuxMaterial(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = (if (Oe.dark) darkColorScheme() else lightColorScheme()).copy(
             primary = Oe.Accent,

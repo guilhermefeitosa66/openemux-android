@@ -1354,7 +1354,7 @@ private fun GameTile(
             val caption = if (zoom) coverCaption else 12
             Column(it.gamepadFocus(corner = 10.dp, scale = 1.05f, mat = FocusMat) { on -> lit = on }.then(focus).pickable(pick, rom.key, open)) {
                 Box(Modifier.selectionLook(selecting, chosen)) {
-                    BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)), cropped = true)
+                    BoxArt(rom, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp.themed)), cropped = true)
                     TileBadges(selecting, chosen, romMeta?.favorite == true)
                 }
                 if (caption != null) GameName(rom.title, style = Type.Caption.copy(color = captionColor(selecting, chosen), fontSize = caption.sp), focused = lit, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())

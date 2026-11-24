@@ -65,6 +65,8 @@ class BackupRoots(val external: File, val internal: File) {
         BackupRoot("internal/labels", BackupGroup.SETTINGS, File(internal, "labels"), true),
         // The player's skins (issue 843): the bundled ones live in the APK, never here. The pick per console is in meta.json.
         BackupRoot("external/skins", BackupGroup.SETTINGS, File(external, "skins"), true, since = 2, skipHidden = true),
+        // The user's themes (issue 1018); the one picked is in the preferences.
+        BackupRoot("internal/themes", BackupGroup.SETTINGS, File(internal, "themes"), true, since = 3, skipHidden = true),
     )
 
     fun byName(name: String) = all.firstOrNull { it.name == name }
@@ -218,7 +220,7 @@ data class BackupManifest(
 object BackupFormat {
     const val FORMAT = "openemux-mobile-backup"
     /** 2: the player's skins (issue 843). An archive without them is still written as 1. */
-    const val VERSION = 2
+    const val VERSION = 3
     const val MANIFEST = "manifest.json"
     const val PREFS = "prefs/openemux.json"
     /** No settings file comes anywhere near this; a larger one is not ours. */

@@ -30,7 +30,8 @@ class ResolvedTheme(
     val iconScale: Float,
     val fontScale: Float,
     val density: Float,
-    val gridGap: Float,
+    /** The grid's gap in dp, or null for each grid's own (16 between cartridges, 12 between covers). */
+    val gridGap: Float?,
     val cardScale: Float,
     val libraryImage: ThemeImage?,
     val navImage: ThemeImage?,
@@ -117,7 +118,7 @@ class ResolvedTheme(
                 iconScale = theme.number("icon_scale").toFloat(),
                 fontScale = theme.number("font_scale").toFloat(),
                 density = ThemeDensity.factor(theme.choice("density")),
-                gridGap = theme.number("grid_gap").toFloat(),
+                gridGap = if (changed("grid_gap")) theme.number("grid_gap").toFloat() else null,
                 cardScale = theme.number("card_scale").toFloat(),
                 libraryImage = library,
                 navImage = nav,

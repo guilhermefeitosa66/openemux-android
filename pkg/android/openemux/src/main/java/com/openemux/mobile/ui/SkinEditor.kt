@@ -346,8 +346,8 @@ private data class PanelOpen(val tab: PaintTab, val part: SkinPart, val palettes
 private class TextureSession(val source: Bitmap, val name: String, val width: Int, val height: Int, val frame: SkinTextureFrame = SkinTextureFrame())
 
 private const val PREFS = "openemux"
-private const val PREF_PALETTE = "skin_editor_palette"
-private const val PREF_RECENT = "skin_editor_recent"
+internal const val PREF_PALETTE = "skin_editor_palette"
+internal const val PREF_RECENT = "skin_editor_recent"
 
 private class Loaded(val pkg: SkinPackage, val json: String)
 

@@ -81,12 +81,12 @@ import com.retroarch.R
  * on the stage, all of it: a group selected is a group painted.
  */
 
-private val PanelBg = Color(0xFF1E1E25)
+internal val PanelBg = Color(0xFF1E1E25)
 private val PanelBorder = Color(0xFF34343F)
 private val Well = Color(0xFF16161B)
 private val SegOn = Color(0xFF33333D)
-private val TextOn = Color(0xFFF2F1F6)
-private val TextOff = Color(0xFFA9A7B5)
+internal val TextOn = Color(0xFFF2F1F6)
+internal val TextOff = Color(0xFFA9A7B5)
 private val ChipLine = Color(0xFF3A3A46)
 private val ChipText = Color(0xFFC9C7D4)
 private val ChipOnBg = Color(0x477C3AED)
@@ -203,7 +203,7 @@ internal fun PaintPanel(view: PaintView, actions: PaintActions, modifier: Modifi
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (view.palettes) {
-            Palettes(view.presets, actions)
+            PaletteList(view.presets, { actions.onPalettes(false) }, actions.onPalette)
             return@Column
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -266,7 +266,7 @@ private fun ColourTab(view: PaintView, actions: PaintActions) {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Picker(view.color, actions)
+            ColorPicker(view.color, actions.onColor)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.editor_hex), style = Type.Small.copy(color = TextOff, fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
@@ -366,12 +366,13 @@ private fun TextureTab(view: PaintView, actions: PaintActions) {
     }
 }
 
+/** The palettes to pick from (also the theme editor's, issue 1018); [onBack] returns to the colour. */
 @Composable
-private fun Palettes(current: SkinPalette, actions: PaintActions) {
+internal fun PaletteList(current: SkinPalette, onBack: () -> Unit, onPalette: (SkinPalette) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         val back = stringResource(R.string.editor_back_to_colour)
         Box(
-            Modifier.size(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).clickable { actions.onPalettes(false) }
+            Modifier.size(40.dp).gamepadFocus(corner = 12.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onBack)
                 .semantics { contentDescription = back },
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Back, TextOn, 20.dp) }
@@ -382,7 +383,7 @@ private fun Palettes(current: SkinPalette, actions: PaintActions) {
         val on = p.id == current.id
         Column(
             Modifier.fillMaxWidth().gamepadFocus(corner = 14.dp, background = if (on) Color(0x1F7C3AED) else Color(0xFF26262E)).clip(RoundedCornerShape(14.dp)).border(2.dp, if (on) Oe.Accent else Color.Transparent, RoundedCornerShape(14.dp))
-                .clickable { actions.onPalette(p) }.padding(6.dp),
+                .clickable { onPalette(p) }.padding(6.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Row(Modifier.fillMaxWidth().height(30.dp).clip(RoundedCornerShape(9.dp))) {
@@ -398,14 +399,14 @@ private fun Palettes(current: SkinPalette, actions: PaintActions) {
 
 /** The saturation/brightness square and the hue slider. The hue is kept while the colour is grey, where it has none. */
 @Composable
-private fun Picker(color: Int, actions: PaintActions) {
+internal fun ColorPicker(color: Int, onColor: (Int, Boolean) -> Unit) {
     var hsv by remember { mutableStateOf(SkinColorMath.toHsv(color)) }
     // A colour from outside (a preset, hex, undo) moves the knobs; one the picker made itself keeps its hue.
     LaunchedEffect(color) { if (SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]) != color) hsv = SkinColorMath.toHsv(color) }
-    val latest = rememberUpdatedState(actions)
+    val latest = rememberUpdatedState(onColor)
     fun set(h: Float, s: Float, v: Float, commit: Boolean) {
         hsv = floatArrayOf(h, s.coerceIn(0f, 1f), v.coerceIn(0f, 1f))
-        latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), commit)
+        latest.value(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), commit)
     }
     val hueColor = Color(SkinColorMath.fromHsv(hsv[0], 1f, 1f))
     val squareLabel = stringResource(R.string.editor_saturation)
@@ -426,7 +427,7 @@ private fun Picker(color: Int, actions: PaintActions) {
             }
             .pointerInput(Unit) {
                 fun at(p: Offset, commit: Boolean) = set(hsv[0], p.x / size.width, 1f - p.y / size.height, commit)
-                val end = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
+                val end = { latest.value(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
                 detectDragGestures(onDragStart = { at(it, false) }, onDragEnd = end, onDragCancel = end) { change, _ ->
                     at(change.position, false)
                 }
@@ -455,7 +456,7 @@ private fun Picker(color: Int, actions: PaintActions) {
             }
             .pointerInput(Unit) {
                 fun at(x: Float, commit: Boolean) = set((x / size.width).coerceIn(0f, 0.999f) * 360f, hsv[1], hsv[2], commit)
-                val end = { latest.value.onColor(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
+                val end = { latest.value(SkinColorMath.fromHsv(hsv[0], hsv[1], hsv[2]), true) }
                 detectDragGestures(onDragStart = { at(it.x, false) }, onDragEnd = end, onDragCancel = end) { change, _ ->
                     at(change.position.x, false)
                 }
@@ -504,7 +505,7 @@ private fun ZoomSlider(zoom: Float, actions: PaintActions) {
 }
 
 @Composable
-private fun HexField(color: Int, onColor: (Int) -> Unit) {
+internal fun HexField(color: Int, onColor: (Int) -> Unit) {
     var text by remember { mutableStateOf(SkinColorMath.hex(color)) }
     LaunchedEffect(color) { if (SkinColorMath.parseHex(text) != color) text = SkinColorMath.hex(color) }
     Row(
@@ -531,7 +532,7 @@ private fun HexField(color: Int, onColor: (Int) -> Unit) {
 
 /** A colour circle; [selected] gets the white ring of the design. */
 @Composable
-private fun Swatch(color: Int, sizeDp: Int, selected: Boolean, label: String, onClick: () -> Unit) {
+internal fun Swatch(color: Int, sizeDp: Int, selected: Boolean, label: String, onClick: () -> Unit) {
     Box(
         Modifier.size((sizeDp + 6).dp).gamepadFocus(corner = 99.dp, mat = FocusMat).clip(CircleShape)
             .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
@@ -542,7 +543,7 @@ private fun Swatch(color: Int, sizeDp: Int, selected: Boolean, label: String, on
 
 /** The preset row's last circle: dashed, a little wheel of colours; it opens Palettes. */
 @Composable
-private fun PalettesButton(label: String, onClick: () -> Unit) {
+internal fun PalettesButton(label: String, onClick: () -> Unit) {
     Box(
         Modifier.size(40.dp).gamepadFocus(corner = 99.dp, mat = FocusMat).clip(CircleShape).clickable(onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,

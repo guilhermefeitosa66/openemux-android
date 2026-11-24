@@ -212,9 +212,15 @@ fun bookSplit(layout: WindowLayout, railDp: Float, fallbackListDp: Float): BookS
 /** A grid's cards: [min] wide or more, never wider than [max], [gap] apart, at least [floor] columns. */
 data class GridSpec(val min: Float, val max: Float, val gap: Float, val floor: Int) {
     companion object {
-        val Carts = GridSpec(min = 150f, max = 220f, gap = 16f, floor = 2)
-        val Covers = GridSpec(min = 110f, max = 170f, gap = 12f, floor = 3)
-        val List = GridSpec(min = 0f, max = Float.POSITIVE_INFINITY, gap = 16f, floor = 1)
+        // A user theme (issue 1018) scales the cards and may set its own gap; without one these are the app's.
+        val Carts: GridSpec get() = themed(GridSpec(min = 150f, max = 220f, gap = 16f, floor = 2))
+        val Covers: GridSpec get() = themed(GridSpec(min = 110f, max = 170f, gap = 12f, floor = 3))
+        val List: GridSpec get() = themed(GridSpec(min = 0f, max = Float.POSITIVE_INFINITY, gap = 16f, floor = 1))
+
+        /** [spec] with the theme's card size and gap applied. */
+        fun themed(spec: GridSpec, scale: Float = ActiveTheme.resolved?.cardScale ?: 1f, gap: Float? = ActiveTheme.resolved?.gridGap): GridSpec =
+            if (scale == 1f && gap == null) spec
+            else GridSpec(spec.min * scale, spec.max * scale, gap ?: spec.gap, spec.floor)
     }
 }
 
