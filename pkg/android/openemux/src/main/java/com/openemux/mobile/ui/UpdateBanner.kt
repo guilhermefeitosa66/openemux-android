@@ -93,7 +93,7 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                 )
                 Text(
-                    stringResource(R.string.update_download), style = Type.Button.copy(color = Color.White),
+                    stringResource(R.string.update_download), style = Type.Button.copy(color = Oe.OnAccent),
                     modifier = Modifier
                         .heightIn(min = 44.dp)
                         .gamepadFocus(corner = 12.dp, background = Oe.Accent)

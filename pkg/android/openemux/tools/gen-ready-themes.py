@@ -40,7 +40,7 @@ OUT_W, OUT_H = 720, 1280
 THEMES = [
     ("pastel", "Pastel", "light", {
         "window_bg": "#fff7fa", "headerbar_bg": "#fbe4ef", "sidebar_bg": "#f6efff", "library_bg": "#fff7fa",
-        "card_bg": "#ffffff", "popover_bg": "#ffffff", "details_bg": "#fff7fa",
+        "console_list_bg": "#fbe4ef", "card_bg": "#ffffff", "popover_bg": "#ffffff", "details_bg": "#fff7fa",
         "text_primary": "#3b2f40", "text_secondary": "#66586b",
         "sidebar_text_primary": "#8a3f9c", "sidebar_text_secondary": "#66586b",
         "accent": "#a63a74", "selection_bg": "#fbd3e6", "accent_button_bg": "#b04a80", "accent_button_fg": "#ffffff",
@@ -50,7 +50,7 @@ THEMES = [
     }),
     ("dracula", "Dracula", "dark", {
         "window_bg": "#282a36", "headerbar_bg": "#44475a", "sidebar_bg": "#21222c", "library_bg": "#282a36",
-        "card_bg": "#343746", "popover_bg": "#303241", "details_bg": "#282a36",
+        "console_list_bg": "#383a4a", "card_bg": "#343746", "popover_bg": "#303241", "details_bg": "#282a36",
         "text_primary": "#f8f8f2", "text_secondary": "#c3c5d8",
         "sidebar_text_primary": "#ff79c6", "sidebar_text_secondary": "#b4b7cc",
         "accent": "#bd93f9", "selection_bg": "#4b4f68", "accent_button_bg": "#bd93f9", "accent_button_fg": "#21222c",
@@ -60,7 +60,7 @@ THEMES = [
     }),
     ("kitty", "Kitty", "dark", {
         "window_bg": "#1f1a25", "headerbar_bg": "#2e2636", "sidebar_bg": "#1a1620", "library_bg": "#1f1a25",
-        "card_bg": "#2b2432", "popover_bg": "#2b2432", "details_bg": "#1f1a25",
+        "console_list_bg": "#2e2636", "card_bg": "#2b2432", "popover_bg": "#2b2432", "details_bg": "#1f1a25",
         "text_primary": "#f6ecf4", "text_secondary": "#c9b8cc",
         "sidebar_text_primary": "#f7b9d7", "sidebar_text_secondary": "#bba9bf",
         "accent": "#f7b9d7", "selection_bg": "#4d3855", "accent_button_bg": "#f7b9d7", "accent_button_fg": "#2a1e2e",
@@ -70,7 +70,7 @@ THEMES = [
     }),
     ("neon", "Neon", "dark", {
         "window_bg": "#0d0221", "headerbar_bg": "#1d0b3a", "sidebar_bg": "#120530", "library_bg": "#0d0221",
-        "card_bg": "#1a0a36", "popover_bg": "#1a0a36", "details_bg": "#0d0221",
+        "console_list_bg": "#1d0b3a", "card_bg": "#1a0a36", "popover_bg": "#1a0a36", "details_bg": "#0d0221",
         "text_primary": "#f4eeff", "text_secondary": "#bfaee0",
         "sidebar_text_primary": "#ff4fb0", "sidebar_text_secondary": "#ab98d0",
         "accent": "#05d9e8", "selection_bg": "#3b1670", "accent_button_bg": "#ff2a6d", "accent_button_fg": "#12001c",
@@ -80,7 +80,7 @@ THEMES = [
     }),
     ("tokyo-night", "Tokyo Night", "dark", {
         "window_bg": "#1a1b26", "headerbar_bg": "#24283b", "sidebar_bg": "#16161e", "library_bg": "#1a1b26",
-        "card_bg": "#24283b", "popover_bg": "#1f2335", "details_bg": "#1a1b26",
+        "console_list_bg": "#24283b", "card_bg": "#24283b", "popover_bg": "#1f2335", "details_bg": "#1a1b26",
         "text_primary": "#c0caf5", "text_secondary": "#a9b1d6",
         "sidebar_text_primary": "#7aa2f7", "sidebar_text_secondary": "#9aa5ce",
         "accent": "#7aa2f7", "selection_bg": "#2e3c64", "accent_button_bg": "#7aa2f7", "accent_button_fg": "#16161e",
@@ -168,11 +168,11 @@ def kitty():
         body.append(f'<path transform="translate({x:.0f} {y:.0f}) scale({s:.2f})" fill="{c}" opacity="0.22" '
                     'd="M0 12 C-26 -6 -18 -30 0 -18 C18 -30 26 -6 0 12 Z"/>')
     # A rug, a ball of yarn and the cat, in the lower right.
-    body.append('<ellipse cx="640" cy="1700" rx="420" ry="70" fill="#2e2536"/>')
+    body.append('<g transform="translate(420 -450) scale(0.62)"><ellipse cx="640" cy="1700" rx="420" ry="70" fill="#2e2536"/>')
     body.append('<circle cx="330" cy="1630" r="62" fill="#3f5c69"/>'
                 '<path d="M282 1600 C320 1590 360 1610 384 1640 M276 1640 C315 1625 355 1645 378 1675 M300 1580 C335 1600 350 1640 345 1688" '
                 'stroke="#2e4652" stroke-width="7" fill="none" stroke-linecap="round"/>'
-                '<path d="M392 1640 C450 1660 470 1700 520 1690" stroke="#3f5c69" stroke-width="6" fill="none" stroke-linecap="round"/>')
+                '<path d="M392 1640 C450 1660 470 1700 520 1690" stroke="#3f5c69" stroke-width="6" fill="none" stroke-linecap="round"/></g>')
     cat = []
     fur, dark, pink = "#5e4b68", "#16111b", "#9a5c7c"
     cat.append(f'<path d="M905 1560 C985 1520 1010 1430 960 1400 C935 1385 925 1420 945 1440 C965 1460 945 1520 895 1530 Z" fill="{fur}" stroke="{dark}" stroke-width="8"/>')  # tail
@@ -189,7 +189,8 @@ def kitty():
                f'<path d="M760 1394 C755 1410 738 1414 730 1404 M760 1394 C765 1410 782 1414 790 1404" stroke="{dark}" stroke-width="6" fill="none" stroke-linecap="round"/>')
     cat.append(f'<ellipse cx="665" cy="1390" rx="24" ry="14" fill="{pink}" opacity="0.6"/><ellipse cx="855" cy="1390" rx="24" ry="14" fill="{pink}" opacity="0.6"/>')
     cat.append(f'<path d="M640 1372 L560 1360 M640 1388 L565 1395 M880 1372 L960 1360 M880 1388 L955 1395" stroke="{dark}" stroke-width="5" stroke-linecap="round"/>')
-    body.append("\n".join(cat))
+    # In the upper right, beside the screen's title, where the library's cards leave the picture visible.
+    body.append('<g transform="translate(420 -450) scale(0.62)">' + "\n".join(cat) + "</g>")
     return svg("\n".join(body), defs)
 
 
@@ -275,8 +276,8 @@ def rgb(hexstr):
 
 
 PAIRS = [
-    ("text_primary", ["window_bg", "library_bg", "card_bg", "popover_bg", "details_bg"]),
-    ("text_secondary", ["window_bg", "library_bg", "card_bg", "popover_bg", "details_bg"]),
+    ("text_primary", ["window_bg", "library_bg", "card_bg", "popover_bg", "details_bg", "console_list_bg"]),
+    ("text_secondary", ["window_bg", "library_bg", "card_bg", "popover_bg", "details_bg", "console_list_bg"]),
     ("sidebar_text_primary", ["sidebar_bg"]),
     ("sidebar_text_secondary", ["sidebar_bg"]),
     ("accent", ["window_bg", "card_bg"]),

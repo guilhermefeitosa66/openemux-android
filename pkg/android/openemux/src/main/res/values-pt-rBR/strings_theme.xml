@@ -122,4 +122,5 @@
     <string name="theme_section_ready">Prontos</string>
     <string name="theme_ready_hint">Só leitura. Duplique um para fazer o seu.</string>
     <string name="theme_duplicate_named">Duplicar %1$s</string>
+    <string name="theme_key_console_list_bg">Lista de consoles</string>
 </resources>

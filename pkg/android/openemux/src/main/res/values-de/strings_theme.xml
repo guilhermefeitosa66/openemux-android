@@ -122,4 +122,5 @@
     <string name="theme_section_ready">Fertige Designs</string>
     <string name="theme_ready_hint">Nur lesbar. Dupliziere eins, um es anzupassen.</string>
     <string name="theme_duplicate_named">%1$s duplizieren</string>
+    <string name="theme_key_console_list_bg">Konsolenliste</string>
 </resources>

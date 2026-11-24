@@ -51,6 +51,8 @@ object Oe {
     val NavBg: Color get() = ActiveTheme.color(OeToken.NAV_BG) ?: Bg
     /** Behind the library's screens (the shelf, a console's games, Recent). */
     val LibraryBg: Color get() = ActiveTheme.color(OeToken.LIBRARY_BG) ?: Bg
+    /** The consoles' cards on the shelf, when a user theme gives them one color (else each console's own). */
+    val ConsoleList: Color? get() = ActiveTheme.color(OeToken.CONSOLE_LIST)
     /** Behind a game's details. */
     val DetailsBg: Color get() = ActiveTheme.color(OeToken.DETAILS_BG) ?: Bg
     val GameBg: Color get() = pick(0xFF0B0B0E, 0xFF0B0B0E)

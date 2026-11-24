@@ -32,6 +32,8 @@ class ReadyThemesTest {
             val dropped = mutableListOf<String>()
             val theme = UserTheme.parse(ThemeYaml.parse(File(assets, "$id/theme.yaml").readText()), id) { dropped += it }
             assertTrue("$id dropped $dropped", dropped.isEmpty())
+            // The consoles' own colors were made for Light and Dark: each ready theme gives its console list one.
+            assertTrue(id, theme.isChanged("console_list_bg"))
             val image = theme.values[ThemeKeys.LIBRARY_IMAGE] as String
             assertTrue(id, File(assets, "$id/$image").isFile)
             assertTrue("$id image too large", File(assets, "$id/$image").length() < 200 * 1024)

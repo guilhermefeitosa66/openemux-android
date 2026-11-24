@@ -46,7 +46,7 @@ class ResolvedThemeTest {
             theme(
                 ThemeBase.LIGHT,
                 "headerbar_bg" to "#010101", "sidebar_bg" to "#020202", "details_bg" to "#030303", "card_bg" to "#fefefe",
-                "popover_bg" to "#050505", "border_color" to "#060606", "text_primary" to "#070707", "text_secondary" to "#080808",
+                "popover_bg" to "#050505", "console_list_bg" to "#0f0f0f", "border_color" to "#060606", "text_primary" to "#070707", "text_secondary" to "#080808",
                 "sidebar_text_primary" to "#090909", "sidebar_text_secondary" to "#0a0a0a", "accent" to "#0b0b0b",
                 "accent_button_bg" to "#0c0c0c", "accent_button_fg" to "#0d0d0d", "icon_color" to "#0e0e0e",
             ),
@@ -57,6 +57,7 @@ class ResolvedThemeTest {
         assertEquals(0xFFFEFEFE.toInt(), r.color(OeToken.SURFACE))
         assertEquals(SkinColorMath.mix(0xFFFEFEFE.toInt(), 0xFF070707.toInt(), 0.06f), r.color(OeToken.SURFACE2))
         assertEquals(0xFF050505.toInt(), r.color(OeToken.SHEET))
+        assertEquals(0xFF0F0F0F.toInt(), r.color(OeToken.CONSOLE_LIST))
         assertEquals(0xFF060606.toInt(), r.color(OeToken.BORDER))
         assertEquals(0xFF060606.toInt(), r.borderColor)
         assertEquals(0xFF070707.toInt(), r.color(OeToken.TEXT))

@@ -122,4 +122,5 @@
     <string name="theme_section_ready">既成テーマ</string>
     <string name="theme_ready_hint">読み取り専用です。複製すると自分用に編集できます。</string>
     <string name="theme_duplicate_named">%1$s を複製</string>
+    <string name="theme_key_console_list_bg">コンソール一覧</string>
 </resources>

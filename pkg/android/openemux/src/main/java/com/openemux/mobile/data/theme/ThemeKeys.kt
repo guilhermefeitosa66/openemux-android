@@ -98,6 +98,8 @@ object ThemeKeys {
         color("sidebar_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFF6F5F9, 0xFF121216),
         color("library_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFF6F5F9, 0xFF121216),
         color("card_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFFFFFFF, 0xFF1C1C23),
+        // The consoles' cards on the shelf: each console's own color until the theme sets one for all (issue 1018).
+        color("console_list_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFFFFFFF, 0xFF1C1C23),
         color("popover_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFFFFFFF, 0xFF1A1A20),
         color("details_bg", ThemeSection.COLORS, ThemeGroup.SURFACES, 0xFFF6F5F9, 0xFF121216),
         color("text_primary", ThemeSection.TEXT, ThemeGroup.CONTENT, 0xFF17171C, 0xFFF3F3F6),
@@ -134,8 +136,8 @@ object ThemeKeys {
      * WCAG AA. The desktop's pairs, plus the navigation labels on the navigation.
      */
     val CONTRAST_PAIRS: List<Pair<String, List<String>>> = listOf(
-        "text_primary" to listOf("window_bg", "library_bg", "card_bg", "popover_bg", "details_bg"),
-        "text_secondary" to listOf("window_bg", "library_bg", "card_bg", "popover_bg", "details_bg"),
+        "text_primary" to listOf("window_bg", "library_bg", "card_bg", "popover_bg", "details_bg", "console_list_bg"),
+        "text_secondary" to listOf("window_bg", "library_bg", "card_bg", "popover_bg", "details_bg", "console_list_bg"),
         "sidebar_text_primary" to listOf("sidebar_bg"),
         "sidebar_text_secondary" to listOf("sidebar_bg"),
         "accent" to listOf("window_bg", "card_bg"),

@@ -534,9 +534,9 @@ fun SwitchRow(
         Switch(
             checked, onCheckedChange = null, enabled = enabled,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White, checkedTrackColor = Oe.Accent, checkedBorderColor = Oe.Accent,
+                checkedThumbColor = Oe.OnAccent, checkedTrackColor = Oe.Accent, checkedBorderColor = Oe.Accent,
                 uncheckedThumbColor = Oe.Chevron, uncheckedTrackColor = Oe.Raised, uncheckedBorderColor = Oe.Chevron,
-                disabledCheckedThumbColor = Color.White, disabledCheckedTrackColor = Oe.Accent, disabledCheckedBorderColor = Oe.Accent,
+                disabledCheckedThumbColor = Oe.OnAccent, disabledCheckedTrackColor = Oe.Accent, disabledCheckedBorderColor = Oe.Accent,
                 disabledUncheckedThumbColor = Oe.Chevron, disabledUncheckedTrackColor = Oe.Raised, disabledUncheckedBorderColor = Oe.Chevron,
             ),
         )

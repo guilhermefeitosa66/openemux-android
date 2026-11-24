@@ -52,6 +52,7 @@ only one app has is simply ignored by the other.
 | `sidebar_bg` | color | | Bottom tabs and side rail | Sidebar |
 | `library_bg` | color | | Behind the shelf, the library and Recent | ROM list/grid |
 | `card_bg` | color | | Cards and rows | Cards |
+| `console_list_bg` | color | | The consoles' cards on the shelf (each console's own color when unset); text on them is `text_primary` | The console list |
 | `popover_bg` | color | | Sheets and dialogs | Popovers and dialogs |
 | `details_bg` | color | | A game's details | Game details |
 | `text_primary` | color | | Primary text | Primary text |

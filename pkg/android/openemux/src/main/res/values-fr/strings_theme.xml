@@ -122,4 +122,5 @@
     <string name="theme_section_ready">Prêts à l\'emploi</string>
     <string name="theme_ready_hint">En lecture seule. Dupliquez-en un pour le personnaliser.</string>
     <string name="theme_duplicate_named">Dupliquer %1$s</string>
+    <string name="theme_key_console_list_bg">Liste des consoles</string>
 </resources>
