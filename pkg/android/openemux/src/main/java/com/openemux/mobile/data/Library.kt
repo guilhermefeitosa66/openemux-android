@@ -51,6 +51,9 @@ class Paths(val base: File, val internal: File) {
     fun covers(console: Console) = File(internal, "covers/${console.id}")
 
     fun playtime(console: Console, stem: String) = File(playtime, "${console.id}_$stem.txt")
+
+    /** The save an import replaced, kept for "Restore previous save" (issue 1005). */
+    fun saveBackup(console: Console, stem: String) = File(internal, "save-backups/${console.id}/$stem")
 }
 
 data class Rom(
