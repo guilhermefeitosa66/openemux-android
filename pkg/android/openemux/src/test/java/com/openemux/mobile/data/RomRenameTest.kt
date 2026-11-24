@@ -122,6 +122,16 @@ class RomRenameTest {
     }
 
     @Test
+    fun `the save an import replaced follows the rename`() {
+        val lib = seed()
+        put(paths.saveBackup(Console.SFC, "Mario (USA)"), "Mario (USA).srm")
+        val renamed = RomRenamer(paths, lib, covers, labels).rename(game(lib, "Mario (USA).sfc"), "Super Mario")
+        assertTrue(renamed is RenameResult.Done)
+        assertFalse(paths.saveBackup(Console.SFC, "Mario (USA)").exists())
+        assertTrue(File(paths.saveBackup(Console.SFC, "Super Mario"), "Mario (USA).srm").isFile)
+    }
+
+    @Test
     fun `a pick made in game for the old name lands before the key changes`() {
         val lib = seed()
         val mario = game(lib, "Mario (USA).sfc")

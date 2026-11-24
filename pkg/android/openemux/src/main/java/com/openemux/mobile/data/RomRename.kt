@@ -102,6 +102,8 @@ class RomRenamer(
         runCatching {
             ArtSources(paths.covers(rom.console)).rename(rom.baseName, stem)
             ArtSources(paths.labels(rom.console)).rename(rom.baseName, stem)
+            // The save an import replaced follows the game too (issue 1005).
+            GameFiles(paths, move).renamed(rom.console, rom.baseName, stem)
             if (keepCover) keepMirrorCover(renamed, shown!!)
         }.onFailure { Log.w(TAG, "art records of ${renamed.key} not carried", it) }
         covers.forgetMatch(rom)

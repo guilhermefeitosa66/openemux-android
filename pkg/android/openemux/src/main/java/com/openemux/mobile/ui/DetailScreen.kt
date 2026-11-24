@@ -126,6 +126,8 @@ fun RomDetail(
     // Hardcore refuses loading a state: no "Continue", and the states stay for when it is off.
     val hardcore = cheevos.hardcoreActive
     val auto = if (hardcore) null else states.firstOrNull { it.isAuto }
+    // A suspended game brings its old save back on Continue: the save import says to use Restart (issue 1005).
+    val hasAutoState = states.any { it.isAuto }
     val context = LocalContext.current
     fun playState(st: SaveState) {
         if (hardcore) Toast.makeText(context, R.string.detail_hardcore_no_load, Toast.LENGTH_SHORT).show()
@@ -295,6 +297,8 @@ fun RomDetail(
                         trailing = if (it.isDefault) ({ Tag(stringResource(R.string.detail_default_tag), Oe.Surface2, Oe.Muted) }) else null)
                 }
             }
+            // Export and import of the game's file and save (issue 1005), above the one destructive row.
+            GameFilesCard(rom, core, hasAutoState, Modifier.padding(top = 18.dp))
             // The last thing on the screen, out in the open (issue 790), still behind its confirmation.
             RemoveCard(Modifier.padding(top = 14.dp)) { confirmDelete = true }
         }
@@ -312,6 +316,7 @@ fun RomDetail(
                     Spacer(Modifier.height(18.dp))
                     colorBlock(false)
                 }
+                GameFilesCard(rom, core, hasAutoState, Modifier.padding(top = 18.dp))
                 RemoveCard(Modifier.padding(top = 18.dp)) { confirmDelete = true }
             } }
         }
