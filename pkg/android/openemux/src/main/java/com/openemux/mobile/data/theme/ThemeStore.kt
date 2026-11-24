@@ -64,6 +64,21 @@ class ThemeStore(val root: File, private val codec: ThemeImageCodec, private val
         return candidate
     }
 
+    /**
+     * User themes saved under an id that became reserved (a ready-made theme's, issue 1018) move to a free one, so
+     * they stay listed and editable. Returns old id to new id.
+     */
+    fun moveReserved(): Map<String, String> {
+        val moved = LinkedHashMap<String, String>()
+        for (id in ReadyThemes.IDS) {
+            val old = File(root, id)
+            if (!File(old, THEME_FILE).isFile) continue
+            val new = newId(id)
+            if (old.renameTo(File(root, new))) moved[id] = new
+        }
+        return moved
+    }
+
     /** [name], or "[name] (2)", "(3)"… when another theme is already called that. */
     fun freeName(name: String, except: String? = null): String {
         val taken = list().filter { it.id != except }.map { it.name.lowercase() }.toSet()

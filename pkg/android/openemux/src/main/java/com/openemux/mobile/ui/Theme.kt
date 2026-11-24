@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.openemux.mobile.data.theme.OeToken
+import com.openemux.mobile.data.theme.ReadyThemes
 import com.openemux.mobile.data.theme.UserTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,8 @@ object Oe {
     val NavBg: Color get() = ActiveTheme.color(OeToken.NAV_BG) ?: Bg
     /** Behind the library's screens (the shelf, a console's games, Recent). */
     val LibraryBg: Color get() = ActiveTheme.color(OeToken.LIBRARY_BG) ?: Bg
+    /** The consoles' cards on the shelf, when a user theme gives them one color (else each console's own). */
+    val ConsoleList: Color? get() = ActiveTheme.color(OeToken.CONSOLE_LIST)
     /** Behind a game's details. */
     val DetailsBg: Color get() = ActiveTheme.color(OeToken.DETAILS_BG) ?: Bg
     val GameBg: Color get() = pick(0xFF0B0B0E, 0xFF0B0B0E)
@@ -196,12 +199,17 @@ object ThemePref {
 
     /** The stored choice, user theme included; anything else stored reads as System. */
     fun parse(stored: String?): String = when {
-        stored == LIGHT || stored == DARK || UserTheme.isCustomId(stored) -> stored!!
+        stored == LIGHT || stored == DARK || UserTheme.isCustomId(stored) || ReadyThemes.isReadyId(stored) -> stored!!
         else -> SYSTEM
     }
 
     fun load(context: Context) {
-        value = parse(prefs(context).getString("theme", SYSTEM))
+        // A user theme that was saved under a ready-made theme's id (before issue 1018's second part) moves to a
+        // free id; the choice follows it, so the person keeps their own theme.
+        val moved = runCatching { ActiveTheme.store(context).moveReserved() }.getOrDefault(emptyMap())
+        val stored = prefs(context).getString("theme", SYSTEM)
+        value = parse(moved[stored] ?: stored)
+        if (moved.containsKey(stored)) prefs(context).edit().putString("theme", value).apply()
         ActiveTheme.load(context, value)
     }
 
@@ -211,8 +219,8 @@ object ThemePref {
         ActiveTheme.load(context, value)
     }
 
-    /** The user theme picked, or null for a built-in one. */
-    val custom: String? get() = value.takeIf { UserTheme.isCustomId(it) }
+    /** The user theme or ready-made theme picked, or null for System, Light and Dark. */
+    val custom: String? get() = value.takeIf { UserTheme.isCustomId(it) || ReadyThemes.isReadyId(it) }
 }
 
 /** How the hint bar names the buttons: "auto" (the pad in use), or a family forced. */

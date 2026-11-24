@@ -37,7 +37,8 @@ data class UserTheme(val id: String, val name: String, val base: String, val val
         /** What a user theme's id looks like; never a built-in's. */
         private val ID = Regex("[a-z0-9][a-z0-9-]{0,47}")
         private const val SLUG_LENGTH = 40
-        val BUILT_IN = setOf("system", "light", "dark")
+        /** Ids a user theme can never take: the built-in looks and the ready-made themes (issue 1018). */
+        val BUILT_IN = setOf("system", "light", "dark") + ReadyThemes.IDS
 
         fun isCustomId(value: String?): Boolean = value != null && value !in BUILT_IN && ID.matches(value)
 
@@ -87,6 +88,8 @@ data class UserTheme(val id: String, val name: String, val base: String, val val
             for ((fg, backgrounds) in ThemeKeys.CONTRAST_PAIRS) {
                 for (bg in backgrounds) {
                     if (!theme.isChanged(fg) && !theme.isChanged(bg)) continue
+                    // Unset, the console list is each console's own color, not this default: nothing to check.
+                    if (bg == "console_list_bg" && !theme.isChanged(bg)) continue
                     val ratio = SkinColorMath.contrast(theme.color(fg), theme.color(bg))
                     if (ratio < ThemeKeys.WCAG_AA) out += ContrastProblem(fg, bg, ratio)
                 }

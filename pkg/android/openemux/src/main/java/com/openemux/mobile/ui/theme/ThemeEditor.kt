@@ -93,7 +93,7 @@ import com.openemux.mobile.ui.OeSheet
 import com.openemux.mobile.ui.PREF_PALETTE
 import com.openemux.mobile.ui.PREF_RECENT
 import com.openemux.mobile.ui.PaletteList
-import com.openemux.mobile.ui.PalettesButton
+import com.openemux.mobile.ui.PaletteRow
 import com.openemux.mobile.ui.PanelBg
 import com.openemux.mobile.ui.PrimaryButton
 import com.openemux.mobile.ui.SecondaryButton
@@ -304,6 +304,7 @@ internal fun keyName(key: String): Int = when (key) {
     "sidebar_bg" -> R.string.theme_key_sidebar_bg
     "library_bg" -> R.string.theme_key_library_bg
     "card_bg" -> R.string.theme_key_card_bg
+    "console_list_bg" -> R.string.theme_key_console_list_bg
     "popover_bg" -> R.string.theme_key_popover_bg
     "details_bg" -> R.string.theme_key_details_bg
     "text_primary" -> R.string.theme_key_text_primary
@@ -563,10 +564,7 @@ private fun ColorSheet(context: Context, color: Int, onDone: () -> Unit, onColor
                     Text(stringResource(R.string.theme_color), Modifier.weight(1f), style = Type.Body.copy(color = TextOn, fontSize = 16.sp))
                     PrimaryButton(stringResource(R.string.theme_done), onDone, height = 40.dp, sidePadding = 16.dp)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    palette.colors.take(7).forEach { c -> Swatch(c, 30, c == current, SkinColorMath.hex(c)) { pick(c, true) } }
-                    PalettesButton(stringResource(R.string.editor_palettes) + ": " + stringResource(com.openemux.mobile.ui.paletteName(palette))) { palettes = true }
-                }
+                PaletteRow(palette, current, { pick(it, true) }) { palettes = true }
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { ColorPicker(current, ::pick) }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

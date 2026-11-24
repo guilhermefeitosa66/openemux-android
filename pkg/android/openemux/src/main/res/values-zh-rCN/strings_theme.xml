@@ -119,4 +119,8 @@
     <string name="theme_share">分享主题文件</string>
     <string name="theme_preview_played">已玩 2 小时 · 3 天前</string>
     <string name="theme_preview_slot">存档位 1 · 今天</string>
+    <string name="theme_section_ready">预设主题</string>
+    <string name="theme_ready_hint">只读。复制一个即可自行修改。</string>
+    <string name="theme_duplicate_named">复制 %1$s</string>
+    <string name="theme_key_console_list_bg">主机列表</string>
 </resources>

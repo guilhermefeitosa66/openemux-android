@@ -293,7 +293,7 @@ fun ShelfScreen() {
                     Row(Modifier.padding(vertical = (spec.gap / 2).dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(spec.gap.dp)) {
                         listOf(Triple(allShort, allCompactName, roms) to "ALL", Triple(favoritesShort, favoritesName, favorites) to "FAV").forEach { (shelf, filter) ->
                             val (short, name, list) = shelf
-                            val (background, ink) = pinnedLook(filter, Oe.dark)
+                            val (background, ink) = themedShelf(pinnedLook(filter, Oe.dark))
                             CompactShelfCard(
                                 if (filter == "ALL") Icons.Grid else Icons.Star, if (filter == "ALL") ink else Oe.Star,
                                 short, name, countString(R.plurals.library_games_count, list.size, list.size), background, ink,
@@ -311,7 +311,7 @@ fun ShelfScreen() {
                 gridItems(shelves, key = { it.second }, contentType = { "shelf" }) { (shelf, filter) ->
                     val (short, name, list) = shelf
                     val console = Console.byId(filter)
-                    val (background, ink) = if (console == null) pinnedLook(filter, Oe.dark) else console.shelf(Oe.dark).let { (back, text) -> SolidColor(back) to text }
+                    val (background, ink) = themedShelf(if (console == null) pinnedLook(filter, Oe.dark) else console.shelf(Oe.dark).let { (back, text) -> SolidColor(back) to text })
                     val isDragged = console != null && console == dragged
                     val moveUp = stringResource(R.string.library_shelf_move_up)
                     val moveDown = stringResource(R.string.library_shelf_move_down)
@@ -635,7 +635,7 @@ private fun ContinueCard(rom: Rom, lastPlayed: Long, height: Dp, modifier: Modif
             Text("${rom.console.short} · ${formatAgo(lastPlayed)}", style = Type.Small, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
         }
         Box(Modifier.size(44.dp).clip(CircleShape).background(Oe.Accent), contentAlignment = Alignment.Center) {
-            Icon(Icons.Play, Color.White, 18.dp, filled = true)
+            Icon(Icons.Play, Oe.OnAccent, 18.dp, filled = true)
         }
     }
 }
@@ -696,6 +696,9 @@ private fun ShelfIconTile(console: Console?, all: Boolean, ink: Color, box: Dp, 
         }
     }
 }
+
+/** A shelf card's [look], or the theme's console list color with its text color when it sets one (issue 1018). */
+private fun themedShelf(look: Pair<Brush, Color>): Pair<Brush, Color> = Oe.ConsoleList?.let { SolidColor(it) to Oe.Text } ?: look
 
 /** A pinned shelf's colours, background and ink: blue for "ALL", purple for "FAV" (issue 655). */
 private fun pinnedLook(filter: String, dark: Boolean): Pair<Brush, Color> =
@@ -1430,7 +1433,7 @@ private fun CheckCircle(picked: Boolean, outline: Color, modifier: Modifier = Mo
             Box(
                 Modifier.size(24.dp).clip(CircleShape).background(Oe.Accent).border(2.dp, Oe.Bg, CircleShape),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Check, Color.White, 16.dp, stroke = 2.5f) }
+            ) { Icon(Icons.Check, Oe.OnAccent, 16.dp, stroke = 2.5f) }
         } else {
             Box(Modifier.size(20.dp).clip(CircleShape).background(hollow).border(2.dp, outline, CircleShape))
         }
@@ -2234,7 +2237,7 @@ fun RecentScreen() {
                 Box(
                     Modifier.size(MinTouchTarget).gamepadFocus(corner = 24.dp, background = Oe.Accent).clip(CircleShape).clickable(onClickLabel = stringResource(R.string.library_continue_game, rom.title), role = Role.Button) { a.play(rom, true, null) },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Play, Color.White, 18.dp, filled = true) }
+                ) { Icon(Icons.Play, Oe.OnAccent, 18.dp, filled = true) }
             }
         }
         item { Spacer(BottomSpace) }

@@ -119,4 +119,8 @@
     <string name="theme_share">Compartir archivo de tema</string>
     <string name="theme_preview_played">Jugado 2 h · hace 3 días</string>
     <string name="theme_preview_slot">Ranura 1 · hoy</string>
+    <string name="theme_section_ready">Listos para usar</string>
+    <string name="theme_ready_hint">Solo lectura. Duplica uno para hacerlo tuyo.</string>
+    <string name="theme_duplicate_named">Duplicar %1$s</string>
+    <string name="theme_key_console_list_bg">Lista de consolas</string>
 </resources>

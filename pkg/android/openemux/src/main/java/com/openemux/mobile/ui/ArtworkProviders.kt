@@ -138,7 +138,7 @@ private fun ProviderRow(
             Switch(
                 setting.enabled, onCheckedChange = null,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White, checkedTrackColor = Oe.Accent, checkedBorderColor = Oe.Accent,
+                    checkedThumbColor = Oe.OnAccent, checkedTrackColor = Oe.Accent, checkedBorderColor = Oe.Accent,
                     uncheckedThumbColor = Oe.Chevron, uncheckedTrackColor = Oe.Raised, uncheckedBorderColor = Oe.Chevron,
                 ),
             )

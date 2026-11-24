@@ -4,7 +4,7 @@ import com.openemux.mobile.data.SkinColorMath
 
 /** The app palette's colors a user theme can repaint (`Oe` in ui/Theme.kt), plus the focus tones. */
 enum class OeToken {
-    BG, NAV_BG, LIBRARY_BG, DETAILS_BG, CONTROL, SURFACE, SURFACE2, RAISED, DIVIDER, SHEET, BORDER,
+    BG, NAV_BG, LIBRARY_BG, DETAILS_BG, CONSOLE_LIST, CONTROL, SURFACE, SURFACE2, RAISED, DIVIDER, SHEET, BORDER,
     TEXT, MUTED, FAINT, CHEVRON, NAV_TEXT, NAV_TEXT_ACTIVE,
     ACCENT, ACCENT_FOCUS, ACCENT_BRIGHT, ACCENT_TEXT, ACCENT_ON_SOFT, ON_ACCENT,
     SOFT, TINT, ON_SOFT, ICON,
@@ -70,6 +70,7 @@ class ResolvedTheme(
                 c[OeToken.DIVIDER] = SkinColorMath.mix(card, text, 0.08f)
             }
             if (changed("popover_bg")) c[OeToken.SHEET] = col("popover_bg")
+            if (changed("console_list_bg")) c[OeToken.CONSOLE_LIST] = col("console_list_bg")
             if (changed("border_color")) c[OeToken.BORDER] = col("border_color")
             if (changed("text_primary")) c[OeToken.TEXT] = text
             if (changed("text_secondary") || changed("window_bg")) {

@@ -118,6 +118,9 @@ class UserThemeTest {
         val forCard = UserTheme.warningsFor("card_bg", problems)
         assertEquals(listOf("text_secondary"), forCard.map { it.first }.distinct())
         assertTrue(UserTheme.warningsFor("accent", problems).isEmpty())
+        // The console list's color is checked with the text on it.
+        val consoles = UserTheme.contrastProblems(base.with("console_list_bg", "#f3f3f6"))
+        assertTrue(consoles.any { it.fg == "text_primary" && it.bg == "console_list_bg" })
         assertSame(ThemeKeys.BY_NAME["accent"], key("accent"))
     }
 }
