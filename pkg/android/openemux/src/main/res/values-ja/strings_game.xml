@@ -110,7 +110,9 @@
     <string name="detail_files_import_save_sub">他のエミュレーターやバックアップから</string>
     <string name="detail_files_restore">以前のセーブデータに戻す</string>
     <string name="detail_files_restore_sub">%1$s に置き換えたセーブデータ</string>
-    <string name="detail_files_parts">%1$d 個のファイル · %2$s</string>
+    <plurals name="detail_files_parts">
+        <item quantity="other">%1$d 個のファイル · %2$s</item>
+    </plurals>
     <string name="detail_files_progress">%1$s / %2$s</string>
     <string name="detail_files_working">処理中…</string>
     <string name="detail_files_exported">「%1$s」をエクスポートしました</string>

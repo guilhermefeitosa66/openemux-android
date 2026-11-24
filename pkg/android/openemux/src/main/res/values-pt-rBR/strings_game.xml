@@ -110,7 +110,10 @@
     <string name="detail_files_import_save_sub">De outro emulador ou de um backup</string>
     <string name="detail_files_restore">Restaurar save anterior</string>
     <string name="detail_files_restore_sub">O save substituído em %1$s</string>
-    <string name="detail_files_parts">%1$d arquivos · %2$s</string>
+    <plurals name="detail_files_parts">
+        <item quantity="one">%1$d arquivo · %2$s</item>
+        <item quantity="other">%1$d arquivos · %2$s</item>
+    </plurals>
     <string name="detail_files_progress">%1$s de %2$s</string>
     <string name="detail_files_working">Trabalhando…</string>
     <string name="detail_files_exported">“%1$s” exportado</string>

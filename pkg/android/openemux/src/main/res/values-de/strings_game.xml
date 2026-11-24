@@ -110,7 +110,10 @@
     <string name="detail_files_import_save_sub">Aus einem anderen Emulator oder einer Sicherung</string>
     <string name="detail_files_restore">Vorherigen Spielstand wiederherstellen</string>
     <string name="detail_files_restore_sub">Der am %1$s ersetzte Spielstand</string>
-    <string name="detail_files_parts">%1$d Dateien · %2$s</string>
+    <plurals name="detail_files_parts">
+        <item quantity="one">%1$d Datei · %2$s</item>
+        <item quantity="other">%1$d Dateien · %2$s</item>
+    </plurals>
     <string name="detail_files_progress">%1$s von %2$s</string>
     <string name="detail_files_working">Läuft…</string>
     <string name="detail_files_exported">„%1$s“ exportiert</string>

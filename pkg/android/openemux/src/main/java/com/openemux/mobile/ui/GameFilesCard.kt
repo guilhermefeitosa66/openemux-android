@@ -171,7 +171,8 @@ fun GameFilesCard(rom: Rom, core: CoreDef, hasAutoState: Boolean, modifier: Modi
 
 /** "16 MB", or "3 files · 512 MB" for a game made of several. */
 private fun exportSize(context: Context, export: FilesExport): String =
-    if (export.zipped) context.getString(R.string.detail_files_parts, export.files.size, size(context, export.bytes)) else size(context, export.bytes)
+    if (export.zipped) context.resources.getQuantityString(R.plurals.detail_files_parts, export.files.size, export.files.size, size(context, export.bytes))
+    else size(context, export.bytes)
 
 private fun size(context: Context, bytes: Long): String = Formatter.formatShortFileSize(context, bytes)
 

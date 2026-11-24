@@ -110,7 +110,10 @@
     <string name="detail_files_import_save_sub">வேறு எமுலேட்டர் அல்லது காப்புப்பிரதியிலிருந்து</string>
     <string name="detail_files_restore">முந்தைய சேமிப்பை மீட்டமை</string>
     <string name="detail_files_restore_sub">%1$s அன்று மாற்றப்பட்ட சேமிப்பு</string>
-    <string name="detail_files_parts">%1$d கோப்புகள் · %2$s</string>
+    <plurals name="detail_files_parts">
+        <item quantity="one">%1$d கோப்பு · %2$s</item>
+        <item quantity="other">%1$d கோப்புகள் · %2$s</item>
+    </plurals>
     <string name="detail_files_progress">%2$s இல் %1$s</string>
     <string name="detail_files_working">செயல்படுகிறது…</string>
     <string name="detail_files_exported">“%1$s” ஏற்றுமதி செய்யப்பட்டது</string>

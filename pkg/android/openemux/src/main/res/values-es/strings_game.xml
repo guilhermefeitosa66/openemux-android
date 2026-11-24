@@ -110,7 +110,11 @@
     <string name="detail_files_import_save_sub">De otro emulador o de una copia</string>
     <string name="detail_files_restore">Restaurar partida anterior</string>
     <string name="detail_files_restore_sub">La partida reemplazada el %1$s</string>
-    <string name="detail_files_parts">%1$d archivos · %2$s</string>
+    <plurals name="detail_files_parts">
+        <item quantity="one">%1$d archivo · %2$s</item>
+        <item quantity="many">%1$d archivos · %2$s</item>
+        <item quantity="other">%1$d archivos · %2$s</item>
+    </plurals>
     <string name="detail_files_progress">%1$s de %2$s</string>
     <string name="detail_files_working">Procesando…</string>
     <string name="detail_files_exported">“%1$s” exportado</string>
