@@ -116,6 +116,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import com.openemux.mobile.ui.theme.ThemeBackdrop
+import com.openemux.mobile.ui.theme.ThemeEditorScreen
+
+/** The library's screens over the theme's library color and picture (issue 1018); the app's own page without a theme. */
+@Composable
+private fun LibraryBackdrop(content: @Composable () -> Unit) {
+    ThemeBackdrop(ActiveTheme.resolved?.libraryImage, ActiveTheme.folder, Oe.LibraryBg, Modifier.fillMaxSize().background(Oe.LibraryBg)) { content() }
+}
 
 object Routes {
     const val SHELF = "shelf"
@@ -138,6 +146,8 @@ object Routes {
     const val SHARE_RECEIVE = "share/receive"
     const val SHARE_ITEMS = "share/items"
     const val SHARE_ADDRESS = "share/address?addr={addr}"
+    /** The theme editor (issue 1018): a saved theme by [id], or a new one from a name and a base. */
+    const val THEME_EDIT = "theme-edit?id={id}&name={name}&base={base}"
 
     fun library(filter: String) = "library/$filter"
     fun rom(key: String) = "rom/${Uri.encode(key)}"
@@ -147,6 +157,8 @@ object Routes {
     fun bios(console: String) = "bios?console=$console"
     fun license(id: String) = "about/license/$id"
     fun shareAddress(address: String) = "share/address?addr=${Uri.encode(address)}"
+    fun themeEdit(id: String) = "theme-edit?id=${Uri.encode(id)}"
+    fun themeNew(name: String, base: String) = "theme-edit?name=${Uri.encode(name)}&base=${Uri.encode(base)}"
 }
 
 /** What every screen needs: the app's data, navigation and the game launcher. */
@@ -331,14 +343,18 @@ fun OpenEmuxRoot() {
                         enterTransition = { fadeIn() },
                         exitTransition = { fadeOut() },
                     ) {
-                        composable(Routes.SHELF) { ShelfScreen() }
-                        composable(Routes.LIBRARY) { LibraryScreen(it.arguments?.getString("filter") ?: "ALL", it) }
-                        composable(Routes.ROM) { DetailScreen(Uri.decode(it.arguments?.getString("key") ?: "")) }
+                        composable(Routes.SHELF) { LibraryBackdrop { ShelfScreen() } }
+                        composable(Routes.LIBRARY) { LibraryBackdrop { LibraryScreen(it.arguments?.getString("filter") ?: "ALL", it) } }
+                        composable(Routes.ROM) { Box(Modifier.fillMaxSize().background(Oe.DetailsBg)) { DetailScreen(Uri.decode(it.arguments?.getString("key") ?: "")) } }
+                        composable(
+                            Routes.THEME_EDIT,
+                            listOf(navArgument("id") { nullable = true; defaultValue = null }, navArgument("name") { nullable = true; defaultValue = null }, navArgument("base") { nullable = true; defaultValue = null }),
+                        ) { ThemeEditorScreen(it.arguments?.getString("id"), it.arguments?.getString("name"), it.arguments?.getString("base")) }
                         composable(Routes.ARTWORK, listOf(navArgument("tab") { defaultValue = "" })) {
                             RememberRowFocus { ArtworkScreen(Uri.decode(it.arguments?.getString("key") ?: ""), it.arguments?.getString("tab")) }
                         }
                         composable(Routes.ARTWORK_PROVIDERS) { RememberRowFocus { ArtworkProvidersScreen() } }
-                        composable(Routes.RECENT) { RecentScreen() }
+                        composable(Routes.RECENT) { LibraryBackdrop { RecentScreen() } }
                         // Rows (ListRow, SwitchRow, SettingTile) get their focus back on these when they come back.
                         composable(Routes.IMPORT) { RememberRowFocus { ImportScreen() } }
                         composable(Routes.SETTINGS) { RememberRowFocus { SettingsScreen(it) } }
@@ -437,13 +453,15 @@ private fun ShareLinks() {
 private fun TabBar(route: String?, modifier: Modifier) {
     // Opaque under the hint bar, fading with it (HintBar's 120ms), so the two never differ mid-fade.
     val alpha by animateFloatAsState(if (InputMode.gamepad) 1f else 0.94f, tween(120), label = "tabBarAlpha")
-    Column(modifier.fillMaxWidth().background(Oe.Bg.copy(alpha = alpha))) {
-        HorizontalDivider(color = Oe.Surface2, thickness = 1.dp)
-        Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Tabs(route)
+    ThemeBackdrop(ActiveTheme.resolved?.navImage, ActiveTheme.folder, Oe.NavBg, modifier.fillMaxWidth().background(Oe.NavBg.copy(alpha = alpha))) {
+        Column(Modifier.fillMaxWidth()) {
+            HorizontalDivider(color = Oe.Surface2, thickness = 1.dp)
+            Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+            ) {
+                Tabs(route)
+            }
         }
     }
 }
@@ -453,8 +471,9 @@ private fun TabBar(route: String?, modifier: Modifier) {
 private fun TabRail(route: String?, tablet: Boolean, width: Dp, modifier: Modifier) {
     val label = stringResource(R.string.nav_rail_label)
     val activeTab = remember { FocusRequester() }
+    ThemeBackdrop(ActiveTheme.resolved?.navImage, ActiveTheme.folder, Oe.NavBg, modifier.fillMaxHeight()) {
     Row(
-        modifier.fillMaxHeight().background(Oe.Bg.copy(alpha = 0.94f)).semantics { contentDescription = label }
+        Modifier.fillMaxHeight().background(Oe.NavBg.copy(alpha = 0.94f)).semantics { contentDescription = label }
             // Only Left from the content moves into the rail, onto the current tab; the first press of a gamepad
             // lands on the screen's own item.
             .focusProperties {
@@ -487,6 +506,7 @@ private fun TabRail(route: String?, tablet: Boolean, width: Dp, modifier: Modifi
             }
         }
         VerticalDivider(color = Oe.Surface2, thickness = 1.dp)
+    }
     }
 }
 
@@ -523,7 +543,7 @@ private fun Tabs(route: String?, pill: Boolean = false, activeTab: FocusRequeste
                 .padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val color = if (active) Oe.AccentText else Oe.Muted
+            val color = if (active) Oe.NavTextActive else Oe.NavText
             if (pill) {
                 // The tablet rail: the active tab sits in a filled pill, its label in the text colour.
                 Box(
@@ -532,7 +552,7 @@ private fun Tabs(route: String?, pill: Boolean = false, activeTab: FocusRequeste
                 ) { Icon(tab.icon, color, 22.dp) }
                 Text(
                     stringResource(tab.label),
-                    style = Type.Caption.copy(color = if (active) Oe.Text else Oe.Muted, fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium),
+                    style = Type.Caption.copy(color = if (active) Oe.Text else Oe.NavText, fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium),
                     maxLines = 1,
                     modifier = Modifier.padding(top = 4.dp),
                 )

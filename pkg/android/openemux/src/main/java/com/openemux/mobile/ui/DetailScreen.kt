@@ -241,7 +241,7 @@ fun RomDetail(
                 if (states.isNotEmpty()) {
                     Text(
                         stringResource(R.string.detail_see_all, states.size), style = Type.Small.copy(color = Oe.AccentText),
-                        modifier = Modifier.gamepadFocus(corner = 8.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { sheet = Sheet.States }.linkTarget().padding(4.dp),
+                        modifier = Modifier.gamepadFocus(corner = 8.dp.themed).clip(RoundedCornerShape(8.dp.themed)).clickable(role = Role.Button) { sheet = Sheet.States }.linkTarget().padding(4.dp),
                     )
                 }
             }
@@ -466,7 +466,7 @@ fun RomDetail(
                         }
                     }
                     if (rom.console.frame != null) {
-                        Column(Modifier.padding(top = 28.dp, bottom = 24.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Oe.Surface).padding(18.dp)) {
+                        Column(Modifier.padding(top = 28.dp, bottom = 24.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp.themed)).background(Oe.Surface).padding(18.dp)) {
                             colorHeader()
                             ColorSwatches(color, Modifier.padding(top = 12.dp)) { id -> lib.updateRom(key) { it.copy(color = id) } }
                         }
@@ -607,7 +607,7 @@ private fun RemoveCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
     val label = stringResource(R.string.detail_remove_from_library)
     Card(modifier) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 50.dp).gamepadFocus(corner = 0.dp).rowFocus(label)
+            Modifier.fillMaxWidth().heightIn(min = 50.dp).gamepadFocus(corner = 0.dp.themed).rowFocus(label)
                 .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -685,7 +685,7 @@ private fun CoreSheet(rom: Rom, onClose: () -> Unit) {
             }
             if (states.isNotEmpty()) {
                 Row(
-                    Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Oe.WarnBg).padding(horizontal = 14.dp, vertical = 12.dp),
+                    Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp.themed)).background(Oe.WarnBg).padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Icon(Icons.Warn, Oe.WarnText, 18.dp)
@@ -766,7 +766,7 @@ private fun StatesSheet(states: List<SaveState>, onPick: (SaveState) -> Unit, on
 @Composable
 fun ShaderTile(id: String, name: String, selected: Boolean, onClick: () -> Unit) {
     val crt = id == "zfast" || id == "geom"
-    Column(Modifier.width(108.dp).gamepadFocus(corner = 12.dp, mat = FocusMat).clickable(onClickLabel = name, role = Role.RadioButton, onClick = onClick), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.width(108.dp).gamepadFocus(corner = 12.dp.themed, mat = FocusMat).clickable(onClickLabel = name, role = Role.RadioButton, onClick = onClick), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(
             Modifier.size(108.dp, 76.dp).clip(RoundedCornerShape(if (crt) 16.dp else 10.dp))
                 .border(if (selected) 2.5.dp else 1.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(if (crt) 16.dp else 10.dp))

@@ -30,6 +30,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import android.content.res.Configuration
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
+import com.openemux.mobile.ui.theme.ThemeFiles
 import com.openemux.mobile.game.PadInfo
 import com.openemux.mobile.share.ShareNotifications
 import com.openemux.mobile.ui.AppWindow
@@ -106,7 +109,10 @@ class MainActivity : ComponentActivity() {
         if (intent?.action != ImportActivity.ACTION_IMPORT) return
         val clip = intent.clipData ?: return
         // This activity is exported too: the guard against the app's own files holds here, not only in ImportActivity.
-        val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.filter { isAcceptableImport(it) }
+        val all = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.filter { isAcceptableImport(it) }
+        // A theme file (issue 1018) becomes a theme; everything else goes to the library as before.
+        val (themes, uris) = all.partition { ThemeFiles.isThemeFile(ThemeFiles.displayName(this, it)) }
+        themes.forEach { uri -> lifecycleScope.launch { ThemeFiles.finishImport(this@MainActivity, ThemeFiles.import(this@MainActivity, uri)) } }
         // Files that arrive while others still wait join them instead of replacing them.
         if (uris.isNotEmpty()) (application as OpenEmuxApp).externalImports.update { (it.orEmpty() + uris).distinct() }
     }

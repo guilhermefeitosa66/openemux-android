@@ -212,6 +212,17 @@ private val vectors = HashMap<IconKey, ImageVector>()
 
 @Composable
 fun Icon(path: String, color: Color, size: Dp = 20.dp, stroke: Float = 2f, filled: Boolean = false, modifier: Modifier = Modifier) {
+    // A user theme (issue 1018) sizes every icon and colors the plain ones (in the text colors); status and art keep theirs.
+    val theme = ActiveTheme.resolved
+    if (theme != null) {
+        val tint = Oe.IconTint?.takeIf { color == Oe.Muted || color == Oe.Chevron || color == Oe.Text }
+        if (tint != null || theme.iconScale != 1f) return ThemedIcon(path, tint ?: color, size * theme.iconScale, stroke, filled, modifier)
+    }
+    ThemedIcon(path, color, size, stroke, filled, modifier)
+}
+
+@Composable
+private fun ThemedIcon(path: String, color: Color, size: Dp, stroke: Float, filled: Boolean, modifier: Modifier) {
     // The floppies' line follows their size (issue 945), wherever they are drawn.
     val line = if (path == Icons.SaveState || path == Icons.LoadState) Icons.floppyStroke(size.value) else stroke
     val vector = vectors.getOrPut(IconKey(path, color, size, line, filled)) {
@@ -372,15 +383,15 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     Row(
         modifier
             .height(height)
-            .gamepadFocus(corner = 16.dp, background = if (enabled) Oe.Accent else Oe.Surface2)
-            .clip(RoundedCornerShape(16.dp))
+            .gamepadFocus(corner = 16.dp.themed, background = if (enabled) Oe.Accent else Oe.Surface2)
+            .clip(RoundedCornerShape(16.dp.themed))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = sidePadding),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, Color.White, 18.dp, filled = icon == Icons.Play)
+            Icon(icon, Oe.OnAccent, 18.dp, filled = icon == Icons.Play)
             Spacer(Modifier.width(8.dp))
         }
         Text(text, style = Type.Button)
@@ -403,7 +414,7 @@ fun SecondaryButton(
     busy: Boolean = false,
     enabled: Boolean = true,
 ) {
-    val corner = if (compact) 14.dp else 16.dp
+    val corner = (if (compact) 14.dp else 16.dp).themed
     val inert = busy || !enabled
     Row(
         modifier
@@ -436,9 +447,9 @@ fun SecondaryButton(
 fun SettingTile(label: String, value: String, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .heightIn(min = 58.dp)
-            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp, background = Oe.Surface).rowFocus(label) else it.background(Oe.Surface, RoundedCornerShape(14.dp)) }
-            .clip(RoundedCornerShape(14.dp))
+            .heightIn(min = 58.dp.dense)
+            .let { if (onClick != null) it.gamepadFocus(corner = 14.dp.themed, background = Oe.Surface).rowFocus(label) else it.background(Oe.Surface, RoundedCornerShape(14.dp.themed)) }
+            .clip(RoundedCornerShape(14.dp.themed))
             .let { if (onClick != null) it.clickable(role = Role.Button, onClick = onClick) else it }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.Center,
@@ -450,7 +461,8 @@ fun SettingTile(label: String, value: String, onClick: (() -> Unit)?, modifier: 
 
 @Composable
 fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Oe.Surface)) { content() }
+    val shape = RoundedCornerShape(18.dp.themed)
+    Column(modifier.fillMaxWidth().themedEdge(shape).clip(shape).background(Oe.Surface)) { content() }
 }
 
 @Composable
@@ -471,11 +483,11 @@ fun ListRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = minHeight)
+            .heightIn(min = minHeight.dense)
             .let { if (selected) it.background(Oe.AccentTint).semantics { this.selected = true } else it }
             .let { if (onClick != null && enabled) it.paneOpener(selected).gamepadFocus(corner = 0.dp).rowFocus(label).clickable(role = Role.Button, onClick = onClick) else it }
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp.dense),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -655,11 +667,11 @@ fun RadioCard(
     Row(
         Modifier
             .fillMaxWidth()
-            .gamepadFocus(corner = 16.dp, background = if (selected) Oe.AccentTint else background)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp))
+            .gamepadFocus(corner = 16.dp.themed, background = if (selected) Oe.AccentTint else background)
+            .clip(RoundedCornerShape(16.dp.themed))
+            .border(1.5.dp, if (selected) Oe.AccentBright else Oe.Border, RoundedCornerShape(16.dp.themed))
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp.dense),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -782,8 +794,6 @@ fun EmptyState(title: String, body: String, action: String?, onAction: () -> Uni
         }
     }
 }
-
-val ScreenPadding = PaddingValues(horizontal = 20.dp)
 
 /** Full width, centred, never wider than a comfortable line of text: no change on a phone, a column on a tablet. */
 // The last fillMaxWidth keeps the column at that width even when its content is narrower, so nothing shrinks and recentres.
